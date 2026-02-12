@@ -1,0 +1,50 @@
+{
+  "api": "Wildberries Suppliers API",
+  "endpoint": "/api/v3/stocks/{warehouseId}",
+  "method": "GET",
+  "url": "https://suppliers-api.wildberries.ru/api/v3/stocks/{warehouseId}",
+  "description": "Получение остатков на конкретном складе продавца (FBS)",
+  "parameters": {
+    "warehouseId": "ID склада из /api/v3/warehouses"
+  },
+  "request_body": {
+    "skus": [
+      "22068-1",
+      "22068-2",
+      "22069"
+    ]
+  },
+  "response_structure": {
+    "stocks": "массив остатков по артикулам на этом складе"
+  },
+  "example_response": {
+    "stocks": [
+      {
+        "supplierArticle": "22068-1",
+        "sku": "216675685",
+        "amount": 25
+      },
+      {
+        "supplierArticle": "22068-2",
+        "sku": "216675686",
+        "amount": 10
+      }
+    ]
+  },
+  "usage_by_column": {
+    "column_AB": "GET /api/v3/stocks/84321 -> quantity для ФЕРОН ФБС",
+    "column_AC": "GET /api/v3/stocks/84322 -> quantity для ЭТМ САМАРА",
+    "field_mapping": {
+      "supplierArticle": "артикул продавца (из колонки A)",
+      "sku": "nmId (артикул WB)",
+      "amount": "количество товара (остаток)"
+    }
+  },
+  "workflow": [
+    "1. Получить список складов: GET /api/v3/warehouses",
+    "2. Найти нужный склад по названию (например, 'ФЕРОН ФБС')",
+    "3. Получить ID склада (например, 84321)",
+    "4. Получить остатки: GET /api/v3/stocks/84321",
+    "5. Отобразить в колонке AB (28)"
+  ]
+}

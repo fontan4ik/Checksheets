@@ -1,0 +1,36 @@
+{
+  "items": [
+    {
+      "product_id": 109652992,
+      "offer_id": "22068-1",
+      "stocks": [
+        {
+          "type": "fbo",
+          "present": 1069,
+          "reserved": 2,
+          "sku": 301854987,
+          "shipment_type": "SHIPMENT_TYPE_GENERAL",
+          "warehouse_ids": []
+        },
+        {
+          "type": "fbs",
+          "present": 527,
+          "reserved": 0,
+          "sku": 301854987,
+          "shipment_type": "SHIPMENT_TYPE_GENERAL",
+          "warehouse_ids": []
+        },
+        {
+          "type": "fbs",
+          "present": 0,
+          "reserved": 0,
+          "sku": 301854997,
+          "shipment_type": "SHIPMENT_TYPE_GENERAL",
+          "warehouse_ids": []
+        }
+      ]
+    }
+  ],
+  "total": 1,
+  "cursor": "WzEwOTY1Mjk5MiwxMDk2NTI5OTJd"
+}

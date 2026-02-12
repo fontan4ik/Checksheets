@@ -1,0 +1,41 @@
+{
+  "items": [
+    {
+      "product_id": 123456789,
+      "stocks": [
+        {
+          "type": "fbo",
+          "present": 15,
+          "reserved": 2
+        },
+        {
+          "type": "fbs",
+          "present": 8,
+          "reserved": 1
+        },
+        {
+          "type": "fbs",
+          "present": 5,
+          "reserved": 0,
+          "warehouse_id": 123456,
+          "warehouse_name": "Склад Москва"
+        }
+      ]
+    },
+    {
+      "product_id": 987654321,
+      "stocks": [
+        {
+          "type": "fbo",
+          "present": 0,
+          "reserved": 0
+        },
+        {
+          "type": "fbs",
+          "present": 25,
+          "reserved": 3
+        }
+      ]
+    }
+  ]
+}

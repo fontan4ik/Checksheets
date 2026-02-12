@@ -1,0 +1,87 @@
+{
+  "result": [
+    {
+      "offer_id": "52065-1",
+      "product_id": 123456789,
+      "sku": 12345,
+      "name": "Пресс гидравлический ручной КВТ ПГР-70 для опрессовки наконечников и гильз 4-70мм2",
+      "primary_image": "https://cdn-image.ozon.ru/...",
+      "description_category_id": 17035473,
+      "attributes": [
+        {
+          "id": 85,
+          "complex_id": 0,
+          "attribute_name": "Бренд",
+          "values": [
+            {
+              "dictionary_value_id": 115849592,
+              "value": "КВТ"
+            }
+          ]
+        },
+        {
+          "id": 9048,
+          "complex_id": 0,
+          "attribute_name": "Артикул производителя",
+          "values": [
+            {
+              "dictionary_value_id": 0,
+              "value": "52065"
+            }
+          ]
+        },
+        {
+          "id": 4191,
+          "complex_id": 0,
+          "attribute_name": "Описание",
+          "values": [
+            {
+              "dictionary_value_id": 0,
+              "value": "Предназначен для закрепления наконечников..."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "offer_id": "TR089-1",
+      "product_id": 987654321,
+      "sku": 54321,
+      "name": "Светильник трековый Gauss цилиндр 8W 600lm 4000K 180-220V IP20 59*164мм белый линза 50 LED 1/50",
+      "primary_image": "https://cdn-image.ozon.ru/...",
+      "description_category_id": 17035473,
+      "attributes": [
+        {
+          "id": 85,
+          "complex_id": 0,
+          "values": [
+            {
+              "dictionary_value_id": 970989081,
+              "value": "Gauss"
+            }
+          ]
+        },
+        {
+          "id": 9048,
+          "complex_id": 0,
+          "values": [
+            {
+              "dictionary_value_id": 0,
+              "value": "019ab5dc91b07999b68acf91328614ab"
+            }
+          ]
+        },
+        {
+          "id": 23171,
+          "complex_id": 0,
+          "values": [
+            {
+              "dictionary_value_id": 0,
+              "value": "#Светильниктрековый #светильник_круглый"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

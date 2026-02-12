@@ -1,0 +1,1079 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Feron клиентский API",
+    "description": "REST API комании Feron предназначен для получения списка товаров, описания, свойств и остатков товаров в базе Feron, посредством HTTPS-запросов.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "servers": [],
+  "tags": [],
+  "paths": {
+    "/v1/products/list": {
+      "post": {
+        "operationId": "ProductsController_list",
+        "summary": "Получает данные списка товаров, с опциональным фильтром по артикулам",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductsListRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Product"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Товары"
+        ],
+        "security": [
+          {
+            "API-KEY": [
+              "API-KEY"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/products/{code}": {
+      "get": {
+        "operationId": "ProductsController_findOne",
+        "summary": "Получает данные существующего товара по его артикулу",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "description": "Артикул товара",
+            "example": "38269",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Товары"
+        ],
+        "security": [
+          {
+            "API-KEY": [
+              "API-KEY"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/stocks/list": {
+      "post": {
+        "operationId": "StocksController_list",
+        "summary": "Получает остатки списка товаров, с опциональным фильтром по артикулам",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StocksListRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StockList"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Остатки"
+        ],
+        "security": [
+          {
+            "API-KEY": [
+              "API-KEY"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/stocks/{code}": {
+      "get": {
+        "operationId": "StocksController_findOne",
+        "summary": "Получает остатки существующего товара по его артикулу",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "description": "Артикул товара",
+            "example": "38269",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Остатки"
+        ],
+        "security": [
+          {
+            "API-KEY": [
+              "API-KEY"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/prices/list": {
+      "post": {
+        "operationId": "PricesController_list",
+        "summary": "Получает цены списка товаров, с опциональным фильтром по артикулам",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PricesListRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PriceList"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Цены"
+        ],
+        "security": [
+          {
+            "API-KEY": [
+              "API-KEY"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/prices/{code}": {
+      "get": {
+        "operationId": "PricesController_findOne",
+        "summary": "Получает цены существующего товара по его артикулу",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "description": "Артикул товара",
+            "example": "38269",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotFoundErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Цены"
+        ],
+        "security": [
+          {
+            "API-KEY": [
+              "API-KEY"
+            ]
+          }
+        ]
+      }
+    },
+    "/v1/reports/sellout": {
+      "post": {
+        "operationId": "ReportsController_create",
+        "summary": "Предназначен для пересылки в компанию Ферон отчетных данных по продажам за указанные периоды",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BadRequestResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnauthorizedErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalServerErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Исходящие отчеты"
+        ],
+        "security": [
+          {
+            "API-KEY": [
+              "API-KEY"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "API-KEY": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "API-KEY",
+        "description": "Enter your API key"
+      }
+    },
+    "schemas": {
+      "ProductsListRequest": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "description": "Массив артикулов товаров (необязательный)",
+            "example": [
+              "48546",
+              "38269"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ProductProperty": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Наименование свойства товара",
+            "example": "Мощность, Вт"
+          },
+          "value": {
+            "type": "string",
+            "description": "Значение свойства товара",
+            "example": "15"
+          }
+        },
+        "required": [
+          "name",
+          "value"
+        ]
+      },
+      "ProductFileType": {
+        "type": "string",
+        "enum": [
+          "certificate",
+          "manual",
+          "description",
+          "declaration"
+        ]
+      },
+      "ProductFile": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "description": "Тип файла",
+            "$ref": "#/components/schemas/ProductFileType"
+          },
+          "link": {
+            "type": "string",
+            "description": "Ссылка на файл",
+            "example": "https://feron.ru/postup/certificate/01381 Лампы светодиодные тм Feron, серия LB. Сертификат по 004 и 020_1.pdf"
+          }
+        },
+        "required": [
+          "type",
+          "link"
+        ]
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Артикул товара",
+            "example": "38269"
+          },
+          "brand": {
+            "type": "string",
+            "description": "Бренд товара",
+            "example": "FERON"
+          },
+          "model": {
+            "type": "string",
+            "description": "Модель товара",
+            "example": "AL164"
+          },
+          "name": {
+            "type": "string",
+            "description": "Наименование товара",
+            "example": "LB-474 (25W) 230V GX70 4000K, для натяжных потолков"
+          },
+          "printName": {
+            "type": "string",
+            "description": "Наименовани для документов",
+            "example": "Лампа cветодиодная, (25W) 230V GX70 4000K, LB-474"
+          },
+          "description": {
+            "type": "string",
+            "description": "Краткое описание товара",
+            "example": "Светильники трековые на шинопровод GX53, однофазный (ИВО) FERON AL164, 15W, 230V, цвет белый, корпус алюминий, вращение →350°/↓90°, 92*92*55 мм"
+          },
+          "packing_ratio": {
+            "type": "number",
+            "description": "Кратность минимальной упаковки",
+            "example": 1
+          },
+          "packing_unit": {
+            "type": "string",
+            "description": "Единица измерения",
+            "example": "шт"
+          },
+          "properties": {
+            "description": "Свойства товара",
+            "example": [
+              {
+                "name": "Мощность, Вт",
+                "value": "15"
+              },
+              {
+                "name": "Тип лампы",
+                "value": "GX53"
+              },
+              {
+                "name": "Напряжение, Вольт",
+                "value": "230"
+              },
+              {
+                "name": "Материал корпуса",
+                "value": "алюминий"
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductProperty"
+            }
+          },
+          "images": {
+            "description": "Ссылки на изображения",
+            "example": [
+              "https://shop.feron.ru/upload/iblock/6da/8flk2etl4useyou64y6v5n8silb9w2r0.jpg",
+              "https://shop.feron.ru/upload/iblock/470/470a8c82a254a8d51c27d2893ecf26b8.jpg",
+              "https://shop.feron.ru/upload/iblock/8ad/rlry8bhgxqt708d40qcddm6xcijiaukt.jpg"
+            ],
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
+          },
+          "files": {
+            "description": "Ссылки на файлы",
+            "example": [
+              {
+                "type": "certificate",
+                "value": "https://feron.ru/postup/certificate/01381 Лампы светодиодные тм Feron, серия LB. Сертификат по 004 и 020_1.pdf"
+              },
+              {
+                "type": "declaration",
+                "value": "https://feron.ru/postup/certificate/87137 Лампы светодиодные тм Feron серия LB Декларация по 037_1.jpg"
+              },
+              {
+                "type": "manual",
+                "value": "https://feron.ru/instructions/инструкция филаментные лампы.docx"
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductFile"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "brand",
+          "model",
+          "name",
+          "printName",
+          "description",
+          "packing_ratio",
+          "packing_unit",
+          "properties",
+          "images",
+          "files"
+        ]
+      },
+      "BadRequestResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "description": "Код ошибки",
+            "example": "400"
+          },
+          "message": {
+            "description": "Текст сообщения ошибки",
+            "example": [
+              "Bad Request error message"
+            ],
+            "type": "array",
+            "items": {
+              "type": "array"
+            }
+          },
+          "error": {
+            "type": "string",
+            "description": "Описание ошибки",
+            "example": "Bad Request"
+          }
+        },
+        "required": [
+          "statusCode",
+          "message",
+          "error"
+        ]
+      },
+      "UnauthorizedErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "description": "Код ошибки",
+            "example": "401"
+          },
+          "message": {
+            "type": "string",
+            "description": "Текст сообщения ошибки",
+            "example": "Unauthorized"
+          }
+        },
+        "required": [
+          "statusCode",
+          "message"
+        ]
+      },
+      "InternalServerErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "description": "Код ошибки",
+            "example": "500"
+          },
+          "message": {
+            "type": "string",
+            "description": "Текст сообщения ошибки",
+            "example": "Internal server error"
+          }
+        },
+        "required": [
+          "statusCode",
+          "message"
+        ]
+      },
+      "NotFoundErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": {
+            "type": "number",
+            "description": "Код ошибки",
+            "example": "404"
+          },
+          "message": {
+            "type": "string",
+            "description": "Текст сообщения ошибки",
+            "example": "Not found error message"
+          },
+          "error": {
+            "type": "string",
+            "description": "Описание ошибки",
+            "example": "Not found"
+          }
+        },
+        "required": [
+          "statusCode",
+          "message",
+          "error"
+        ]
+      },
+      "StocksListRequest": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "description": "Массив артикулов товаров (необязательный)",
+            "example": [
+              "48546",
+              "38269"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Stock": {
+        "type": "object",
+        "properties": {
+          "warehouseId": {
+            "type": "string",
+            "description": "Идентификатор склада",
+            "example": "fc154c92-924a-4e6f-8a3d-02442c9893b6"
+          },
+          "warehouse": {
+            "type": "string",
+            "description": "Наименование склада",
+            "example": "moscow"
+          },
+          "stock": {
+            "type": "number",
+            "description": "Количетсво остаток",
+            "example": 2520
+          },
+          "overLimit": {
+            "type": "boolean",
+            "description": "Признак того что товара есть больше указанного остатка, т.е. если stock=2520 и overLimit=true значит остаток >2520",
+            "example": true
+          }
+        },
+        "required": [
+          "warehouseId",
+          "warehouse",
+          "stock",
+          "overLimit"
+        ]
+      },
+      "StockList": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Артикул товара",
+            "example": "38269"
+          },
+          "stocks": {
+            "description": "Остатки на складах",
+            "example": [
+              {
+                "warehouse": "moscow",
+                "stock": 2500,
+                "overLimit": true
+              },
+              {
+                "warehouse": "novosibirsk",
+                "stock": 1200,
+                "overLimit": false
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Stock"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "stocks"
+        ]
+      },
+      "PricesListRequest": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "description": "Массив артикулов товаров (необязательный)",
+            "example": [
+              "48546",
+              "38269"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Price": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Вид цены",
+            "example": "rrc"
+          },
+          "price": {
+            "type": "number",
+            "description": "Цена",
+            "example": 1250.42
+          }
+        },
+        "required": [
+          "type",
+          "price"
+        ]
+      },
+      "PriceList": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Артикул товара",
+            "example": "38269"
+          },
+          "prices": {
+            "description": "Цены на товар",
+            "example": [
+              {
+                "type": "rrc",
+                "price": 1250.42
+              },
+              {
+                "type": "mic",
+                "price": 665.4
+              }
+            ],
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Price"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "prices"
+        ]
+      },
+      "SalesData": {
+        "type": "object",
+        "properties": {
+          "regionCode": {
+            "type": "number",
+            "description": "Код региона продажи",
+            "example": 77
+          },
+          "regionString": {
+            "type": "string",
+            "description": "Текстовое наименование региона",
+            "example": "Москва"
+          },
+          "federalDistrict": {
+            "type": "string",
+            "description": "Федеральный округ",
+            "example": "ЦФО"
+          },
+          "year": {
+            "type": "number",
+            "description": "Год отчетного периода",
+            "example": 2023
+          },
+          "month": {
+            "type": "number",
+            "description": "Месяц отчетного периода",
+            "example": 2
+          },
+          "productCode": {
+            "type": "string",
+            "description": "Артикул",
+            "example": "abc_12345"
+          },
+          "feronProductCode": {
+            "type": "string",
+            "description": "Артикул Ферон",
+            "example": "48546"
+          },
+          "productName": {
+            "type": "string",
+            "description": "Наименование товара",
+            "example": "FERON AL164 светильник трековый под лампу GX53, белый"
+          },
+          "feronProductName": {
+            "type": "string",
+            "description": "Наименование товара Ферон",
+            "example": "AL164 светильник трековый под лампу GX53, белый"
+          },
+          "revenue": {
+            "type": "number",
+            "description": "Выручка",
+            "example": 123456.78
+          },
+          "value": {
+            "type": "number",
+            "description": "Выручка в ценах закупки",
+            "example": 43456.78
+          },
+          "quantity": {
+            "type": "number",
+            "description": "Количество проданного товара за период",
+            "example": 255
+          }
+        },
+        "required": [
+          "regionString",
+          "year",
+          "month",
+          "productCode",
+          "feronProductCode",
+          "productName",
+          "feronProductName",
+          "revenue",
+          "quantity"
+        ]
+      },
+      "SalesReportRequest": {
+        "type": "object",
+        "properties": {
+          "salesData": {
+            "description": "Массив данных о продажах",
+            "example": [
+              {
+                "regionCode": 77,
+                "regionString": "Москва",
+                "federalDistrict": "ЦФО",
+                "year": 2023,
+                "month": 2,
+                "productCode": "abc_12345",
+                "feronProductCode": "48546",
+                "productName": "FERON AL164 светильник трековый под лампу GX53, белый",
+                "feronProductName": "AL164 светильник трековый под лампу GX53, белый",
+                "revenue": 123456.78,
+                "value": 43456.78,
+                "quantity": 255
+              }
+            ],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SalesData"
+              }
+            ]
+          }
+        },
+        "required": [
+          "salesData"
+        ]
+      },
+      "ReportResult": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  }
+}

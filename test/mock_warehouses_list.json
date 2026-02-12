@@ -1,0 +1,6 @@
+{
+  "api": "marketplace-api / suppliers-api",
+  "endpoint": "/api/v3/warehouses",
+  "method": "GET",
+  "description": "Список FBS складов продавца"
+}

@@ -1,0 +1,83 @@
+{
+  "items": [
+    {
+      "acquiring": 14.8,
+      "offer_id": "22068-1",
+      "product_id": 109652992,
+      "volume_weight": 0.1,
+      "commissions": {
+        "fbo_deliv_to_customer_amount": 25,
+        "fbo_direct_flow_trans_max_amount": 143.39,
+        "fbo_direct_flow_trans_min_amount": 46.77,
+        "fbo_return_flow_amount": 46.77,
+        "fbs_deliv_to_customer_amount": 25,
+        "fbs_direct_flow_trans_min_amount": 81.34,
+        "fbs_direct_flow_trans_max_amount": 81.34,
+        "fbs_first_mile_max_amount": 20,
+        "fbs_first_mile_min_amount": 10,
+        "fbs_return_flow_amount": 81.34,
+        "sales_percent_fbo": 37,
+        "sales_percent_fbs": 45,
+        "sales_percent_rfbs": 41,
+        "sales_percent_fbp": 41
+      },
+      "marketing_actions": {
+        "current_period_from": null,
+        "current_period_to": null,
+        "actions": [
+          {
+            "title": "Эластичный бустинг. Без ограничения срока действия",
+            "value": 1480,
+            "date_from": "2025-03-19T21:00:44Z",
+            "date_to": "2026-12-31T20:59:59Z"
+          },
+          {
+            "title": "РК.Рассрочка 0-0-6 до 31.01.3031",
+            "value": 6,
+            "date_from": "2025-12-19T11:00:00Z",
+            "date_to": "2026-04-30T19:50:00Z"
+          },
+          {
+            "title": "РК.Рассрочка 0-0-12 до 31.01.2026",
+            "value": 12,
+            "date_from": "2025-12-19T11:00:00Z",
+            "date_to": "2026-04-30T19:50:00Z"
+          }
+        ],
+        "ozon_actions_exist": false
+      },
+      "price": {
+        "auto_action_enabled": true,
+        "currency_code": "RUB",
+        "marketing_seller_price": 1480,
+        "min_price": 1444,
+        "old_price": 2426,
+        "price": 1516,
+        "retail_price": 0,
+        "vat": 0.22,
+        "auto_add_to_ozon_actions_list_enabled": true,
+        "net_price": 473
+      },
+      "price_indexes": {
+        "external_index_data": {
+          "min_price": 724,
+          "min_price_currency": "RUB",
+          "price_index_value": 1.14
+        },
+        "ozon_index_data": {
+          "min_price": 832,
+          "min_price_currency": "RUB",
+          "price_index_value": 1.01
+        },
+        "color_index": "GREEN",
+        "self_marketplaces_index_data": {
+          "min_price": 980,
+          "min_price_currency": "RUB",
+          "price_index_value": 0.86
+        }
+      }
+    }
+  ],
+  "cursor": "WzEwOTY1Mjk5MiwxMDk2NTI5OTJd",
+  "total": 1
+}

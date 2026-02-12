@@ -1,0 +1,10 @@
+{
+  "title": "path not found",
+  "detail": "Please consult the https://dev.wildberries.ru/openapi/api-information",
+  "code": "9995b4770d66c f3e1c2a5",
+  "requestId": "daec6b9839e7aa63014f3b25bb2ed1c7",
+  "origin": "s2s-api-auth-stat",
+  "status": 404,
+  "statusText": "Not Found",
+  "timestamp": "2026-02-04T03:58:42Z"
+}

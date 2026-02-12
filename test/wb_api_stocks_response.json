@@ -1,0 +1,23 @@
+[
+  {
+    "supplierArticle": "52065-1",
+    "quantity": 25,
+    "nmId": 12345678,
+    "barcode": "4601234567890",
+    "is_on_site_stocks": 1
+  },
+  {
+    "supplierArticle": "TR089-1",
+    "quantity": 12,
+    "nmId": 87654321,
+    "barcode": "4600987654321",
+    "is_on_site_stocks": 1
+  },
+  {
+    "supplierArticle": "6302-1",
+    "quantity": 0,
+    "nmId": 11111111,
+    "barcode": "4601111111111",
+    "is_on_site_stocks": 0
+  }
+]

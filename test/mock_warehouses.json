@@ -1,0 +1,18 @@
+{
+  "warehouses": [
+    {
+      "id": 1449484,
+      "name": "ФБС ФЕРОН МОСКВА",
+      "officeId": 10110,
+      "isFbs": true,
+      "isDbs": false
+    },
+    {
+      "id": 798761,
+      "name": "ВольтМир",
+      "officeId": 128,
+      "isFbs": true,
+      "isDbs": false
+    }
+  ]
+}

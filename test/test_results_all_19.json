@@ -1,0 +1,128 @@
+[
+  {
+    "col": "A (1)",
+    "name": "Артикул",
+    "value": "22068-1",
+    "expected": "22068-1"
+  },
+  {
+    "col": "B (2)",
+    "name": "Модель",
+    "value": "SEN30_220",
+    "expected": "22068"
+  },
+  {
+    "col": "C (3)",
+    "name": "Бренд",
+    "value": "Feron",
+    "expected": "Feron"
+  },
+  {
+    "col": "D (4)",
+    "name": "Артикул производителя",
+    "value": "SEN30_220",
+    "expected": "SEN30_220"
+  },
+  {
+    "col": "E (5)",
+    "name": "Картинка",
+    "value": "Да",
+    "expected": "Да"
+  },
+  {
+    "col": "F (6)",
+    "name": "Остаток ФБО ОЗОН",
+    "value": 0,
+    "expected": 1069
+  },
+  {
+    "col": "G (7)",
+    "name": "Остаток ФБС ОЗОН",
+    "value": 0,
+    "expected": 527
+  },
+  {
+    "col": "H (8)",
+    "name": "ОСТ ФБС МСК ОЗОН",
+    "value": 0,
+    "expected": 0
+  },
+  {
+    "col": "I (9)",
+    "name": "Уход Мес ОЗОН",
+    "value": 1254,
+    "expected": 1252
+  },
+  {
+    "col": "J (10)",
+    "name": "Уход КВ ОЗОН",
+    "value": 2447,
+    "expected": 2452
+  },
+  {
+    "col": "K (11)",
+    "name": "ЦЕНА ОЗОН",
+    "value": 0,
+    "expected": 1480
+  },
+  {
+    "col": "L (12)",
+    "name": "Сумма заказов Мес ОЗОН",
+    "value": 1817899,
+    "expected": 1816419
+  },
+  {
+    "col": "M (13)",
+    "name": "ЦЕНА ВБ",
+    "value": 0,
+    "expected": 1335
+  },
+  {
+    "col": "N (14)",
+    "name": "Сумма заказов Мес ВБ",
+    "value": 5276,
+    "expected": 5276
+  },
+  {
+    "col": "O (15)",
+    "name": "Остаток ФБО ВБ",
+    "value": 0,
+    "expected": 36
+  },
+  {
+    "col": "P (16)",
+    "name": "Остаток ФБС ВБ",
+    "value": 0,
+    "expected": 0
+  },
+  {
+    "col": "R (18)",
+    "name": "Уход Мес ВБ",
+    "value": 0,
+    "expected": 4
+  },
+  {
+    "col": "S (19)",
+    "name": "Уход КВ ВБ",
+    "value": 0,
+    "expected": 19
+  },
+  {
+    "col": "T (20)",
+    "name": "Артикул ВБ (nmId)",
+    "value": 0,
+    "expected": ">0"
+  },
+  {
+    "col": "U (21)",
+    "name": "Product_id Ozon",
+    "value": "-",
+    "expected": "-"
+  },
+  {
+    "col": "V (22)",
+    "name": "SKU Ozon",
+    "value": "301854987",
+    "expected": "301854987"
+  }
+]

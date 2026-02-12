@@ -1,0 +1,6 @@
+{
+  "title": "Invalid request body",
+  "detail": "code=400, message=invalid: currentPeriod (field required), stockType (field required), skipDeletedNm (field required), orderBy (field required), availabilityFilters (field required), offset (field required), internal=invalid: currentPeriod (field required), stockType (field required), skipDeletedNm (field required), orderBy (field required), availabilityFilters (field required), offset (field required)",
+  "requestId": "6a06be4e-f4a1-45d2-8d25-126ab740461e",
+  "origin": "analytics-open-api"
+}

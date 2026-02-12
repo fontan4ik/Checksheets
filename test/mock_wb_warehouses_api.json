@@ -1,0 +1,74 @@
+{
+  "api": "Wildberries Suppliers API",
+  "endpoint": "/api/v3/warehouses",
+  "method": "GET",
+  "url": "https://suppliers-api.wildberries.ru/api/v3/warehouses",
+  "description": "Получение списка складов продавца (FBS/DBS)",
+  "response_structure": {
+    "type": "array",
+    "item_fields": {
+      "id": "число - уникальный ID склада",
+      "name": "строка - название склада",
+      "address": "объект - адрес склада",
+      "type": "строка - тип склада (FBS/DBS)",
+      "active": "булево - активен ли склад"
+    }
+  },
+  "example_response": [
+    {
+      "id": 84321,
+      "name": "ФЕРОН ФБС",
+      "address": {
+        "region": "Самарская область",
+        "city": "с. Преображенка",
+        "street": "ул. Индустриальная",
+        "house": "1Бк9",
+        "fullAddress": "ул. Индустриальная,1Бк9, с.Преображенка, Самарская обл."
+      },
+      "type": "FBS",
+      "active": true
+    },
+    {
+      "id": 84322,
+      "name": "ЭТМ САМАРА",
+      "address": {
+        "region": "Самарская область",
+        "city": "Самара",
+        "street": "ул. Ново-Вокзальная",
+        "house": "124/А, к.1",
+        "fullAddress": "Самарская область, г.Самара, ул. Ново-Вокзальная, 124/А, к.1"
+      },
+      "type": "FBS",
+      "active": true
+    },
+    {
+      "id": 3027,
+      "name": "Ферон Внуково",
+      "address": {
+        "region": "Москва",
+        "city": "Внуково",
+        "street": "ул. Центральная",
+        "house": "д. 8, стр. 1",
+        "fullAddress": "г. Москва, Внуково, ул. Центральная, д. 8, стр. 1"
+      },
+      "type": "FBS",
+      "active": true
+    },
+    {
+      "id": 1449484,
+      "name": "Коледино",
+      "address": {
+        "region": "Московская область",
+        "city": "Подмосковье",
+        "fullAddress": "Коледино (Подмосковье)"
+      },
+      "type": "FBS",
+      "active": true
+    }
+  ],
+  "usage": {
+    "column_AB": "Используется warehouseId = 84321 (ФЕРОН ФБС)",
+    "column_AC": "Используется warehouseId = 84322 (ЭТМ САМАРА)",
+    "workflow": "Шаг 1: GET /api/v3/warehouses -> получить список складов и их ID\nШаг 2: GET /api/v3/stocks/{warehouseId} -> получить остатки для конкретного склада"
+  }
+}
