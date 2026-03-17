@@ -1,0 +1,16 @@
+
+--- Searching stores for: 13627 ---
+Name: 'N/A' | Type: all | Code: 888 | Qty: 0
+
+--- Searching stores for: 13627-5 ---
+
+--- Searching stores for: 613100230 ---
+Name: 'Самарская область, Волжский, гп Смышляевка, п.г.т. Стройкерамика, Пожарный проезд, земельный участок 1' | Type: rc | Code: 13 | Qty: 68
+Name: 'г. Самара, ул. Гаражная, д. 5 ' | Type: op | Code: 102 | Qty: 0
+Name: 'Самарcкая обл., Стройкерамика пгт., Пожарный проезд, д.1' | Type: op | Code: 24121 | Qty: 68
+Name: 'г. Самара, ул. Главная, д. 23 ' | Type: op | Code: 24130 | Qty: 0
+Name: 'г. Самара, ул. Московское шоссе, д.306 А' | Type: op | Code: 24140 | Qty: 0
+Name: 'Другие склады' | Type: rc2sum | Code: 99 | Qty: 118
+Name: 'N/A' | Type: all | Code: 888 | Qty: 880
+
+--- Searching stores for: 613100230-1 ---

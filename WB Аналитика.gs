@@ -54,8 +54,31 @@ function updateWBAnalytics() {
 
       Logger.log(`✅ Получено заказов: ${orders.length}`);
 
-      // Фильтруем только завершённые (не отменённые)
-      return orders.filter(o => !o.isCancel);
+      // ДИАГНОСТИКА: Проверяем наличие поля nmId в ответе API
+      if (orders.length > 0) {
+        const firstOrder = orders[0];
+        const hasNmId = firstOrder.hasOwnProperty('nmId');
+        const hasSupplierArticle = firstOrder.hasOwnProperty('supplierArticle');
+
+        Logger.log(`🔍 Поля в первом заказе:`);
+        Logger.log(`   nmId: ${hasNmId ? '✅ ЕСТЬ' : '❌ НЕТ'}`);
+        Logger.log(`   supplierArticle: ${hasSupplierArticle ? '✅ ЕСТЬ' : '❌ НЕТ'}`);
+
+        if (hasNmId) {
+          Logger.log(`   Значение nmId: ${firstOrder.nmId}`);
+        }
+        if (hasSupplierArticle) {
+          Logger.log(`   Значение supplierArticle: ${firstOrder.supplierArticle}`);
+        }
+
+        // Показываем все поля первого заказа
+        const allKeys = Object.keys(firstOrder);
+        Logger.log(`   Все поля: ${allKeys.join(', ')}`);
+      }
+
+      // ИСПРАВЛЕНО: Возвращаем ВСЕ заказы (как в воронке продаж)
+      // Воронка продаж считает все заказы, включая отмененные
+      return orders;
     } catch (e) {
       Logger.log(`❌ Ошибка при получении заказов: ${e.message}`);
       return [];
@@ -67,38 +90,68 @@ function updateWBAnalytics() {
   // Пауза не нужна - API вызовы разнесены по времени
   const ordersQuarter = fetchOrders(dateFromQuarter, "квартал");
 
-  // ИСПРАВЛЕНО: агрегируем по базовым артикулам (без суффиксов)
+  // ИСПРАВЛЕНО: агрегируем по nmId (артикул WB), а не по supplierArticle
   const monthStats = {};
   const quarterStats = {};
 
+  // ДИАГНОСТИКА: Считаем заказы с/без nmId
+  let monthWithNmId = 0;
+  let monthWithoutNmId = 0;
+
   ordersMonth.forEach(order => {
-    const art = order.supplierArticle;
-    if (!art) return;
-
-    // Убираем суффикс после дефиса для статистики
-    const baseArt = String(art).split('-')[0];
-
-    if (!monthStats[baseArt]) {
-      monthStats[baseArt] = 0;
+    const nmId = order.nmId;
+    if (!nmId) {
+      monthWithoutNmId++;
+      return;
     }
-    monthStats[baseArt]++;
+
+    monthWithNmId++;
+
+    if (!monthStats[nmId]) {
+      monthStats[nmId] = 0;
+    }
+    monthStats[nmId]++;
   });
 
   ordersQuarter.forEach(order => {
-    const art = order.supplierArticle;
-    if (!art) return;
+    const nmId = order.nmId;
+    if (!nmId) return;
 
-    // Убираем суффикс после дефиса для статистики
-    const baseArt = String(art).split('-')[0];
-
-    if (!quarterStats[baseArt]) {
-      quarterStats[baseArt] = 0;
+    if (!quarterStats[nmId]) {
+      quarterStats[nmId] = 0;
     }
-    quarterStats[baseArt]++;
+    quarterStats[nmId]++;
   });
 
-  // Читаем артикулы из колонки A
-  const articles = sheet.getRange(2, 1, lastRow - 1).getValues().flat();
+  Logger.log(``);
+  Logger.log(`📊 Статистика nmId за месяц:`);
+  Logger.log(`   С nmId: ${monthWithNmId}`);
+  Logger.log(`   Без nmId: ${monthWithoutNmId}`);
+
+  // ДИАГНОСТИКА для артикула 23350
+  Logger.log(``);
+  Logger.log(`=== ДИАГНОСТИКА АРТИКУЛА 23350 (месяц) ===`);
+
+  // Считаем заказы по supplierArticle для 23350-*
+  const article23350Stats = {};
+  ordersMonth.forEach(order => {
+    // ИСПРАВЛЕНО: Считаем ВСЕ заказы (как в воронке продаж)
+    const art = order.supplierArticle;
+    if (art && art.toString().startsWith('23350')) {
+      article23350Stats[art] = (article23350Stats[art] || 0) + 1;
+    }
+  });
+
+  Object.keys(article23350Stats).sort().forEach(art => {
+    const hasNmId = ordersMonth.find(o => o.supplierArticle === art && o.nmId)?.nmId || 'НЕ ЗАПОЛНЕН';
+    Logger.log(`   ${art} (nmId: ${hasNmId}): ${article23350Stats[art]} заказов`);
+  });
+
+  const total23350 = Object.values(article23350Stats).reduce((a, b) => a + b, 0);
+  Logger.log(`   ИТОГО по всем 23350-*: ${total23350} заказов`);
+
+  // Читаем nmId из колонки T (20) - Артикул WB
+  const nmIds = sheet.getRange(2, 20, lastRow - 1).getValues().flat();
 
   // Подготавливаем данные для записи
   const monthValues = [];
@@ -107,14 +160,11 @@ function updateWBAnalytics() {
   let monthWithOrders = 0;
   let quarterWithOrders = 0;
 
-  articles.forEach(art => {
-    const artStr = art?.toString().trim() || "";
-
-    if (artStr) {
-      // ИСПРАВЛЕНО: ищем по базовому артикулу (без суффикса)
-      const baseArt = artStr.split('-')[0];
-      const monthCount = monthStats[baseArt] || 0;
-      const quarterCount = quarterStats[baseArt] || 0;
+  nmIds.forEach(nmId => {
+    if (nmId && nmId > 0) {
+      // ИСПРАВЛЕНО: ищем по nmId (артикул WB)
+      const monthCount = monthStats[nmId] || 0;
+      const quarterCount = quarterStats[nmId] || 0;
 
       monthValues.push([monthCount]);
       quarterValues.push([quarterCount]);
@@ -122,7 +172,6 @@ function updateWBAnalytics() {
       if (monthCount > 0) monthWithOrders++;
       if (quarterCount > 0) quarterWithOrders++;
     } else {
-      // ИСПРАВЛЕНО: пишем 0 вместо пустой строки
       monthValues.push([0]);
       quarterValues.push([0]);
     }
@@ -136,20 +185,15 @@ function updateWBAnalytics() {
   sheet.getRange(2, 19, quarterValues.length, 1).setValues(quarterValues);
 
   Logger.log(`✅ Обновление завершено!`);
-  Logger.log(`📝 Строк обновлено: ${articles.length}`);
+  Logger.log(`📝 Строк обновлено: ${nmIds.length}`);
   Logger.log(`📊 Статистика:`);
   Logger.log(`   С заказами за месяц: ${monthWithOrders}`);
   Logger.log(`   С заказами за квартал: ${quarterWithOrders}`);
 
-  // ДИАГНОСТИКА для 22068-1
-  const testArticle = "22068-1";
-  const testBase = "22068";
+  // ДИАГНОСТИКА для тестового nmId
+  const testNmId = 320893058; // nmId для артикула 23350-1
   Logger.log("");
-  Logger.log(`=== ДИАГНОСТИКА 22068-1 ===`);
-  Logger.log(`Артикул: ${testArticle}`);
-  Logger.log(`Базовый: ${testBase}`);
-  Logger.log(`Уход Мес ВБ: ${monthStats[testBase] || 0} (ожидается 4)`);
-  Logger.log(`Уход КВ ВБ: ${quarterStats[testBase] || 0} (ожидается 19)`);
-  const monthOk = (monthStats[testBase] || 0) >= 3 && (monthStats[testBase] || 0) <= 5;
-  Logger.log(`${monthOk ? '✅' : '⚠️'} Проверка данных`);
+  Logger.log(`=== ДИАГНОСТИКА nmId ${testNmId} (23350-1) ===`);
+  Logger.log(`Уход Мес ВБ: ${monthStats[testNmId] || 0} заказов`);
+  Logger.log(`Уход КВ ВБ: ${quarterStats[testNmId] || 0} заказов`);
 }

@@ -9,6 +9,10 @@ This is a **Google Apps Script** project for synchronizing product data from **O
 **Target Spreadsheet:** Sheet named `тест` in the active spreadsheet
 **Main Entry Point:** [Главные функции.gs](Главные%20функции.gs) contains trigger-compatible functions
 
+**API Documentation References:**
+- **Ozon API:** [Ozon api documentation.md](Ozon%20api%20documentation.md) - Always consult this documentation when developing or troubleshooting Ozon integration functions
+- **Wildberries API:** [WB API docementation.md](WB%20API%20docementation.md) - Always consult this documentation when developing or troubleshooting Wildberries integration functions
+
 ---
 
 ## 🚀 WORKFLOW WITH THIS PROJECT

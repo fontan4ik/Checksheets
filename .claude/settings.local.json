@@ -44,7 +44,27 @@
       "Bash(SESSION=\"c07e4638-3331-e6b5-ea14-452dd8b8e3c9\")",
       "Bash(SESSION=\"c060ee83-d162-c5b3-ea14-492d68208bd6\" echo \"=== UZA-11-D01-D10 \\(ожидается ~8980\\) ===\" curl -s \"https://ipro.etm.ru/api/v1/goods/UZA-11-D01-D10/remains?type=mnf&session-id=$SESSION\" -H \"Accept: application/json\")",
       "Bash(python3:*)",
-      "mcp__playwright__browser_close"
+      "mcp__playwright__browser_close",
+      "Bash(\"c:\\\\AI\\\\Работа Voltmir\\\\Проверка:*)",
+      "Bash(cd:*)",
+      "Bash(iconv:*)",
+      "Bash(cmd /c \"type c:\\\\AI\\\\Работa Voltmir\\\\Проверка таблицы\\\\ВБ продажи FBO FBS.gs\")",
+      "Bash(test:*)",
+      "mcp__chrome-devtools__new_page",
+      "mcp__chrome-devtools__evaluate_script",
+      "mcp__chrome-devtools__close_page",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__take_snapshot",
+      "Bash(__NEW_LINE_1c94279f3cf4659f__ echo \"\")",
+      "Bash(__NEW_LINE_af8809939ee9c5fd__ echo \"\")",
+      "Bash(cat:*)",
+      "Bash(__NEW_LINE_5ffec3a562486f76__ echo \"\")",
+      "Bash(__NEW_LINE_7a4c4f56a1329060__ echo \"\")",
+      "Bash(__NEW_LINE_c6ff70029de8f5b5__ echo \"\")",
+      "Bash(TOKEN=\"eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwOTA0djEiLCJ0eXAiOiJKV1QifQ.eyJhY2MiOjEsImVudCI6MSwiZXhwIjoxNzg2MDUyMTMxLCJpZCI6IjAxOWMyZDI4LTI0MzMtNzY2MC1iZDU4LTRlNjVhYzMwM2E0YiIsImlpZCI6MTk3ODU3MDksIm9pZCI6MTc3NTU3LCJzIjo3OTM0LCJzaWQiOiI2OGI4Mjg0Ni0wZDk0LTRiNDEtODQ1NC1kYzM1MzM0ODJjOWEiLCJ0IjpmYWxzZSwidWlkIjoxOTc4NTcwOX0.fZu3j3YZBrIIEAZ6KtuWjTZ7HfPS3sR8Z6vOdmfT5L8hpQmjvVq3zf9Io-2wXTifmda46JEKhCZafyUlTUfpdA\" echo \"=== Декодируем JWT токен \\(payload\\) ===\" echo $TOKEN:*)",
+      "Bash(__NEW_LINE_cfe4aacc9acedc43__ curl -s \"https://statistics-api.wildberries.ru/api/v1/supplier/stocks?dateFrom=2026-01-01\" -H \"Authorization: eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwOTA0djEiLCJ0eXAiOiJKV1QifQ.eyJhY2MiOjEsImVudCI6MSwiZXhwIjoxNzg2MDUyMTMxLCJpZCI6IjAxOWMyZDI4LTI0MzMtNzY2MC1iZDU4LTRlNjVhYzMwM2E0YiIsImlpZCI6MTk3ODU3MDksIm9pZCI6MTc3NTU3LCJzIjo3OTM0LCJzaWQiOiI2OGI4Mjg0Ni0wZDk0LTRiNDEtODQ1NC1kYzM1MzM0ODJjOWEiLCJ0IjpmYWxzZSwidWlkIjoxOTc4NTcwOX0.fZu3j3YZBrIIEAZ6KtuWjTZ7HfPS3sR8Z6vOdmfT5L8hpQmjvVq3zf9Io-2wXTifmda46JEKhCZafyUlTUfpdA\")",
+      "WebFetch(domain:docs.ozon.ru)",
+      "Bash(npm init -y)"
     ]
   }
 }

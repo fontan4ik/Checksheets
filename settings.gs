@@ -19,6 +19,16 @@ const wbHeaders = () => {
   };
 };
 
+// WB Analytics API - тот же токен, другой формат
+const WB_ANALYTICS_BASE_URL = () => 'https://seller-analytics-api.wildberries.ru';
+
+const wbAnalyticsHeaders = () => {
+  return {
+    'Authorization': wbHeaders()['Authorization'],
+    'Content-Type': 'application/json'
+  };
+};
+
 // Совместимость с диагностическим скриптом
 function OZON_CLIENT_ID() {
   return ozonHeaders()['Client-Id'];
@@ -51,7 +61,69 @@ const ozonStocksApiURL = () => 'https://api-seller.ozon.ru/v4/product/info/stock
 const ozonPricesApiURL = () => "https://api-seller.ozon.ru/v5/product/info/prices";
 const ozonAnalyticsData = () => "https://api-seller.ozon.ru/v1/analytics/data";
 const ozonFBSStocks = () => "https://api-seller.ozon.ru/v1/product/info/stocks-by-warehouse/fbs";
-const ozonFBSWarehouseId = () => 1020005000217829;
+const ozonFBSWarehouseId = () => {
+  // Ищем ID для "1C трансляция" (Самара)
+  const samaraId = findOzonWarehouseIdByName("1C трансляция") || findOzonWarehouseIdByName("Самара");
+  return samaraId || 1020005000217829; // Фоллбек на старый ID если не нашли
+};
+
+/**
+ * Вспомогательная функция для поиска ID склада Ozon по имени
+ */
+function findOzonWarehouseIdByName(name) {
+  const url = "https://api-seller.ozon.ru/v1/warehouse/list";
+  const options = {
+    method: "post",
+    contentType: "application/json",
+    headers: ozonHeaders(),
+    payload: JSON.stringify({ limit: 200 }),
+    muteHttpExceptions: true
+  };
+  
+  try {
+    const response = UrlFetchApp.fetch(url, options); // Используем UrlFetchApp напрямую
+    if (!response || response.getResponseCode() !== 200) return null;
+    
+    const data = JSON.parse(response.getContentText());
+    if (data.result) {
+      const wh = data.result.find(w => 
+        w.name === name || (w.name && w.name.toLowerCase().includes(name.toLowerCase()))
+      );
+      return wh ? wh.warehouse_id : null;
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
+}
+
+/**
+ * Вспомогательная функция для поиска ID склада Wildberries по имени
+ */
+function findWBWarehouseIdByName(name) {
+  const url = "https://marketplace-api.wildberries.ru/api/v3/warehouses";
+  const options = {
+    method: "get",
+    headers: wbHeaders(),
+    muteHttpExceptions: true
+  };
+  
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    if (!response || response.getResponseCode() !== 200) return null;
+    
+    const data = JSON.parse(response.getContentText());
+    if (Array.isArray(data)) {
+      const wh = data.find(w => 
+        w.name === name || (w.name && w.name.toLowerCase().includes(name.toLowerCase()))
+      );
+      return wh ? wh.id : null;
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
+}
 
 // ============================================
 // WB API URL
@@ -65,6 +137,7 @@ const wbPricesApiURL = () => "https://discounts-prices-api.wildberries.ru/api/v2
 // Новые правильные endpoints (Analytics API)
 const wbAnalyticsStocksURL = () => "https://seller-analytics-api.wildberries.ru/api/v2/stocks-report/products/products";
 const wbSalesFunnelURL = () => "https://seller-analytics-api.wildberries.ru/api/analytics/v3/sales-funnel/products/history";
+const wbSalesFunnelProductsURL = () => "https://seller-analytics-api.wildberries.ru/api/analytics/v3/sales-funnel/products";
 const wbMarketplaceStocksURL = (warehouseId) => `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`;
 
 // ============================================
@@ -80,3 +153,11 @@ const feronAPIKey = () => 'MzZjNGMzNzMtYWNiMS00MzNhLTk2NTQtNjc4NjM0ZDIwYzYx';
 
 const etmLogin = () => '160119919fik';
 const etmPassword = () => 'Ibs30Rh2';
+
+// ============================================
+// RS API (Русский Свет)
+// ============================================
+
+const rsLogin = () => 'ntc-es1';
+const rsPassword = () => '4XK69YO0';
+const rsApiBaseUrl = () => 'https://holy-hall-9741.jilighyt4591667.workers.dev';

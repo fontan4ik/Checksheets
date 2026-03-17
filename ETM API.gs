@@ -129,21 +129,26 @@ function fetchETMStockForArticle(article, sessionId) {
  * 2. Для каждого артикула из колонки A делает запрос с type=mnf
  * 3. Берёт остаток только со склада "Стройкерамика"
  * 4. Записывает результат в колонку AL батчами
+ * 5. Контролирует время выполнения, чтобы не превысить лимит Google (6 мин)
  *
  * МОЖНО ПЕРЕЗАПУСКАТЬ: продолжит с первой пустой ячейки в AL
  *
  * @param {number} startRow - Стартовая строка (по умолчанию 2)
  * @param {number} batchSize - Размер батча (по умолчанию 50, для частого сохранения)
- * @param {number} maxArticles - Макс. артикулов за запуск (по умолчанию 150, ~2.5 артикула/сек)
+ * @param {number} maxArticles - Макс. артикулов за запуск (по умолчанию 1000)
  * @param {boolean} forceStart - Принудительно начать с startRow (для циклического обновления)
+ * @returns {number} Количество фактически обработанных артикулов
  */
-function updateETMStocks(startRow = 2, batchSize = 50, maxArticles = 150, forceStart = false) {
+function updateETMStocks(startRow = 2, batchSize = 50, maxArticles = 1000, forceStart = false) {
+  const START_TIME = Date.now();
+  const MAX_EXECUTION_TIME = 4.5 * 60 * 1000; // 4.5 минуты предел для безопасности (Google API limit = 6 min)
+
   const sheet = mainSheet();
   const lastRow = sheet.getLastRow();
 
   if (lastRow < 2) {
     Logger.log("Нет артикулов для обработки");
-    return;
+    return 0;
   }
 
   Logger.log("=== ОБНОВЛЕНИЕ ОСТАТКОВ ETM СТРОЙКЕРАМИКА ===");
@@ -162,7 +167,7 @@ function updateETMStocks(startRow = 2, batchSize = 50, maxArticles = 150, forceS
       Logger.log(`🔄 Найден прогресс: продолжаем со строки ${startRow}`);
     } else {
       Logger.log("✅ Все ячейки AL уже заполнены!");
-      return;
+      return 0;
     }
   } else if (forceStart) {
     Logger.log(`🔄 Принудительное обновление с строки ${startRow} (циклическое обновление)`);
@@ -175,7 +180,7 @@ function updateETMStocks(startRow = 2, batchSize = 50, maxArticles = 150, forceS
   const sessionId = getETMSessionId();
   if (!sessionId) {
     Logger.log("❌ Не удалось авторизоваться в ETM API");
-    return;
+    return 0;
   }
 
   // Шаг 4: Получить список артикулов (ограниченный)
@@ -189,8 +194,13 @@ function updateETMStocks(startRow = 2, batchSize = 50, maxArticles = 150, forceS
   const totalBatches = Math.ceil(articles.length / batchSize);
   let totalSuccessCount = 0;
   let totalFoundCount = 0;
+  let totalProcessedArticles = 0;
+
+  let timeLimitReached = false;
 
   for (let batch = 0; batch < totalBatches; batch++) {
+    if (timeLimitReached) break;
+
     const startIdx = batch * batchSize;
     const endIdx = Math.min(startIdx + batchSize, articles.length);
     const batchArticles = articles.slice(startIdx, endIdx);
@@ -204,10 +214,18 @@ function updateETMStocks(startRow = 2, batchSize = 50, maxArticles = 150, forceS
     let batchFoundCount = 0;
 
     for (let i = 0; i < batchArticles.length; i++) {
+      // Проверка таймаута ПЕРЕД каждым запросом, чтобы успеть записать батч
+      if (Date.now() - START_TIME > MAX_EXECUTION_TIME) {
+        Logger.log(`⚠️ Превышен лимит времени (4.5 мин). Остановка на строке ${targetRow + i}.`);
+        timeLimitReached = true;
+        break; // Прерываем обработку артикулов внутри батча
+      }
+
       const article = String(batchArticles[i]).trim();
 
       if (!article) {
         batchStocks.push([""]);
+        totalProcessedArticles++;
         continue;
       }
 
@@ -226,33 +244,34 @@ function updateETMStocks(startRow = 2, batchSize = 50, maxArticles = 150, forceS
         totalFoundCount++;
       }
 
-      // Логируем прогресс каждые 25 артикулов (для батча 50 будет 2 лога)
+      totalProcessedArticles++;
+
+      // Логируем прогресс каждые 25 артикулов
       if ((i + 1) % 25 === 0) {
         Logger.log(`   Обработано ${i + 1}/${batchArticles.length} в батче...`);
       }
     }
 
-    // СРАЗУ ЖЕ записываем батч в таблицу (прогресс сохраняется!)
-    sheet.getRange(targetRow, 38, batchStocks.length, 1).setValues(batchStocks);
-
-    Logger.log(`   ✅ Батч записан. Найдено в ETM: ${batchFoundCount}, с остатком: ${batchSuccessCount}`);
+    // Если сформировали хоть что-то - записываем в таблицу
+    if (batchStocks.length > 0) {
+      sheet.getRange(targetRow, 38, batchStocks.length, 1).setValues(batchStocks);
+      Logger.log(`   ✅ Батч записан (${batchStocks.length} шт). Найдено в ETM: ${batchFoundCount}.`);
+    }
   }
 
   // Финальная статистика
-  Logger.log("\n=== ЗАВЕРШЕНО ===");
-  Logger.log(`✅ Обработано артикулов: ${articles.length}`);
+  Logger.log("\n=== ЗАВЕРШЕНО ЗАПУСК ===");
+  Logger.log(`✅ Обработано артикулов: ${totalProcessedArticles}`);
   Logger.log(`✅ Найдено в ETM: ${totalFoundCount}`);
   Logger.log(`✅ Найдено товаров с остатком: ${totalSuccessCount}`);
-  Logger.log(`📊 Процент найденных: ${totalFoundCount > 0 ? ((totalFoundCount / articles.length) * 100).toFixed(2) : 0}%`);
+  Logger.log(`📊 Процент найденных: ${totalProcessedArticles > 0 ? ((totalFoundCount / totalProcessedArticles) * 100).toFixed(2) : 0}%`);
 
-  const remainingArticles = lastRow - endRow;
-  if (remainingArticles > 0) {
-    Logger.log(`\n💡 Осталось обработать: ${remainingArticles} артикулов`);
-    Logger.log(`💡 Следующая строка: ${endRow + 1}`);
-    Logger.log(`💡 Запустите updateETMStocks(${endRow + 1}) снова для продолжения`);
-  } else {
-    Logger.log(`\n🎉 ВСЕ АРТИКУЛЫ ОБРАБОТАНЫ!`);
-  }
+  const executionSeconds = ((Date.now() - START_TIME) / 1000).toFixed(1);
+  Logger.log(`⏱️ Время выполнения: ${executionSeconds} сек`);
+  // Изменил сообщение, чтобы не предлагать создавать бесконечную цепочку триггеров
+  Logger.log(`💡 Для повторного запуска используйте функцию: updateETMStocksOnce()`);
+
+  return totalProcessedArticles;
 }
 
 /**
@@ -301,94 +320,109 @@ function testETMArticles() {
 }
 
 /**
- * Автоматическое обновление ETM с продолжением (циклическое)
- * Запускает updateETMStocks несколько раз до завершения
- *
- * После завершения обработки всех строк начинает заново с первой строки.
+ * Автоматическое обновление ETM с продолжением (циклическое в одном скрипте)
+ * Запускает updateETMStocks несколько раз до завершения без триггеров.
+ * Сохраняет прогресс в PropertiesService.
  *
  * @param {number} maxRuns - Максимальное количество запусков (по умолчанию 3)
  */
 function updateETMStocksAuto(maxRuns = 3) {
-  let startRow = 2;
   let runCount = 0;
-  let forceStart = false;  // Флаг принудительного обновления с начала
 
   Logger.log("╔════════════════════════════════════════════════════════════════════════╗");
   Logger.log("║   АВТОМАТИЧЕСКОЕ ОБНОВЛЕНИЕ ETM (с продолжением)                     ║");
   Logger.log("╚════════════════════════════════════════════════════════════════════════╝");
 
+  const sheet = mainSheet();
+  const lastRow = sheet.getLastRow();
+  const props = PropertiesService.getScriptProperties();
+
   while (runCount < maxRuns) {
+    let startRow = parseInt(props.getProperty('ETM_START_ROW'), 10);
+    if (isNaN(startRow) || startRow < 2) {
+      startRow = 2;
+    }
+
+    if (startRow > lastRow) {
+      Logger.log(`✅ Достигнут конец таблицы. Начинаем новый цикл со строки 2.`);
+      startRow = 2;
+    }
+
     runCount++;
     Logger.log(`\n🔄 ЗАПУСК #${runCount} (строка ${startRow})`);
 
-    const sheet = mainSheet();
-    const lastRow = sheet.getLastRow();
+    const maxArticles = 1000;
 
-    if (startRow > lastRow) {
-      Logger.log("✅ Все артикулы обработаны!");
+    // Запускаем обновление с forceStart=true
+    const processedCount = updateETMStocks(startRow, 50, maxArticles, true);
+
+    if (processedCount === 0) {
+      Logger.log("⚠️ Не было обработано ни одного артикула. Прерывание цикла.");
       break;
     }
 
-    // Сохраняем начальную строку для этого запуска
-    const runStartRow = startRow;
+    const nextRow = startRow + processedCount;
+    props.setProperty('ETM_START_ROW', nextRow.toString());
 
-    // Запускаем обновление (с forceStart если это циклическое обновление)
-    if (forceStart) {
-      Logger.log(`🔄 Принудительное обновление (циклическое)`);
-    }
-    updateETMStocks(startRow, 50, 150, forceStart);
-    forceStart = false;  // Сбрасываем флаг после первого запуска
-
-    // Находим новую начальную строку (первая пустая после последнего запуска)
-    const newData = sheet.getRange(runStartRow, 38, lastRow - runStartRow + 1, 1).getValues().flat();
-    const firstEmptyInNewData = newData.findIndex(cell => cell === "" || cell === null || cell === undefined);
-
-    if (firstEmptyInNewData === -1) {
-      // Все ячейки заполнены - начинаем заново с первой строки (циклическое обновление)
-      Logger.log(`\n🔄 Запуск #${runCount} завершил обработку всех артикулов!`);
-      Logger.log(`🔄 Сбрасываем на начало таблицы для следующего запуска...`);
-      startRow = 2;
-      forceStart = true;  // Следующий запуск будет принудительным
-    } else {
-      startRow = runStartRow + firstEmptyInNewData;
-    }
-
-    // Проверяем, достигли ли мы конца
-    if (startRow > lastRow) {
+    if (nextRow > lastRow) {
       Logger.log(`\n🔄 Запуск #${runCount} достиг конца таблицы!`);
-      Logger.log(`🔄 Сбрасываем на начало для следующего запуска...`);
-      startRow = 2;
-      forceStart = true;  // Следующий запуск будет принудительным
     }
   }
 
   if (runCount >= maxRuns) {
-    const sheet = mainSheet();
-    const lastRow = sheet.getLastRow();
     Logger.log(`\n⚠️  Выполнено ${maxRuns} запусков (максимум).`);
-    if (startRow === 2) {
-      Logger.log(`💡 Таблица обновляется циклически. Следующий запуск продолжит с начала.`);
-    } else {
-      Logger.log(`💡 Для продолжения запустите: updateETMStocks(${startRow})`);
-      Logger.log(`💡 Или запустите снова: updateETMStocksAuto()`);
-    }
+    Logger.log(`💡 Для продолжения запустите: updateETMStocksAuto()`);
   }
 
   Logger.log("\n════════════════════════════════════════════════════════════════════════\n");
 }
 
 /**
- * Автоматическое обновление ETM с триггерами (циклическое)
- * Обрабатывает порцию артикулов и создаёт триггер для продолжения
- *
- * После завершения обработки всех строк начинает заново с первой строки.
- * Таким образом обеспечивается постоянное циклическое обновление данных.
- *
- * Использование: запустите один раз, функция будет перезапускать себя через триггеры
- *
- * @param {number} startRow - Стартовая строка (для внутреннего использования)
+ * Обновление ETM однократно от первой пустой ячейки до последней строки
+ * Не создает триггеры, обрабатывает только один раз
  */
-function updateETMStocksTrigger(startRow = 2) {
+function updateETMStocksOnce() {
+  const sheet = mainSheet();
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow < 2) {
+    Logger.log("Нет артикулов для обработки");
+    return 0;
+  }
+
+  Logger.log("╔════════════════════════════════════════════════════════════════════════╗");
+  Logger.log("║   ОДНОКРАТНОЕ ОБНОВЛЕНИЕ ETM (без триггеров)                          ║");
+  Logger.log("╚════════════════════════════════════════════════════════════════════════╝");
+
+  // Находим первую пустую ячейку в колонке AL (38)
+  const existingData = sheet.getRange(2, 38, lastRow - 1, 1).getValues().flat();
+  const firstEmptyIndex = existingData.findIndex(cell => cell === "" || cell === null || cell === undefined);
+
+  let startRow;
+  if (firstEmptyIndex !== -1) {
+    startRow = 2 + firstEmptyIndex;
+    Logger.log(`🔄 Найден прогресс: продолжаем со строки ${startRow}`);
+  } else {
+    Logger.log("✅ Все ячейки AL уже заполнены!");
+    return 0;
+  }
+
+  // Запускаем обновление до конца таблицы (или до лимита времени)
+  const maxArticles = lastRow - startRow + 1; // Обрабатываем до конца таблицы
+  const processedCount = updateETMStocks(startRow, 50, maxArticles, false);
+
+  Logger.log(`\n🏁 Обработка завершена. Обработано: ${processedCount} артикулов`);
+  Logger.log("💡 Для повторного запуска вызовите функцию updateETMStocksOnce()");
+  Logger.log("════════════════════════════════════════════════════════════════════════\n");
+
+  return processedCount;
+}
+
+/**
+ * Автоматическое обновление ETM (однократное выполнение без триггеров)
+ * Обрабатывает все незаполненные ячейки до конца таблицы
+ */
+function updateETMStocksTrigger() {
   const sheet = mainSheet();
   const lastRow = sheet.getLastRow();
 
@@ -398,53 +432,28 @@ function updateETMStocksTrigger(startRow = 2) {
   }
 
   Logger.log("╔════════════════════════════════════════════════════════════════════════╗");
-  Logger.log("║   ОБНОВЛЕНИЕ ETM С АВТОПЕРЕЗАПУСКОМ (триггеры)                       ║");
+  Logger.log("║   ОДНОКРАТНОЕ ОБНОВЛЕНИЕ ETM (без создания новых триггеров)           ║");
   Logger.log("╚════════════════════════════════════════════════════════════════════════╝");
 
-  // Удаляем старые триггеры этой функции
-  deleteETMTriggers();
+  // Находим первую пустую ячейку в колонке AL (38)
+  const existingData = sheet.getRange(2, 38, lastRow - 1, 1).getValues().flat();
+  const firstEmptyIndex = existingData.findIndex(cell => cell === "" || cell === null || cell === undefined);
 
-  // Проверяем, есть ли ещё необработанные артикулы
-  const newData = sheet.getRange(2, 38, lastRow - 1, 1).getValues().flat();
-  const firstEmptyIndex = newData.findIndex(cell => cell === "" || cell === null || cell === undefined);
-
-  let forceStart = false;
-  if (firstEmptyIndex === -1) {
-    // Все ячейки заполнены - это циклическое обновление
-    forceStart = true;
-    Logger.log(`🔄 Циклическое обновление: начинаем заново с строки 2`);
-  }
-
-  // Запускаем обновление с ограничением 150 артикулов за раз (укладываемся в 5 минут)
-  updateETMStocks(startRow, 50, 150, forceStart);
-
-  // Проверяем, есть ли ещё необработанные артикулы (после обновления)
-  const updatedData = sheet.getRange(2, 38, lastRow - 1, 1).getValues().flat();
-  const newFirstEmptyIndex = updatedData.findIndex(cell => cell === "" || cell === null || cell === undefined);
-
-  if (newFirstEmptyIndex !== -1) {
-    // Есть ещё необработанные артикулы - создаём триггер
-    const nextRow = 2 + newFirstEmptyIndex;
-    Logger.log(`\n⏰ Создаю триггер для продолжения со строки ${nextRow}...`);
-
-    ScriptApp.newTrigger("updateETMStocksTrigger")
-      .timeBased()
-      .after(1000 * 60) // Через 1 минуту
-      .create();
-
-    Logger.log(`✅ Триггер создан. Следующий запуск через 1 минуту.`);
+  let startRow;
+  if (firstEmptyIndex !== -1) {
+    startRow = 2 + firstEmptyIndex;
+    Logger.log(`🔄 Найден прогресс: продолжаем со строки ${startRow}`);
   } else {
-    // Все ячейки заполнены - продолжаем циклическое обновление
-    Logger.log(`\n🔄 Все артикулы обработаны. Следующий запуск обновит данные заново...`);
-
-    ScriptApp.newTrigger("updateETMStocksTrigger")
-      .timeBased()
-      .after(1000 * 60) // Через 1 минуту
-      .create();
-
-    Logger.log(`✅ Триггер создан. Следующий запуск начнётся с строки 2.`);
+    Logger.log("✅ Все ячейки AL уже заполнены!");
+    return;
   }
 
+  // Запускаем обновление до конца таблицы
+  const maxArticles = lastRow - startRow + 1; // Обрабатываем до конца таблицы
+  const processedCount = updateETMStocks(startRow, 50, maxArticles, false);
+
+  Logger.log(`\n🏁 Обработка завершена. Обработано: ${processedCount} артикулов`);
+  Logger.log("💡 Функция выполнена однократно без создания новых триггеров");
   Logger.log("════════════════════════════════════════════════════════════════════════\n");
 }
 
@@ -492,6 +501,10 @@ function stopETMAutoUpdate() {
     Logger.log("ℹ️  Активных триггеров ETM не найдено");
   }
 
+  // Очищаем прогресс
+  const props = PropertiesService.getScriptProperties();
+  props.deleteProperty('ETM_START_ROW');
+  Logger.log("✅ Прогресс обновления ETM сброшен (начнётся со строки 2)");
+
   Logger.log("════════════════════════════════════════════════════════════════════════\n");
 }
-

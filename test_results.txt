@@ -1,0 +1,8 @@
+Decoded key: f0908710-649e-4859-bc69-ccdca5d7e651
+Stripped key: f0908710-649e-4859-bc69-ccdca5d7e651
+[Provided (B64)] Key: ZjA5MDg3MTAtNjQ5ZS00ODU5LWJjNjktY2NkY2E1ZDdlNjUx -> Status: 401
+[Decoded (UTF-8)] Key: f0908710-649e-4859-bc69-ccdca5d7e651 -> Status: 401
+[Stripped (UTF-8)] Key: f0908710-649e-4859-bc69-ccdca5d7e651 -> Status: 401
+[X-API-KEY header] Key: ZjA5MDg3MTAtNjQ5ZS00ODU5LWJjNjktY2NkY2E1ZDdlNjUx -> Status: 401
+[X-API-KEY Provided] Status: 401
+[X-API-KEY Decoded] Status: 401

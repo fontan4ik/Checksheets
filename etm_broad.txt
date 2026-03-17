@@ -1,0 +1,11 @@
+
+--- Broad search for: 13627 ---
+  [SKIP] '' (all) | Qty: 0
+  Total matched (excluding 'all'): 0
+
+--- Broad search for: 613100230 ---
+  [MATCH] 'Самарская область, Волжский, гп Смышляевка, п.г.т. Стройкерамика, Пожарный проезд, земельный участок 1' (rc) | Qty: 68
+  [MATCH] 'Самарcкая обл., Стройкерамика пгт., Пожарный проезд, д.1' (op) | Qty: 68
+  [SKIP] 'Другие склады' (rc2sum) | Qty: 118
+  [SKIP] '' (all) | Qty: 880
+  Total matched (excluding 'all'): 136

@@ -1,0 +1,48 @@
+{
+  "status": {
+    "code": 200,
+    "message": ""
+  },
+  "data": {
+    "RequestStoreName": "ЭТМ-Самара",
+    "UnitName": "шт",
+    "id": "2879731-0-0",
+    "test": "yes",
+    "weight": "0.000",
+    "length": "0.000",
+    "height": "0.000",
+    "width": "0.000",
+    "st_rc": "13",
+    "rc_address": "Самарская область, Волжский, гп Смышляевка, п.г.т. Стройкерамика, Пожарный проезд, земельный участок 1",
+    "gdscode": "2879731",
+    "InfoStores": [
+      {
+        "StoreType": "all",
+        "StoreCode": 888,
+        "StoreQuantRem": 0
+      }
+    ],
+    "InfoForecast": [
+      {
+        "ForecastStoreName": "Логистический центр ЭТМ-Самара",
+        "InfoForecastInc": [],
+        "InfoForecastInWay": [],
+        "InfoForecastRequest": []
+      },
+      {
+        "ForecastStoreName": "Распределительный склад",
+        "InfoForecastInc": [],
+        "InfoForecastInWay": [],
+        "InfoForecastRequest": []
+      }
+    ],
+    "InfoSuppStores": [],
+    "InforDeliveryTime": {
+      "DeliveryLabelInPres": "При наличии на складе производителя",
+      "DeliveryTimeInPres": "0 дн.",
+      "DeliveryLabelAtAbs": "При отсутствии на складе производителя",
+      "DeliveryIsNeedSpecification": "1",
+      "DeliveryProductionTerm": "согл/РЦ"
+    }
+  }
+}

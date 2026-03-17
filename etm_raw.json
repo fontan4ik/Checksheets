@@ -1,0 +1,169 @@
+
+--- Raw JSON for: 13627 ---
+{
+  "status": {
+    "code": 200,
+    "message": ""
+  },
+  "data": {
+    "RequestStoreName": "ЭТМ-Самара",
+    "UnitName": "шт",
+    "id": "2879731-0-0",
+    "test": "yes",
+    "weight": "0.000",
+    "length": "0.000",
+    "height": "0.000",
+    "width": "0.000",
+    "st_rc": "13",
+    "rc_address": "Самарская область, Волжский, гп Смышляевка, п.г.т. Стройкерамика, Пожарный проезд, земельный участок 1",
+    "gdscode": "2879731",
+    "InfoStores": [
+      {
+        "StoreType": "all",
+        "StoreCode": 888,
+        "StoreQuantRem": 0
+      }
+    ],
+    "InfoForecast": [
+      {
+        "ForecastStoreName": "Логистический центр ЭТМ-Самара",
+        "InfoForecastInc": [],
+        "InfoForecastInWay": [],
+        "InfoForecastRequest": []
+      },
+      {
+        "ForecastStoreName": "Распределительный склад",
+        "InfoForecastInc": [],
+        "InfoForecastInWay": [],
+        "InfoForecastRequest": []
+      }
+    ],
+    "InfoSuppStores": [],
+    "InforDeliveryTime": {
+      "DeliveryLabelInPres": "При наличии на складе производителя",
+      "DeliveryTimeInPres": "0 дн.",
+      "DeliveryLabelAtAbs": "При отсутствии на складе производителя",
+      "DeliveryIsNeedSpecification": "1",
+      "DeliveryProductionTerm": "согл/РЦ"
+    }
+  }
+}
+
+--- Raw JSON for: 613100230 ---
+{
+  "status": {
+    "code": 200,
+    "message": ""
+  },
+  "data": {
+    "RequestStoreName": "ЭТМ-Самара",
+    "UnitName": "шт",
+    "id": "4356345-0-0",
+    "test": "yes",
+    "weight": "0.278",
+    "length": "0.100",
+    "height": "0.048",
+    "width": "0.148",
+    "st_rc": "13",
+    "rc_address": "Самарская область, Волжский, гп Смышляевка, п.г.т. Стройкерамика, Пожарный проезд, земельный участок 1",
+    "gdscode": "4356345",
+    "InfoStores": [
+      {
+        "StoreCode": 13,
+        "StoreType": "rc",
+        "StoreName": "Самарская область, Волжский, гп Смышляевка, п.г.т. Стройкерамика, Пожарный проезд, земельный участок 1",
+        "StoreQuantRem": 68
+      },
+      {
+        "StoreCode": 102,
+        "StoreType": "op",
+        "StoreWithLC": "no",
+        "StoreDate": "17/03/2026",
+        "StoreDateAll": "30/03/2026",
+        "StoreClHour": "18",
+        "StoreDateCRS": "",
+        "StoreDateExpress": "",
+        "StoreName": "г. Самара, ул. Гаражная, д. 5 ",
+        "StoreQuantRem": 0
+      },
+      {
+        "StoreCode": 24121,
+        "StoreType": "op",
+        "StoreWithLC": "yes",
+        "StoreDate": "16/03/2026",
+        "StoreDateAll": "30/03/2026",
+        "StoreClHour": "",
+        "StoreDateCRS": "",
+        "StoreDateExpress": "",
+        "StoreName": "Самарcкая обл., Стройкерамика пгт., Пожарный проезд, д.1",
+        "StoreOpDate": "16/03/2026",
+        "StoreQuantRem": 68
+      },
+      {
+        "StoreCode": 24130,
+        "StoreType": "op",
+        "StoreWithLC": "no",
+        "StoreDate": "17/03/2026",
+        "StoreDateAll": "30/03/2026",
+        "StoreClHour": "18",
+        "StoreDateCRS": "",
+        "StoreDateExpress": "",
+        "StoreName": "г. Самара, ул. Главная, д. 23 ",
+        "StoreQuantRem": 0
+      },
+      {
+        "StoreCode": 24140,
+        "StoreType": "op",
+        "StoreWithLC": "no",
+        "StoreDate": "17/03/2026",
+        "StoreDateAll": "30/03/2026",
+        "StoreClHour": "18",
+        "StoreDateCRS": "",
+        "StoreDateExpress": "",
+        "StoreName": "г. Самара, ул. Московское шоссе, д.306 А",
+        "StoreQuantRem": 0
+      },
+      {
+        "StoreCode": 99,
+        "StoreType": "rc2sum",
+        "StoreName": "Другие склады",
+        "StoreQuantRem": 118
+      },
+      {
+        "StoreType": "all",
+        "StoreCode": 888,
+        "StoreQuantRem": 880
+      }
+    ],
+    "InfoForecast": [
+      {
+        "ForecastStoreName": "Логистический центр ЭТМ-Самара",
+        "InfoForecastInc": [],
+        "InfoForecastInWay": [],
+        "InfoForecastRequest": []
+      },
+      {
+        "ForecastStoreName": "Распределительный склад",
+        "InfoForecastInc": [],
+        "InfoForecastInWay": [],
+        "InfoForecastRequest": []
+      }
+    ],
+    "InfoSuppStores": [
+      {
+        "SuppStoreName": "г.Ногинск",
+        "SuppStoreState": "на утро 16.03.2026",
+        "SuppStoreQuantRem": "694",
+        "SuppDeliveryTime": "8",
+        "SuppStoreUnitName": "шт"
+      }
+    ],
+    "InforDeliveryTime": {
+      "DeliveryLabelInPres": "При наличии на складе производителя",
+      "DeliveryTimeInPres": "7 дн.",
+      "DeliveryLabelAtAbs": "При отсутствии на складе производителя",
+      "DeliveryIsNeedSpecification": "0",
+      "DeliveryProductionTerm": "97 дн."
+    }
+  }
+}

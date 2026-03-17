@@ -1,6 +1,0 @@
-{
-  "title": "Invalid request body",
-  "detail": "code=400, message={Invalid request body code=400, message=invalid: selectedPeriod (field required), nmIds (field required), internal=invalid: selectedPeriod (field required), nmIds (field required) b2ad3c73-1298-4194-8c7e-125f8625ebbc analytics-open-api}, internal=code=400, message=invalid: selectedPeriod (field required), nmIds (field required), internal=invalid: selectedPeriod (field required), nmIds (field required)",
-  "requestId": "b2ad3c73-1298-4194-8c7e-125f8625ebbc",
-  "origin": "analytics-open-api"
-}

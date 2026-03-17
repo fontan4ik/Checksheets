@@ -1,0 +1,36 @@
+
+--- Debugging: 13627-5 ---
+  Trying variant: 13627-5
+  Status: 200
+  No InfoStores found.
+  Trying variant: 13627
+  Status: 200
+    - Store: None (all), Quant: 0
+
+--- Debugging: 613100230-1 ---
+  Trying variant: 613100230-1
+  Status: 200
+  No InfoStores found.
+  Trying variant: 613100230
+  Status: 200
+    - Store: Самарская область, Волжский, гп Смышляевка, п.г.т. Стройкерамика, Пожарный проезд, земельный участок 1 (rc), Quant: 68
+    - Store: г. Самара, ул. Гаражная, д. 5  (op), Quant: 0
+    - Store: Самарcкая обл., Стройкерамика пгт., Пожарный проезд, д.1 (op), Quant: 68
+    - Store: г. Самара, ул. Главная, д. 23  (op), Quant: 0
+    - Store: г. Самара, ул. Московское шоссе, д.306 А (op), Quant: 0
+    - Store: Другие склады (rc2sum), Quant: 118
+    - Store: None (all), Quant: 880
+
+--- Debugging: 103801109-5 ---
+  Trying variant: 103801109-5
+  Status: 200
+  No InfoStores found.
+  Trying variant: 103801109
+  Status: 200
+    - Store: Самарская область, Волжский, гп Смышляевка, п.г.т. Стройкерамика, Пожарный проезд, земельный участок 1 (rc), Quant: 27
+    - Store: г. Самара, ул. Гаражная, д. 5  (op), Quant: 0
+    - Store: Калужская обл, Малоярославецкий р-н, Маклино с, Промзона Меньшовка-1 (crs), Quant: 10
+    - Store: Самарcкая обл., Стройкерамика пгт., Пожарный проезд, д.1 (op), Quant: 27
+    - Store: г. Самара, ул. Главная, д. 23  (op), Quant: 0
+    - Store: г. Самара, ул. Московское шоссе, д.306 А (op), Quant: 0
+    - Store: None (all), Quant: 92

@@ -11,7 +11,6 @@
  * @returns {URLFetchApp.HTTPResponse|null} Ответ сервера или null при неудаче
  */
 function retryFetch(url, options, maxRetries) {
-  // Если maxRetries не указан, используем 5
   const retries = maxRetries || 5;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -19,32 +18,40 @@ function retryFetch(url, options, maxRetries) {
       const response = UrlFetchApp.fetch(url, options);
       const responseCode = response.getResponseCode();
 
-      // Если запрос успешен (200-299) или это клиентская ошибка (400-499),
-      // возвращаем ответ без повторных попыток
-      if (responseCode >= 200 && responseCode < 500) {
+      // Успех (2xx) или Клиентская ошибка (4xx) кроме 429
+      if (responseCode >= 200 && responseCode < 500 && responseCode !== 429) {
         return response;
       }
 
-      // Серверная ошибка (500-599) - пробуем снова
-      Logger.log(`Request failed for ${url} with response code ${responseCode}. Attempt ${attempt}`);
+      // Если 429 или 5xx - логируем и пробуем снова
+      const responseText = response.getContentText();
+      Logger.log(`⚠️ HTTP ${responseCode} для ${url}. Попытка ${attempt}/${retries}`);
+      if (responseCode === 429 || responseCode >= 500) {
+        Logger.log(`   Ответ сервера: ${responseText.substring(0, 500)}`);
+      }
+
+      if (attempt === retries) {
+        Logger.log(`🚫 Достигнуто макс. число попыток (${retries}) для: ${url}`);
+        return response; // Возвращаем последний ответ чтобы вызывающий видел ошибку
+      }
 
     } catch (e) {
-      // Ошибка сети или другая исключительная ситуация
+      Logger.log(`❌ Ошибка сети в retryFetch (попытка ${attempt}/${retries}): ${e.toString()}`);
+      
       if (attempt === retries) {
-        Logger.log(`Max retries reached for URL: ${url}`);
+        Logger.log(`🚫 Достигнуто макс. число попыток для: ${url}`);
         return null;
       }
     }
 
-    // Если это не последняя попытка, ждём перед повтором
+    // Экспоненциальная задержка: 3с, 6с, 12с... (увеличено для WB)
     if (attempt < retries) {
-      // Экспоненциальная задержка: 1с, 2с, 4с, 8с...
-      const waitTime = Math.pow(2, attempt - 1) * 1000;
+      const waitTime = Math.pow(2, attempt) * 1500; 
+      Logger.log(`   Пауза ${waitTime/1000}с...`);
       Utilities.sleep(waitTime);
     }
   }
 
-  Logger.log(`Max retries reached for URL: ${url}`);
   return null;
 }
 
