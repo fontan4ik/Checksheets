@@ -29,12 +29,13 @@ def fetch_etm_stock(article, session_id):
         
     # ETM often expects base article without suffixes like -1, -5
     # Some articles in the sheet have -1, -2, -5 suffixes which should be stripped
+    # ETM often expects base article without suffixes like -1, -5
+    # However, some specific SKUs use these suffixes. Try original first.
     etm_article = re.sub(r'-\d+$', '', article)
     
-    # Try variants: stripped article first, then original
-    variants = [etm_article]
+    variants = [article]
     if etm_article != article:
-        variants.append(article)
+        variants.append(etm_article)
         
     for variant in variants:
         url = f"https://ipro.etm.ru/api/v1/goods/{requests.utils.quote(variant)}/remains?type=mnf&session-id={session_id}"
@@ -49,24 +50,26 @@ def fetch_etm_stock(article, session_id):
             info_stores = data.get("data", {}).get("InfoStores", [])
             
             stock = 0
-            found_any = False
+            found_relevant_store = False
             for store in info_stores:
                 store_name = (store.get("StoreName") or "").lower()
-                store_type = store.get("StoreType") or ""
+                store_type = (store.get("StoreType") or "").lower()
                 
                 # Broaden matching: Stroykeramika or Samara
-                # User reported that some items are in warehouses like "Самарская область..."
-                is_stroy = any(k in store_name for k in ["стройкерамика", "самар"])
+                is_samara = any(k in store_name for k in ["стройкерамика", "самар"])
                 
                 # Include RC (Regional Center) and OP (Operational) stores
-                if is_stroy and store_type in ["rc", "op"]:
+                if is_samara and store_type in ["rc", "op"]:
+                    # Try different field names for quantity
                     qty = store.get("StoreQuantRem") or store.get("StockRem") or 0
-                    stock += qty
-                    found_any = True
-                # Fallback: if StoreName is missing but it's a known Samara code (e.g. 24121, 8809)
-                # But names are usually present for working articles.
+                    if qty > 0:
+                        stock += qty
+                        found_relevant_store = True
             
-            if found_any:
+            # If we found any stock for the priority article, return it.
+            # If we found 0 but it's the specific SKU, we still might want to check the base SKU as fallback
+            # but usually the specific SKU is what we want.
+            if found_relevant_store and stock > 0:
                 return stock
         except Exception:
             continue
