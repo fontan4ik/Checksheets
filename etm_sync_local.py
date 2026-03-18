@@ -29,10 +29,14 @@ def _build_article_variants(article):
 
     variants = [article]
 
-    # Keep the original article first. ETM articles with suffixes like -5 can be valid.
-    # Only try a stripped fallback for the legacy -1 suffix used in the sheet.
-    if article.endswith("-1"):
-        variants.append(article[:-2])
+    # Keep the original article first because some ETM articles legitimately include dashes.
+    # If the sheet stores marketplace-specific suffixes like "-1" / "-5", also try the
+    # base article without the trailing numeric suffix.
+    if "-" in article:
+        base_article = article.rsplit("-", 1)[0]
+        suffix = article.rsplit("-", 1)[1]
+        if base_article and suffix.isdigit():
+            variants.append(base_article)
 
     return list(dict.fromkeys(v for v in variants if v))
 
