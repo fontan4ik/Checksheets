@@ -12,7 +12,7 @@ FERON_API_KEY = "ZjA5MDg3MTAtNjQ5ZS00ODU5LWJjNjktY2NkY2E1ZDdlNjUx"
 FERON_BASE_URL = "https://clientapi.shop.feron.ru"
 FERON_SHEET_NAME = "ТЕСТ"
 # Google Sheets Settings
-GSHEETS_CREDS_FILE = "google_credentials.json"
+GSHEETS_CREDS_FILE = "seo-pipline-faac250d5e57.json"
 # IMPORTANT: Provide your Spreadsheet ID here
 SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI"
 # Sheet Names
