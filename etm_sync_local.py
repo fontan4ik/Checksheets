@@ -104,7 +104,7 @@ def sync_etm():
         print(f"Error accessing Google Sheet: {e}")
         return
 
-    articles = ws.col_values(2)[1:]  # Skip header (колонка B - Модель)
+    articles = ws.col_values(1)[1:]  # Skip header (колонка A - Артикул)
     print(f"Found {len(articles)} articles in column A")
 
     stock_results = [0] * len(articles)
