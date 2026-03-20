@@ -268,6 +268,8 @@ function normalizeChrtId(value) {
 
 /**
  * Обновляет остатки на складе Wildberries (FBS)
+ * Автоматически пропускает конфликтные товары ODC/CD+,
+ * которые WB не даёт грузить на склад ФБС ФЕРОН МОСКВА.
  * @param {Array} stocks - Массив товаров
  * @param {number} warehouseId - ID склада
  */
@@ -291,6 +293,7 @@ function updateWBStocks(stocks, warehouseId) {
 
   let lastRequestTime = Date.now() - 1000 / WB_RPS();
   let successCount = 0;
+  let skippedCount = 0;
   let errorCount = 0;
 
   for (let i = 0; i < batches; i++) {
@@ -349,17 +352,41 @@ function updateWBStocks(stocks, warehouseId) {
     const responseText = response.getContentText();
 
     if (responseCode !== 200 && responseCode !== 204) {
-      Logger.log(`❌ Ошибка API (пачка ${i + 1}/${batches}): ${responseCode}`);
+      if (responseCode === 409) {
+        try {
+          const errorData = JSON.parse(responseText);
+          const errorItems = Array.isArray(errorData)
+            ? errorData
+            : (errorData?.errors || errorData?.error || []);
 
-      try {
-        const result = JSON.parse(responseText);
-        if (result.errors) {
-          Logger.log(`❌ WB API ошибки: ${JSON.stringify(result.errors).substring(0, 500)}`);
+          if (errorItems && errorItems.length > 0) {
+            const serialized = JSON.stringify(errorItems).substring(0, 1000);
+            Logger.log(`⚠️ WB 409 details (пачка ${i + 1}/${batches}): ${serialized}`);
+
+            const hasCargoRestriction = errorItems.some(err => {
+              const code = String(err.code || err.error || '');
+              const message = String(err.message || err.detail || '');
+              return code.includes('CargoWarehouseRestriction') ||
+                     message.includes('CargoWarehouseRestriction') ||
+                     code.includes('SGTKGTPlus') ||
+                     message.includes('SGTKGTPlus') ||
+                     message.includes('ODC') ||
+                     message.includes('CD+');
+            });
+
+            if (hasCargoRestriction) {
+              Logger.log(`⏸️ Пачка ${i + 1}/${batches}: пропущены конфликтные товары ODC/CD+ (${validBatch.length} шт.)`);
+              skippedCount += validBatch.length;
+              continue;
+            }
+          }
+        } catch (e) {
+          Logger.log(`⚠️ WB 409 raw (пачка ${i + 1}/${batches}): ${responseText.substring(0, 1000)}`);
         }
-      } catch (e) {
-        Logger.log(responseText.substring(0, 500));
       }
 
+      Logger.log(`❌ Ошибка API (пачка ${i + 1}/${batches}): ${responseCode}`);
+      Logger.log(responseText.substring(0, 1000));
       errorCount += validBatch.length;
       continue;
     }
@@ -369,7 +396,7 @@ function updateWBStocks(stocks, warehouseId) {
     Logger.log(`✅ Пачка ${i + 1}/${batches} обработана (${validBatch.length} товаров)`);
   }
 
-  Logger.log(`🟣 WB FBS: ✅ ${successCount} обновлено, ❌ ${errorCount} ошибок`);
+  Logger.log(`🟣 WB FBS: ✅ ${successCount} обновлено, ⏸️ ${skippedCount} пропущено ODC/CD+, ❌ ${errorCount} ошибок`);
 }
 
 // ============================================
