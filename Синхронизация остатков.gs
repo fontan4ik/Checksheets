@@ -221,6 +221,52 @@ function updateOzonStocks(stocks, warehouseId) {
 // ============================================
 
 /**
+ * Нормализует chrtId из ячейки/формулы Google Sheets.
+ *
+ * Возможные проблемы:
+ * - число пришло как строка
+ * - есть пробелы / неразрывные пробелы
+ * - значение выглядит как "12345.0"
+ * - формула вернула текст
+ *
+ * @param {*} value
+ * @returns {number|null}
+ */
+function normalizeChrtId(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  // Если это уже число
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? Math.trunc(value) : null;
+  }
+
+  let str = String(value)
+    .replace(/\u00A0/g, '')   // NBSP
+    .replace(/\s+/g, '')      // любые пробелы
+    .replace(/,/g, '.')        // на всякий случай
+    .trim();
+
+  if (!str) return null;
+
+  // Формат вида 12345.0 -> 12345
+  if (/^\d+\.0+$/.test(str)) {
+    str = str.replace(/\.0+$/, '');
+  }
+
+  // Оставляем только валидные числовые значения
+  if (!/^\d+(\.\d+)?$/.test(str)) {
+    return null;
+  }
+
+  const num = Number(str);
+  if (!Number.isFinite(num)) return null;
+
+  return Math.trunc(num);
+}
+
+/**
  * Обновляет остатки на складе Wildberries (FBS)
  * @param {Array} stocks - Массив товаров
  * @param {number} warehouseId - ID склада
@@ -257,11 +303,11 @@ function updateWBStocks(stocks, warehouseId) {
     const validBatch = [];
     for (let j = 0; j < batch.length; j++) {
       const item = batch[j];
-      const idNum = Number(item.chrt_id);
+      const idNum = normalizeChrtId(item.chrt_id);
 
       // Валидация chrtId
-      if (isNaN(idNum) || !item.chrt_id) {
-        Logger.log(`⚠️ Пропущен невалидный chrtId: ${item.chrt_id} (offer_id: ${item.offer_id})`);
+      if (!idNum) {
+        Logger.log(`⚠️ Пропущен невалидный chrtId: raw="${item.chrt_id}" normalized="${idNum}" (offer_id: ${item.offer_id})`);
         errorCount++;
         continue;
       }
@@ -352,7 +398,7 @@ function syncStocksFromSheets() {
   // Показываем примеры данных
   Logger.log(`📋 Примеры данных (первые 5):`);
   stocks.slice(0, 5).forEach(s => {
-    Logger.log(`  - ${s.offer_id} | SKU_OZON: ${s.sku_ozon} | chrtId: ${s.chrt_id} | Stock: ${s.stock}`);
+    Logger.log(`  - ${s.offer_id} | SKU_OZON: ${s.sku_ozon} | chrtId(raw): ${s.chrt_id} | chrtId(norm): ${normalizeChrtId(s.chrt_id)} | Stock: ${s.stock}`);
   });
 
   // Шаг 2: Получаем ID складов
