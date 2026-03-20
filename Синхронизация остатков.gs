@@ -220,6 +220,97 @@ function updateOzonStocks(stocks, warehouseId) {
 // ОБНОВЛЕНИЕ ОСТАТКОВ WILDBERRIES
 // ============================================
 
+function isWBCargoRestrictionError(responseText) {
+  try {
+    const errorData = JSON.parse(responseText);
+    const errorItems = Array.isArray(errorData)
+      ? errorData
+      : (errorData?.errors || errorData?.error || []);
+
+    if (!errorItems || errorItems.length === 0) {
+      return false;
+    }
+
+    return errorItems.some(err => {
+      const code = String(err.code || err.error || '');
+      const message = String(err.message || err.detail || '');
+      return code.includes('CargoWarehouseRestriction') ||
+             message.includes('CargoWarehouseRestriction') ||
+             code.includes('SGTKGTPlus') ||
+             message.includes('SGTKGTPlus') ||
+             message.includes('ODC') ||
+             message.includes('CD+');
+    });
+  } catch (e) {
+    return responseText.includes('CargoWarehouseRestriction') ||
+           responseText.includes('SGTKGTPlus') ||
+           responseText.includes('ODC') ||
+           responseText.includes('CD+');
+  }
+}
+
+function sendWBStocksBatch(batch, warehouseId) {
+  const body = { stocks: batch };
+  const url = `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`;
+  const options = {
+    method: "put",
+    contentType: "application/json",
+    headers: wbHeaders(),
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true
+  };
+
+  const response = retryFetch(url, options);
+
+  if (!response) {
+    return { ok: false, code: 0, text: '', cargoRestriction: false };
+  }
+
+  const code = response.getResponseCode();
+  const text = response.getContentText();
+
+  return {
+    ok: code === 200 || code === 204,
+    code,
+    text,
+    cargoRestriction: code === 409 && isWBCargoRestrictionError(text)
+  };
+}
+
+function processWBConflictIndividually(validBatch, warehouseId, batchLabel) {
+  let successCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+
+  Logger.log(`🔍 ${batchLabel}: дробление до отдельных товаров...`);
+
+  for (let j = 0; j < validBatch.length; j++) {
+    const item = validBatch[j];
+    const result = sendWBStocksBatch([item], warehouseId);
+
+    if (result.ok) {
+      successCount++;
+      continue;
+    }
+
+    if (result.cargoRestriction) {
+      Logger.log(`⏸️ ${batchLabel}: пропущен ODC/CD+ chrtId=${item.chrtId}, amount=${item.amount}`);
+      skippedCount++;
+      continue;
+    }
+
+    Logger.log(`❌ ${batchLabel}: ошибка для chrtId=${item.chrtId}, amount=${item.amount}, code=${result.code}`);
+    if (result.text) {
+      Logger.log(result.text.substring(0, 500));
+    }
+    errorCount++;
+  }
+
+  Logger.log(`📊 ${batchLabel}: поштучно ✅ ${successCount}, ⏸️ ${skippedCount}, ❌ ${errorCount}`);
+
+  return { successCount, skippedCount, errorCount };
+}
+
 /**
  * Нормализует chrtId из ячейки/формулы Google Sheets.
  *
@@ -270,13 +361,13 @@ function normalizeChrtId(value) {
  * Обновляет остатки на складе Wildberries (FBS)
  * Автоматически пропускает конфликтные товары ODC/CD+,
  * которые WB не даёт грузить на склад ФБС ФЕРОН МОСКВА.
+ * При 409 батч дробится до отдельных товаров.
  * @param {Array} stocks - Массив товаров
  * @param {number} warehouseId - ID склада
  */
 function updateWBStocks(stocks, warehouseId) {
   Logger.log(`🟣 Обновление остатков WB (склад ID: ${warehouseId})...`);
 
-  // Фильтруем товары с chrt_id
   const validStocks = stocks.filter(s => s.chrt_id);
 
   if (validStocks.length === 0) {
@@ -287,7 +378,6 @@ function updateWBStocks(stocks, warehouseId) {
 
   Logger.log(`📦 Товаров для обработки: ${validStocks.length}`);
 
-  // Лимит: 1000 товаров за запрос
   const batchSize = 1000;
   const batches = Math.ceil(validStocks.length / batchSize);
 
@@ -297,13 +387,11 @@ function updateWBStocks(stocks, warehouseId) {
   let errorCount = 0;
 
   for (let i = 0; i < batches; i++) {
-    // Rate limiting
     lastRequestTime = rateLimitRPS(lastRequestTime, WB_RPS());
 
     const batch = validStocks.slice(i * batchSize, (i + 1) * batchSize);
-
-    // ✅ Новый формат WB API (февраль 2026): chrtId + stocks
     const validBatch = [];
+
     for (let j = 0; j < batch.length; j++) {
       const item = batch[j];
       const idNum = normalizeChrtId(item.chrt_id);
@@ -316,8 +404,8 @@ function updateWBStocks(stocks, warehouseId) {
       }
 
       validBatch.push({
-        chrtId: idNum,  // ✅ chrtId из колонки J
-        amount: item.stock  // 0 тоже валидное значение
+        chrtId: idNum,
+        amount: item.stock
       });
     }
 
@@ -326,74 +414,28 @@ function updateWBStocks(stocks, warehouseId) {
       continue;
     }
 
-    const body = {
-      stocks: validBatch  // ✅ "stocks" (множественное число)
-    };
+    const result = sendWBStocksBatch(validBatch, warehouseId);
 
-    const url = `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`;
-
-    const options = {
-      method: "put",
-      contentType: "application/json",
-      headers: wbHeaders(),
-      payload: JSON.stringify(body),
-      muteHttpExceptions: true
-    };
-
-    const response = retryFetch(url, options);
-
-    if (!response) {
-      Logger.log(`❌ Ошибка запроса (пачка ${i + 1}/${batches})`);
-      errorCount += validBatch.length;
+    if (result.ok) {
+      successCount += validBatch.length;
+      Logger.log(`✅ Пачка ${i + 1}/${batches} обработана (${validBatch.length} товаров)`);
       continue;
     }
 
-    const responseCode = response.getResponseCode();
-    const responseText = response.getContentText();
-
-    if (responseCode !== 200 && responseCode !== 204) {
-      if (responseCode === 409) {
-        try {
-          const errorData = JSON.parse(responseText);
-          const errorItems = Array.isArray(errorData)
-            ? errorData
-            : (errorData?.errors || errorData?.error || []);
-
-          if (errorItems && errorItems.length > 0) {
-            const serialized = JSON.stringify(errorItems).substring(0, 1000);
-            Logger.log(`⚠️ WB 409 details (пачка ${i + 1}/${batches}): ${serialized}`);
-
-            const hasCargoRestriction = errorItems.some(err => {
-              const code = String(err.code || err.error || '');
-              const message = String(err.message || err.detail || '');
-              return code.includes('CargoWarehouseRestriction') ||
-                     message.includes('CargoWarehouseRestriction') ||
-                     code.includes('SGTKGTPlus') ||
-                     message.includes('SGTKGTPlus') ||
-                     message.includes('ODC') ||
-                     message.includes('CD+');
-            });
-
-            if (hasCargoRestriction) {
-              Logger.log(`⏸️ Пачка ${i + 1}/${batches}: пропущены конфликтные товары ODC/CD+ (${validBatch.length} шт.)`);
-              skippedCount += validBatch.length;
-              continue;
-            }
-          }
-        } catch (e) {
-          Logger.log(`⚠️ WB 409 raw (пачка ${i + 1}/${batches}): ${responseText.substring(0, 1000)}`);
-        }
-      }
-
-      Logger.log(`❌ Ошибка API (пачка ${i + 1}/${batches}): ${responseCode}`);
-      Logger.log(responseText.substring(0, 1000));
-      errorCount += validBatch.length;
+    if (result.cargoRestriction) {
+      Logger.log(`⚠️ WB 409 details (пачка ${i + 1}/${batches}): ${result.text.substring(0, 1000)}`);
+      const fallback = processWBConflictIndividually(validBatch, warehouseId, `Пачка ${i + 1}/${batches}`);
+      successCount += fallback.successCount;
+      skippedCount += fallback.skippedCount;
+      errorCount += fallback.errorCount;
       continue;
     }
 
-    // WB API возвращает 200 OK или 204 No Content без детализации по каждому товару
-    successCount += validBatch.length;
-    Logger.log(`✅ Пачка ${i + 1}/${batches} обработана (${validBatch.length} товаров)`);
+    Logger.log(`❌ Ошибка API (пачка ${i + 1}/${batches}): ${result.code}`);
+    if (result.text) {
+      Logger.log(result.text.substring(0, 1000));
+    }
+    errorCount += validBatch.length;
   }
 
   Logger.log(`🟣 WB FBS: ✅ ${successCount} обновлено, ⏸️ ${skippedCount} пропущено ODC/CD+, ❌ ${errorCount} ошибок`);
