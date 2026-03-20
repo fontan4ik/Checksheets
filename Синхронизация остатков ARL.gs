@@ -170,15 +170,6 @@ function getFeronWBWarehouseId() {
  * @param {number} warehouseId - ID склада
  */
 function updateARLStocksOzon(stocks, warehouseId) {
-  // Если функция запущена вручную напрямую
-  if (!stocks) {
-    Logger.log(`📥 Извлечение данных из таблицы для Ozon, так как функция запущена отдельно...`);
-    stocks = readARLStocksFromSheet();
-  }
-  if (!warehouseId) {
-    warehouseId = getArlightOzonWarehouseId();
-  }
-
   Logger.log(`🟠 Обновление остатков Ozon (склад ID: ${warehouseId})...`);
 
   // Фильтруем товары с offer_id и stock > 0
@@ -276,15 +267,6 @@ function updateARLStocksOzon(stocks, warehouseId) {
  * @param {number} warehouseId - ID склада
  */
 function updateARLStocksWB(stocks, warehouseId) {
-  // Если функция запущена вручную напрямую
-  if (!stocks) {
-    Logger.log(`📥 Извлечение данных из таблицы для WB, так как функция запущена отдельно...`);
-    stocks = readARLStocksFromSheet();
-  }
-  if (!warehouseId) {
-    warehouseId = getFeronWBWarehouseId();
-  }
-
   Logger.log(`🟣 Обновление остатков WB FBS (склад ID: ${warehouseId})...`);
 
   // Фильтруем товары с chrt_id

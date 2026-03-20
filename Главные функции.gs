@@ -168,22 +168,6 @@ function runWbOnly(){
 }
 
 /**
- * runWbStocksByChrtId() - Запустить обновление остатков FBS по chrtId
- */
-function runWbStocksByChrtId(){
-  Logger.log("🚀 Запуск обновления остатков FBS по chrtId...");
-  updateWBStocksFBSDirect();
-}
-
-/**
- * runWbStocksByChrtIdFromColumn() - Запустить обновление остатков FBS по chrtId из колонки AZ
- */
-function runWbStocksByChrtIdFromColumn(){
-  Logger.log("🚀 Запуск обновления остатков FBS по chrtId из колонки AZ...");
-  updateWBStocksFBSDirectFromChrtIdColumn();
-}
-
-/**
  * updateExternalAPIStocks() - Запустить только внешние API (Feron, ETM)
  * Заполняет колонки AI (35), AJ (36), AK (37), AL (38)
  */

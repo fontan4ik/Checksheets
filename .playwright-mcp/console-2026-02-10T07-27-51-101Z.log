@@ -1,2 +1,0 @@
-[    3726ms] [WARNING] [ReDoc Compatibility mode]: Converting OpenAPI 2.0 to OpenAPI 3.0 @ https://cdn2.ozone.ru/s3/redoc/scripts/v7.30/redoc.standalone.js:36
-[    3859ms] [WARNING] Non-existing tag "InvoiceAPI" is added to the group "Базовые методы" @ https://cdn2.ozone.ru/s3/redoc/scripts/v7.30/redoc.standalone.js:105

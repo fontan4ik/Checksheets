@@ -1,13 +1,3 @@
-/**
- * РАБОТА С ЛИСТОМ "РуСВ TR"
- * 
- * 1. updateRSStocksInSheet() - подтягивает остатки из RS API в таблицу.
- * 2. syncRSTableToMarketplaces() - выгружает данные из таблицы на маркетплейсы.
- */
-
-// ============================================
-// КОНФИГУРАЦИЯ
-// ============================================
 
 const RS_SHEET_NAME = "РуСВ TR";
 const RS_WAREHOUSE_ID = 96; // По умолчанию (Самара)
@@ -134,65 +124,6 @@ function updateRSStocksInSheet() {
 // 2. СИНХРОНИЗАЦИЯ ТАБЛИЦЫ С МАРКЕТПЛЕЙСАМИ
 // ============================================
 
-function normalizeRSChrtId(value) {
-  if (value === null || value === undefined || value === "") {
-    return null;
-  }
-
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? Math.trunc(value) : null;
-  }
-
-  let str = String(value)
-    .replace(/\u00A0/g, "")
-    .replace(/\s+/g, "")
-    .replace(/,/g, ".")
-    .trim();
-
-  if (!str) return null;
-
-  if (/^\d+\.0+$/.test(str)) {
-    str = str.replace(/\.0+$/, "");
-  }
-
-  if (!/^\d+(\.\d+)?$/.test(str)) {
-    return null;
-  }
-
-  const num = Number(str);
-  return Number.isFinite(num) ? Math.trunc(num) : null;
-}
-
-function findRSWBWarehouseIdByName(name) {
-  if (typeof findWBWarehouseIdByName === "function") {
-    return findWBWarehouseIdByName(name);
-  }
-
-  const url = "https://marketplace-api.wildberries.ru/api/v3/warehouses";
-  const options = {
-    method: "get",
-    headers: wbHeaders(),
-    muteHttpExceptions: true
-  };
-
-  try {
-    const response = UrlFetchApp.fetch(url, options);
-    if (!response || response.getResponseCode() !== 200) return null;
-
-    const data = JSON.parse(response.getContentText());
-    if (!Array.isArray(data)) return null;
-
-    const wh = data.find(w =>
-      w.name === name || (w.name && w.name.toLowerCase().includes(String(name).toLowerCase()))
-    );
-
-    return wh ? wh.id : null;
-  } catch (e) {
-    Logger.log(`⚠️ Не удалось определить WB склад по имени "${name}": ${e}`);
-    return null;
-  }
-}
-
 /**
  * Выгружает данные из колонок "Артикул", "chrtId" и "Округление" на Ozon и WB
  */
@@ -248,7 +179,7 @@ function syncRSTableToMarketplaces() {
     }
     
     // 2. Поиск ID склада WB
-    const wbWhId = findRSWBWarehouseIdByName(RS_WB_TARGET_WH_NAME) || 1449484;
+    const wbWhId = findWBWarehouseIdByName(RS_WB_TARGET_WH_NAME) || 1449484;
     if (wbWhId) {
       Logger.log(`✅ WB склад найден: ${wbWhId} (${RS_WB_TARGET_WH_NAME})`);
       updateRSStocksWBBatch(stocksForUpload, wbWhId);
@@ -290,31 +221,14 @@ function updateRSStocksOzonBatch(stocks, warehouseId) {
 
 function updateRSStocksWBBatch(stocks, warehouseId) {
   const batchSize = 1000;
-  let lastRequestTime = Date.now() - 1000 / WB_RPS();
-
   for (let i = 0; i < stocks.length; i += batchSize) {
-    lastRequestTime = rateLimitRPS(lastRequestTime, WB_RPS());
-
     const batch = stocks.slice(i, i + batchSize);
-    const validBatch = [];
+    const validBatch = batch.map(item => ({
+      chrtId: Number(item.chrt_id),
+      amount: item.stock
+    })).filter(item => !isNaN(item.chrtId) && item.chrtId > 0);
 
-    for (const item of batch) {
-      const chrtId = normalizeRSChrtId(item.chrt_id);
-      if (!chrtId || chrtId <= 0) {
-        Logger.log(`⚠️ Пропущен невалидный chrtId: raw="${item.chrt_id}" (offer_id: ${item.offer_id})`);
-        continue;
-      }
-
-      validBatch.push({
-        chrtId,
-        amount: item.stock
-      });
-    }
-
-    if (validBatch.length === 0) {
-      Logger.log(`⏸️ Пачка ${Math.floor(i / batchSize) + 1} пропущена: нет валидных chrtId`);
-      continue;
-    }
+    if (validBatch.length === 0) continue;
 
     const options = {
       method: "put",
@@ -323,21 +237,7 @@ function updateRSStocksWBBatch(stocks, warehouseId) {
       payload: JSON.stringify({ stocks: validBatch }),
       muteHttpExceptions: true
     };
-
-    const response = retryFetch(`https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`, options);
-    if (!response) {
-      Logger.log(`❌ WB: нет ответа по пачке ${Math.floor(i / batchSize) + 1}`);
-      continue;
-    }
-
-    const code = response.getResponseCode();
-    const text = response.getContentText();
-    if (code !== 200 && code !== 204) {
-      Logger.log(`❌ WB API ошибка по пачке ${Math.floor(i / batchSize) + 1}: ${code}`);
-      Logger.log((text || "").substring(0, 500));
-    } else {
-      Logger.log(`✅ WB пачка ${Math.floor(i / batchSize) + 1} отправлена (${validBatch.length} товаров)`);
-    }
+    retryFetch(`https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`, options);
   }
 }
 

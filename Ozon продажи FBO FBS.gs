@@ -6,15 +6,6 @@
  * - AR (44): Продажи штуки месяц FBS ОЗОН
  * - AS (45): Продажи штуки квартал FBO ОЗОН
  * - AT (46): Продажи штуки квартал FBS ОЗОН
- *
- * ТЕСТОВЫЕ ДАННЫЕ:
- * Для SKU 301916350 за период 26.01.2026-26.02.2026:
- * - Реальные значения API: FBO 45, FBS 45 (всего 90 штук)
- * - Ожидаемые значения: FBO 40, FBS 5 (всего 45 штук)
- *
- * Примечание: API возвращает реальные данные, которые могут отличаться от ожидаемых.
- * Функция теперь корректно использует параметр "dimension" вместо "dimensions" как в документации.
- * Причина расхождения может быть связана с разницей в периодах или агрегацией данных.
  */
 
 /**
@@ -132,11 +123,10 @@ function fetchOzonSalesAnalytics(dateFrom, dateTo, fulfillmentType) {
       // Делаем запрос для конкретной группы SKU
       // Из-за особенностей API, фильтрация по SKU может не работать корректно при большом объеме данных
       // Поэтому запрашиваем данные по типу исполнения и фильтруем SKU программно
-      // Также добавим фильтр по конкретным SKU, если их немного
       const body = {
         date_from: formatDateTimeForAPI(dateFrom),
         date_to: formatDateTimeForAPI(dateTo),
-        dimension: ["sku"], // Размерность по SKU (используем правильное имя параметра как в документации)
+        dimension: ["sku"], // Размерность по SKU
         metrics: ["ordered_units"], // Используем метрики для получения данных о продажах (ordered_units - это проданные единицы)
         filters: [
           {
@@ -144,8 +134,7 @@ function fetchOzonSalesAnalytics(dateFrom, dateTo, fulfillmentType) {
             operation: "eq",
             values: [fulfillmentType]
           }
-          // Не добавляем фильтр по SKU здесь, так как API может возвращать неполные результататы
-          // Фильтрация будет происходить на уровне приложения ниже
+          // Не фильтруем по SKU на уровне API из-за особенностей работы API
         ],
         limit: 1000  // Добавляем лимит, как того требует API
       };
@@ -228,11 +217,6 @@ function fetchOzonSalesAnalytics(dateFrom, dateTo, fulfillmentType) {
             // Берем первое значение из массива метрик, которое должно быть ordered_units
             const metricValue = item.metrics[0];
             unitCount = typeof metricValue === 'number' && metricValue >= 0 ? metricValue : 0;
-
-            // Добавим логирование для отслеживания конкретного SKU
-            if (sku === 301916350) {
-              Logger.log(`DEBUG: SKU 301916350, fulfillment: ${fulfillmentType}, units: ${unitCount}, date range: ${Utilities.formatDate(dateFrom, "GMT+3", "yyyy-MM-dd")} → ${Utilities.formatDate(dateTo, "GMT+3", "yyyy-MM-dd")}`);
-            }
           }
 
           if (!stats[sku]) {
