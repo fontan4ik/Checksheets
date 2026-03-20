@@ -94,10 +94,10 @@ def fetch_all_wb_cards():
             "settings": {
                 "sort": {"ascending": True},
                 "cursor": {"limit": WB_PAGE_LIMIT},
-            },
-            "filter": {
-                "withPhoto": -1,
-            },
+                "filter": {
+                    "withPhoto": -1
+                }
+            }
         }
 
         if cursor and cursor.get("updatedAt") and (cursor.get("nmID") or cursor.get("nmId")):
