@@ -1,3 +1,5 @@
+import json
+import os
 import time
 import requests
 import config
@@ -9,11 +11,24 @@ WB_PAGE_LIMIT = 100
 WB_SLEEP_SECONDS = 0.35
 WB_REQUEST_TIMEOUT = 60
 WB_MAX_RETRIES = 5
+WB_DEBUG_DIR = os.path.join(os.path.dirname(__file__), "debug")
+WB_DEBUG_FIRST_PAGE_FILE = os.path.join(WB_DEBUG_DIR, "wb_tech_data_first_page.json")
+WB_SUSPICIOUS_TOTAL_THRESHOLD = 100
+
+
+def get_wb_api_token():
+    token = os.getenv("WB_API_TOKEN") or getattr(config, "WB_API_TOKEN", "")
+    token = (token or "").strip()
+    if not token:
+        raise ValueError("WB API token not found. Set WB_API_TOKEN in env or config.py")
+    if token.lower().startswith("bearer "):
+        return token
+    return f"Bearer {token}"
 
 
 def wb_headers():
     return {
-        "Authorization": "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwOTA0djEiLCJ0eXAiOiJKV1QifQ.eyJhY2MiOjEsImVudCI6MSwiZXhwIjoxNzg2MDUyMTMxLCJpZCI6IjAxOWMyZDI4LTI0MzMtNzY2MC1iZDU4LTRlNjVhYzMwM2E0YiIsImlpZCI6MTk3ODU3MDksIm9pZCI6MTc3NTU3LCJzIjo3OTM0LCJzaWQiOiI2OGI4Mjg0Ni0wZDk0LTRiNDEtODQ1NC1kYzM1MzM0ODJjOWEiLCJ0IjpmYWxzZSwidWlkIjoxOTc4NTcwOX0.fZu3j3YZBrIIEAZ6KtuWjTZ7HfPS3sR8Z6vOdmfT5L8hpQmjvVq3zf9Io-2wXTifmda46JEKhCZafyUlTUfpdA",
+        "Authorization": get_wb_api_token(),
         "Content-Type": "application/json",
     }
 
@@ -37,6 +52,33 @@ def request_with_retry(session, method, url, **kwargs):
     return None
 
 
+def ensure_debug_dir():
+    os.makedirs(WB_DEBUG_DIR, exist_ok=True)
+
+
+def save_first_page_debug(data):
+    ensure_debug_dir()
+    with open(WB_DEBUG_FIRST_PAGE_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def print_first_page_diagnostics(data):
+    cards = data.get("cards") or []
+    cursor = data.get("cursor") or {}
+    print("First page diagnostics:")
+    print(f"   cards: {len(cards)}")
+    print(f"   cursor.updatedAt: {cursor.get('updatedAt')}")
+    print(f"   cursor.nmID: {cursor.get('nmID') or cursor.get('nmId')}")
+    print(f"   cursor.total: {cursor.get('total')}")
+
+    for idx, card in enumerate(cards[:10], start=1):
+        vendor_code = card.get("vendorCode")
+        nm_id = card.get("nmID") or card.get("nmId")
+        sizes = card.get("sizes") or []
+        print(f"   {idx}. vendorCode={vendor_code} | nmId={nm_id} | sizes={len(sizes)}")
+
+
+
 def fetch_all_wb_cards():
     session = requests.Session()
     session.headers.update(wb_headers())
@@ -44,6 +86,7 @@ def fetch_all_wb_cards():
     all_cards = []
     cursor = None
     page = 0
+    first_page_total = None
 
     while True:
         page += 1
@@ -79,6 +122,13 @@ def fetch_all_wb_cards():
 
         data = response.json()
         cards = data.get("cards") or []
+
+        if page == 1:
+            save_first_page_debug(data)
+            print_first_page_diagnostics(data)
+            first_page_total = (data.get("cursor") or {}).get("total")
+            print(f"Debug JSON saved to: {WB_DEBUG_FIRST_PAGE_FILE}")
+
         if not cards:
             print(f"Page {page}: no cards, stop")
             break
@@ -103,7 +153,16 @@ def fetch_all_wb_cards():
         if page >= 2000:
             raise RuntimeError("Safety limit reached while fetching WB cards")
 
+    if first_page_total is not None and first_page_total < WB_SUSPICIOUS_TOTAL_THRESHOLD:
+        print("WARNING: WB returned suspiciously few cards.")
+        print(f"   cursor.total = {first_page_total}")
+        print("   Most likely causes:")
+        print("   1) wrong WB token / wrong seller cabinet")
+        print("   2) token with restricted access")
+        print("   3) outdated token on this machine")
+
     return all_cards
+
 
 
 def build_rows(cards):
@@ -139,6 +198,7 @@ def build_rows(cards):
     return rows, without_sizes
 
 
+
 def replace_sheet_contents(worksheet, rows):
     values = [["Артикул продавца", "Код размера (chrt_id)", "Артикул WB"]] + rows
 
@@ -156,7 +216,7 @@ def replace_sheet_contents(worksheet, rows):
         range_label = f"A{start_row}:C{end_row}"
         chunk_num = idx // chunk_size + 1
         print(f"Updating chunk {chunk_num}/{total_chunks}: {range_label}")
-        worksheet.update(range_label, chunk, value_input_option="RAW")
+        worksheet.update(values=chunk, range_name=range_label, value_input_option="RAW")
         time.sleep(0.4)
 
 
