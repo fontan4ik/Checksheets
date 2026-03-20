@@ -41,6 +41,18 @@ python feron_sync_local.py
 - **AJ**: Ферон Внуково
 - **AK**: Ферон Новосибирск
 
+### Выгрузка WB техданных (лист "ТЕХ данные wb"):
+```bash
+python wb_tech_data_sync_local.py
+```
+Скрипт:
+1. Загружает все карточки продавца из WB Content API.
+2. Разворачивает их в строки:
+   - **Артикул продавца** (`vendorCode`)
+   - **Код размера (chrt_id)** (`sizes[].chrtID`)
+   - **Артикул WB** (`nmID`)
+3. Полностью перезаписывает лист **"ТЕХ данные wb"**.
+
 ### Запуск всех выгрузок сразу:
 ```bash
 python sync_master.py
@@ -50,6 +62,7 @@ python sync_master.py
 - `etm_sync_local.py`: Логика работы с ETM.
 - `feron_sync_local.py`: Логика работы с Feron.
 - `rs_sync_local.py`: Логика работы с РС (использует прокси для обхода блокировок).
+- `wb_tech_data_sync_local.py`: Локальная выгрузка техданных WB в лист `ТЕХ данные wb`.
 - `sync_master.py`: Скрипт для запуска всех выгрузок по очереди.
 - `gsheets_utils.py`: Общие функции для работы с Google Таблицами.
 - `config.py`: Настройки и учетные данные.
