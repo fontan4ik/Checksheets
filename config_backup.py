@@ -12,7 +12,7 @@ FERON_API_KEY = "ZjA5MDg3MTAtNjQ5ZS00ODU5LWJjNjktY2NkY2E1ZDdlNjUx"
 FERON_BASE_URL = "https://clientapi.shop.feron.ru"
 FERON_SHEET_NAME = "ТЕСТ"
 # Google Sheets Settings
-GSHEETS_CREDS_FILE = "C:/AI/Checksheets/nomadic-bedrock-485314-b0-d16b6095cbb3.json"
+GSHEETS_CREDS_FILE = "C:\AI\Checksheets\nomadic-bedrock-485314-b0-d16b6095cbb3.json"
 # IMPORTANT: Provide your Spreadsheet ID here
 SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI"
 # Sheet Names
