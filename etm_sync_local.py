@@ -1,5 +1,4 @@
 import time
-from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
@@ -44,74 +43,69 @@ def _build_article_variants(article):
 
 
 def _extract_samara_stock(info_stores, request_store_name=""):
-
-    rc_stock = 0  # Stock from regional center (rc)
-    op_stock_sum = 0  # Sum of stocks from offices of sales (op)
-
+    """
+    Extract stock for Samara (Стройкерамика) from ETM API response.
+    Returns the MAXIMUM available stock across all relevant stores.
+    """
+    samara_stocks = []  # Collect all Samara-related stocks
     aggregate_stock = 0
+
+    # Check if the overall request is for Samara
+    is_request_for_samara = (
+        "самар" in request_store_name.lower()
+        or "стройкерамика" in request_store_name.lower()
+    )
 
     for store in info_stores:
         store_name = (store.get("StoreName") or "").lower()
-
         store_type = (store.get("StoreType") or "").lower()
 
         # Check various possible fields that might contain stock information
-
         qty = store.get("StoreQuantRem")
-
         if qty is None:
             qty = store.get("StockRem")
-
         if qty is None:
-            # Check for other possible field names that might contain quantity
-
-            qty = store.get("QuantRem", 0)  # Additional potential field
-
+            qty = store.get("QuantRem", 0)
         if qty is None:
             qty = 0
 
+        # Convert to int to ensure numeric comparison
+        try:
+            qty = int(qty)
+        except (ValueError, TypeError):
+            qty = 0
+
+        # Check if this store is Samara-related
         is_samara = any(k in store_name for k in ["стройкерамика", "самар"])
 
-        # Check if the overall request is for Samara
-
-        is_request_for_samara = (
-            "самар" in request_store_name.lower()
-            or "стройкерамика" in request_store_name.lower()
-        )
-
-        # Separate handling for RC and OP stores
-        if is_samara and store_type == "rc":
-            rc_stock += qty
-            continue
-        elif is_samara and store_type == "op":
-            op_stock_sum += qty
+        # Collect stocks from Samara stores (rc, op, crs)
+        if is_samara and store_type in ["rc", "op", "crs"]:
+            if qty > 0:
+                samara_stocks.append(qty)
             continue
 
-        # NEW: If we have an 'all' type with empty store name but request is for Samara, treat it as Samara stock
-
+        # Handle aggregate rows
         if not store_name and store_type == "all" and is_request_for_samara:
             aggregate_stock = max(aggregate_stock, qty)
-
             continue
 
-        # Fallback: some ETM responses expose the available quantity only in aggregate rows.
-
-        if store_type == "rc2sum":
+        # Fallback: some ETM responses expose the available quantity only in aggregate rows
+        if store_type in ["rc2sum", "all"]:
             aggregate_stock = max(aggregate_stock, qty)
 
-        elif store_type == "all":
-            aggregate_stock = max(aggregate_stock, qty)
-
-    # If RC stock exists, return it; otherwise return sum of OP stocks; if both are zero, return aggregate
-    if rc_stock > 0:
-        return rc_stock
-    elif op_stock_sum > 0:
-        return op_stock_sum
+    # Return the MAXIMUM stock found
+    # Priority: max of individual Samara stores, then aggregate
+    if samara_stocks:
+        return max(samara_stocks)
 
     return aggregate_stock
 
 
-def fetch_etm_stock(article, session_id):
+def fetch_etm_stock(article, session_id, retry_count=0):
+    """
+    Fetch stock for a single article from ETM API.
+    Implements exponential backoff for rate limiting.
+    """
     article = str(article).strip()
     if not article:
         return 0
@@ -129,15 +123,22 @@ def fetch_etm_stock(article, session_id):
                 response = requests.get(url, headers=headers, timeout=10)
 
                 if response.status_code == 429:  # Too Many Requests
+                    # Exponential backoff: 2, 4, 8 seconds
+                    wait_time = min(2 ** (retry_count + 1), 10)
                     print(
-                        f"Rate limit hit for article {variant}, sleeping before retry..."
+                        f"Rate limit hit for article {variant}, waiting {wait_time}s..."
                     )
-                    time.sleep(5)  # Wait before retry
-                    response = requests.get(url, headers=headers, timeout=10)
+                    time.sleep(wait_time)
+
+                    if retry_count < 3:
+                        return fetch_etm_stock(article, session_id, retry_count + 1)
+                    else:
+                        print(f"Max retries reached for article {variant}")
+                        continue
 
                 if response.status_code == 403:  # Session expired
                     print(
-                        f"Session expired for article {variant}, please renew session"
+                        f"Session expired for article {variant}, session needs renewal"
                     )
                     return 0
 
@@ -156,6 +157,7 @@ def fetch_etm_stock(article, session_id):
                 stock = _extract_samara_stock(info_stores, request_store_name)
 
                 if stock > 0:
+                    print(f"  {article} -> {stock} units")
                     return stock
 
             except requests.exceptions.RequestException as e:
@@ -173,7 +175,11 @@ def fetch_etm_stock(article, session_id):
 
 
 def sync_etm():
-    print("Starting ETM Local Sync (Parallelized)...")
+    """
+    Sync ETM stock data to Google Sheets.
+    Uses sequential processing with rate limiting to respect ETM API limits (1 req/sec).
+    """
+    print("Starting ETM Local Sync (Sequential with Rate Limiting)...")
     session_id = get_etm_session()
     if not session_id:
         return
@@ -189,28 +195,40 @@ def sync_etm():
 
     stock_results = [0] * len(articles)
 
-    # Process in chunks to avoid overwhelming the server and show progress
+    # ETM API limit: 1 request per second
+    # We use 1.1 seconds to be safe
+    request_delay = 1.1
+    last_request_time = 0
+
+    # Process sequentially with rate limiting
     chunk_size = 50
     for i in range(0, len(articles), chunk_size):
         chunk = articles[i : i + chunk_size]
+        chunk_end = min(i + chunk_size, len(articles))
         print(
-            f"   Processing chunk {i // chunk_size + 1}/{(len(articles) - 1) // chunk_size + 1} ({i}/{len(articles)})..."
+            f"\n=== Processing chunk {i // chunk_size + 1}/{(len(articles) - 1) // chunk_size + 1} "
+            f"(articles {i + 1}-{chunk_end}/{len(articles)}) ==="
         )
 
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [
-                executor.submit(fetch_etm_stock, art, session_id) for art in chunk
-            ]
-            for j, future in enumerate(futures):
-                stock_results[i + j] = future.result()
+        for j, article in enumerate(chunk):
+            # Rate limiting: ensure at least 1.1 seconds between requests
+            elapsed = time.time() - last_request_time
+            if elapsed < request_delay:
+                time.sleep(request_delay - elapsed)
 
-        # Small sleep between chunks to stay safe
-        time.sleep(0.5)
+            last_request_time = time.time()
 
-    print(f"Updating Google Sheet '{config.ETM_SHEET_NAME}' column AL...")
+            # Fetch stock for this article
+            stock = fetch_etm_stock(article, session_id)
+            stock_results[i + j] = stock
+
+            # Progress indicator every 10 items
+            if (j + 1) % 10 == 0:
+                print(f"  Progress: {j + 1}/{len(chunk)} articles in current chunk")
+
+    print(f"\n=== Updating Google Sheet '{config.ETM_SHEET_NAME}' column AL ===")
 
     # Ensure all values are integers and wrap in single-element lists for Google Sheets API
-    # Also add validation to prevent any unexpected types from reaching the API
     formatted_results = []
     for idx, val in enumerate(stock_results):
         if val is None or (
@@ -234,7 +252,11 @@ def sync_etm():
         gsheets_utils.update_column_by_header(
             ws, "ЭТМ Стройкерамика", formatted_results
         )
-        print("ETM Sync completed successfully!")
+        print("\n=== ETM Sync completed successfully! ===")
+
+        # Summary statistics
+        non_zero_count = sum(1 for r in stock_results if r > 0)
+        print(f"Summary: {non_zero_count}/{len(stock_results)} articles have stock > 0")
     except Exception as e:
         print(f"Error updating sheet: {e}")
         print("Debugging information:")
