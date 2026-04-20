@@ -45,20 +45,29 @@ def _build_article_variants(article):
 def _extract_samara_stock(info_stores, request_store_name=""):
     """
     Extract stock for Samara (Стройкерамика) from ETM API response.
-    Returns the MAXIMUM available stock across all relevant stores.
+    
+    IMPORTANT: Ignore 'all' aggregate type - it includes future deliveries.
+    Only use concrete warehouse types: rc (distribution center), 
+    op (retail point), crs (cross-dock).
+    
+    For duplicate values from same physical warehouse (rc, op, crs),
+    we collect UNIQUE stock values to avoid double-counting.
+    
+    Examples:
+    - rc=11, op=11 -> unique values: {11} -> sum = 11
+    - rc=5, op=3 -> unique values: {5, 3} -> sum = 8
+    - rc=0, op=4 -> unique values: {0, 4} -> sum = 4
     """
-    samara_stocks = []  # Collect all Samara-related stocks
-    aggregate_stock = 0
-
-    # Check if the overall request is for Samara
-    is_request_for_samara = (
-        "самар" in request_store_name.lower()
-        or "стройкерамика" in request_store_name.lower()
-    )
+    samara_stock_values = set()  # Collect unique stock values
 
     for store in info_stores:
         store_name = (store.get("StoreName") or "").lower()
         store_type = (store.get("StoreType") or "").lower()
+
+        # CRITICAL: Skip 'all' and 'rc2sum' aggregate types - they include
+        # future deliveries (scheduled shipments), not current stock
+        if store_type in ["all", "rc2sum"]:
+            continue
 
         # Check various possible fields that might contain stock information
         qty = store.get("StoreQuantRem")
@@ -78,27 +87,18 @@ def _extract_samara_stock(info_stores, request_store_name=""):
         # Check if this store is Samara-related
         is_samara = any(k in store_name for k in ["стройкерамика", "самар"])
 
-        # Collect stocks from Samara stores (rc, op, crs)
-        if is_samara and store_type in ["rc", "op", "crs"]:
+        # Collect stock values from Samara STORES ONLY (rc - distribution center)
+        # NOT op (retail points) - those are separate retail stores in the city
+        # Use set to automatically deduplicate identical values
+        if is_samara and store_type == "rc":
             if qty > 0:
-                samara_stocks.append(qty)
-            continue
+                samara_stock_values.add(qty)
 
-        # Handle aggregate rows
-        if not store_name and store_type == "all" and is_request_for_samara:
-            aggregate_stock = max(aggregate_stock, qty)
-            continue
+    # Return sum of unique stock values (only from concrete warehouses)
+    if samara_stock_values:
+        return sum(samara_stock_values)
 
-        # Fallback: some ETM responses expose the available quantity only in aggregate rows
-        if store_type in ["rc2sum", "all"]:
-            aggregate_stock = max(aggregate_stock, qty)
-
-    # Return the MAXIMUM stock found
-    # Priority: max of individual Samara stores, then aggregate
-    if samara_stocks:
-        return max(samara_stocks)
-
-    return aggregate_stock
+    return 0
 
 
 def fetch_etm_stock(article, session_id, retry_count=0):

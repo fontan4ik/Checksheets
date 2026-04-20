@@ -139,6 +139,7 @@ function all(){
   WbMain();
   OzonSKUAndAnalytic();
   updateExternalAPIStocks(); // ✅ НОВОЕ: Feron и ETM API
+  updateOzonAdExpenses(); // ✅ НОВОЕ: Реклама Ozon Performance API
 }
 
 /**

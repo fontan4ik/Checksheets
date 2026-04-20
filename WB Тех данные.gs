@@ -17,6 +17,51 @@
  * - Для каждой карточки разворачиваем все размеры в отдельные строки
  * - Полностью перезаписываем лист "ТЕХ данные wb"
  */
+const WB_TECH_DATA_SHEET_NAME = 'ТЕХ данные wb';
+
+/**
+ * Диагностическая функция: проверяет видимость конкретного товара через API.
+ * Запустите её вручную, если в списке не хватает товаров.
+ */
+function debugSpecificWBItem() {
+  const vendorCode = "126411212-DMA-1"; // Артикул со скриншота
+  const baseUrl = 'https://content-api.wildberries.ru/content/v2/get/cards/list';
+  
+  Logger.log(`🔍 Проверка артикула: ${vendorCode}`);
+  
+  const payload = {
+    settings: {
+      cursor: { limit: 10 },
+      filter: {
+        textSearch: vendorCode, // В v2 лучше использовать textSearch
+        withPhoto: -1
+      }
+    }
+  };
+  
+  const response = retryFetch(baseUrl, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: wbHeaders(),
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+  
+  if (response) {
+    const text = response.getContentText();
+    Logger.log("--- ОТВЕТ API ---");
+    Logger.log(text);
+    
+    if (text.includes(vendorCode)) {
+      Logger.log("✅ ТОВАР НАЙДЕН! Значит, проблема в параметрах общего списка.");
+    } else {
+      Logger.log("❌ ТОВАР НЕ НАЙДЕН. Значит, API-токен не имеет доступа к этому товару.");
+    }
+  } else {
+    Logger.log("❌ Нет ответа от API");
+  }
+}
+
 function updateWBTechDataSheet() {
   const sheetName = 'ТЕХ данные wb';
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -26,20 +71,27 @@ function updateWBTechDataSheet() {
   Logger.log('║   WB ТЕХ ДАННЫЕ: vendorCode + chrt_id + nmId                         ║');
   Logger.log('╚════════════════════════════════════════════════════════════════════════╝');
 
-  const cards = fetchAllWBCardsForTechData_();
+    const cards = fetchAllWBCardsForTechData_();
+    const errorCards = fetchWBCardsWithErrors_();
+    
+    const allCards = [...cards, ...errorCards];
 
-  if (!cards.length) {
-    Logger.log('⚠️ Карточки WB не получены');
-    prepareWBTechDataSheet_(sheet, []);
-    return;
-  }
+    if (!allCards || allCards.length === 0) {
+      Logger.log('⚠️ Карточки WB не получены (ни из основы, ни из ошибок).');
+      return;
+    }
+    
+    const cardsToProcess = allCards;
 
+  // Если количество карточек подозрительно мало (например, меньше 10, а было явно больше), 
+  // стоит предупредить, но здесь мы продолжаем, так как fetchAllWBCardsForTechData_ уже имеет свои проверки.
+  
   const rows = [];
   const seen = new Set();
   let cardsWithSizes = 0;
   let cardsWithoutSizes = 0;
 
-  cards.forEach(card => {
+  allCards.forEach(card => {
     const vendorCode = (card.vendorCode || '').toString().trim();
     const nmId = card.nmID || card.nmId || '';
     const sizes = Array.isArray(card.sizes) ? card.sizes : [];
@@ -75,6 +127,15 @@ function updateWBTechDataSheet() {
     });
   });
 
+  // Если строк получилось слишком мало по сравнению с тем, что было в листе,
+  // это может быть признаком проблемы с API WB (вернул не все данные).
+  const currentCount = sheet.getLastRow() > 1 ? sheet.getLastRow() - 1 : 0;
+  if (currentCount > 100 && rows.length < 10) {
+    Logger.log(`❌ ОПАСНОСТЬ: В листе было ${currentCount} строк, а получено всего ${rows.length}.`);
+    Logger.log('🛑 Обновление отменено. Пожалуйста, проверьте API токен и состояние кабинета WB.');
+    return;
+  }
+
   rows.sort((a, b) => {
     const vendorCompare = a[0].localeCompare(b[0], 'ru');
     if (vendorCompare !== 0) return vendorCompare;
@@ -85,7 +146,9 @@ function updateWBTechDataSheet() {
 
   prepareWBTechDataSheet_(sheet, rows);
 
-  Logger.log(`✅ Готово. Карточек загружено: ${cards.length}`);
+  Logger.log(`✅ Готово. Карточек загружено всего: ${allCards.length}`);
+  Logger.log(`📊 Из них новых/валидных: ${cards.length}`);
+  Logger.log(`📊 Из них с ошибками: ${errorCards.length}`);
   Logger.log(`✅ Карточек с размерами: ${cardsWithSizes}`);
   Logger.log(`⚠️ Карточек без размеров: ${cardsWithoutSizes}`);
   Logger.log(`✅ Строк записано в лист "${sheetName}": ${rows.length}`);
@@ -136,6 +199,7 @@ function fetchAllWBCardsForTechData_() {
   let page = 0;
   let hasMore = true;
   let safetyCounter = 0;
+  let totalInCabinet = -1;
 
   while (hasMore) {
     safetyCounter++;
@@ -147,20 +211,23 @@ function fetchAllWBCardsForTechData_() {
           ascending: true
         },
         cursor: {
-          limit: 100
+          limit: 100 
+        },
+        filter: {
+          withPhoto: -1
         }
-      },
-      filter: {
-        withPhoto: -1
       }
     };
 
-    if (cursor && (cursor.updatedAt || cursor.nmID || cursor.nmId)) {
-      payload.settings.cursor = {
-        limit: 100,
-        updatedAt: cursor.updatedAt,
-        nmID: cursor.nmID || cursor.nmId
-      };
+    // Передаем курсор пагинации целиком, обновляя только лимит
+    if (cursor) {
+      payload.settings.cursor = cursor;
+      payload.settings.cursor.limit = 100;
+      
+      // На всякий случай дублируем nmID/nmId, если API их потерял
+      if (!payload.settings.cursor.nmID && payload.settings.cursor.nmId) {
+        payload.settings.cursor.nmID = payload.settings.cursor.nmId;
+      }
     }
 
     const options = {
@@ -174,7 +241,7 @@ function fetchAllWBCardsForTechData_() {
     const response = retryFetch(baseUrl + '/content/v2/get/cards/list', options);
 
     if (!response) {
-      Logger.log(`❌ Не удалось получить карточки WB, page=${page}`);
+      Logger.log(`❌ Не удалось получить карточки WB (ошибка сети), page=${page}`);
       break;
     }
 
@@ -196,9 +263,17 @@ function fetchAllWBCardsForTechData_() {
     }
 
     const pageCards = Array.isArray(data?.cards) ? data.cards : [];
+    
+    if (page === 1 && data?.cursor?.total !== undefined) {
+      Logger.log(`   (Загрузка первой страницы...)`);
+    }
 
     if (!pageCards.length) {
-      Logger.log(`ℹ️ Пустая страница, page=${page}`);
+      if (page === 1) {
+        Logger.log('⚠️ WB API вернул 0 карточек на первой странице.');
+      } else {
+        Logger.log(`ℹ️ Пустая страница, page=${page}`);
+      }
       break;
     }
 
@@ -206,6 +281,13 @@ function fetchAllWBCardsForTechData_() {
     Logger.log(`   page ${page}: +${pageCards.length}, всего ${cards.length}`);
 
     const nextCursor = data?.cursor;
+    
+    // Проверка конца пагинации: если пришло меньше, чем просили (100), значит это последняя страница
+    if (pageCards.length < 100) {
+      hasMore = false;
+      break;
+    }
+
     if (!nextCursor || !nextCursor.updatedAt || !(nextCursor.nmID || nextCursor.nmId)) {
       hasMore = false;
       break;
@@ -227,12 +309,43 @@ function fetchAllWBCardsForTechData_() {
     Utilities.sleep(350);
 
     if (safetyCounter >= 1000) {
-      Logger.log('⚠️ Достигнут safety limit по страницам');
+      Logger.log('⚠️ Достигнут safety limit по страницам (1000)');
       break;
     }
   }
 
+  // Логирование итогов
   return cards;
+}
+
+/**
+ * Получает список карточек с ошибками (черновиков), которые не попали в основной список.
+ */
+function fetchWBCardsWithErrors_() {
+  const baseUrl = 'https://content-api.wildberries.ru/content/v2/cards/error/list';
+  const headers = wbHeaders();
+  const options = {
+    method: 'get',
+    headers,
+    muteHttpExceptions: true
+  };
+
+  Logger.log('🔄 Загрузка карточек с ошибками (черновиков)...');
+  const response = retryFetch(baseUrl, options);
+
+  if (!response) return [];
+  
+  try {
+    const data = JSON.parse(response.getContentText());
+    const errorCards = data?.data || [];
+    if (errorCards.length > 0) {
+      Logger.log(`   Найдено в ошибках: ${errorCards.length}`);
+    }
+    return errorCards;
+  } catch (e) {
+    Logger.log(`⚠️ Ошибка при парсинге списка ошибок: ${e.message}`);
+    return [];
+  }
 }
 
 /**

@@ -1,15 +1,3 @@
-/**
- * 📦 Ozon API: Работа со складами FBS
- * Локальный скрипт для взаимодействия с Ozon Warehouse FBS API
- *
- * Реализует основные методы из документации:
- * - /v1/warehouse/list - Получение списка складов
- * - /v1/warehouse/fbs/create/drop-off/list - Список складов FBS для отгрузки
- * - /v1/warehouse/fbs/pickup/planning/list - Список складов для планирования курьеру
- * - /v1/warehouse/fbo/list - Список складов FBO
- * - /v1/product/info/stocks-by-warehouse/fbs - Получение остатков по FBS складам
- */
-
 const https = require("https");
 require("dotenv").config();
 
@@ -23,7 +11,7 @@ class OzonWarehouseAPI {
     }
   }
 
-  /**
+/**
    * Создание HTTPS запроса к API Ozon
    * @param {string} path - путь API
    * @param {string} method - HTTP метод (POST, GET)
@@ -57,7 +45,7 @@ class OzonWarehouseAPI {
           } catch (e) {
             console.error("Ошибка парсинга ответа:", e.message);
             console.error("Ответ:", data);
-            resolve(data); // возвращаем неструктурированный ответ
+            resolve(data);
           }
         });
       });
@@ -75,43 +63,49 @@ class OzonWarehouseAPI {
   }
 
   /**
-   * 1️⃣ Получение списка складов
-   * Метод: POST /v1/warehouse/list
+   * Получение списка складов
+   * Метод: POST /v2/warehouse/list (v1 устарел!)
    * Возвращает список всех складов продавца (FBS, rFBS)
    *
    * @param {Object} params - параметры запроса
-   * @param {number} params.limit - ограничение количества результатов (макс. 200)
+   * @param {number} params.limit - ограничение количества результатов (макс. 1000)
    * @param {number} params.offset - смещение
-   * @param {string} params.status - статус склада (ACTIVE, INACTIVE)
    * @returns {Promise<Object>} - результат API
    */
   async getWarehouseList(params = {}) {
     console.log("📦 Запрос списка складов...");
 
     const payload = {
-      limit: params.limit || 200, // макс. 200 по документации
+      limit: params.limit || 100,
       offset: params.offset || 0,
-      status: params.status || "ACTIVE",
     };
 
     try {
+      // ВАЖНО: используем v2 вместо устаревшего v1!
       const response = await this.makeRequest(
-        "/v1/warehouse/list",
+        "/v2/warehouse/list",
         "POST",
         payload,
       );
 
-      if (response && response.result && Array.isArray(response.result)) {
-        console.log(`✅ Успешно получено ${response.result.length} складов`);
+      if (response && response.warehouses && Array.isArray(response.warehouses)) {
+        console.log(`✅ Успешно получено ${response.warehouses.length} складов`);
 
-        // Выводим информацию о каждом складе
+        response.warehouses.forEach((warehouse, index) => {
+          console.log(
+            `  ${index + 1}. ${warehouse.name} (ID: ${warehouse.warehouse_id})`,
+          );
+        });
+      } else if (response && response.result && Array.isArray(response.result)) {
+        // v1 fallback (на всякий случай)
+        console.log(`✅ Успешно получено ${response.result.length} складов`);
         response.result.forEach((warehouse, index) => {
           console.log(
-            `  ${index + 1}. ${warehouse.name} (ID: ${warehouse.warehouse_id}, Тип: ${warehouse.type || "N/A"}, Статус: ${warehouse.status})`,
+            `  ${index + 1}. ${warehouse.name} (ID: ${warehouse.warehouse_id}, Тип: ${warehouse.type || "N/A"})`,
           );
         });
       } else {
-        console.warn("⚠️ Неожиданный формат ответа:", response);
+        console.warn("⚠️ Неожиданный формат ответа:", JSON.stringify(response).substring(0, 500));
       }
 
       return response;
@@ -122,7 +116,7 @@ class OzonWarehouseAPI {
   }
 
   /**
-   * 2️⃣ Список складов FBS для отгрузки
+   * Список складов FBS для отгрузки
    * Метод: POST /v1/warehouse/fbs/create/drop-off/list
    * Получение списка FBS-складов для создания отгрузок
    *
@@ -146,7 +140,7 @@ class OzonWarehouseAPI {
 
       if (response && response.result && Array.isArray(response.result)) {
         console.log(
-          `✅ Успешно получено ${response.result.length} складов для отгрузки`,
+          ` Успешно получено ${response.result.length} складов для отгрузки`,
         );
 
         response.result.forEach((warehouse, index) => {
@@ -167,7 +161,7 @@ class OzonWarehouseAPI {
   }
 
   /**
-   * 3️⃣ Список складов для планирования курьеру
+   * Список складов для планирования курьеру
    * Метод: POST /v1/warehouse/fbs/pickup/planning/list
    * Бета-метод для получения списка складов для планирования отгрузок курьеру
    *
@@ -191,7 +185,7 @@ class OzonWarehouseAPI {
 
       if (response && response.result && Array.isArray(response.result)) {
         console.log(
-          `✅ Успешно получено ${response.result.length} складов для планирования`,
+          ` Успешно получено ${response.result.length} складов для планирования`,
         );
 
         response.result.forEach((warehouse, index) => {
@@ -212,7 +206,7 @@ class OzonWarehouseAPI {
   }
 
   /**
-   * 4️⃣ Список складов FBO
+   * Список складов FBO
    * Метод: POST /v1/warehouse/fbo/list
    * Для получения списка складов FBO (отдельно от FBS)
    *
@@ -235,9 +229,7 @@ class OzonWarehouseAPI {
       );
 
       if (response && response.result && Array.isArray(response.result)) {
-        console.log(
-          `✅ Успешно получено ${response.result.length} FBO складов`,
-        );
+        console.log(` Успешно получено ${response.result.length} FBO складов`);
 
         response.result.forEach((warehouse, index) => {
           console.log(
@@ -257,7 +249,7 @@ class OzonWarehouseAPI {
   }
 
   /**
-   * 5️⃣ Получение остатков по FBS складам
+   * Получение остатков по FBS складам
    * Метод: POST /v1/product/info/stocks-by-warehouse/fbs
    *
    * @param {number[]} skuList - массив SKU
@@ -267,7 +259,7 @@ class OzonWarehouseAPI {
    */
   async getFBSStocks(skuList, warehouseId, limit = 1000) {
     console.log(
-      `📊 Запрос остатков для склада ID: ${warehouseId}, SKU: ${skuList.length} шт.`,
+      ` Запрос остатков для склада ID: ${warehouseId}, SKU: ${skuList.length} шт.`,
     );
 
     // Проверяем, что warehouseId передан
@@ -290,7 +282,7 @@ class OzonWarehouseAPI {
 
       if (response && response.result && Array.isArray(response.result)) {
         console.log(
-          `✅ Успешно получено ${response.result.length} записей остатков`,
+          ` Успешно получено ${response.result.length} записей остатков`,
         );
 
         // Подсчет товаров с остатками
@@ -298,7 +290,7 @@ class OzonWarehouseAPI {
           (item) => (item.present || 0) + (item.reserved || 0) > 0,
         );
 
-        console.log(`📦 Товаров с остатками: ${withStock.length}`);
+        console.log(` Товаров с остатками: ${withStock.length}`);
 
         // Пример данных
         if (response.result.length > 0) {
@@ -327,50 +319,31 @@ class OzonWarehouseAPI {
     console.log("🔍 Диагностика FBS складов...\n");
 
     try {
-      // 1. Получаем общий список складов
       const allWarehouses = await this.getWarehouseList();
 
-      if (!allWarehouses || !allWarehouses.result) {
+      if (!allWarehouses || !allWarehouses.warehouses) {
         console.error("❌ Не удалось получить список складов");
         return;
       }
 
-      // Фильтруем FBS склады
-      const fbsWarehouses = allWarehouses.result.filter(
-        (wh) =>
-          wh.type &&
-          (wh.type.toUpperCase() === "FBS" || wh.type.toUpperCase() === "RFBS"),
-      );
+      const warehouses = allWarehouses.warehouses;
 
-      console.log(`\n🏭 Найдено FBS складов: ${fbsWarehouses.length}`);
+      console.log(`\n🏭 Найдено складов: ${warehouses.length}`);
 
-      fbsWarehouses.forEach((warehouse, index) => {
-        console.log(
-          `  ${index + 1}. ${warehouse.name} (ID: ${warehouse.warehouse_id})`,
-        );
-
-        // Выводим дополнительную информацию если доступна
-        if (warehouse.address) {
-          console.log(
-            `      Адрес: ${warehouse.address.full_address || "N/A"}`,
-          );
+      warehouses.forEach((warehouse, index) => {
+        console.log(`  ${index + 1}. ${warehouse.name} (ID: ${warehouse.warehouse_id})`);
+        if (warehouse.address_info) {
+          console.log(`      Адрес: ${warehouse.address_info.address || "N/A"}`);
         }
-        console.log(`      Активен: ${warehouse.is_active ? "Да" : "Нет"}`);
-        console.log(`      Тип: ${warehouse.type}`);
       });
 
-      // 2. Если есть тестовые SKU, проверяем остатки на первых 3 FBS складах
-      if (testSKUs && testSKUs.length > 0 && fbsWarehouses.length > 0) {
-        console.log(
-          `\n📈 Проверка остатков по тестовым SKU: [${testSKUs.join(", ")}]`,
-        );
+      if (testSKUs && testSKUs.length > 0 && warehouses.length > 0) {
+        console.log(`\n📈 Проверка остатков по тестовым SKU: [${testSKUs.join(", ")}]`);
 
-        const warehousesToCheck = fbsWarehouses.slice(0, 3); // Проверяем на первых 3 складах
+        const warehousesToCheck = warehouses.slice(0, 3);
 
         for (const warehouse of warehousesToCheck) {
-          console.log(
-            `\n   --- Проверка на складе: ${warehouse.name} (ID: ${warehouse.warehouse_id}) ---`,
-          );
+          console.log(`\n   --- Проверка на складе: ${warehouse.name} (ID: ${warehouse.warehouse_id}) ---`);
 
           try {
             const stocks = await this.getFBSStocks(
@@ -409,8 +382,6 @@ class OzonWarehouseAPI {
    * @returns {Object|undefined} - информация о складе
    */
   getWarehouseById(warehouseId) {
-    // Предполагается, что список складов уже получен
-    // На практике нужно реализовать отдельный метод для поиска в сохраненном списке
     console.log(`🔍 Поиск склада с ID: ${warehouseId}`);
     return undefined;
   }
@@ -420,7 +391,7 @@ class OzonWarehouseAPI {
  * Пример использования скрипта
  */
 async function main() {
-  console.log("📦 Запуск скрипта работы с Ozon FBS складами\n");
+  console.log(" Запуск скрипта работы с Ozon FBS складами\n");
 
   // Получаем credentials из environment variables или используем дефолтные
   const clientId = process.env.OZON_CLIENT_ID || "142355";

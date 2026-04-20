@@ -21,7 +21,7 @@
 // ============================================
 
 const ARL_SHEET_NAME = "ARL TR";
-const ARL_OZON_WAREHOUSE_ID = 1020005004656250;  // Арлайт Москва
+const ARL_OZON_WAREHOUSE_ID = 1020005000217829;  // ПОДОРОЖНИК ФБС
 const ARL_WB_WAREHOUSE_ID = 1449484;               // ФБС ФЕРОН МОСКВА
 
 // Колонки в листе "ARL TR"
@@ -30,6 +30,8 @@ const COL_NMID = 5;          // E - SKU WB (nmID)
 const COL_CHRT_ID = 10;       // J - chrtId для WB API
 const COL_STOCK = 9;         // I - Остаток для выгрузки
 const COL_PRICE = 16;        // P - Выставляемая цена для выгрузки
+
+const ARL_MIN_STOCK_THRESHOLD = 5; // Минимальный остаток для выгрузки (> 4)
 
 // ============================================
 // ЧТЕНИЕ ДАННЫХ ИЗ GOOGLE SHEETS
@@ -107,33 +109,38 @@ function readARLStocksFromSheet() {
       continue;
     }
 
-    const stock = parseInt(stockForUpload) || 0;
-    
+    let stock = parseInt(stockForUpload) || 0;
+
+    // Применяем порог: если остаток < ARL_MIN_STOCK_THRESHOLD, выгружаем 0
+    const originalStock = stock;
+    if (stock < ARL_MIN_STOCK_THRESHOLD) {
+      stock = 0;
+    }
+
     // Очистка цен от пробелов и валют
     const priceOzon = Math.floor(parseFloat(String(priceOzonVal).replace(/[^0-9.,]/g, '').replace(',', '.'))) || 0;
     const priceWb = Math.floor(parseFloat(String(priceWbVal).replace(/[^0-9.,]/g, '').replace(',', '.'))) || 0;
 
     stocks.push({
-      offer_id: vendorCode,    // vendorCode для Ozon
-      nm_id: nmIdValue,        // nmID для WB цены
-      chrt_id: chrtId,         // chrtId для WB остатков
+      offer_id: vendorCode,
+      nm_id: nmIdValue,
+      chrt_id: chrtId,
       stock: stock,
-      price_ozon: priceOzon,   // цена для Ozon
-      price_wb: priceWb        // цена для WB
+      original_stock: originalStock,
+      price_ozon: priceOzon,
+      price_wb: priceWb
     });
   }
 
-  Logger.log(`📊 Прочитано ${stocks.length} товаров из листа "${ARL_SHEET_NAME}"`);
+  const aboveThreshold = stocks.filter(s => s.original_stock >= ARL_MIN_STOCK_THRESHOLD).length;
+  const belowThreshold = stocks.filter(s => s.original_stock > 0 && s.original_stock < ARL_MIN_STOCK_THRESHOLD).length;
 
-  // Статистика
-  const withStock = stocks.filter(s => s.stock > 0).length;
-  const withChrtId = stocks.filter(s => s.chrt_id).length;
-  const withPriceO = stocks.filter(s => s.price_ozon > 0).length;
-  const withPriceW = stocks.filter(s => s.price_wb > 0).length;
-  Logger.log(`   С остатком > 0: ${withStock}`);
-  Logger.log(`   С chrtId: ${withChrtId}`);
-  Logger.log(`   С ценой Ozon > 0: ${withPriceO}`);
-  Logger.log(`   С ценой WB > 0: ${withPriceW}`);
+  Logger.log(`📊 Прочитано ${stocks.length} товаров из листа "${ARL_SHEET_NAME}"`);
+  Logger.log(`   С остатком >= ${ARL_MIN_STOCK_THRESHOLD}: ${aboveThreshold}`);
+  Logger.log(`   С остатком < ${ARL_MIN_STOCK_THRESHOLD} (будет 0): ${belowThreshold}`);
+  Logger.log(`   С chrtId: ${stocks.filter(s => s.chrt_id).length}`);
+  Logger.log(`   С ценой Ozon > 0: ${stocks.filter(s => s.price_ozon > 0).length}`);
+  Logger.log(`   С ценой WB > 0: ${stocks.filter(s => s.price_wb > 0).length}`);
 
   return stocks;
 }
@@ -172,11 +179,11 @@ function getFeronWBWarehouseId() {
 function updateARLStocksOzon(stocks, warehouseId) {
   Logger.log(`🟠 Обновление остатков Ozon (склад ID: ${warehouseId})...`);
 
-  // Фильтруем товары с offer_id и stock > 0
-  const validStocks = stocks.filter(s => s.offer_id && s.stock > 0);
+  // Фильтруем товары с offer_id (включая stock = 0)
+  const validStocks = stocks.filter(s => s.offer_id);
 
   if (validStocks.length === 0) {
-    Logger.log(`⚠️ Нет товаров с offer_id и stock > 0 для обновления Ozon`);
+    Logger.log(`⚠️ Нет товаров с offer_id для обновления Ozon`);
     return;
   }
 
@@ -258,6 +265,111 @@ function updateARLStocksOzon(stocks, warehouseId) {
 }
 
 // ============================================
+// ODC/CD+ DETECTION
+// ============================================
+
+function isWBCargoRestrictionError(responseText) {
+  try {
+    const errorData = JSON.parse(responseText);
+    const errorItems = Array.isArray(errorData)
+      ? errorData
+      : (errorData?.errors || errorData?.error || []);
+
+    if (!errorItems || errorItems.length === 0) {
+      return false;
+    }
+
+    return errorItems.some(err => {
+      const code = String(err.code || err.error || '');
+      const message = String(err.message || err.detail || '');
+      return code.includes('CargoWarehouseRestriction') ||
+             message.includes('CargoWarehouseRestriction') ||
+             code.includes('SGTKGTPlus') ||
+             message.includes('SGTKGTPlus') ||
+             message.includes('ODC') ||
+             message.includes('CD+');
+    });
+  } catch (e) {
+    return responseText.includes('CargoWarehouseRestriction') ||
+           responseText.includes('SGTKGTPlus') ||
+           responseText.includes('ODC') ||
+           responseText.includes('CD+');
+  }
+}
+
+function sendARLWBStocksBatch(batch, warehouseId, retryCount = 0) {
+  const body = { stocks: batch };
+  const url = `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`;
+  const options = {
+    method: "put",
+    contentType: "application/json",
+    headers: wbHeaders(),
+    payload: JSON.stringify(body),
+    muteHttpExceptions: true
+  };
+
+  const response = retryFetch(url, options);
+
+  if (!response) {
+    if (retryCount < 2) {
+      Utilities.sleep(3000);
+      return sendARLWBStocksBatch(batch, warehouseId, retryCount + 1);
+    }
+    return { ok: false, code: 0, text: '', cargoRestriction: false };
+  }
+
+  const code = response.getResponseCode();
+  const text = response.getContentText();
+
+  if (code === 429 && retryCount < 2) {
+    Utilities.sleep(5000);
+    return sendARLWBStocksBatch(batch, warehouseId, retryCount + 1);
+  }
+
+  return {
+    ok: code === 200 || code === 204,
+    code,
+    text,
+    cargoRestriction: code === 409 && isWBCargoRestrictionError(text)
+  };
+}
+
+function processARLWBConflictIndividually(validBatch, warehouseId, batchLabel) {
+  let successCount = 0;
+  let skippedCount = 0;
+  let errorCount = 0;
+
+  Logger.log(`🔍 ${batchLabel}: дробление до отдельных товаров (${validBatch.length} шт)...`);
+
+  for (let j = 0; j < validBatch.length; j++) {
+    if (j > 0 && j % 20 === 0) {
+      Utilities.sleep(2000);
+    }
+
+    const item = validBatch[j];
+    const result = sendARLWBStocksBatch([item], warehouseId);
+
+    if (result.ok) {
+      successCount++;
+      continue;
+    }
+
+    if (result.cargoRestriction) {
+      Logger.log(`⏸️ ${batchLabel}: пропущен ODC/CD+ chrtId=${item.chrtId}, amount=${item.amount}`);
+      skippedCount++;
+      continue;
+    }
+
+    Logger.log(`❌ ${batchLabel}: ошибка для chrtId=${item.chrtId}, code=${result.code}`);
+    errorCount++;
+  }
+
+  Logger.log(`📊 ${batchLabel}: поштучно ✅ ${successCount}, ⏸️ ${skippedCount}, ❌ ${errorCount}`);
+
+  return { successCount, skippedCount, errorCount };
+}
+
+// ============================================
 // ОБНОВЛЕНИЕ ОСТАТКОВ WILDBERRIES (FBS)
 // ============================================
 
@@ -286,9 +398,10 @@ function updateARLStocksWB(stocks, warehouseId) {
 
   let lastRequestTime = Date.now() - 1000 / WB_RPS();
   let successCount = 0;
+  let skippedCount = 0;
   let errorCount = 0;
 
-  for (let i = 0; i < batches; i++) {
+for (let i = 0; i < batches; i++) {
     // Rate limiting
     lastRequestTime = rateLimitRPS(lastRequestTime, WB_RPS());
 
@@ -318,52 +431,33 @@ function updateARLStocksWB(stocks, warehouseId) {
       continue;
     }
 
-    const body = {
-      stocks: validBatch  // ✅ "stocks" (множественное число)
-    };
+    lastRequestTime = rateLimitRPS(lastRequestTime, WB_RPS());
 
-    const url = `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`;
+    const result = sendARLWBStocksBatch(validBatch, warehouseId);
 
-    const options = {
-      method: "put",  // WB требует PUT метод
-      contentType: "application/json",
-      headers: wbHeaders(),
-      payload: JSON.stringify(body),
-      muteHttpExceptions: true
-    };
-
-    const response = retryFetch(url, options);
-
-    if (!response) {
-      Logger.log(`❌ Ошибка запроса (пачка ${i + 1}/${batches})`);
-      errorCount += validBatch.length;
+    if (result.ok) {
+      successCount += validBatch.length;
+      Logger.log(`✅ Пачка ${i + 1}/${batches} обработана (${validBatch.length} товаров)`);
       continue;
     }
 
-    const responseCode = response.getResponseCode();
-    const responseText = response.getContentText();
-
-    if (responseCode !== 200 && responseCode !== 204) {
-      Logger.log(`❌ Ошибка API (пачка ${i + 1}/${batches}): ${responseCode}`);
-
-      try {
-        const result = JSON.parse(responseText);
-        if (result.errors) {
-          Logger.log(`❌ WB API ошибки: ${JSON.stringify(result.errors).substring(0, 500)}`);
-        }
-      } catch (e) {
-        Logger.log(responseText.substring(0, 500));
-      }
-
-      errorCount += validBatch.length;
+    if (result.cargoRestriction) {
+      Logger.log(`⚠️ WB 409 ODC/CD+ (пачка ${i + 1}/${batches}): дробление...`);
+      const fallback = processARLWBConflictIndividually(validBatch, warehouseId, `Пачка ${i + 1}/${batches}`);
+      successCount += fallback.successCount;
+      skippedCount += fallback.skippedCount;
+      errorCount += fallback.errorCount;
       continue;
     }
 
-    successCount += validBatch.length;
-    Logger.log(`✅ Пачка ${i + 1}/${batches} обработана (${validBatch.length} товаров)`);
+    Logger.log(`❌ Ошибка API (пачка ${i + 1}/${batches}): ${result.code}`);
+    if (result.text) {
+      Logger.log(result.text.substring(0, 500));
+    }
+    errorCount += validBatch.length;
   }
 
-  Logger.log(`🟣 WB FBS: ✅ ${successCount} обновлено, ❌ ${errorCount} ошибок`);
+  Logger.log(`🟣 WB FBS: ✅ ${successCount} обновлено, ⏸️ ${skippedCount} пропущено ODC/CD+, ❌ ${errorCount} ошибок`);
 }
 
 // ============================================

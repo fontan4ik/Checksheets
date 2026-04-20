@@ -42,6 +42,8 @@ def clear_column(worksheet, header_name, start_row=2):
     except ValueError:
         if header_name == "ЭТМ Стройкерамика":
             col_index = 38
+        elif isinstance(header_name, int):
+            col_index = header_name
         else:
             return # Header not found, nothing to clear
             
@@ -52,3 +54,12 @@ def clear_column(worksheet, header_name, start_row=2):
     col_letter = gspread.utils.rowcol_to_a1(1, col_index).strip('1')
     range_label = f"{col_letter}{start_row}:{col_letter}{last_row}"
     worksheet.batch_clear([range_label])
+
+def update_column(worksheet, col_num, values, start_row=2):
+    """
+    Updates a specific column by column number (1-based).
+    values should be a list of single-item lists: [[v1], [v2], ...]
+    """
+    col_index = int(col_num)
+    range_label = f"{gspread.utils.rowcol_to_a1(start_row, col_index)}:{gspread.utils.rowcol_to_a1(start_row + len(values) - 1, col_index)}"
+    worksheet.update(range_label, values)

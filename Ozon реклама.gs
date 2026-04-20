@@ -1,8 +1,10 @@
 /**
  * OZON РЕКЛАМА - Performance API (полный поток с асинхронными отчётами)
  *
- * Заполняет колонку:
- * - AU (47): Расход по рекламе по ску ОЗОН в месяц
+ * Заполняет колонки:
+ * - BA (53): Реклама Количество (количество заказов)
+ * - BB (54): Реклама Стоимость (выручка/доход)
+ * - BC (55): Реклама Расход (расход на рекламу)
  *
  * API Эндпоинты:
  * - OAuth: POST https://api-performance.ozon.ru/api/client/token
@@ -329,38 +331,52 @@ function parseStatisticsZip(blob) {
       const line = lines[i].trim();
       if (!line || line.startsWith('Всего')) continue;
 
-      // CSV формат Ozon (разделитель - точка с запятой):
-      // sku;Название;Цена;Показы;Клики;CTR;В корзину;CPC;Расход;Заказы;...
-      // Индексы: 0=sku, 8=Расход
-      const parts = line.split(";");
+// CSV формат Ozon (разделитель - точка с запятой):
+    // sku;Название;Цена;Показы;Клики;CTR;В корзину;CPC;Расход;Заказы;Выручка;...
+    // Индексы: 0=sku, 8=Расход, 9=Заказы, 10=Выручка
+    const parts = line.split(";");
 
-      if (parts.length >= 9) {
-        const sku = parts[0].trim();
-        // Заменяем запятую на точку для parseFloat (русский формат)
-        const expenseStr = parts[8].trim().replace(',', '.');
-        const expense = parseFloat(expenseStr) || 0;
+    if (parts.length >= 11) {
+      const sku = parts[0].trim();
+      const spendStr = parts[8].trim().replace(',', '.');
+      const ordersStr = parts[9].trim().replace(',', '.');
+      const revenueStr = parts[10].trim().replace(',', '.');
 
-        if (sku && expense > 0) {
-          stats[sku] = (stats[sku] || 0) + expense;
-          parsedCount++;
+      const spend = parseFloat(spendStr) || 0;
+      const orders = parseInt(ordersStr) || 0;
+      const revenue = parseFloat(revenueStr) || 0;
+
+      if (sku && (spend > 0 || orders > 0 || revenue > 0)) {
+        if (!stats[sku]) {
+          stats[sku] = { spend: 0, orders: 0, revenue: 0 };
         }
+        stats[sku].spend += spend;
+        stats[sku].orders += orders;
+        stats[sku].revenue += revenue;
+        parsedCount++;
       }
     }
+  }
 
-    Logger.log(`✅ Распарсено строк с расходами: ${parsedCount}`);
-    Logger.log(`✅ Уникальных SKU: ${Object.keys(stats).length}`);
+    Logger.log(`✅ Распарсено строк: ${parsedCount}`);
+  Logger.log(`✅ Уникальных SKU: ${Object.keys(stats).length}`);
 
-    // Логируем топ-5 для отладки
-    const topSKUs = Object.entries(stats)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
+  const totalSpend = Object.values(stats).reduce((sum, s) => sum + s.spend, 0);
+  const totalOrders = Object.values(stats).reduce((sum, s) => sum + s.orders, 0);
+  const totalRevenue = Object.values(stats).reduce((sum, s) => sum + s.revenue, 0);
+  Logger.log(`   ИТОГО: расход=${totalSpend.toFixed(2)} руб, заказы=${totalOrders}, выручка=${totalRevenue.toFixed(2)} руб`);
 
-    if (topSKUs.length > 0) {
-      Logger.log(`📊 ТОП-5 SKU по расходам:`);
-      topSKUs.forEach(([sku, expense], i) => {
-        Logger.log(`   ${i + 1}. SKU ${sku}: ${expense.toFixed(2)} руб.`);
-      });
-    }
+// Логируем топ-5 для отладки
+  const topSKUs = Object.entries(stats)
+    .sort((a, b) => b[1].spend - a[1].spend)
+    .slice(0, 5);
+
+  if (topSKUs.length > 0) {
+    Logger.log(`📊 ТОП-5 SKU по расходам:`);
+    topSKUs.forEach(([sku, data], i) => {
+      Logger.log(`   ${i + 1}. SKU ${sku}: расход=${data.spend.toFixed(2)} руб, заказы=${data.orders}, выручка=${data.revenue.toFixed(2)} руб`);
+    });
+  }
 
     return stats;
   } catch (e) {
@@ -486,8 +502,10 @@ function fetchStatisticsWithPeriodLimit(authToken, campaigns, dateFrom, dateTo, 
 
           // Агрегируем
           for (const sku in chunkStats) {
-            if (!stats[sku]) stats[sku] = 0;
-            stats[sku] += chunkStats[sku];
+            if (!stats[sku]) stats[sku] = { spend: 0, orders: 0, revenue: 0 };
+            stats[sku].spend += chunkStats[sku].spend;
+            stats[sku].orders += chunkStats[sku].orders;
+            stats[sku].revenue += chunkStats[sku].revenue;
           }
 
           Logger.log(`✅ [${label}] Чанк ${i + 1}: добавлено ${Object.keys(chunkStats).length} SKU`);
@@ -532,8 +550,10 @@ function updateOzonAdExpenses() {
     return;
   }
 
-  Logger.log("=== ОБНОВЛЕНИЕ РАСХОДОВ НА РЕКЛАМУ OZON ===");
-  Logger.log("Колонка AU (47): Расход по рекламе по ску ОЗОН в месяц");
+  Logger.log("=== ОБНОВЛЕНИЕ РЕКЛАМНОЙ СТАТИСТИКИ OZON ===");
+  Logger.log("Колонка BA (53): Реклама Количество");
+  Logger.log("Колонка BB (54): Реклама Стоимость");
+  Logger.log("Колонка BC (55): Реклама Расход");
 
   // 1. Получаем OAuth токен
   const authToken = getPerformanceAuthToken();
@@ -589,31 +609,38 @@ function updateOzonAdExpenses() {
     Logger.log(`📋 Примеры SKU из таблицы: ${sampleSKUs.join(', ')}`);
   }
 
-  // 6. Формируем данные для записи
-  const colAU = [];
-  let withMonthExpense = 0;
+  // 6. Формируем данные для записи в BA (53), BB (54), BC (55)
+  const colBA = [];
+  const colBB = [];
+  const colBC = [];
+  let withData = 0;
 
   for (let i = 0; i < skuRawValues.length; i++) {
     const sku = skuRawValues[i] ? skuRawValues[i].toString().trim() : "";
 
-    if (sku) {
-      const monthExpense = monthStats[sku] || 0;
-      colAU.push([monthExpense]);
-
-      if (monthExpense > 0) withMonthExpense++;
+    if (sku && monthStats[sku]) {
+      const data = monthStats[sku];
+      colBA.push([data.orders]);
+      colBB.push([data.revenue]);
+      colBC.push([data.spend]);
+      withData++;
     } else {
-      colAU.push([0]);
+      colBA.push([0]);
+      colBB.push([0]);
+      colBC.push([0]);
     }
   }
 
   // 7. Записываем в таблицу
-  sheet.getRange(2, 47, colAU.length, 1).setValues(colAU);
+  sheet.getRange(2, 53, colBA.length, 1).setValues(colBA);
+  sheet.getRange(2, 54, colBB.length, 1).setValues(colBB);
+  sheet.getRange(2, 55, colBC.length, 1).setValues(colBC);
 
   // 8. Статистика
   Logger.log(``);
-  Logger.log(`📊 СТАТИСТИКА:`);
+  Logger.log(`📊 ��ТАТИСТИКА:`);
   Logger.log(`   Обновлено строк: ${skuRawValues.length}`);
-  Logger.log(`   С расходами за месяц: ${withMonthExpense}`);
+  Logger.log(`   С данными: ${withData}`);
   Logger.log(`   Уникальных SKU в отчёте: ${Object.keys(monthStats).length}`);
   Logger.log(`✅ Завершено`);
 }
@@ -873,11 +900,18 @@ function step2_CollectReports() {
   // Проверяем наличие целевого SKU для отладки
   const targetSKU = '3144953487';
   if (allStats[targetSKU]) {
-    Logger.log(`🎯 Целевой SKU ${targetSKU} НАЙДЕН: ${allStats[targetSKU].toFixed(6)} руб.`);
+    const data = allStats[targetSKU];
+    Logger.log(`🎯 Целевой SKU ${targetSKU} НАЙДЕН: расход=${data.spend.toFixed(2)} руб, заказы=${data.orders}, выручка=${data.revenue.toFixed(2)} руб`);
   } else {
     Logger.log(`⚠️ Целевой SKU ${targetSKU} НЕ НАЙДЕН в отчётах!`);
     Logger.log(`   Всего SKU в отчётах: ${Object.keys(allStats).length}`);
   }
+
+  // Итоги
+  const totalSpend = Object.values(allStats).reduce((sum, s) => sum + s.spend, 0);
+  const totalOrders = Object.values(allStats).reduce((sum, s) => sum + s.orders, 0);
+  const totalRevenue = Object.values(allStats).reduce((sum, s) => sum + s.revenue, 0);
+  Logger.log(`📊 ИТОГО: расход=${totalSpend.toFixed(2)} руб, заказы=${totalOrders}, выручка=${totalRevenue.toFixed(2)} руб`);
 
   writeStatsToSheet(allStats);
 
@@ -921,29 +955,36 @@ function writeStatsToSheet(allStats) {
     Logger.log(`📋 Примеры SKU из таблицы: ${sampleSKUs.join(', ')}`);
   }
 
-  // Формируем данные для записи
-  const colAU = [];
-  let withMonthExpense = 0;
+  // Формируем данные для записи в BA (53), BB (54), BC (55)
+  const colBA = [];
+  const colBB = [];
+  const colBC = [];
+  let withData = 0;
 
   for (let i = 0; i < skuRawValues.length; i++) {
     const sku = skuRawValues[i] ? skuRawValues[i].toString().trim() : "";
 
-    if (sku) {
-      const monthExpense = allStats[sku] || 0;
-      colAU.push([monthExpense]);
-
-      if (monthExpense > 0) withMonthExpense++;
+    if (sku && allStats[sku]) {
+      const data = allStats[sku];
+      colBA.push([data.orders]);
+      colBB.push([data.revenue]);
+      colBC.push([data.spend]);
+      withData++;
     } else {
-      colAU.push([0]);
+      colBA.push([0]);
+      colBB.push([0]);
+      colBC.push([0]);
     }
   }
 
-  // Записываем в таблицу
-  sheet.getRange(2, 47, colAU.length, 1).setValues(colAU);
+  // Записываем в таблицу: BA (53), BB (54), BC (55)
+  sheet.getRange(2, 53, colBA.length, 1).setValues(colBA);
+  sheet.getRange(2, 54, colBB.length, 1).setValues(colBB);
+  sheet.getRange(2, 55, colBC.length, 1).setValues(colBC);
 
   Logger.log(`📊 Записано в таблицу:`);
   Logger.log(`   Обновлено строк: ${skuRawValues.length}`);
-  Logger.log(`   С расходами за месяц: ${withMonthExpense}`);
+  Logger.log(`   С данными: ${withData}`);
   Logger.log(`   Уникальных SKU в отчёте: ${Object.keys(allStats).length}`);
 }
 
@@ -1042,14 +1083,15 @@ function testPerformanceAPI() {
 
       Logger.log(`📦 Размер: ${zipBlob.getBytes().length} байт`);
 
-      const stats = parseStatisticsZip(zipBlob);
+const stats = parseStatisticsZip(zipBlob);
 
-      Logger.log(``);
-      Logger.log(`📊 РЕЗУЛЬТАТЫ:`);
-      Logger.log(`   Уникальных SKU: ${Object.keys(stats).length}`);
+      if (!stats || Object.keys(stats).length === 0) {
+        Logger.log("❌ Статистика пуста");
+        return;
+      }
 
-      const totalExpense = Object.values(stats).reduce((sum, val) => sum + val, 0);
-      Logger.log(`   ИТОГО расходы: ${totalExpense.toFixed(2)} руб.`);
+      // Записываем в таблицу
+      writeStatsToSheet(stats);
 
       Logger.log(``);
       Logger.log(`✅ ТЕСТ ПРОЙДЕН УСПЕШНО!`);

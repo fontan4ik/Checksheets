@@ -8,16 +8,23 @@ RS_PASSWORD = "4XK69YO0"
 RS_BASE_URL = "https://cdis.russvet.ru/rs"
 RS_WAREHOUSE_ID = 287
 # Feron API Settings
-FERON_API_KEY = "ZjA5MDg3MTAtNjQ5ZS00ODU5LWJjNjktY2NkY2E1ZDdlNjUx"
-FERON_BASE_URL = "https://clientapi.shop.feron.ru"
+FERON_API_KEY = "server ZjA5MDg3MTAtNjQ5ZS00ODU5LWJjNjktY2NkY2E1ZDdlNjUx"
+FERON_BASE_URL = "https://api.feron.ru"
 FERON_SHEET_NAME = "ТЕСТ"
+FERON_SHEET_NAME_FBS = "FERON TR"
+# Ozon Performance API Settings
+OZON_PERF_CLIENT_ID = "92353868-1771409527407@advertising.performance.ozon.ru"
+OZON_PERF_CLIENT_SECRET = "qAXQ4PHS8Gccd5FfzX8d47BRm02BDH-9vYfYmwxvCMprrSXzEquYZnKhxPjprirtMakIKAnrR5Dd8894uw"
+OZON_PERF_BASE_URL = "https://api-performance.ozon.ru"
+
 # Google Sheets Settings
-GSHEETS_CREDS_FILE = "nomadic-bedrock-485314-b0-d16b6095cbb3.json"
+GSHEETS_CREDS_FILE = "nomadic-bedrock-485314-b0-ff60180040ed.json"
 # IMPORTANT: Provide your Spreadsheet ID here
 SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI"
 # Sheet Names
 ETM_SHEET_NAME = "ТЕСТ"
 RS_SHEET_NAME = "РуСВ TR"
+TARGET_SHEET_NAME = "тест"
 
 # Wildberries API
 # Лучше хранить актуальный токен в переменной окружения WB_API_TOKEN.

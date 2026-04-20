@@ -28,6 +28,8 @@ const RS_COL_STOCK_API = 6;   // F - Остаток АПИ
 const RS_COL_COOLING = 7;     // G - Охлад
 const RS_COL_ROUNDED = 8;     // H - Округление (Stock для выгрузки)
 
+const RS_MIN_STOCK_THRESHOLD = 5; // Минимальный остаток для выгрузки (> 4)
+
 // ============================================
 // 1. ОБНОВЛЕНИЕ ТАБЛИЦЫ ИЗ API
 // ============================================
@@ -192,22 +194,29 @@ function readRSStocksFromSheet() {
       continue;
     }
 
-    const stock = parseInt(stockForUpload) || 0;
+    let stock = parseInt(stockForUpload) || 0;
+
+    // Применяем порог: если остаток < RS_MIN_STOCK_THRESHOLD, выгружаем 0
+    const originalStock = stock;
+    if (stock < RS_MIN_STOCK_THRESHOLD) {
+      stock = 0;
+    }
 
     stocks.push({
-      offer_id: offerId,    // offer_id для Ozon
-      chrt_id: chrtId,      // chrtId для WB
-      stock: stock
+      offer_id: offerId,
+      chrt_id: chrtId,
+      stock: stock,
+      original_stock: originalStock
     });
   }
 
-  Logger.log(`📊 Прочитано ${stocks.length} товаров из листа "${RS_SHEET_NAME}"`);
+  const aboveThreshold = stocks.filter(s => s.original_stock >= RS_MIN_STOCK_THRESHOLD).length;
+  const belowThreshold = stocks.filter(s => s.original_stock > 0 && s.original_stock < RS_MIN_STOCK_THRESHOLD).length;
 
-  // Статистика
-  const withStock = stocks.filter(s => s.stock > 0).length;
-  const withChrtId = stocks.filter(s => s.chrt_id).length;
-  Logger.log(`   С остатком > 0: ${withStock}`);
-  Logger.log(`   С chrtId: ${withChrtId}`);
+  Logger.log(`📊 Прочитано ${stocks.length} товаров из листа "${RS_SHEET_NAME}"`);
+  Logger.log(`   С остатком >= ${RS_MIN_STOCK_THRESHOLD}: ${aboveThreshold}`);
+  Logger.log(`   С остатком < ${RS_MIN_STOCK_THRESHOLD} (будет 0): ${belowThreshold}`);
+  Logger.log(`   С chrtId: ${stocks.filter(s => s.chrt_id).length}`);
 
   return stocks;
 }
@@ -249,11 +258,11 @@ function normalizeRSChrtId(value) {
 function updateRSStocksOzon(stocks, warehouseId) {
   Logger.log(`🟠 Обновление остатков Ozon (склад ID: ${warehouseId})...`);
 
-  // Фильтруем товары с offer_id и stock > 0
-  const validStocks = stocks.filter(s => s.offer_id && s.stock > 0);
+  // Фильтруем товары с offer_id (включая нулевые остатки)
+  const validStocks = stocks.filter(s => s.offer_id);
 
   if (validStocks.length === 0) {
-    Logger.log(`⚠️ Нет товаров с offer_id и stock > 0 для обновления Ozon`);
+    Logger.log(`⚠️ Нет товаров с offer_id для обновления Ozon`);
     return;
   }
 

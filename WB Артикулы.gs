@@ -61,6 +61,8 @@ function updateWBArticles() {
     let cursorData = null;
     let iteration = 0;
 
+    let totalInCabinet = -1;
+
     while (hasMore) {
       iteration++;
 
@@ -69,16 +71,22 @@ function updateWBArticles() {
           "sort": { "ascending": true },
           "cursor": {
             "limit": 100
+          },
+          "filter": {
+            "withPhoto": -1
           }
-        },
-        "filter": {
-          "withPhoto": -1
         }
       };
 
-      // Добавляем курсор для пагинации (не первая итерация)
+      // Добавляем курсор для пагинации
       if (cursorData) {
         payload.settings.cursor = cursorData;
+        payload.settings.cursor.limit = 100;
+        
+        // На всякий случай дублируем nmID/nmId
+        if (!payload.settings.cursor.nmID && payload.settings.cursor.nmId) {
+          payload.settings.cursor.nmID = payload.settings.cursor.nmId;
+        }
       }
 
       const options = {
@@ -107,6 +115,10 @@ function updateWBArticles() {
           const cardCount = data.cards.length;
           totalCardsLoaded += cardCount;
 
+          if (iteration === 1 && data?.cursor?.total !== undefined) {
+             Logger.log(`   (Загрузка первой страницы...)`);
+          }
+
           if (iteration === 1 || totalCardsLoaded % 1000 === 0) {
             Logger.log(`   Загружено: ${cardCount} карточек (всего: ${totalCardsLoaded})`);
           }
@@ -117,11 +129,9 @@ function updateWBArticles() {
             const vendorCode = card.vendorCode;
 
             if (nmId && vendorCode) {
-              // Если этот артикул есть в нашей таблице
               if (offerToData[vendorCode]) {
                 offerToData[vendorCode].nmId = nmId.toString();
 
-                // Берём первый SKU из размеров для barcode
                 if (card.sizes && card.sizes.length > 0) {
                   const firstSize = card.sizes[0];
                   if (firstSize.skus && firstSize.skus.length > 0) {
@@ -135,7 +145,7 @@ function updateWBArticles() {
           });
 
           // Пагинация: проверяем есть ли еще данные
-          if (data.cursor && data.cards.length > 0) {
+          if (data.cursor && data.cards.length === 100) {
             cursorData = data.cursor;
 
             // Защита от бесконечного цикла
@@ -144,7 +154,6 @@ function updateWBArticles() {
               hasMore = false;
             }
           } else {
-            // Конец данных
             hasMore = false;
             Logger.log(`   ✅ Загружено ВСЕ карточек: ${totalCardsLoaded}`);
           }
@@ -157,9 +166,45 @@ function updateWBArticles() {
         Logger.log(`   Response: ${responseText.substring(0, 300)}`);
         hasMore = false;
       }
+      
+      // Мягкий rate limit
+      Utilities.sleep(300);
     }
 
     Logger.log(`📝 Content API найдено артикулов: ${processedFromContent}`);
+
+    // ШАГ 1.1: Карточки с ошибками (черновики)
+    Logger.log("\n=== ШАГ 1.1: Content API (карточки с ошибками) ===");
+    try {
+      const errorUrl = "https://content-api.wildberries.ru/content/v2/cards/error/list";
+      const errorResponse = retryFetch(errorUrl, {
+        method: "get",
+        headers: wbHeaders(),
+        muteHttpExceptions: true
+      });
+
+      if (errorResponse && errorResponse.getResponseCode() === 200) {
+        const errorData = JSON.parse(errorResponse.getContentText());
+        const errorCards = errorData?.data || [];
+        
+        if (errorCards.length > 0) {
+          Logger.log(`   Найдено в ошибках: ${errorCards.length}`);
+          errorCards.forEach(card => {
+            const nmId = card.nmID || card.nmId;
+            const vendorCode = card.vendorCode;
+
+            if (nmId && vendorCode && offerToData[vendorCode]) {
+              if (!offerToData[vendorCode].nmId) { // Если еще не нашли в основном списке
+                offerToData[vendorCode].nmId = nmId.toString();
+                processedFromContent++;
+              }
+            }
+          });
+        }
+      }
+    } catch (e) {
+      Logger.log(`   ⚠️ Ошибка при загрузке карточек с ошибками: ${e.message}`);
+    }
 
   } catch (e) {
     Logger.log(`❌ Content API ошибка: ${e.message}`);
