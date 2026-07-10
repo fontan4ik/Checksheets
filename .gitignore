@@ -24,6 +24,7 @@ logs/
 output_to_user/
 scratch/
 test/tmp/
+tests/tmp/
 test/etm_iek_stock_20260623_heartbeat.client_goods.json
 .brvcache/
 

@@ -70,6 +70,7 @@ RUNTIME_PARTS = (
     "test/node_modules/",
     "logs/",
     "test/tmp/",
+    "tests/tmp/",
     "scratch/",
     "output_to_user/",
 )
@@ -471,7 +472,8 @@ def main() -> int:
                     "last_synced_sha": local,
                     "branch": BRANCH,
                     "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
-                    "apps_script": result,
+                    "apps_script": result if result["pushed"] else state.get("apps_script", result),
+                    "last_cycle_apps_script": result,
                 }
             )
             log.info("Цикл завершён: GitHub=%s, Apps Script push=%s", local[:12], result["pushed"])
