@@ -20,6 +20,7 @@ const FERON_TR_WB_WAREHOUSE = {
 
 const FERON_TR_COLS = {
   VENDOR_CODE: 1,
+  OZON_SKU: 5,
   STOCK_MSK: 17,
   STOCK_SMR: 18,
   STOCK_NSB: 19,
@@ -35,6 +36,8 @@ const OZON_BASE_DELAY = 1000;
 const WB_BASE_DELAY = 3000;
 const OZON_MAX_RETRIES = 3;
 const WB_MAX_RETRIES = 3;
+const OZON_POSTCHECK_DELAY_MS = 30000;
+const OZON_POSTCHECK_RETRY_DELAY_MS = 60000;
 
 let lastRequestTime = Date.now() - 1000 / RPS;
 
@@ -51,7 +54,9 @@ function rateLimitRPS(lastTime, rps) {
 }
 
 function log(msg) {
-  console.log(new Date().toISOString().split("T")[1].slice(0, -1) + " " + msg);
+  const localTime = new Date().toLocaleTimeString("ru-RU", { hour12: false });
+  const ms = String(new Date().getMilliseconds()).padStart(3, "0");
+  console.log(`${localTime}.${ms} ${msg}`);
 }
 
 async function readFeronStocksFromSheet(auth) {
@@ -93,17 +98,21 @@ async function readFeronStocksFromSheet(auth) {
   };
 
   const colVendor = findCol("артикул", FERON_TR_COLS.VENDOR_CODE);
-  const colStockMsk = findCol("msk", FERON_TR_COLS.STOCK_MSK);
-  const colStockSmr = findCol("smr", FERON_TR_COLS.STOCK_SMR);
-  const colStockNsb = findCol("nsb", FERON_TR_COLS.STOCK_NSB);
+  const colOzonSku = findCol("sku ozon", FERON_TR_COLS.OZON_SKU);
+  // Marketplace sync for FERON TR must always read Q/R/S as MSK/SMR/NSB.
+  // Do not remap by header names here.
+  const colStockMsk = FERON_TR_COLS.STOCK_MSK;
+  const colStockSmr = FERON_TR_COLS.STOCK_SMR;
+  const colStockNsb = FERON_TR_COLS.STOCK_NSB;
   const colChrtId = findCol("chrtid", FERON_TR_COLS.CHRT_ID);
 
   log(
-    `🔍 Колонки: offer_id=${colVendor}, MSK=${colStockMsk}, SMR=${colStockSmr}, NSB=${colStockNsb}, chrtId=${colChrtId}`,
+    `🔍 Колонки: offer_id=${colVendor}, sku_ozon=${colOzonSku}, MSK=${colStockMsk}, SMR=${colStockSmr}, NSB=${colStockNsb}, chrtId=${colChrtId}`,
   );
 
   const maxCol = Math.max(
     colVendor,
+    colOzonSku,
     colStockMsk,
     colStockSmr,
     colStockNsb,
@@ -125,6 +134,7 @@ async function readFeronStocksFromSheet(auth) {
     const row = data[i];
 
     const vendorCode = row[colVendor - 1];
+    const ozonSku = parseInt(row[colOzonSku - 1]) || 0;
     const originalStockMsk = parseInt(row[colStockMsk - 1]) || 0;
     const originalStockSmr = parseInt(row[colStockSmr - 1]) || 0;
     const originalStockNsb = parseInt(row[colStockNsb - 1]) || 0;
@@ -138,9 +148,10 @@ async function readFeronStocksFromSheet(auth) {
 
     stocks.push({
       offer_id: vendorCode,
-      stock_msk: stockMsk,
-      stock_smr: stockSmr,
-      stock_nsb: stockNsb,
+      ozon_sku: ozonSku,
+      stock_msk: originalStockMsk,
+      stock_smr: originalStockSmr,
+      stock_nsb: originalStockNsb,
       original_stock_msk: originalStockMsk,
       original_stock_smr: originalStockSmr,
       original_stock_nsb: originalStockNsb,
@@ -167,6 +178,85 @@ const ozonHeaders = () => ({
   "Client-Id": "142355",
   "Api-Key": "fe539630-170b-4b48-b222-8ba092907a63",
 });
+
+async function fetchOzonWarehouseStocksBySku(items, warehouseId) {
+  const stockMap = new Map();
+  const validItems = items.filter((item) => Number(item.ozon_sku) > 0);
+  const chunkSize = 500;
+
+  for (let i = 0; i < validItems.length; i += chunkSize) {
+    const chunk = validItems.slice(i, i + chunkSize);
+    const response = await axios.post(
+      "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs",
+      {
+        sku: chunk.map((item) => Number(item.ozon_sku)),
+        warehouse_id: warehouseId,
+        limit: 1000,
+      },
+      {
+        headers: ozonHeaders(),
+        timeout: 30000,
+      },
+    );
+
+    const products = Array.isArray(response.data?.products)
+      ? response.data.products
+      : [];
+
+    products.forEach((item) => {
+      if (String(item.warehouse_id) !== String(warehouseId)) return;
+      stockMap.set(String(item.sku), {
+        present: Number(item.present) || 0,
+        reserved: Number(item.reserved) || 0,
+        free_stock: Number(item.free_stock) || 0,
+      });
+    });
+  }
+
+  return stockMap;
+}
+
+async function verifyFeronOzonWarehouse(stocks, warehouse) {
+  const expected = stocks.filter((s) => s.offer_id);
+  if (expected.length === 0) return [];
+
+  const actualMap = await fetchOzonWarehouseStocksBySku(expected, warehouse.id);
+
+  const mismatches = [];
+  const samples = [];
+
+  expected.forEach((item) => {
+    const expectedStock = Number(item[warehouse.col]) || 0;
+    if (!Number(item.ozon_sku)) {
+      return;
+    }
+    const actual = actualMap.get(String(item.ozon_sku));
+    const actualStock = actual ? actual.present + actual.reserved : 0;
+    if (actualStock !== expectedStock) {
+      mismatches.push({
+        offer_id: item.offer_id,
+        ozon_sku: item.ozon_sku,
+        expected: expectedStock,
+        actual: actualStock,
+        free: actual?.free_stock ?? 0,
+      });
+      if (samples.length < 10) {
+        samples.push(
+          `${item.offer_id} [sku=${item.ozon_sku}]: sheet=${expectedStock}, ozon=${actualStock}, free=${actual?.free_stock ?? 0}`,
+        );
+      }
+    }
+  });
+
+  if (mismatches.length === 0) {
+    log(`✅ Ozon post-check ${warehouse.name}: расхождений не найдено`);
+    return [];
+  }
+
+  log(`⚠️ Ozon post-check ${warehouse.name}: найдено ${mismatches.length} расхождений`);
+  samples.forEach((line) => log(`   - ${line}`));
+  return mismatches;
+}
 
 async function updateFeronStocksOzonWithRetry(
   batch,
@@ -200,12 +290,12 @@ async function updateFeronStocksOzonWithRetry(
       const delay = OZON_BASE_DELAY * Math.pow(2, retryCount);
       log(
         "⏳ Ozon 429: ожидание " +
-          delay / 1000 +
-          " сек перед retry " +
-          (retryCount + 1) +
-          "/" +
-          OZON_MAX_RETRIES +
-          "...",
+        delay / 1000 +
+        " сек перед retry " +
+        (retryCount + 1) +
+        "/" +
+        OZON_MAX_RETRIES +
+        "...",
       );
       await new Promise((r) => setTimeout(r, delay));
       return updateFeronStocksOzonWithRetry(batch, warehouseId, colName, retryCount + 1);
@@ -252,6 +342,7 @@ async function updateFeronStocksOzon(stocks) {
 
   let totalSuccess = 0;
   let totalError = 0;
+  const pendingChecks = [];
 
   for (const wh of warehouses) {
     log(`\n📦 Обработка склада: ${wh.name} (ID: ${wh.id})...`);
@@ -295,11 +386,23 @@ async function updateFeronStocksOzon(stocks) {
     log(
       `🟠 ${wh.name}: ✅ ${warehouseSuccess} обновлено, ❌ ${warehouseError} ошибок`,
     );
+    log(
+      `⏳ Ожидание ${OZON_POSTCHECK_DELAY_MS / 1000} сек перед промежуточным Ozon post-check ${wh.name}...`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, OZON_POSTCHECK_DELAY_MS));
+    const mismatches = await verifyFeronOzonWarehouse(validStocks, wh);
+    if (mismatches.length > 0) {
+      log(
+        `ℹ️ Промежуточные расхождения Ozon ${wh.name} будут перепроверены в конце скрипта после WB: ${mismatches.length}`,
+      );
+      pendingChecks.push({ warehouse: wh, mismatches });
+    }
     totalSuccess += warehouseSuccess;
     totalError += warehouseError;
   }
 
   log(`\n🟠 Ozon Всего: ✅ ${totalSuccess} обновлено, ❌ ${totalError} ошибок`);
+  return pendingChecks;
 }
 
 function isWBCargoRestrictionError(responseText) {
@@ -350,12 +453,12 @@ async function sendFeronWBStocksBatch(batch, warehouseId, retryCount = 0) {
       const delay = WB_BASE_DELAY * Math.pow(2, retryCount);
       log(
         "⏳ WB 429: ожидание " +
-          delay / 1000 +
-          " сек перед retry " +
-          (retryCount + 1) +
-          "/" +
-          WB_MAX_RETRIES +
-          "...",
+        delay / 1000 +
+        " сек перед retry " +
+        (retryCount + 1) +
+        "/" +
+        WB_MAX_RETRIES +
+        "...",
       );
       await new Promise((r) => setTimeout(r, delay));
       return sendFeronWBStocksBatch(batch, warehouseId, retryCount + 1);
@@ -382,12 +485,12 @@ async function sendFeronWBStocksBatch(batch, warehouseId, retryCount = 0) {
       const delay = WB_BASE_DELAY * Math.pow(2, retryCount);
       log(
         "⏳ WB 429: ожидание " +
-          delay / 1000 +
-          " сек перед retry " +
-          (retryCount + 1) +
-          "/" +
-          WB_MAX_RETRIES +
-          "...",
+        delay / 1000 +
+        " сек перед retry " +
+        (retryCount + 1) +
+        "/" +
+        WB_MAX_RETRIES +
+        "...",
       );
       await new Promise((r) => setTimeout(r, delay));
       return sendFeronWBStocksBatch(batch, warehouseId, retryCount + 1);
@@ -587,7 +690,7 @@ async function main() {
   const auth = new google.auth.GoogleAuth({
     keyFile: path.join(
       __dirname,
-      "nomadic-bedrock-485314-b0-ff60180040ed.json",
+      "nomadic-bedrock-485314-b0-d7624dedd83c.json",
     ),
     scopes: ["https://www.googleapis.com/auth/spreadsheets"],
   });
@@ -595,8 +698,21 @@ async function main() {
   const client = await auth.getClient();
   google.options({ auth: client });
 
-  log(`📊 Шаг 1: Чтение данных из листа "${SHEET_NAME}"...`);
-  const stocks = await readFeronStocksFromSheet(client);
+  let stocks = [];
+  const maxReadRetries = 5;
+  for (let attempt = 1; attempt <= maxReadRetries; attempt++) {
+    try {
+      log(`📊 Шаг 1: Чтение данных из листа "${SHEET_NAME}" (попытка ${attempt}/${maxReadRetries})...`);
+      stocks = await readFeronStocksFromSheet(client);
+      break;
+    } catch (err) {
+      log(`⚠️ Ошибка чтения листа (попытка ${attempt}/${maxReadRetries}): ${err.message || err}`);
+      if (attempt === maxReadRetries) throw err;
+      const delay = 5000 * attempt;
+      log(`⏳ Ожидание ${delay / 1000} сек перед повтором...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
 
   if (stocks.length === 0) {
     log("❌ Нет данных для синхронизации");
@@ -612,11 +728,32 @@ async function main() {
 
   log(``);
   log(`🟠 Шаг 2: Обновление остатков Ozon...`);
-  await updateFeronStocksOzon(stocks);
+  const ozonPendingChecks = await updateFeronStocksOzon(stocks);
 
   log(``);
   log(`🟣 Шаг 3: Обновление остатков WB...`);
   await updateFeronStocksWB(stocks);
+
+  if (ozonPendingChecks.length > 0) {
+    log(``);
+    log(`🟠 Шаг 4: Финальная перепроверка расхождений Ozon после завершения WB...`);
+    log(
+      `⏳ Дополнительное ожидание ${OZON_POSTCHECK_RETRY_DELAY_MS / 1000} сек перед финальным Ozon post-check...`,
+    );
+    await new Promise((resolve) =>
+      setTimeout(resolve, OZON_POSTCHECK_RETRY_DELAY_MS),
+    );
+
+    for (const pending of ozonPendingChecks) {
+      await verifyFeronOzonWarehouse(
+        pending.mismatches.map((item) => ({
+          offer_id: item.offer_id,
+          [pending.warehouse.col]: item.expected,
+        })),
+        pending.warehouse,
+      );
+    }
+  }
 
   const endTime = new Date();
   const duration = Math.round((endTime - startTime) / 1000);

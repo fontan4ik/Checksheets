@@ -250,7 +250,7 @@ class OzonWarehouseAPI {
 
   /**
    * Получение остатков по FBS складам
-   * Метод: POST /v1/product/info/stocks-by-warehouse/fbs
+   * Метод: POST /v2/product/info/stocks-by-warehouse/fbs
    *
    * @param {number[]} skuList - массив SKU
    * @param {number} warehouseId - ID склада
@@ -275,29 +275,29 @@ class OzonWarehouseAPI {
 
     try {
       const response = await this.makeRequest(
-        "/v1/product/info/stocks-by-warehouse/fbs",
+        "/v2/product/info/stocks-by-warehouse/fbs",
         "POST",
         payload,
       );
 
-      if (response && response.result && Array.isArray(response.result)) {
+      if (response && response.products && Array.isArray(response.products)) {
         console.log(
-          ` Успешно получено ${response.result.length} записей остатков`,
+          ` Успешно получено ${response.products.length} записей остатков`,
         );
 
         // Подсчет товаров с остатками
-        const withStock = response.result.filter(
+        const withStock = response.products.filter(
           (item) => (item.present || 0) + (item.reserved || 0) > 0,
         );
 
         console.log(` Товаров с остатками: ${withStock.length}`);
 
         // Пример данных
-        if (response.result.length > 0) {
+        if (response.products.length > 0) {
           console.log("📝 Пример данных:");
-          const sample = response.result[0];
+          const sample = response.products[0];
           console.log(
-            `   SKU: ${sample.sku}, Present: ${sample.present || 0}, Reserved: ${sample.reserved || 0}`,
+            `   SKU: ${sample.sku}, Warehouse: ${sample.warehouse_name || sample.warehouse_id}, Present: ${sample.present || 0}, Reserved: ${sample.reserved || 0}`,
           );
         }
       }

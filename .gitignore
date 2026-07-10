@@ -1,0 +1,34 @@
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+*service-account*.json
+*credentials*.json
+google_token.json
+google_client_secret.json
+nomadic-bedrock-485314-b0-d7624dedd83c.json
+*.pem
+*.key
+
+# Local runtimes and caches
+.venv/
+.venv-*/
+__pycache__/
+*.py[cod]
+node_modules/
+test/node_modules/
+.DS_Store
+
+# Local runtime state and generated output
+logs/
+output_to_user/
+scratch/
+test/tmp/
+test/etm_iek_stock_20260623_heartbeat.client_goods.json
+.brvcache/
+
+# Local agent/editor state
+.brv/
+.claude/
+.zed/
+.antigravity/

@@ -2,6 +2,11 @@
 # ETM API Settings
 ETM_LOGIN = "160119919fik"
 ETM_PASSWORD = "Ibs30Rh2"
+ETM_FTP_HOST = "edi.etm.ru"
+ETM_FTP_PORT = 21
+ETM_FTP_USER = "u_energoservis"
+ETM_FTP_PASSWORD = "20CbH7JmM25"
+ETM_FTP_TLS = "disable"
 # RS API Settings
 RS_LOGIN = "ntc-es1"
 RS_PASSWORD = "4XK69YO0"
@@ -14,13 +19,17 @@ FERON_SHEET_NAME = "ТЕСТ"
 FERON_SHEET_NAME_FBS = "FERON TR"
 # Ozon Performance API Settings
 OZON_PERF_CLIENT_ID = "92353868-1771409527407@advertising.performance.ozon.ru"
-OZON_PERF_CLIENT_SECRET = "qAXQ4PHS8Gccd5FfzX8d47BRm02BDH-9vYfYmwxvCMprrSXzEquYZnKhxPjprirtMakIKAnrR5Dd8894uw"
+OZON_PERF_CLIENT_SECRET = (
+    "qAXQ4PHS8Gccd5FfzX8d47BRm02BDH-9vYfYmwxvCMprrSXzEquYZnKhxPjprirtMakIKAnrR5Dd8894uw"
+)
 OZON_PERF_BASE_URL = "https://api-performance.ozon.ru"
 
 # Google Sheets Settings
-GSHEETS_CREDS_FILE = "nomadic-bedrock-485314-b0-ff60180040ed.json"
+GSHEETS_CREDS_FILE = "nomadic-bedrock-485314-b0-d7624dedd83c.json"
 # IMPORTANT: Provide your Spreadsheet ID here
 SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI"
+ETM_CODES_SHEET_NAME = "Коды ETM"
+ETM_SGGDS_JOB_ID = "40029846"
 # Sheet Names
 ETM_SHEET_NAME = "ТЕСТ"
 RS_SHEET_NAME = "РуСВ TR"

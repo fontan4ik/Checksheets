@@ -103,7 +103,7 @@ def write_to_sheet(stats):
             print("Connecting to Google Sheets (attempt " + str(attempt + 1) + "/5)...")
             
             # Credentials
-            creds_file = os.path.join(os.path.dirname(__file__), '..', 'nomadic-bedrock-485314-b0-ff60180040ed.json')
+            creds_file = os.path.join(os.path.dirname(__file__), '..', 'nomadic-bedrock-485314-b0-d7624dedd83c.json')
             
             credentials = service_account.Credentials.from_service_account_file(
                 creds_file, 

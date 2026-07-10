@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.voltmir.checksheets-github-sync</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/scripts/checksheets_github_sync.py</string>
+        <string>--once</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/vladimirgrebennikov</string>
+        <key>PATH</key>
+        <string>/Users/vladimirgrebennikov/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>NPM_CONFIG_UPDATE_NOTIFIER</key>
+        <string>false</string>
+        <key>NPM_CONFIG_FUND</key>
+        <string>false</string>
+        <key>NPM_CONFIG_AUDIT</key>
+        <string>false</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>120</integer>
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/vladimirgrebennikov/Library/Logs/Voltmir/checksheets-github-sync.launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/vladimirgrebennikov/Library/Logs/Voltmir/checksheets-github-sync.launchd.err.log</string>
+</dict>
+</plist>

@@ -1,0 +1,112 @@
+START local Ozon analytics refresh at 2026-07-08 10:54:32 +0400
+Sheet rows=15792; unique non-empty SKUs=14632
+[Month] Period 2026-06-07 -> 2026-07-07; SKUs=14632; batches=30
+Ozon analytics retry 1/3 after 30s: RuntimeError
+[Month] batch 1/30; rows=500; total_keys=500
+[Month] batch 2/30; rows=500; total_keys=1000
+[Month] batch 3/30; rows=500; total_keys=1500
+[Month] batch 4/30; rows=500; total_keys=2000
+[Month] batch 5/30; rows=500; total_keys=2500
+[Month] batch 6/30; rows=500; total_keys=3000
+[Month] batch 7/30; rows=500; total_keys=3500
+[Month] batch 8/30; rows=500; total_keys=4000
+[Month] batch 9/30; rows=500; total_keys=4500
+[Month] batch 10/30; rows=500; total_keys=5000
+[Month] batch 11/30; rows=500; total_keys=5500
+[Month] batch 12/30; rows=500; total_keys=6000
+[Month] batch 13/30; rows=500; total_keys=6500
+[Month] batch 14/30; rows=500; total_keys=7000
+[Month] batch 15/30; rows=500; total_keys=7500
+[Month] batch 16/30; rows=500; total_keys=8000
+[Month] batch 17/30; rows=500; total_keys=8500
+[Month] batch 18/30; rows=500; total_keys=9000
+[Month] batch 19/30; rows=500; total_keys=9500
+[Month] batch 20/30; rows=500; total_keys=10000
+[Month] batch 21/30; rows=500; total_keys=10500
+[Month] batch 22/30; rows=500; total_keys=11000
+[Month] batch 23/30; rows=500; total_keys=11500
+[Month] batch 24/30; rows=500; total_keys=12000
+[Month] batch 25/30; rows=500; total_keys=12500
+[Month] batch 26/30; rows=500; total_keys=13000
+[Month] batch 27/30; rows=236; total_keys=13236
+[Month] batch 28/30; rows=0; total_keys=13236
+[Month] batch 29/30; rows=0; total_keys=13236
+[Month] batch 30/30; rows=0; total_keys=13236
+[Month] done; result SKUs=13236
+Month written: I and L
+[Quarter] Period 2025-11-25 -> 2026-02-25; SKUs=14632; batches=30
+[Quarter] batch 1/30; rows=500; total_keys=500
+Ozon analytics retry 1/3 after 30s: RuntimeError
+[Quarter] batch 2/30; rows=500; total_keys=1000
+[Quarter] batch 3/30; rows=500; total_keys=1500
+[Quarter] batch 4/30; rows=500; total_keys=2000
+[Quarter] batch 5/30; rows=500; total_keys=2500
+[Quarter] batch 6/30; rows=500; total_keys=3000
+[Quarter] batch 7/30; rows=500; total_keys=3500
+Ozon analytics retry 1/3 after 30s: RuntimeError
+[Quarter] batch 8/30; rows=500; total_keys=4000
+[Quarter] batch 9/30; rows=500; total_keys=4500
+[Quarter] batch 10/30; rows=500; total_keys=5000
+Ozon analytics retry 1/3 after 30s: RuntimeError
+[Quarter] batch 11/30; rows=500; total_keys=5500
+Ozon analytics retry 1/3 after 30s: RuntimeError
+Ozon analytics retry 2/3 after 60s: RuntimeError
+[Quarter] batch 12/30; rows=500; total_keys=6000
+[Quarter] batch 13/30; rows=500; total_keys=6500
+[Quarter] batch 14/30; rows=500; total_keys=7000
+[Quarter] batch 15/30; rows=500; total_keys=7500
+[Quarter] batch 16/30; rows=500; total_keys=8000
+[Quarter] batch 17/30; rows=500; total_keys=8500
+[Quarter] batch 18/30; rows=500; total_keys=9000
+[Quarter] batch 19/30; rows=388; total_keys=9388
+[Quarter] batch 20/30; rows=0; total_keys=9388
+[Quarter] batch 21/30; rows=0; total_keys=9388
+[Quarter] batch 22/30; rows=0; total_keys=9388
+[Quarter] batch 23/30; rows=0; total_keys=9388
+[Quarter] batch 24/30; rows=0; total_keys=9388
+[Quarter] batch 25/30; rows=0; total_keys=9388
+[Quarter] batch 26/30; rows=0; total_keys=9388
+[Quarter] batch 27/30; rows=0; total_keys=9388
+[Quarter] batch 28/30; rows=0; total_keys=9388
+Ozon analytics retry 1/3 after 30s: RuntimeError
+[Quarter] batch 29/30; rows=0; total_keys=9388
+[Quarter] batch 30/30; rows=0; total_keys=9388
+[Quarter] done; result SKUs=9388
+Quarter written: J
+[Year] Period 2025-07-07 -> 2026-07-07; SKUs=14632; batches=30
+[Year] batch 1/30; rows=500; total_keys=500
+[Year] batch 2/30; rows=500; total_keys=1000
+[Year] batch 3/30; rows=500; total_keys=1500
+[Year] batch 4/30; rows=500; total_keys=2000
+[Year] batch 5/30; rows=500; total_keys=2500
+[Year] batch 6/30; rows=500; total_keys=3000
+[Year] batch 7/30; rows=500; total_keys=3500
+[Year] batch 8/30; rows=500; total_keys=4000
+Ozon analytics retry 1/3 after 30s: RuntimeError
+[Year] batch 9/30; rows=500; total_keys=4500
+[Year] batch 10/30; rows=500; total_keys=5000
+Ozon analytics retry 1/3 after 30s: RuntimeError
+[Year] batch 11/30; rows=500; total_keys=5500
+[Year] batch 12/30; rows=500; total_keys=6000
+[Year] batch 13/30; rows=500; total_keys=6500
+[Year] batch 14/30; rows=500; total_keys=7000
+[Year] batch 15/30; rows=500; total_keys=7500
+[Year] batch 16/30; rows=500; total_keys=8000
+[Year] batch 17/30; rows=500; total_keys=8500
+[Year] batch 18/30; rows=500; total_keys=9000
+[Year] batch 19/30; rows=500; total_keys=9500
+[Year] batch 20/30; rows=500; total_keys=10000
+[Year] batch 21/30; rows=500; total_keys=10500
+[Year] batch 22/30; rows=500; total_keys=11000
+[Year] batch 23/30; rows=500; total_keys=11500
+[Year] batch 24/30; rows=500; total_keys=12000
+[Year] batch 25/30; rows=500; total_keys=12500
+[Year] batch 26/30; rows=500; total_keys=13000
+[Year] batch 27/30; rows=500; total_keys=13500
+[Year] batch 28/30; rows=500; total_keys=14000
+[Year] batch 29/30; rows=496; total_keys=14496
+[Year] batch 30/30; rows=0; total_keys=14496
+[Year] done; result SKUs=14496
+Year written: AO
+TARGET sku=986315608 row=4 I=40 L=22251
+DONE local Ozon analytics refresh

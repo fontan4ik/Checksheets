@@ -1,8 +1,61 @@
 import requests
 import base64
 import time
+import os
+import re
 import config
 import gsheets_utils
+from requests.adapters import HTTPAdapter
+from urllib3.poolmanager import PoolManager
+# VPN guard removed - using V2Box split routing instead
+
+
+class SourceAddressAdapter(HTTPAdapter):
+    def __init__(self, source_ip, **kwargs):
+        self._source_address = (source_ip, 0)
+        super().__init__(**kwargs)
+
+    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
+        pool_kwargs["source_address"] = self._source_address
+        self.poolmanager = PoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            **pool_kwargs,
+        )
+
+
+def get_active_interface_ip():
+    preferred_interface = os.getenv("CHECKSHEETS_BYPASS_INTERFACE", "").strip()
+
+    if preferred_interface:
+        output = os.popen(f"ifconfig {preferred_interface}").read()
+        match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)", output)
+        if match:
+            return preferred_interface, match.group(1)
+
+    for interface in ("en1", "en0"):
+        output = os.popen(f"ifconfig {interface}").read()
+        if "status: active" not in output:
+            continue
+        match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)", output)
+        if match:
+            return interface, match.group(1)
+
+    raise RuntimeError(
+        "No active LAN/Wi-Fi interface found for RS bypass. "
+        "Set CHECKSHEETS_BYPASS_INTERFACE explicitly."
+    )
+
+
+def create_rs_session():
+    interface, source_ip = get_active_interface_ip()
+    session = requests.Session()
+    adapter = SourceAddressAdapter(source_ip)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    print(f"RS bypass interface: {interface} ({source_ip})")
+    return session
 
 def get_rs_headers():
     auth_str = f"{config.RS_LOGIN}:{config.RS_PASSWORD}"
@@ -18,6 +71,7 @@ def fetch_rs_code_map(warehouse_id):
     Получаем карту соответствий артикулов и RS-кодов
     """
     print(f"Fetching RS catalog for warehouse {warehouse_id}...")
+    http = create_rs_session()
     headers = get_rs_headers()
     code_map = {}
     categories = ["instock"]  # Сначала проверяем только в наличии
@@ -28,7 +82,7 @@ def fetch_rs_code_map(warehouse_id):
         while page <= last_page:
             url = f"{config.RS_BASE_URL}/position/{warehouse_id}/{cat}?page={page}&rows=1000"
             try:
-                response = requests.get(url, headers=headers, timeout=30)
+                response = http.get(url, headers=headers, timeout=30)
                 if response.status_code != 200:
                     print(f"   Error fetching page {page} of {cat}: {response.status_code}")
                     break
@@ -82,7 +136,7 @@ def fetch_rs_code_map(warehouse_id):
             while page <= last_page:
                 url = f"{config.RS_BASE_URL}/position/{warehouse_id}/{cat}?page={page}&rows=1000"
                 try:
-                    response = requests.get(url, headers=headers, timeout=30)
+                    response = http.get(url, headers=headers, timeout=30)
                     if response.status_code != 200:
                         print(f"   Error fetching page {page} of {cat}: {response.status_code}")
                         break
@@ -125,6 +179,7 @@ def fetch_all_rs_stocks(warehouse_id):
     Получаем все остатки по складу
     """
     print(f"Fetching all RS stocks for warehouse {warehouse_id}...")
+    http = create_rs_session()
     headers = get_rs_headers()
     stock_data = {}
     page = 1
@@ -133,7 +188,7 @@ def fetch_all_rs_stocks(warehouse_id):
     while page <= last_page:
         url = f"{config.RS_BASE_URL}/residue/all/{warehouse_id}?page={page}&rows=200&category=all"
         try:
-            response = requests.get(url, headers=headers, timeout=30)
+            response = http.get(url, headers=headers, timeout=30)
             if response.status_code != 200:
                 print(f"   Error fetching stocks page {page}: {response.status_code}")
                 break
@@ -174,11 +229,67 @@ def fetch_all_rs_stocks(warehouse_id):
     print(f"Stock data loaded. Items with stock: {len(stock_data)}")
     return stock_data
 
+def fetch_rs_prices(rs_codes):
+    """
+    Получаем цены для списка RS-кодов батчами по 50
+    """
+    print(f"Fetching prices for {len(rs_codes)} RS codes...")
+    http = create_rs_session()
+    headers = get_rs_headers()
+    
+    prices = {}
+    
+    # Исключим дубликаты и пустые значения, отсортируем для стабильности
+    unique_codes = sorted(list(set(str(c) for c in rs_codes if c)))
+    total_batches = (len(unique_codes) - 1) // 50 + 1
+    
+    for i in range(0, len(unique_codes), 50):
+        batch = unique_codes[i:i+50]
+        url = f"{config.RS_BASE_URL}/massprice"
+        batch_num = i // 50 + 1
+        try:
+            response = http.post(
+                url,
+                headers={**headers, "Content-Type": "application/json"},
+                json={"items": batch},
+                timeout=30
+            )
+            if response.status_code != 200:
+                print(f"   Error fetching prices (batch {batch_num}/{total_batches}): {response.status_code}")
+                continue
+                
+            data = response.json()
+            if isinstance(data, list):
+                for item in data:
+                    rs_code = item.get("RSCode")
+                    price_info = item.get("Price", {})
+                    # Согласно RS_API_PRICES.md берем Personal_w_VAT, если его нет - Personal.
+                    personal_w_vat = price_info.get("Personal_w_VAT")
+                    if personal_w_vat is None:
+                        personal_w_vat = price_info.get("Personal")
+                        
+                    if rs_code and personal_w_vat is not None:
+                        try:
+                            prices[str(rs_code)] = float(personal_w_vat)
+                        except (TypeError, ValueError):
+                            pass
+            
+            if batch_num % 10 == 0 or batch_num == total_batches:
+                print(f"   Processed price batch {batch_num}/{total_batches}...")
+                
+            time.sleep(0.15)
+        except Exception as e:
+            print(f"   Network error during price fetch: {e}")
+            break
+            
+    print(f"Loaded prices for {len(prices)} RS codes.")
+    return prices
+
 def sync_rs():
     """
     Основная функция синхронизации
     """
-    print("Starting RS Local Sync (Improved)...")
+    print("Starting RS Local Sync (Improved with Prices)...")
 
     try:
         ws = gsheets_utils.get_worksheet(config.RS_SHEET_NAME)
@@ -205,8 +316,38 @@ def sync_rs():
     code_map = fetch_rs_code_map(config.RS_WAREHOUSE_ID)
     all_stocks = fetch_all_rs_stocks(config.RS_WAREHOUSE_ID)
 
+    # Соберем RS-коды для всех моделей в таблице для массового запроса цен
+    model_rs_codes = []
+    for model in models:
+        model = str(model).strip()
+        if not model:
+            continue
+        rs_code = None
+        search_variants = [
+            model,
+            model.upper(),
+            model.lower(),
+            model.strip().upper(),
+            ''.join(c for c in model if c.isalnum() or c in '-_').upper(),
+            ''.join(c for c in model if c.isalnum()).upper(),
+        ]
+        for variant in search_variants:
+            if variant in code_map:
+                rs_code = code_map[variant]
+                break
+        if not rs_code and model in ['61950', '71650']:
+            similar_keys = [k for k in code_map.keys() if model in k or k.startswith(model)]
+            if similar_keys:
+                rs_code = code_map[similar_keys[0]]
+        if rs_code:
+            model_rs_codes.append(rs_code)
+
+    # Получаем цены массово
+    all_prices = fetch_rs_prices(model_rs_codes)
+
     # Подготовим результаты
     results_stock = []
+    results_price = []
 
     # Счетчики для отладки
     total_processed = 0
@@ -219,34 +360,34 @@ def sync_rs():
 
         if not model:
             results_stock.append([0])
+            results_price.append([""])
             continue
 
         stock = 0
+        price = ""
         rs_code = None
 
         # Множественные попытки найти соответствие
         search_variants = [
-            model,                           # оригинал
-            model.upper(),                   # в верхнем регистре
-            model.lower(),                   # в нижнем регистре
-            model.strip().upper(),           # без пробелов, в верхнем регистре
-            ''.join(c for c in model if c.isalnum() or c in '-_').upper(),  # очищенный вариант
-            ''.join(c for c in model if c.isalnum()).upper(),               # еще более очищенный
+            model,
+            model.upper(),
+            model.lower(),
+            model.strip().upper(),
+            ''.join(c for c in model if c.isalnum() or c in '-_').upper(),
+            ''.join(c for c in model if c.isalnum()).upper(),
         ]
 
-        # Проверяем каждый вариант
         for variant in search_variants:
             if variant in code_map:
                 rs_code = code_map[variant]
                 break
 
-        # Если нашли код, ищем остаток
         if rs_code:
             stock = all_stocks.get(rs_code, 0)
+            price = all_prices.get(str(rs_code), "")
 
-            # Отладочный вывод для известных проблемных артикулов
             if model in ['61950', '71650']:
-                print(f"DEBUG: Model '{model}' found RS code '{rs_code}', stock: {stock}")
+                print(f"DEBUG: Model '{model}' found RS code '{rs_code}', stock: {stock}, price: {price}")
 
             if stock > 0:
                 found_with_stock += 1
@@ -255,22 +396,21 @@ def sync_rs():
         else:
             not_found += 1
 
-            # Попробуем частичное совпадение для отладки
             if model in ['61950', '71650']:
                 print(f"DEBUG: Model '{model}' not found in code_map. Looking for partial matches...")
                 similar_keys = [k for k in code_map.keys() if model in k or k.startswith(model)]
                 if similar_keys:
                     print(f"DEBUG: Found similar keys: {similar_keys[:5]}")
-                    # Попробуем первый найденный ключ
                     first_similar = similar_keys[0]
                     rs_code = code_map[first_similar]
                     stock = all_stocks.get(rs_code, 0)
-                    print(f"DEBUG: Using similar key '{first_similar}' -> RS code '{rs_code}', stock: {stock}")
+                    price = all_prices.get(str(rs_code), "")
+                    print(f"DEBUG: Using similar key '{first_similar}' -> RS code '{rs_code}', stock: {stock}, price: {price}")
 
         results_stock.append([stock])
+        results_price.append([price])
         total_processed += 1
 
-    # Выводим статистику
     print(f"\nSync Statistics:")
     print(f"  - Total processed: {total_processed}")
     print(f"  - Found with stock > 0: {found_with_stock}")
@@ -279,16 +419,36 @@ def sync_rs():
 
     print(f"Updating Google Sheet '{config.RS_SHEET_NAME}'...")
 
+    update_errors = []
+
+    # Обновляем остатки
     try:
-        # Очищаем старые данные
         gsheets_utils.clear_column(ws, "Остаток АПИ")
-
-        # Обновляем только столбец остатков
         gsheets_utils.update_column_by_header(ws, "Остаток АПИ", results_stock)
-        print("RS Sync completed successfully!")
-
+        print("Stock API updated successfully!")
     except Exception as e:
-        print(f"Error updating sheet: {e}")
+        update_errors.append(f"stock column: {e}")
+        print(f"Error updating stock column after retries: {e}")
+
+    # Обновляем цены в колонку J ("Цена закуп")
+    try:
+        if "Цена закуп" in headers:
+            gsheets_utils.clear_column(ws, "Цена закуп")
+            gsheets_utils.update_column_by_header(ws, "Цена закуп", results_price)
+            print("Purchase prices updated successfully by header 'Цена закуп'!")
+        else:
+            print("Header 'Цена закуп' not found. Using column 10 (J) as fallback...")
+            gsheets_utils.clear_column(ws, 10)
+            gsheets_utils.update_column(ws, 10, results_price)
+            print("Purchase prices updated successfully in column J (10)!")
+    except Exception as e:
+        update_errors.append(f"price column: {e}")
+        print(f"Error updating price column after retries: {e}")
+
+    if update_errors:
+        raise RuntimeError("Google Sheet update failed: " + "; ".join(update_errors))
+
+    print("RS Sync completed successfully!")
 
 if __name__ == "__main__":
     sync_rs()

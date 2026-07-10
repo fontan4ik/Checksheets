@@ -2,7 +2,7 @@ import os
 from google.oauth2 import service_account
 import googleapiclient.discovery
 
-creds_file = os.path.join('..', 'nomadic-bedrock-485314-b0-ff60180040ed.json')
+creds_file = os.path.join('..', 'nomadic-bedrock-485314-b0-d7624dedd83c.json')
 
 credentials = service_account.Credentials.from_service_account_file(
     creds_file, 
