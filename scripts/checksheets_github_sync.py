@@ -240,6 +240,9 @@ def commit_stable_local_changes(dry_run: bool) -> str | None:
     before = git_status()
     if not before:
         return None
+    if all(is_runtime_path(path) for path in status_paths()):
+        log.info("Изменены только runtime-файлы; commit не требуется")
+        return None
 
     log.info("Найдены локальные изменения; жду %s секунд для завершения записи", SETTLE_SECONDS)
     if SETTLE_SECONDS:
