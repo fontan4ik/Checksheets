@@ -187,20 +187,37 @@ function updateProductsV2() {
     }
   }
 
-  // Записываем данные в колонки
+  // Записываем данные пакетами. Смежные колонки объединяем, чтобы сократить
+  // количество обращений к Spreadsheet Service и не упираться в таймаут.
+  const valuesByKey = {};
   for (const [colLetter, key] of Object.entries(columnKeyMap)) {
-    const colIndex = columnLetterToIndex(colLetter);
-    const values = rowData.map(r => {
+    valuesByKey[key] = rowData.map(r => {
       const result = resultsMap.get(r.offerId);
-      return [result
+      return result
         ? key === "primary_image"
           ? result[key] ? `=IMAGE("${result[key]}")` : ""
           : result[key] || ""
-        : ""
-      ];
+        : "";
     });
-    sheet.getRange(2, colIndex, values.length, 1).setValues(values);
-    Logger.log(`📝 Колонка ${colLetter} (${colIndex}): ${key} - обновлено ${values.filter(v => v[0]).length} строк`);
+  }
+
+  const writeGroups = [
+    { startColumn: "C", columns: ["C", "D", "E"] },
+    { startColumn: "V", columns: ["V"] },
+    { startColumn: "X", columns: ["X", "Y"] }
+  ];
+
+  for (const group of writeGroups) {
+    const values = rowData.map((_, rowIndex) =>
+      group.columns.map(colLetter => valuesByKey[columnKeyMap[colLetter]][rowIndex])
+    );
+    sheet.getRange(2, columnLetterToIndex(group.startColumn), values.length, group.columns.length)
+      .setValues(values);
+
+    for (const colLetter of group.columns) {
+      const key = columnKeyMap[colLetter];
+      Logger.log(`📝 Колонка ${colLetter} (${columnLetterToIndex(colLetter)}): ${key} - обновлено ${valuesByKey[key].filter(Boolean).length} строк`);
+    }
   }
 
   // Статистика
