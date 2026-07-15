@@ -142,41 +142,26 @@ function updateOzonReport65ForDates(dateFrom, dateTo) {
 
   const accrualMap = fetchOzonReport65Accruals_(dateFrom, dateTo);
   const storageMap = fetchOzonReport65StorageMap_(dateFrom, dateTo);
-  const token = getOzonReport65PerfToken_();
-  let campaigns = [];
-  let cpoMap = null;
-
-  if (token) {
-    campaigns = getOzonReport65PerfCampaigns_(token);
-    Logger.log("Performance CPO отключен: ЗАКАЗЫ берутся из accrual/by-day non_item_fee type_id=54");
-  } else {
-    Logger.log("Performance API token не получен, рекламные колонки не будут обновлены");
-  }
+  // ОТКЛЮЧЕНО: получение данных Performance API для КЛИКОВ и ЗАКАЗОВ.
+  // const token = getOzonReport65PerfToken_();
+  // let campaigns = [];
+  // let cpoMap = null;
+  //
+  // if (token) {
+  //   campaigns = getOzonReport65PerfCampaigns_(token);
+  //   Logger.log("Performance CPO отключен: ЗАКАЗЫ берутся из accrual/by-day non_item_fee type_id=54");
+  // } else {
+  //   Logger.log("Performance API token не получен, рекламные колонки не будут обновлены");
+  // }
+  const cpoMap = null;
 
   writeOzonReport65FinanceColumns_(sheet, headerMap, rowItems, accrualMap, cpoMap, storageMap);
 
-  if (OZON_REPORT65_CLICKS_SOURCE === "finance") {
-    Logger.log("КЛИКИ берутся из accrual/by-day non_item_fee type_id=41; Performance staged-запуск для КЛИКОВ не нужен");
-    return;
-  }
-
-  Logger.log("КЛИКИ переключены на Performance API: в колонку пишется количество кликов, а не finance-расход type_id=41");
-
-  if (!token) return;
-
-  if (!campaigns.length) {
-    Logger.log("Performance кампании не найдены, колонка КЛИКИ не очищена");
-    return;
-  }
-
-  const clickCampaigns = filterOzonReport65ClickCampaigns_(campaigns);
-  if (!clickCampaigns.length) {
-    Logger.log("Performance кампании оплаты за клик не найдены, колонка КЛИКИ не очищена");
-    return;
-  }
-
-  clearOzonReport65ClicksColumn_(sheet, headerMap, rowItems.length);
-  startOzonReport65PerformanceProcessing_(clickCampaigns, dateFrom, dateTo);
+  // ОТКЛЮЧЕНО: staged-запуск Performance API для КЛИКОВ.
+  // if (OZON_REPORT65_CLICKS_SOURCE === "finance") { ... }
+  // const clickCampaigns = filterOzonReport65ClickCampaigns_(campaigns);
+  // clearOzonReport65ClicksColumn_(sheet, headerMap, rowItems.length);
+  // startOzonReport65PerformanceProcessing_(clickCampaigns, dateFrom, dateTo);
   });
 }
 
@@ -187,6 +172,10 @@ function restartOzonReport65Clicks() {
 
 function restartOzonReport65ClicksForDates(dateFrom, dateTo) {
   return withOzonReport65ScriptLock_("restartOzonReport65ClicksForDates", function() {
+    // ОТКЛЮЧЕНО: ручной перезапуск получения КЛИКОВ из Performance API.
+    Logger.log("Получение КЛИКОВ отключено для листа UNIT API");
+    return;
+
     const sheet = getOzonReport65UnitApiSheet_();
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) {
@@ -248,6 +237,10 @@ function setOzonReport65PerformanceCredentials(clientId, clientSecret) {
 
 function resumeOzonReport65Performance() {
   return withOzonReport65ScriptLock_("resumeOzonReport65Performance", function() {
+  // ОТКЛЮЧЕНО: продолжение отложенной загрузки КЛИКОВ из Performance API.
+  Logger.log("Отложенная загрузка КЛИКОВ отключена для листа UNIT API");
+  return;
+
   clearOzonReport65PerfTriggers_();
 
   const state = getOzonReport65PerformanceState_();
@@ -1951,13 +1944,15 @@ function writeOzonReport65FinanceColumns_(sheet, headerMap, rowItems, accrualMap
     { header: "ЗВЕЗДЫ + ЭКВ", getter: data => data.starsAndAcquiring }
   ];
 
-  if (getOzonReport65Column_(headerMap, "ЗАКАЗЫ")) {
-    columns.push({ header: "ЗАКАЗЫ", getter: data => data.cpoPayment });
-  }
+  // ОТКЛЮЧЕНО: запись ЗАКАЗОВ в колонку Y.
+  // if (getOzonReport65Column_(headerMap, "ЗАКАЗЫ")) {
+  //   columns.push({ header: "ЗАКАЗЫ", getter: data => data.cpoPayment });
+  // }
 
-  if (OZON_REPORT65_CLICKS_SOURCE === "finance" && getOzonReport65Column_(headerMap, "КЛИКИ")) {
-    columns.push({ header: "КЛИКИ", getter: data => data.clicksPayment });
-  }
+  // ОТКЛЮЧЕНО: запись КЛИКОВ в колонку X.
+  // if (OZON_REPORT65_CLICKS_SOURCE === "finance" && getOzonReport65Column_(headerMap, "КЛИКИ")) {
+  //   columns.push({ header: "КЛИКИ", getter: data => data.clicksPayment });
+  // }
 
   const columnValues = columns.map(column => ({
     col: getOzonReport65Column_(headerMap, column.header),

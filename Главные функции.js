@@ -21,14 +21,28 @@
  * - AB-AH (28-34): FBS склады (7 складов) ✅ НОВОЕ
  */
 function OzonMain(){
-  syncOfferIdWithProductId();  // Синхронизация ID
-  updateProductsV2();          // ВАЖНО: Используем V2 версию с Бренд и Модель
+  // updateProductsV2() сама последовательно обновляет A/U и данные карточек.
+  // Это также сохраняет совместимость с отдельным существующим триггером.
+  updateProductsV2();
   updateStockFBO();             // Остатки FBO (F, 6) - ИСПРАВЛЕНО: суммирует все FBO
   updateAllFBSStocks();         // Остатки FBS (G, 7) - ИСПРАВЛЕНО: сумма всех FBS
   getOzonPricesOptimized();    // Цены
   // updateSkuByProductId();      // ❌ УБРАНО: updateProductsV2() уже заполняет V (22) SKU!
   getStocksByWarehouseFBS();   // FBS склад Москва (H, 8)
   fetchAndUpdateAll();         // ✅ НОВОЕ: FBS склады (AB-AH, 28-34) - 7 складов
+}
+
+/**
+ * Ручной полный запуск после установки исправления.
+ * Убирает существующие разрывы в A, синхронизирует A/U и обновляет карточки.
+ * Триггер для этой функции создавать не нужно.
+ */
+function refreshOzonProductsNow() {
+  return runWithOzonProductSyncLock_("refreshOzonProductsNow", function() {
+    removeEmptyProductRowGaps();
+    syncOfferIdWithProductIdCore_();
+    updateProductsV2Core_();
+  });
 }
 
 /**

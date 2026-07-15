@@ -1,4 +1,29 @@
 function syncOfferIdWithProductId() {
+  return runWithOzonProductSyncLock_("syncOfferIdWithProductId", function() {
+    return syncOfferIdWithProductIdCore_();
+  });
+}
+
+/**
+ * Общий lock для существующих триггеров товарной синхронизации Ozon.
+ * Если другой товарный процесс уже выполняется, дублирующий запуск пропускается.
+ */
+function runWithOzonProductSyncLock_(sourceName, callback) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    Logger.log(`⚠️ ${sourceName}: товарная синхронизация уже выполняется, повторный запуск пропущен.`);
+    return false;
+  }
+
+  try {
+    callback();
+    return true;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function syncOfferIdWithProductIdCore_() {
   const sheet = mainSheet();
   const lastRow = sheet.getLastRow();
 
@@ -80,11 +105,25 @@ function syncOfferIdWithProductId() {
   const updatedProductIds = sheetData.map(row => [row.productId]);
   productColumnRange.setValues(updatedProductIds);
 
-  // Append new rows at the end in batch
+  // Добавляем новые товары сразу после последнего артикула в A. getLastRow()
+  // здесь использовать нельзя: формулы в других колонках могут создать
+  // большой пустой разрыв перед новыми товарами.
   if (newRowsToAdd.length > 0) {
-    const startRow = sheet.getLastRow() + 1;
+    let lastOfferIndex = -1;
+    for (let i = offerIds.length - 1; i >= 0; i--) {
+      if (String(offerIds[i] || "").trim()) {
+        lastOfferIndex = i;
+        break;
+      }
+    }
+    const startRow = lastOfferIndex >= 0 ? lastOfferIndex + 3 : 2;
     const newOfferIds = newRowsToAdd.map(row => [row.offerId]);
     const newProductIds = newRowsToAdd.map(row => [row.productId]);
+    const requiredLastRow = startRow + newRowsToAdd.length - 1;
+
+    if (requiredLastRow > sheet.getMaxRows()) {
+      sheet.insertRowsAfter(sheet.getMaxRows(), requiredLastRow - sheet.getMaxRows());
+    }
 
     // Insert new offerIds in column A
     sheet.getRange(startRow, 1, newOfferIds.length, 1).setValues(newOfferIds);
@@ -93,4 +132,51 @@ function syncOfferIdWithProductId() {
   }
 
   Logger.log(`Синхронизация завершена. Обработано строк: ${processedCount}`);
+}
+
+/**
+ * Одноразовое исправление уже существующих пустых разрывов между товарами.
+ * Удаляет целые строки, где первичный ключ A пуст, но ниже ещё есть товары.
+ * Все остальные колонки сдвигаются вместе, поэтому данные остаются выровнены.
+ */
+function removeEmptyProductRowGaps() {
+  const sheet = mainSheet();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 3) {
+    Logger.log("Пустых разрывов нет.");
+    return;
+  }
+
+  const offerIds = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
+  let lastOfferIndex = -1;
+  for (let i = offerIds.length - 1; i >= 0; i--) {
+    if (String(offerIds[i] || "").trim()) {
+      lastOfferIndex = i;
+      break;
+    }
+  }
+
+  if (lastOfferIndex < 0) {
+    Logger.log("В колонке A нет товаров.");
+    return;
+  }
+
+  const blocks = [];
+  let blockStart = -1;
+  for (let i = 0; i <= lastOfferIndex; i++) {
+    const isEmpty = !String(offerIds[i] || "").trim();
+    if (isEmpty && blockStart < 0) blockStart = i;
+    if (!isEmpty && blockStart >= 0) {
+      blocks.push({ startRow: blockStart + 2, count: i - blockStart });
+      blockStart = -1;
+    }
+  }
+
+  let deletedCount = 0;
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    sheet.deleteRows(blocks[i].startRow, blocks[i].count);
+    deletedCount += blocks[i].count;
+  }
+
+  Logger.log(`✅ Удалено пустых строк внутри таблицы: ${deletedCount}`);
 }

@@ -30,7 +30,19 @@ function columnLetterToIndex(letter) {
   return index;
 }
 
+/**
+ * Точка входа для уже существующего триггера updateProductsV2.
+ * Сначала актуализирует список товаров и product_id в A/U, затем обновляет
+ * карточки. Новый триггер для этой последовательности не нужен.
+ */
 function updateProductsV2() {
+  return runWithOzonProductSyncLock_("updateProductsV2", function() {
+    syncOfferIdWithProductIdCore_();
+    updateProductsV2Core_();
+  });
+}
+
+function updateProductsV2Core_() {
   const sheet = mainSheet();
 
   const sourceColumnLetter = "A"; // Колонка A - Артикул (offer_id)
@@ -52,7 +64,11 @@ function updateProductsV2() {
   const rawValues = sheet.getRange(2, sourceColumnIndex, sheet.getLastRow() - 1).getValues();
   const rowData = rawValues.map((row, i) => ({
     rowIndex: i + 2,
-    offerId: row[0]
+    // Ozon всегда возвращает offer_id строкой. Нормализация нужна, чтобы
+    // числовые артикулы из Sheets совпадали с ключами в resultsMap.
+    offerId: row[0] === "" || row[0] === null || row[0] === undefined
+      ? ""
+      : String(row[0]).trim()
   }));
 
   const validRows = rowData.filter(r => r.offerId);
@@ -60,6 +76,7 @@ function updateProductsV2() {
   const resultsMap = new Map(); // key: offer_id, value: { данные }
   const categoryIdSet = new Set();
   let lastRequestTime = Date.now() - 1000 / RPS();
+  let sampleLogged = false;
 
   Logger.log(`🚀 Начало выгрузки. Всего товаров: ${validRows.length}`);
 
@@ -108,14 +125,16 @@ function updateProductsV2() {
     const items = data.result || [];  // v4 API возвращает result
 
     items.forEach(item => {
-      const offerId = item.offer_id;
+      const offerId = item.offer_id === null || item.offer_id === undefined
+        ? ""
+        : String(item.offer_id).trim();
       if (!offerId) return;
 
       const categoryId = item.description_category_id || "";
       if (categoryId) categoryIdSet.add(categoryId);
 
       // Логируем структуру первого товара для диагностики
-      if (i === 0) {
+      if (!sampleLogged) {
         Logger.log(`🔍 Структура ответа (первый товар):`);
         Logger.log(`   - offer_id: ${item.offer_id}`);
         Logger.log(`   - product_id: ${item.product_id}`);
@@ -125,6 +144,7 @@ function updateProductsV2() {
           Logger.log(`   - Attributes count: ${item.attributes.length}`);
           Logger.log(`   - First 3 attributes: ${JSON.stringify(item.attributes.slice(0, 3))}`);
         }
+        sampleLogged = true;
       }
 
       // Извлекаем бренд из атрибутов (ID 85 = Бренд)
@@ -201,6 +221,13 @@ function updateProductsV2() {
     });
   }
 
+  const missingOfferIds = [...new Set(validRows.map(r => r.offerId))]
+    .filter(offerId => !resultsMap.has(offerId));
+  if (missingOfferIds.length > 0) {
+    Logger.log(`⚠️ Ozon не вернул данные для ${missingOfferIds.length} артикулов. Старые значения этих строк будут сохранены.`);
+    Logger.log(`⚠️ Первые отсутствующие артикулы: ${missingOfferIds.slice(0, 20).join(", ")}`);
+  }
+
   const writeGroups = [
     { startColumn: "C", columns: ["C", "D", "E"] },
     { startColumn: "V", columns: ["V"] },
@@ -208,11 +235,24 @@ function updateProductsV2() {
   ];
 
   for (const group of writeGroups) {
-    const values = rowData.map((_, rowIndex) =>
-      group.columns.map(colLetter => valuesByKey[columnKeyMap[colLetter]][rowIndex])
+    const range = sheet.getRange(
+      2,
+      columnLetterToIndex(group.startColumn),
+      rowData.length,
+      group.columns.length
     );
-    sheet.getRange(2, columnLetterToIndex(group.startColumn), values.length, group.columns.length)
-      .setValues(values);
+    const existingValues = range.getValues();
+    const existingFormulas = range.getFormulas();
+    const values = rowData.map((row, rowIndex) =>
+      group.columns.map((colLetter, columnOffset) => {
+        if (!row.offerId) return "";
+        if (!resultsMap.has(row.offerId)) {
+          return existingFormulas[rowIndex][columnOffset] || existingValues[rowIndex][columnOffset];
+        }
+        return valuesByKey[columnKeyMap[colLetter]][rowIndex];
+      })
+    );
+    range.setValues(values);
 
     for (const colLetter of group.columns) {
       const key = columnKeyMap[colLetter];
