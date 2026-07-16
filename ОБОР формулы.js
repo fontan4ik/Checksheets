@@ -22,6 +22,7 @@
  */
 
 const OBOR_VALUES_TARGET_SHEET = "ОБОР";
+const OBOR_VALUES_SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const OBOR_VALUES_SOURCE_SHEET = "ТЕСТ";
 const OBOR_CDEK_WAREHOUSE_NAME = "КГТ СДЭК";
 const OBOR_CDEK_WAREHOUSE_ID = 1020002321437000;
@@ -100,7 +101,7 @@ const OBOR_VALUE_CONFIG = [
  * Запись начинается только после успешного чтения всех источников и API.
  */
 function calculateOborValues() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const spreadsheet = SpreadsheetApp.openById(OBOR_VALUES_SPREADSHEET_ID);
   const targetSheet = spreadsheet.getSheetByName(OBOR_VALUES_TARGET_SHEET);
   if (!targetSheet) throw new Error("Не найден лист: " + OBOR_VALUES_TARGET_SHEET);
 
