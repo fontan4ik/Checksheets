@@ -9,8 +9,9 @@
  * - Скрипт только устанавливает формулы в «ОБОР»; API и маркетплейсы не меняет.
  * - Перед запуском installOborArrayFormulas() очистка выполняется только
  *   в строках 2+ целевых колонок.
- * - В «ТЕСТ» нет отдельного источника «СДЭК Остаток», поэтому сейчас
- *   используется доступный прокси «Остаток ФБС ОЗОН» (G).
+ * - В «ТЕСТ» нет отдельного источника «СДЭК Остаток». Конфигурация
+ *   специально оставлена незаполненной и остановит установку формул,
+ *   пока не будет указан правильный лист/колонка.
  * - Отдельной колонки «Факт выкупа» в «ТЕСТ» нет; используются месячные
  *   продажи FBO + FBS как ближайший доступный показатель.
  */
@@ -24,7 +25,11 @@ const OBOR_FORMULA_TARGET_SHEET = "ОБОР";
  */
 const OBOR_FORMULA_CONFIG = [
   { targetHeader: "Озон ост", sourceColumns: ["F"], note: "Остаток ФБО ОЗОН" },
-  { targetHeader: "СДЭК Остаток", sourceColumns: ["G"], note: "Прокси: Остаток ФБС ОЗОН" },
+  {
+    targetHeader: "СДЭК Остаток",
+    sourceColumns: [],
+    note: "Нужно указать реальный источник: лист и колонку"
+  },
   { targetHeader: "Уход месяц", sourceColumns: ["I"], note: "Уход Мес ОЗОН" },
   {
     targetHeader: "Факт выкупа месяц",
@@ -67,6 +72,12 @@ function installOborArrayFormulas() {
   }
 
   OBOR_FORMULA_CONFIG.forEach(item => {
+    if (!item.sourceColumns || !item.sourceColumns.length) {
+      throw new Error(
+        "Не задан источник для «" + item.targetHeader +
+        ". Укажите лист и колонку перед установкой формул."
+      );
+    }
     item.sourceColumns.forEach(column => {
       const columnNumber = columnToNumberOborFormula_(column);
       if (columnNumber > sourceLastColumn) {
