@@ -487,7 +487,7 @@ function mainV2() {
 /**
  * Обновление остатков ФБС ВБ по chrtId из колонки AZ (52)
  *
- * Заполняет колонку O (15): Остаток ФБС ВБ
+ * Обновляет колонку targetColumn (по умолчанию P, 16): Остаток ФБС ВБ
  * Сопоставляет по chrtId из колонки AZ (52)
  *
  * ИСПОЛЬЗУЕТ:
@@ -512,7 +512,8 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetColumn = 16) {
 
   // Читаем chrtId из колонки AZ (52)
   const chrtIds = sheet.getRange(2, 52, lastRow - 1).getValues().flat(); // AZ (52): chrtId
-  const currentStocks = sheet.getRange(2, 15, lastRow - 1).getValues().flat(); // O (15): Остаток ФБС ВБ
+  const currentStocks = sheet.getRange(2, targetColumn, lastRow - 1).getValues().flat();
+  const newStocks = Array.from({ length: lastRow - 1 }, () => [0]);
 
   // Подготовим мап для быстрого поиска индекса по chrtId
   const chrtIdIndexMap = new Map();
@@ -614,13 +615,7 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetColumn = 16) {
           const rowIndex = chrtIdIndexMap.get(chrtId);
 
           if (rowIndex !== undefined) {
-            const row = rowIndex + 2; // +2 т.к. первая строка — заголовок
-            const oldValue = currentStocks[rowIndex];
-
-            if (oldValue !== amount) {
-              sheet.getRange(row, 15).setValue(amount); // O (15): Остаток ФБС ВБ
-              updatedCount++;
-            }
+            newStocks[rowIndex][0] = amount;
           }
         }
       });
@@ -629,6 +624,13 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetColumn = 16) {
       continue;
     }
   }
+
+  for (let i = 0; i < newStocks.length; i++) {
+    if (Number(currentStocks[i] || 0) !== Number(newStocks[i][0] || 0)) {
+      updatedCount++;
+    }
+  }
+  sheet.getRange(2, targetColumn, newStocks.length, 1).setValues(newStocks);
 
   Logger.log(``);
   Logger.log(`Найдено остатков в API: ${foundCount}`);
@@ -647,7 +649,7 @@ function updateWBStocksFBSDirect() {
 /**
  * Обновление остатков ФБС ВБ по chrtId из колонки AZ (52)
  *
- * Заполняет колонку O (15): Остаток ФБС ВБ
+ * Обновляет колонку targetColumn (по умолчанию P, 16): Остаток ФБС ВБ
  * Сопоставляет по chrtId из колонки AZ (52)
  *
  * ИСПОЛЬЗУЕТ:
@@ -658,7 +660,7 @@ function updateWBStocksFBSDirect() {
  *   "chrtIds": [12345678, ...]
  * }
  */
-function updateWBStocksFBSByChrtIdFromChrtIdColumn(warehouseId = 798761) {
+function updateWBStocksFBSByChrtIdFromChrtIdColumn(warehouseId = 798761, targetColumn = 16) {
   const sheet = mainSheet();
   const lastRow = sheet.getLastRow();
 
@@ -667,12 +669,13 @@ function updateWBStocksFBSByChrtIdFromChrtIdColumn(warehouseId = 798761) {
     return;
   }
 
-  Logger.log(`=== ОБНОВЛЕНИЕ ОСТАТКОВ ФБС ВБ (O, 15) ПО CHRTID ИЗ КОЛОНКИ AZ (52) ===`);
+  Logger.log(`=== ОБНОВЛЕНИЕ ОСТАТКОВ ФБС ВБ (${targetColumn}) ПО CHRTID ИЗ КОЛОНКИ AZ (52) ===`);
   Logger.log(`Warehouse ID: ${warehouseId}`);
 
   // Читаем chrtId из колонки AZ (52)
   const chrtIds = sheet.getRange(2, 52, lastRow - 1).getValues().flat(); // AZ (52): chrtId
-  const currentStocks = sheet.getRange(2, 15, lastRow - 1).getValues().flat(); // O (15): Остаток ФБС ВБ
+  const currentStocks = sheet.getRange(2, targetColumn, lastRow - 1).getValues().flat();
+  const newStocks = Array.from({ length: lastRow - 1 }, () => [0]);
 
   // Подготовим мап для быстрого поиска индекса по chrtId
   const chrtIdIndexMap = new Map();
@@ -774,13 +777,7 @@ function updateWBStocksFBSByChrtIdFromChrtIdColumn(warehouseId = 798761) {
           const rowIndex = chrtIdIndexMap.get(chrtId);
 
           if (rowIndex !== undefined) {
-            const row = rowIndex + 2; // +2 т.к. первая строка — заголовок
-            const oldValue = currentStocks[rowIndex];
-
-            if (oldValue !== amount) {
-              sheet.getRange(row, 15).setValue(amount); // O (15): Остаток ФБС ВБ
-              updatedCount++;
-            }
+            newStocks[rowIndex][0] = amount;
           }
         }
       });
@@ -789,6 +786,13 @@ function updateWBStocksFBSByChrtIdFromChrtIdColumn(warehouseId = 798761) {
       continue;
     }
   }
+
+  for (let i = 0; i < newStocks.length; i++) {
+    if (Number(currentStocks[i] || 0) !== Number(newStocks[i][0] || 0)) {
+      updatedCount++;
+    }
+  }
+  sheet.getRange(2, targetColumn, newStocks.length, 1).setValues(newStocks);
 
   Logger.log(``);
   Logger.log(`Найдено остатков в API: ${foundCount}`);
