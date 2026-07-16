@@ -84,14 +84,11 @@ function importStocksWithImages() {
 };
 
 function main(){
-  // ИСПРАВЛЕНО: колонки 15 (O), 16 (P), 17 (Q) для остатков WB
-  // ПРОВЕРЬТЕ: какой warehouse_id соответствует FBO/FBS/Москва
+  // O (15) обновляется отдельным шагом WbMain через Statistics API.
+  // Не перезаписываем его старым запросом Marketplace API с payload {skus}.
 
-  // O (15): Остаток ФБО ВБ
-  updateStockFromWB(1449484, 15);  // warehouse_id для ФБО
-
-  // P (16): Остаток ФБС ВБ
-  updateStockFromWB(798761, 16);   // warehouse_id для ФБS
+  // P (16): Остаток ФБС ВБ — Marketplace API по chrtId.
+  updateWBStocksFBSByChrtId(798761, 16);
 
   // Q (17): ОСТ ФБС МСК ВБ - склад Москва
   updateWBFBSMoscow();             // Остатки FBS на складе Москва
@@ -482,8 +479,8 @@ function mainV2() {
   // O (15): Остаток ФБО ВБ - через Analytics API
   updateFBOStocksFromAnalytics(dateFromISO, dateToISO);
 
-  // P (16), Q (17): FBS остатки - оставляем старый метод через warehouse API
-  updateStockFromWB(1449484, 16); // P: Остаток ФБС ВБ
+  // P (16): FBS остатки через chrtId; старый payload {skus} не использовать.
+  updateWBStocksFBSByChrtId(798761, 16);
   updateWBFBSMoscow();            // Q: ОСТ ФБС МСК ВБ
 }
 
@@ -501,7 +498,7 @@ function mainV2() {
  *   "chrtIds": [12345678, ...]
  * }
  */
-function updateWBStocksFBSByChrtId(warehouseId = 798761) {
+function updateWBStocksFBSByChrtId(warehouseId = 798761, targetColumn = 16) {
   const sheet = mainSheet();
   const lastRow = sheet.getLastRow();
 
@@ -510,7 +507,7 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761) {
     return;
   }
 
-  Logger.log(`=== ОБНОВЛЕНИЕ ОСТАТКОВ ФБС ВБ (O, 15) ПО CHRTID ===`);
+  Logger.log(`=== ОБНОВЛЕНИЕ ОСТАТКОВ ФБС ВБ (${targetColumn}) ПО CHRTID ===`);
   Logger.log(`Warehouse ID: ${warehouseId}`);
 
   // Читаем chrtId из колонки AZ (52)
