@@ -26,7 +26,7 @@ const OBOR_VALUES_SOURCE_SHEET = "ТЕСТ";
 const OBOR_CDEK_WAREHOUSE_NAME = "КГТ СДЭК";
 const OBOR_CDEK_WAREHOUSE_ID = 1020002321437000;
 const OBOR_CDEK_STOCKS_URL = "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs";
-const OBOR_CDEK_BATCH_SIZE = 100;
+const OBOR_CDEK_BATCH_SIZE = 1000;
 const OBOR_CDEK_REQUEST_INTERVAL_MS = 1000;
 
 const OBOR_VALUE_CONFIG = [
