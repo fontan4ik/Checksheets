@@ -10,10 +10,10 @@
  * Источники:
  * - J «Озон ост»            ← ТЕСТ!F, Остаток ФБО ОЗОН
  * - K «СДЭК Остаток»        ← Ozon FBS API, склад «КГТ СДЭК»
- * - N «Уход месяц»          ← ТЕСТ!I, Уход Мес ОЗОН
- * - O «Факт выкупа месяц»   ← ТЕСТ!AQ+AR, продажи Ozon FBO+FBS
+ * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
+ * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
  * - W «ВБ ост»              ← ТЕСТ!O+P, остатки WB FBO+FBS
- * - Y «ВБ Ух»               ← ТЕСТ!R, Уход Мес ВБ
+ * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
  * Основной ручной запуск: calculateOborValues().
@@ -36,7 +36,8 @@ const OBOR_VALUE_CONFIG = [
     sourceSheet: "ТЕСТ",
     sourceArticleColumn: "A",
     sourceValueColumns: ["F"],
-    note: "Остаток ФБО ОЗОН"
+    subtractValueColumns: [],
+    note: "Остаток ФБО ОЗОН; отмены не участвуют"
   },
   {
     key: "cdekStock",
@@ -51,16 +52,18 @@ const OBOR_VALUE_CONFIG = [
     targetHeader: "Уход месяц",
     sourceSheet: "ТЕСТ",
     sourceArticleColumn: "A",
-    sourceValueColumns: ["I"],
-    note: "Уход Мес ОЗОН"
+    sourceValueColumns: ["AQ", "AR"],
+    subtractValueColumns: ["BH"],
+    note: "Продажи FBO + FBS ОЗОН − отмены"
   },
   {
     key: "ozonMonthBuyout",
     targetHeader: "Факт выкупа месяц",
-    sourceSheet: "ТЕСТ",
+    sourceSheet: "UNIT API",
     sourceArticleColumn: "A",
-    sourceValueColumns: ["AQ", "AR"],
-    note: "Продажи штуки месяц FBO + FBS ОЗОН"
+    sourceValueColumns: ["M"],
+    subtractValueColumns: [],
+    note: "UNIT ШТ; фактические выкупы Ozon"
   },
   {
     key: "wbStock",
@@ -68,15 +71,17 @@ const OBOR_VALUE_CONFIG = [
     sourceSheet: "ТЕСТ",
     sourceArticleColumn: "A",
     sourceValueColumns: ["O", "P"],
-    note: "Остаток ФБО ВБ + Остаток ФБС ВБ"
+    subtractValueColumns: [],
+    note: "Остаток ФБО ВБ + Остаток ФБС ВБ; отмены не участвуют"
   },
   {
     key: "wbMonthWithdrawal",
     targetHeader: "ВБ Ух",
     sourceSheet: "ТЕСТ",
     sourceArticleColumn: "A",
-    sourceValueColumns: ["R"],
-    note: "Уход Мес ВБ"
+    sourceValueColumns: ["AV", "AW"],
+    subtractValueColumns: [],
+    note: "Продажи FBO + FBS ВБ без отмен"
   },
   {
     key: "wbMonthBuyout",
@@ -84,6 +89,7 @@ const OBOR_VALUE_CONFIG = [
     sourceSheet: "UNIT WB",
     sourceArticleColumn: "A",
     sourceValueColumns: ["AP"],
+    subtractValueColumns: [],
     note: "ВЫКУП ШТ API"
   }
 ];
@@ -190,11 +196,14 @@ function buildOborValueMap_(spreadsheet, item) {
 
   const maxColumn = Math.max(
     columnToNumberObor_(item.sourceArticleColumn),
-    ...item.sourceValueColumns.map(columnToNumberObor_)
+    ...item.sourceValueColumns.map(columnToNumberObor_),
+    ...(item.subtractValueColumns || []).map(columnToNumberObor_)
   );
   const rows = sheet.getRange(2, 1, lastRow - 1, maxColumn).getValues();
   const articleIndex = columnToNumberObor_(item.sourceArticleColumn) - 1;
   const valueIndexes = item.sourceValueColumns.map(column => columnToNumberObor_(column) - 1);
+  const subtractIndexes = (item.subtractValueColumns || [])
+    .map(column => columnToNumberObor_(column) - 1);
   const result = {};
 
   rows.forEach(row => {
@@ -205,7 +214,11 @@ function buildOborValueMap_(spreadsheet, item) {
     const value = valueIndexes.reduce((sum, index) => {
       return sum + parseOborNumber_(row[index]);
     }, 0);
-    result[parsed.base] = (result[parsed.base] || 0) + value * parsed.multiplier;
+    const subtractValue = subtractIndexes.reduce((sum, index) => {
+      return sum + parseOborNumber_(row[index]);
+    }, 0);
+    result[parsed.base] = (result[parsed.base] || 0)
+      + Math.max(0, value - subtractValue) * parsed.multiplier;
   });
 
   return result;
@@ -318,7 +331,9 @@ function validateOborSources_(spreadsheet) {
     if (!item.sourceSheet) return;
     const sheet = spreadsheet.getSheetByName(item.sourceSheet);
     if (!sheet) throw new Error("Не найден лист источника: " + item.sourceSheet);
-    const required = [item.sourceArticleColumn].concat(item.sourceValueColumns);
+    const required = [item.sourceArticleColumn]
+      .concat(item.sourceValueColumns)
+      .concat(item.subtractValueColumns || []);
     required.forEach(column => {
       if (columnToNumberObor_(column) > sheet.getLastColumn()) {
         throw new Error(
