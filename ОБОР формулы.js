@@ -12,7 +12,7 @@
  * - K «СДЭК Остаток»        ← Ozon FBS API, склад «КГТ СДЭК»
  * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
- * - W «ВБ ост»              ← ТЕСТ!O+P, остатки WB FBO+FBS
+ * - W «ВБ ост»              ← ТЕСТ!O+P, остатки WB FBO+FBS без множителя упаковки
  * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
@@ -72,7 +72,8 @@ const OBOR_VALUE_CONFIG = [
     sourceArticleColumn: "A",
     sourceValueColumns: ["O", "P"],
     subtractValueColumns: [],
-    note: "Остаток ФБО ВБ + Остаток ФБС ВБ; отмены не участвуют"
+    applyArticleMultiplier: false,
+    note: "Остаток ФБО ВБ + Остаток ФБС ВБ; физические штуки, без множителя упаковки"
   },
   {
     key: "wbMonthWithdrawal",
@@ -217,8 +218,9 @@ function buildOborValueMap_(spreadsheet, item) {
     const subtractValue = subtractIndexes.reduce((sum, index) => {
       return sum + parseOborNumber_(row[index]);
     }, 0);
+    const multiplier = item.applyArticleMultiplier === false ? 1 : parsed.multiplier;
     result[parsed.base] = (result[parsed.base] || 0)
-      + Math.max(0, value - subtractValue) * parsed.multiplier;
+      + Math.max(0, value - subtractValue) * multiplier;
   });
 
   return result;
