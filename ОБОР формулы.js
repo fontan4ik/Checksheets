@@ -1,156 +1,243 @@
 /**
- * Сводные показатели для листа «ОБОР».
+ * Расчёт показателей листа «ОБОР» без формул.
  *
- * Формулы агрегируют строки по базовому артикулу. Если в источнике есть
- * 55222-10 и 55222-5, значения умножаются на 10 и 5 соответственно.
+ * Скрипт читает источники, агрегирует значения по базовому артикулу,
+ * учитывает числовой суффикс после последнего дефиса и записывает готовые
+ * значения в ОБОР!J/K/N/O/W/Y/Z.
  *
- * Источники формул:
- * - J  «Озон ост»              ← ТЕСТ!F, Остаток ФБО ОЗОН
- * - N  «Уход месяц»            ← ТЕСТ!I, Уход Мес ОЗОН
- * - O  «Факт выкупа месяц»     ← ТЕСТ!AQ+AR, продажи Ozon FBO+FBS
- * - W  «ВБ ост»                ← ТЕСТ!O+P, остатки WB FBO+FBS
- * - Y  «ВБ Ух»                 ← ТЕСТ!R, Уход Мес ВБ
- * - Z  «ВБ факт выкуп месяц»   ← UNIT WB!AP, ВЫКУП ШТ API
+ * Пример: 55222-10 и 55222-5 превращаются в 10 × значение и 5 × значение.
  *
- * Источник API:
- * - K  «СДЭК Остаток»          ← Ozon FBS warehouse «КГТ СДЭК»
- *                                  warehouse_id = 1020002321437000
+ * Источники:
+ * - J «Озон ост»            ← ТЕСТ!F, Остаток ФБО ОЗОН
+ * - K «СДЭК Остаток»        ← Ozon FBS API, склад «КГТ СДЭК»
+ * - N «Уход месяц»          ← ТЕСТ!I, Уход Мес ОЗОН
+ * - O «Факт выкупа месяц»   ← ТЕСТ!AQ+AR, продажи Ozon FBO+FBS
+ * - W «ВБ ост»              ← ТЕСТ!O+P, остатки WB FBO+FBS
+ * - Y «ВБ Ух»               ← ТЕСТ!R, Уход Мес ВБ
+ * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
- * Скрипт не создаёт триггеры и не выполняет API-запись при загрузке файла.
- * Запускать функции вручную после проверки/одобрения.
+ * Основной ручной запуск: calculateOborValues().
+ * updateOborSummary() оставлен как короткий совместимый алиас.
+ * Скрипт не создаёт триггеры.
  */
 
-const OBOR_FORMULA_TARGET_SHEET = "ОБОР";
-const OBOR_CDEK_SOURCE_SHEET = "ТЕСТ";
+const OBOR_VALUES_TARGET_SHEET = "ОБОР";
+const OBOR_VALUES_SOURCE_SHEET = "ТЕСТ";
 const OBOR_CDEK_WAREHOUSE_NAME = "КГТ СДЭК";
 const OBOR_CDEK_WAREHOUSE_ID = 1020002321437000;
 const OBOR_CDEK_STOCKS_URL = "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs";
 const OBOR_CDEK_BATCH_SIZE = 100;
 const OBOR_CDEK_REQUEST_INTERVAL_MS = 1000;
 
-/** Формульные колонки. Колонка K обновляется отдельной API-функцией. */
-const OBOR_FORMULA_CONFIG = [
+const OBOR_VALUE_CONFIG = [
   {
+    key: "ozonStock",
     targetHeader: "Озон ост",
     sourceSheet: "ТЕСТ",
     sourceArticleColumn: "A",
-    sourceColumns: ["F"],
+    sourceValueColumns: ["F"],
     note: "Остаток ФБО ОЗОН"
   },
   {
+    key: "cdekStock",
+    targetHeader: "СДЭК Остаток",
+    sourceSheet: null,
+    sourceArticleColumn: null,
+    sourceValueColumns: [],
+    note: "Ozon FBS API / КГТ СДЭК"
+  },
+  {
+    key: "ozonMonthWithdrawal",
     targetHeader: "Уход месяц",
     sourceSheet: "ТЕСТ",
     sourceArticleColumn: "A",
-    sourceColumns: ["I"],
+    sourceValueColumns: ["I"],
     note: "Уход Мес ОЗОН"
   },
   {
+    key: "ozonMonthBuyout",
     targetHeader: "Факт выкупа месяц",
     sourceSheet: "ТЕСТ",
     sourceArticleColumn: "A",
-    sourceColumns: ["AQ", "AR"],
-    note: "Продажи штуки месяц FBO + FBS ОЗОН; выбран по сравнению со старым ОБОР"
+    sourceValueColumns: ["AQ", "AR"],
+    note: "Продажи штуки месяц FBO + FBS ОЗОН"
   },
   {
+    key: "wbStock",
     targetHeader: "ВБ ост",
     sourceSheet: "ТЕСТ",
     sourceArticleColumn: "A",
-    sourceColumns: ["O", "P"],
+    sourceValueColumns: ["O", "P"],
     note: "Остаток ФБО ВБ + Остаток ФБС ВБ"
   },
   {
+    key: "wbMonthWithdrawal",
     targetHeader: "ВБ Ух",
     sourceSheet: "ТЕСТ",
     sourceArticleColumn: "A",
-    sourceColumns: ["R"],
+    sourceValueColumns: ["R"],
     note: "Уход Мес ВБ"
   },
   {
+    key: "wbMonthBuyout",
     targetHeader: "ВБ факт выкуп месяц",
     sourceSheet: "UNIT WB",
     sourceArticleColumn: "A",
-    sourceColumns: ["AP"],
-    note: "ВЫКУП ШТ API; выбран по сравнению со старым ОБОР"
+    sourceValueColumns: ["AP"],
+    note: "ВЫКУП ШТ API"
   }
 ];
 
 /**
- * Установить шесть формул в строку 1 листа «ОБОР».
- * Перед установкой очищаются только строки 2+ этих шести колонок.
+ * Полностью пересчитать и записать семь целевых показателей.
+ * Запись начинается только после успешного чтения всех источников и API.
  */
-function installOborArrayFormulas() {
+function calculateOborValues() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const targetSheet = spreadsheet.getSheetByName(OBOR_FORMULA_TARGET_SHEET);
-  if (!targetSheet) throw new Error("Не найден лист: " + OBOR_FORMULA_TARGET_SHEET);
+  const targetSheet = spreadsheet.getSheetByName(OBOR_VALUES_TARGET_SHEET);
+  if (!targetSheet) throw new Error("Не найден лист: " + OBOR_VALUES_TARGET_SHEET);
 
   const targetHeaderMap = getOborHeaderMap_(targetSheet);
-  const missingTargets = OBOR_FORMULA_CONFIG
-    .filter(item => !targetHeaderMap[normalizeOborHeader_(item.targetHeader)])
-    .map(item => item.targetHeader);
-  if (missingTargets.length) {
-    throw new Error("В ОБОР не найдены заголовки: " + missingTargets.join(", "));
+  validateOborTargetHeaders_(targetHeaderMap);
+  validateOborSources_(spreadsheet);
+
+  const sourceMaps = {};
+  OBOR_VALUE_CONFIG.forEach(item => {
+    if (!item.sourceSheet) return;
+    sourceMaps[item.key] = buildOborValueMap_(spreadsheet, item);
+  });
+
+  // API читается до первой записи, чтобы ошибка API не оставила полурасчёт.
+  sourceMaps.cdekStock = fetchOborCdekStockByArticle_(spreadsheet);
+
+  const targetLastRow = targetSheet.getLastRow();
+  if (targetLastRow < 2) {
+    Logger.log("ОБОР: нет строк для записи");
+    return { rows: 0, nonZero: {} };
   }
 
-  OBOR_FORMULA_CONFIG.forEach(item => validateOborFormulaSource_(spreadsheet, item));
+  const targetArticles = targetSheet
+    .getRange(2, 1, targetLastRow - 1, 1)
+    .getValues();
+  const nonZero = {};
 
-  const targetColumns = OBOR_FORMULA_CONFIG.map(item =>
-    targetHeaderMap[normalizeOborHeader_(item.targetHeader)]
-  );
-  const lastRow = targetSheet.getLastRow();
-  if (lastRow >= 2) {
-    targetColumns.forEach(column => {
-      targetSheet.getRange(2, column, lastRow - 1, 1).clearContent();
+  OBOR_VALUE_CONFIG.forEach(item => {
+    const valueMap = sourceMaps[item.key] || {};
+    const values = targetArticles.map(row => {
+      const article = normalizeOborArticle_(row[0]);
+      const value = article ? roundOborValue_(valueMap[article] || 0) : "";
+      if (Number(value) !== 0) nonZero[item.key] = (nonZero[item.key] || 0) + 1;
+      return [value];
     });
-  }
 
-  OBOR_FORMULA_CONFIG.forEach(item => {
     const targetColumn = targetHeaderMap[normalizeOborHeader_(item.targetHeader)];
-    const formula = buildOborArrayFormula_(item);
-    targetSheet.getRange(1, targetColumn).setFormula(formula);
+    // Перезаписываем заголовок обычным текстом — это удаляет старую формулу из J1.
+    targetSheet.getRange(1, targetColumn).setValue(item.targetHeader);
+    targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);
+
     Logger.log(
-      "Установлено: " + item.targetHeader +
-      " ← " + item.sourceSheet + "!" + item.sourceColumns.join("+") +
+      "Записано: " + item.targetHeader +
+      "; источник: " + (item.sourceSheet || "Ozon FBS API") +
+      "; ненулевых строк: " + (nonZero[item.key] || 0) +
       "; " + item.note
     );
   });
 
   SpreadsheetApp.flush();
-  Logger.log("Готово: установлено формул — " + OBOR_FORMULA_CONFIG.length);
+  Logger.log(
+    "ОБОР: расчёт завершён; строк=" + (targetLastRow - 1) +
+    "; склад СДЭК=" + OBOR_CDEK_WAREHOUSE_NAME +
+    " (" + OBOR_CDEK_WAREHOUSE_ID + ")"
+  );
+  return { rows: targetLastRow - 1, nonZero: nonZero };
+}
+
+/** Совместимый короткий запуск. Также считает только значения, не формулы. */
+function updateOborSummary() {
+  return calculateOborValues();
+}
+
+/** Старое имя оставлено для обратной совместимости, но формулы не устанавливает. */
+function installOborArrayFormulas() {
+  Logger.log("installOborArrayFormulas: legacy alias → расчёт значений без формул");
+  return calculateOborValues();
+}
+
+/** Проверка конфигурации без записи и без вызова API. */
+function previewOborValues() {
+  OBOR_VALUE_CONFIG.forEach(item => {
+    Logger.log(
+      item.targetHeader +
+      ": " + (item.sourceSheet || "Ozon FBS API") +
+      " / " + (item.sourceValueColumns.join("+") || OBOR_CDEK_WAREHOUSE_NAME) +
+      "; " + item.note
+    );
+  });
+  Logger.log("Расчёт выполняется скриптом; ARRAYFORMULA не используется");
+}
+
+/** Старое имя preview оставлено только как совместимый алиас. */
+function previewOborArrayFormulas() {
+  return previewOborValues();
+}
+
+function buildOborValueMap_(spreadsheet, item) {
+  const sheet = spreadsheet.getSheetByName(item.sourceSheet);
+  if (!sheet) throw new Error("Не найден лист источника: " + item.sourceSheet);
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return {};
+
+  const maxColumn = Math.max(
+    columnToNumberObor_(item.sourceArticleColumn),
+    ...item.sourceValueColumns.map(columnToNumberObor_)
+  );
+  const rows = sheet.getRange(2, 1, lastRow - 1, maxColumn).getValues();
+  const articleIndex = columnToNumberObor_(item.sourceArticleColumn) - 1;
+  const valueIndexes = item.sourceValueColumns.map(column => columnToNumberObor_(column) - 1);
+  const result = {};
+
+  rows.forEach(row => {
+    const article = normalizeOborArticle_(row[articleIndex]);
+    if (!article) return;
+
+    const parsed = parseOborArticle_(article);
+    const value = valueIndexes.reduce((sum, index) => {
+      return sum + parseOborNumber_(row[index]);
+    }, 0);
+    result[parsed.base] = (result[parsed.base] || 0) + value * parsed.multiplier;
+  });
+
+  return result;
 }
 
 /**
- * Получить остаток из Ozon FBS по складу «КГТ СДЭК» и записать в ОБОР!K.
- * Используется только present, как в существующей функции FBS-остатков.
+ * Собрать остаток КГТ СДЭК из Ozon FBS API и агрегировать по базовому артикулу.
+ * В API используется поле present, без reserved.
  */
-function updateOborCdekStock() {
-  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const sourceSheet = spreadsheet.getSheetByName(OBOR_CDEK_SOURCE_SHEET);
-  const targetSheet = spreadsheet.getSheetByName(OBOR_FORMULA_TARGET_SHEET);
-  if (!sourceSheet) throw new Error("Не найден лист: " + OBOR_CDEK_SOURCE_SHEET);
-  if (!targetSheet) throw new Error("Не найден лист: " + OBOR_FORMULA_TARGET_SHEET);
+function fetchOborCdekStockByArticle_(spreadsheet) {
+  const sourceSheet = spreadsheet.getSheetByName(OBOR_VALUES_SOURCE_SHEET);
+  if (!sourceSheet) throw new Error("Не найден лист: " + OBOR_VALUES_SOURCE_SHEET);
 
-  const targetHeaderMap = getOborHeaderMap_(targetSheet);
-  const targetColumn = targetHeaderMap[normalizeOborHeader_("СДЭК Остаток")];
-  if (!targetColumn) throw new Error("В ОБОР не найден заголовок: СДЭК Остаток");
-
-  const sourceLastRow = sourceSheet.getLastRow();
-  const targetLastRow = targetSheet.getLastRow();
-  if (sourceLastRow < 2 || targetLastRow < 2) {
-    Logger.log("Нет строк для обновления СДЭК-остатка");
-    return;
-  }
+  const lastRow = sourceSheet.getLastRow();
+  if (lastRow < 2) return {};
 
   // A:V: артикул в A, SKU Ozon в V.
-  const sourceRows = sourceSheet.getRange(2, 1, sourceLastRow - 1, 22).getValues();
+  const rows = sourceSheet.getRange(2, 1, lastRow - 1, 22).getValues();
   const skuEntries = [];
   const seenSkus = {};
-  sourceRows.forEach(row => {
+
+  rows.forEach(row => {
     const article = normalizeOborArticle_(row[0]);
     const sku = normalizeOborSku_(row[21]);
     if (!article || !sku || seenSkus[sku]) return;
 
     const parsed = parseOborArticle_(article);
-    skuEntries.push({ sku: sku, baseArticle: parsed.base, multiplier: parsed.multiplier });
+    skuEntries.push({
+      sku: sku,
+      baseArticle: parsed.base,
+      multiplier: parsed.multiplier
+    });
     seenSkus[sku] = true;
   });
 
@@ -185,7 +272,10 @@ function updateOborCdekStock() {
       if (!response) throw new Error("Ozon CDEK FBS: пустой ответ API");
       const code = response.getResponseCode();
       if (code < 200 || code >= 300) {
-        throw new Error("Ozon CDEK FBS: HTTP " + code + ": " + response.getContentText().substring(0, 500));
+        throw new Error(
+          "Ozon CDEK FBS: HTTP " + code + ": " +
+          response.getContentText().substring(0, 500)
+        );
       }
 
       const data = JSON.parse(response.getContentText() || "{}");
@@ -201,90 +291,42 @@ function updateOborCdekStock() {
     }
   }
 
-  const stockByArticle = {};
+  const result = {};
   skuEntries.forEach(entry => {
     const stock = stockBySku[entry.sku] || 0;
-    stockByArticle[entry.baseArticle] =
-      (stockByArticle[entry.baseArticle] || 0) + stock * entry.multiplier;
+    result[entry.baseArticle] =
+      (result[entry.baseArticle] || 0) + stock * entry.multiplier;
   });
 
-  const targetArticles = targetSheet.getRange(2, 1, targetLastRow - 1, 1).getValues();
-  const output = targetArticles.map(row => {
-    const article = normalizeOborArticle_(row[0]);
-    return [article ? (stockByArticle[article] || 0) : ""];
-  });
-
-  // Записываем только после полного успешного чтения всех API-батчей.
-  targetSheet.getRange(2, targetColumn, output.length, 1).setValues(output);
-  SpreadsheetApp.flush();
-
-  const nonZero = output.filter(row => Number(row[0]) > 0).length;
-  const total = output.reduce((sum, row) => sum + (Number(row[0]) || 0), 0);
   Logger.log(
-    "КГТ СДЭК: warehouse_id=" + OBOR_CDEK_WAREHOUSE_ID +
-    ", API-запросов=" + requestCount +
-    ", ненулевых строк=" + nonZero +
-    ", сумма=" + total
+    "СДЭК API: warehouse_id=" + OBOR_CDEK_WAREHOUSE_ID +
+    "; запросов=" + requestCount +
+    "; SKU с остатком=" + Object.keys(stockBySku).length
   );
+  return result;
 }
 
-/** Обновить формулы и API-остаток. Триггер не создаётся. */
-function updateOborSummary() {
-  installOborArrayFormulas();
-  updateOborCdekStock();
+function validateOborTargetHeaders_(targetHeaderMap) {
+  const missing = OBOR_VALUE_CONFIG
+    .filter(item => !targetHeaderMap[normalizeOborHeader_(item.targetHeader)])
+    .map(item => item.targetHeader);
+  if (missing.length) throw new Error("В ОБОР не найдены заголовки: " + missing.join(", "));
 }
 
-/** Проверка без записи: источники и длины формул. */
-function previewOborArrayFormulas() {
-  OBOR_FORMULA_CONFIG.forEach(item => {
-    const formula = buildOborArrayFormula_(item);
-    Logger.log(
-      item.targetHeader +
-      ": " + item.sourceSheet + "!" + item.sourceColumns.join("+") +
-      "; длина формулы=" + formula.length +
-      "; " + item.note
-    );
-  });
-  Logger.log("API-источник СДЭК: " + OBOR_CDEK_WAREHOUSE_NAME + " / " + OBOR_CDEK_WAREHOUSE_ID);
-}
-
-/**
- * Формула строит агрегированный справочник через QUERY:
- * базовый артикул, взвешенное значение, затем VLOOKUP в ОБОР.
- */
-function buildOborArrayFormula_(item) {
-  const sourceSheet = quoteOborSheet_(item.sourceSheet);
-  const articleRange = sourceSheet + "!$" + item.sourceArticleColumn + "$2:$" + item.sourceArticleColumn;
-  const nonEmptyArticle = articleRange + "<>\"\"";
-  const valueExpressions = item.sourceColumns.map(column => {
-    const range = sourceSheet + "!$" + column + "$2:$" + column;
-    return "IFERROR(VALUE(SUBSTITUTE(SUBSTITUTE(TO_TEXT(" + range + ");CHAR(160);\"\");\" \";\"\"));0)";
-  });
-  const sourceValue = valueExpressions.length === 1
-    ? valueExpressions[0]
-    : "(" + valueExpressions.join("+") + ")";
-  const header = String(item.targetHeader).replace(/"/g, "\"\"");
-
-  return "={\"" + header + "\";ARRAYFORMULA(LET(" +
-    "srcArt;FILTER(ARRAYFORMULA(TRIM(SUBSTITUTE(TO_TEXT(" + articleRange + ");CHAR(160);\"\")));" + nonEmptyArticle + ");" +
-    "srcVal;FILTER(ARRAYFORMULA(" + sourceValue + ");" + nonEmptyArticle + ");" +
-    "baseArt;ARRAYFORMULA(REGEXREPLACE(srcArt;\"-[0-9]+$\";\"\"));" +
-    "multiplier;ARRAYFORMULA(IFERROR(VALUE(REGEXEXTRACT(srcArt;\"-([0-9]+)$\"));1));" +
-    "agg;QUERY({baseArt\\srcVal*multiplier};\"select Col1, sum(Col2) where Col1 is not null group by Col1 label sum(Col2) ''\";0);" +
-    "targetArt;ARRAYFORMULA(TRIM(SUBSTITUTE(TO_TEXT($A$2:$A);CHAR(160);\"\")));" +
-    "IF(targetArt=\"\";\"\";IFNA(VLOOKUP(targetArt;agg;2;FALSE);0))" +
-  "))}";
-}
-
-function validateOborFormulaSource_(spreadsheet, item) {
-  const sourceSheet = spreadsheet.getSheetByName(item.sourceSheet);
-  if (!sourceSheet) throw new Error("Не найден лист: " + item.sourceSheet);
-  const lastColumn = sourceSheet.getLastColumn();
-  const requiredColumns = [item.sourceArticleColumn].concat(item.sourceColumns);
-  requiredColumns.forEach(column => {
-    if (columnToNumberObor_(column) > lastColumn) {
-      throw new Error("В " + item.sourceSheet + " нет колонки " + column + " для " + item.targetHeader);
-    }
+function validateOborSources_(spreadsheet) {
+  OBOR_VALUE_CONFIG.forEach(item => {
+    if (!item.sourceSheet) return;
+    const sheet = spreadsheet.getSheetByName(item.sourceSheet);
+    if (!sheet) throw new Error("Не найден лист источника: " + item.sourceSheet);
+    const required = [item.sourceArticleColumn].concat(item.sourceValueColumns);
+    required.forEach(column => {
+      if (columnToNumberObor_(column) > sheet.getLastColumn()) {
+        throw new Error(
+          "В " + item.sourceSheet + " нет колонки " + column +
+          " для " + item.targetHeader
+        );
+      }
+    });
   });
 }
 
@@ -321,8 +363,19 @@ function parseOborArticle_(article) {
   return { base: match[1], multiplier: Number(match[2]) || 1 };
 }
 
-function quoteOborSheet_(sheetName) {
-  return "'" + String(sheetName).replace(/'/g, "''") + "'";
+function parseOborNumber_(value) {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return isFinite(value) ? value : 0;
+  const normalized = String(value)
+    .replace(/[\s\u00a0]/g, "")
+    .replace(/%/g, "")
+    .replace(/,/g, ".");
+  const parsed = Number(normalized);
+  return isFinite(parsed) ? parsed : 0;
+}
+
+function roundOborValue_(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
 }
 
 function columnToNumberObor_(column) {
