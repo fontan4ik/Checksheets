@@ -51,7 +51,7 @@ LOG_ROOT = Path(
 LOG_PATH = LOG_ROOT / "checksheets-github-sync.log"
 SETTLE_SECONDS = int(os.environ.get("CHECKSHEETS_SYNC_SETTLE_SECONDS", "20"))
 COMMAND_TIMEOUT = int(os.environ.get("CHECKSHEETS_SYNC_COMMAND_TIMEOUT", "300"))
-NPM = os.environ.get("CHECKSHEETS_SYNC_NPX", str(HOME / ".local" / "bin" / "npx"))
+NPM = os.environ.get("CHECKSHEETS_SYNC_NPM", str(HOME / ".local" / "bin" / "npm"))
 
 SENSITIVE_NAMES = (
     ".env",
@@ -359,8 +359,17 @@ def apps_script_change(paths: Iterable[str] | None) -> bool:
 
 
 def clasp_command(*args: str) -> tuple[str, ...]:
-    npx = NPM if Path(NPM).exists() else "npx"
-    return (npx, "-y", "@google/clasp", *args)
+    npm = NPM if Path(NPM).exists() else "npm"
+    return (
+        npm,
+        "exec",
+        "--offline",
+        "--yes",
+        "--package=@google/clasp",
+        "--",
+        "clasp",
+        *args,
+    )
 
 
 def clasp_status() -> list[str]:
