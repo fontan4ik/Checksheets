@@ -135,6 +135,12 @@ function previewOborArrayFormulas() {
  * 4) VLOOKUP заполняет строки ОБОР.
  */
 function buildOborArrayFormula_(targetHeader, sourceColumns) {
+  if (!sourceColumns || !sourceColumns.length) {
+    throw new Error(
+      "Не задан источник для «" + targetHeader +
+      ". Укажите лист и колонку перед построением формулы."
+    );
+  }
   const sourceArticleRange = "'" + OBOR_FORMULA_SOURCE_SHEET + "'!$A$2:$A";
   const nonEmptySourceArticle = sourceArticleRange + "<>\"\"";
   const sourceValueExpressions = sourceColumns.map(column => {
