@@ -8,9 +8,10 @@ function updatePricesAndImages() {
   // Считаем, какие артикулы уже есть (vendorCode в столбце A)
   const lastRow = sheet.getLastRow();
   let existingVendorCodes = [];
+  let existingPrices = [];
   if (lastRow >= 2) {
     existingVendorCodes = sheet.getRange(2, 1, lastRow - 1).getValues().flat();
-    existingPrices = sheet.getRange(2, 13, lastRow - 1).getValues().flat();     // M (13): ЦЕНА ВБ
+    existingPrices = sheet.getRange(2, 13, lastRow - 1).getValues().flat(); // M (13): ЦЕНА ВБ
   }
 
   // Создаем словарь: vendorCode → массив номеров строк
@@ -32,6 +33,7 @@ function updatePricesAndImages() {
   // Итерации
 
   let updatedCount = 0;
+  let existingPricesChanged = false;
   while (moreData) {
     lastRequestTime = rateLimitRPS(lastRequestTime, WB_RPS());
 
@@ -69,8 +71,9 @@ function updatePricesAndImages() {
         vendorCodeToRows[vendorCode].rows.forEach((row, idx) => {
           const oldPrice = vendorCodeToRows[vendorCode].prices[idx];
           if (oldPrice !== price) {
-            sheet.getRange(row, 13).setValue(price); // M (13): ЦЕНА ВБ
+            existingPrices[row - 2] = price;
             vendorCodeToRows[vendorCode].prices[idx] = price; // sync in memory
+            existingPricesChanged = true;
             updatedCount++;
           }
         });
@@ -89,6 +92,11 @@ function updatePricesAndImages() {
       offset += limit;
     }
   };
+
+  if (existingPricesChanged) {
+    sheet.getRange(2, 13, existingPrices.length, 1)
+      .setValues(existingPrices.map(price => [price]));
+  }
 
   Logger.log(`Обновлено цен: ${updatedCount}`);
 }
