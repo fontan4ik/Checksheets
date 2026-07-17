@@ -146,8 +146,15 @@ def git_changed_paths(base: str | None, head: str) -> list[str] | None:
         return []
     if not git_is_ancestor(base, head):
         return None
-    result = git("diff", "--name-only", f"{base}..{head}")
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    result = git(
+        "-c",
+        "core.quotepath=false",
+        "diff",
+        "--name-only",
+        "-z",
+        f"{base}..{head}",
+    )
+    return [path for path in result.stdout.split("\x00") if path]
 
 
 def is_sensitive_path(path: str) -> bool:
