@@ -12,7 +12,7 @@
  * - K «СДЭК Остаток»        ← Ozon FBS API, склад «КГТ СДЭК»
  * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
- * - W «ВБ ост»              ← ТЕСТ!O+P, остатки WB FBO+FBS без множителя упаковки
+ * - W «ВБ ост»              ← ТЕСТ!O+P, остатки WB FBO+FBS с множителем упаковки
  * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
@@ -73,8 +73,7 @@ const OBOR_VALUE_CONFIG = [
     sourceArticleColumn: "A",
     sourceValueColumns: ["O", "P"],
     subtractValueColumns: [],
-    applyArticleMultiplier: false,
-    note: "Остаток ФБО ВБ + Остаток ФБС ВБ; физические штуки, без множителя упаковки"
+    note: "Остаток ФБО ВБ + Остаток ФБС ВБ; с множителем упаковки"
   },
   {
     key: "wbMonthWithdrawal",
