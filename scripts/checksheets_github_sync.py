@@ -476,7 +476,6 @@ def main() -> int:
                 log.info("dry-run завершён: local=%s origin=%s", local[:12], remote[:12])
                 return 0
 
-            changed = git_changed_paths(before_processed, local)
             apps_script_synced_sha = state.get("apps_script_synced_sha")
             apps_script_changed = git_changed_paths(apps_script_synced_sha, local)
             should_push = apps_script_synced_sha is None or apps_script_change(apps_script_changed)
