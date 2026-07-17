@@ -471,14 +471,15 @@ def main() -> int:
     try:
         with exclusive_lock():
             state = read_state()
-            before_processed = state.get("last_synced_sha")
             local, remote = reconcile_git(args.dry_run)
             if args.dry_run:
                 log.info("dry-run завершён: local=%s origin=%s", local[:12], remote[:12])
                 return 0
 
             changed = git_changed_paths(before_processed, local)
-            should_push = before_processed is None or apps_script_change(changed)
+            apps_script_synced_sha = state.get("apps_script_synced_sha")
+            apps_script_changed = git_changed_paths(apps_script_synced_sha, local)
+            should_push = apps_script_synced_sha is None or apps_script_change(apps_script_changed)
             result = {"pushed": False, "verified": False, "file_count": 0}
             if should_push:
                 log.info("Есть Apps Script-изменения; запускаю clasp push")
@@ -486,9 +487,12 @@ def main() -> int:
             else:
                 log.info("Apps Script-файлы не менялись; clasp push не требуется")
 
+            if result["pushed"]:
+                apps_script_synced_sha = local
             write_state(
                 {
                     "last_synced_sha": local,
+                    "apps_script_synced_sha": apps_script_synced_sha,
                     "branch": BRANCH,
                     "updated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
                     "apps_script": result if result["pushed"] else state.get("apps_script", result),
