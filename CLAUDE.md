@@ -117,6 +117,17 @@ These run on local servers or machines to update Google Sheets via the API:
 | **54** | **BB** | Реклама Стоимость | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |
 | **55** | **BC** | Реклама Расход | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |
 
+### FERON TR: source stock columns
+
+| Column | Header | Source | Warehouse |
+|---|---|---|---|
+| J (10) | `stocks SMR` | `feron_sync_local.py` | Самара |
+| K (11) | `stocks MSK` | `feron_sync_local.py` | Внуково |
+| L (12) | `stocks NSB` | `feron_sync_local.py` | Новосибирск |
+| M (13) | `stocks EKB` | `feron_sync_local.py` | Екатеринбург |
+
+Фаза `получение остатков` обновляет только J:M в `FERON TR`; marketplace-трансляция не запускается.
+
 ---
 
 ## 🔧 RATE LIMITING & DIAGNOSTICS

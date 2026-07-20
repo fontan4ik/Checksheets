@@ -8,6 +8,43 @@ from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
 
 
+# Live Feron warehouse mapping confirmed from /offers/products/search and
+# /quantities/search.  FERON TR keeps the supplier-source quantities in J:M.
+FERON_WAREHOUSE_IDS = {
+    "Самара": "67e4fb8a-6e27-11ef-96b6-a4bf0186f0c7",
+    "Внуково": "de099cee-372a-11ef-96b6-a4bf0186f0c7",
+    "Новосибирск": "ab50cafe-6e27-11ef-96b6-a4bf0186f0c7",
+    "Екатеринбург": "9a521a77-6e27-11ef-96b6-a4bf0186f0c7",
+}
+
+FERON_TR_STOCK_COLUMNS = {
+    "Самара": 10,       # J - stocks SMR
+    "Внуково": 11,      # K - stocks MSK
+    "Новосибирск": 12,  # L - stocks NSB
+    "Екатеринбург": 13, # M - stocks EKB
+}
+
+FERON_TR_STOCK_HEADERS = {
+    "Самара": "stocks SMR",
+    "Внуково": "stocks MSK",
+    "Новосибирск": "stocks NSB",
+    "Екатеринбург": "stocks EKB",
+}
+
+
+def validate_feron_tr_headers(headers):
+    """Validate the live FERON TR source columns before any sheet write."""
+    normalized_headers = [str(value).strip() for value in headers]
+    for wh_name, col_num in FERON_TR_STOCK_COLUMNS.items():
+        expected = FERON_TR_STOCK_HEADERS[wh_name]
+        actual = normalized_headers[col_num - 1] if len(normalized_headers) >= col_num else ""
+        if actual != expected:
+            raise RuntimeError(
+                f"FERON TR layout mismatch at column {col_num}: "
+                f"expected '{expected}', got '{actual}'"
+            )
+
+
 class SourceAddressAdapter(HTTPAdapter):
     def __init__(self, source_ip, **kwargs):
         self._source_address = (source_ip, 0)
@@ -328,13 +365,20 @@ def sync_feron():
     except Exception as e:
         print(f"ERROR: Could not fetch Feron bulk data safely: {e}")
         return
-    
-    # Warehouse ID mapping (confirmed via diagnostics)
-    warehouse_ids = {
-        "Самара": "67e4fb8a-6e27-11ef-96b6-a4bf0186f0c7",
-        "Внуково": "de099cee-372a-11ef-96b6-a4bf0186f0c7",
-        "Новосибирск": "ab50cafe-6e27-11ef-96b6-a4bf0186f0c7",
+
+    warehouse_ids = dict(FERON_WAREHOUSE_IDS)
+    seen_warehouse_ids = {
+        warehouse_id
+        for stock_by_warehouse in all_feron_stocks.values()
+        for warehouse_id in stock_by_warehouse
     }
+    missing_warehouse_ids = set(warehouse_ids.values()) - seen_warehouse_ids
+    if missing_warehouse_ids:
+        print(
+            "ERROR: Feron API response does not contain configured warehouse IDs "
+            f"{sorted(missing_warehouse_ids)}; aborting sheet write."
+        )
+        return
 
     main_sheet_name = getattr(config, 'FERON_SHEET_NAME', None)
     if main_sheet_name:
@@ -356,12 +400,7 @@ def sync_feron():
         except Exception as e:
             print(f"ERROR: Could not update main Feron sheet '{main_sheet_name}': {e}")
     
-    # Column mapping in Google Sheet (J=10, K=11, L=12)
-    sheet_columns = {
-        "Самара": 10,   # Column J - stocks smr
-        "Внуково": 11,  # Column K - stocks msk
-        "Новосибирск": 12, # Column L - stocks nsb
-    }
+    sheet_columns = dict(FERON_TR_STOCK_COLUMNS)
 
     # Phase 2: Update Google Sheet
     try:
@@ -370,6 +409,15 @@ def sync_feron():
         ws = gsheets_utils.get_worksheet(sheet_name)
     except Exception as e:
         print(f"ERROR: Could not access Google Sheet: {e}")
+        return
+
+    # Do not write zeros to a shifted/misnamed column.  The EKB column was
+    # added by hand to FERON TR, so verify the live header row before writing.
+    try:
+        validate_feron_tr_headers(ws.row_values(1))
+        print("FERON TR layout verified: J:M = stocks SMR/MSK/NSB/EKB")
+    except Exception as e:
+        print(f"ERROR: FERON TR layout verification failed: {e}")
         return
 
     # Get vendor codes from column B (Models/Articles)
