@@ -21,11 +21,11 @@ const FERON_TR_WB_WAREHOUSE = {
 const FERON_TR_COLS = {
   VENDOR_CODE: 1,
   OZON_SKU: 5,
-  // FERON TR source stocks: J=SMR, K=MSK, L=NSB.
-  // O:R are FR allocation/reference columns and must not feed marketplace writes.
-  STOCK_MSK: 11,
-  STOCK_SMR: 10,
-  STOCK_NSB: 12,
+  // Special marketplace stock columns: S=MSK, T=SMR, U=NSB, V=EKB.
+  STOCK_MSK: 19,
+  STOCK_SMR: 20,
+  STOCK_NSB: 21,
+  STOCK_EKB: 22,
   CHRT_ID: 23,
 };
 
@@ -101,8 +101,8 @@ async function readFeronStocksFromSheet(auth) {
 
   const colVendor = findCol("артикул", FERON_TR_COLS.VENDOR_CODE);
   const colOzonSku = findCol("sku ozon", FERON_TR_COLS.OZON_SKU);
-  // Marketplace sync for FERON TR reads the Feron API source columns:
-  // J=SMR, K=MSK, L=NSB. Do not use O:R FR reference columns.
+  // Read special marketplace columns from FERON TR:
+  // S=MSK, T=SMR, U=NSB. V=EKB is retained for a future configured EKB warehouse.
   const colStockMsk = FERON_TR_COLS.STOCK_MSK;
   const colStockSmr = FERON_TR_COLS.STOCK_SMR;
   const colStockNsb = FERON_TR_COLS.STOCK_NSB;
