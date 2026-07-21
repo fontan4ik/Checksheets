@@ -10,6 +10,7 @@ const FERON_TR_OZON_WAREHOUSES = {
   MSK: 1020005000217829,
   SMR: 1020005000234124,
   NSB: 1020005008262970,
+  EKB: 1020005023877890,
 };
 
 const FERON_TR_WB_WAREHOUSE = {
@@ -101,16 +102,16 @@ async function readFeronStocksFromSheet(auth) {
 
   const colVendor = findCol("артикул", FERON_TR_COLS.VENDOR_CODE);
   const colOzonSku = findCol("sku ozon", FERON_TR_COLS.OZON_SKU);
-  // Read special marketplace columns from FERON TR:
-  // S=MSK, T=SMR, U=NSB. V=EKB is retained for a future configured EKB warehouse.
+  // Read special marketplace columns from FERON TR: S=MSK, T=SMR, U=NSB, V=EKB.
   const colStockMsk = FERON_TR_COLS.STOCK_MSK;
   const colStockSmr = FERON_TR_COLS.STOCK_SMR;
   const colStockNsb = FERON_TR_COLS.STOCK_NSB;
+  const colStockEkb = FERON_TR_COLS.STOCK_EKB;
   const colChrtId =
     findCol("chrtid", findCol("chrlid", FERON_TR_COLS.CHRT_ID));
 
   log(
-    `🔍 Колонки: offer_id=${colVendor}, sku_ozon=${colOzonSku}, MSK=${colStockMsk}, SMR=${colStockSmr}, NSB=${colStockNsb}, chrtId=${colChrtId}`,
+    `🔍 Колонки: offer_id=${colVendor}, sku_ozon=${colOzonSku}, MSK=${colStockMsk}, SMR=${colStockSmr}, NSB=${colStockNsb}, EKB=${colStockEkb}, chrtId=${colChrtId}`,
   );
 
   const maxCol = Math.max(
@@ -119,6 +120,7 @@ async function readFeronStocksFromSheet(auth) {
     colStockMsk,
     colStockSmr,
     colStockNsb,
+    colStockEkb,
     colChrtId,
   );
 
@@ -141,6 +143,7 @@ async function readFeronStocksFromSheet(auth) {
     const originalStockMsk = parseInt(row[colStockMsk - 1]) || 0;
     const originalStockSmr = parseInt(row[colStockSmr - 1]) || 0;
     const originalStockNsb = parseInt(row[colStockNsb - 1]) || 0;
+    const originalStockEkb = parseInt(row[colStockEkb - 1]) || 0;
     const chrtId = row[colChrtId - 1];
 
     if (!vendorCode) continue;
@@ -155,9 +158,11 @@ async function readFeronStocksFromSheet(auth) {
       stock_msk: originalStockMsk,
       stock_smr: originalStockSmr,
       stock_nsb: originalStockNsb,
+      stock_ekb: originalStockEkb,
       original_stock_msk: originalStockMsk,
       original_stock_smr: originalStockSmr,
       original_stock_nsb: originalStockNsb,
+      original_stock_ekb: originalStockEkb,
       chrt_id: chrtId,
     });
   }
@@ -314,7 +319,7 @@ async function updateFeronStocksOzonWithRetry(
 }
 
 async function updateFeronStocksOzon(stocks) {
-  log(`🟠 Обновление остатков Ozon (3 склада)...`);
+  log(`🟠 Обновление остатков Ozon (4 склада)...`);
 
   const validStocks = stocks.filter((s) => s.offer_id);
   if (validStocks.length === 0) {
@@ -340,6 +345,12 @@ async function updateFeronStocksOzon(stocks) {
       name: "Новосибирск",
       id: FERON_TR_OZON_WAREHOUSES.NSB,
       col: "stock_nsb",
+    },
+    {
+      key: "EKB",
+      name: "Екатеринбург",
+      id: FERON_TR_OZON_WAREHOUSES.EKB,
+      col: "stock_ekb",
     },
   ];
 
