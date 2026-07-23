@@ -5,6 +5,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
+SYNC_FERON_JS = PROJECT_ROOT / "sync-feron-stocks.js"
+
 from feron_sync_local import (  # noqa: E402
     FERON_TR_STOCK_COLUMNS,
     FERON_TR_STOCK_HEADERS,
@@ -35,3 +37,11 @@ def test_shifted_feron_tr_column_is_rejected():
         assert "stocks NSB" in str(exc)
     else:
         raise AssertionError("shifted FERON TR source column must be rejected")
+
+
+def test_wb_ekb_target_is_configured_for_feron_translation():
+    source = SYNC_FERON_JS.read_text(encoding="utf-8")
+    assert "EKB: 1860503" in source
+    assert 'name: "Екатеринбург"' in source
+    assert 'col: "stock_ekb"' in source
+    assert "WB FBS (4 склада)" in source

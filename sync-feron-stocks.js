@@ -17,6 +17,8 @@ const FERON_TR_WB_WAREHOUSE = {
   MSK: 1449484,
   SMR: 798761,
   NSB: 1724900,
+  // МГТ / Екатеринбург ФБС, склад WB «Екатеринбург».
+  EKB: 1860503,
 };
 
 const FERON_TR_COLS = {
@@ -580,7 +582,7 @@ async function processFeronWBConflictIndividually(
 }
 
 async function updateFeronStocksWB(stocks) {
-  log(`🟣 Обновление остатков WB FBS (3 склада)...`);
+  log(`🟣 Обновление остатков WB FBS (4 склада)...`);
 
   const validStocks = stocks.filter((s) => s.chrt_id);
   if (validStocks.length === 0) {
@@ -608,6 +610,12 @@ async function updateFeronStocksWB(stocks) {
       name: "Новосибирск",
       id: FERON_TR_WB_WAREHOUSE.NSB,
       col: "stock_nsb",
+    },
+    {
+      key: "EKB",
+      name: "Екатеринбург",
+      id: FERON_TR_WB_WAREHOUSE.EKB,
+      col: "stock_ekb",
     },
   ];
 
