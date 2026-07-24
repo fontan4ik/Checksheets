@@ -47,6 +47,9 @@ BASE_URL = str(config.OZON_PERF_BASE_URL).rstrip("/")
 SHEET_NAME = str(getattr(config, "OZON_CPC_SHEET_NAME", "СРС"))
 DEFAULT_THRESHOLD = float(getattr(config, "OZON_CPC_CLICK_THRESHOLD", 10))
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
+REPORT_GROUP_BY = os.getenv("OZON_CPC_REPORT_GROUP_BY", "SKU")
+REPORT_MAX_ATTEMPTS = int(os.getenv("OZON_CPC_REPORT_MAX_ATTEMPTS", "180"))
+REPORT_SLEEP_SECONDS = int(os.getenv("OZON_CPC_REPORT_SLEEP_SECONDS", "5"))
 TRANSIENT_STATUSES = {408, 409, 425, 429, 500, 502, 503, 504}
 
 
@@ -272,9 +275,9 @@ def create_statistics_report(
 ) -> str:
     payload = {
         "campaigns": campaign_ids,
-        "from": date_from,
-        "to": date_to,
-        "groupBy": "DATE",
+        "dateFrom": date_from[:10],
+        "dateTo": date_to[:10],
+        "groupBy": REPORT_GROUP_BY,
     }
     for attempt in range(1, retries + 1):
         try:
@@ -294,8 +297,8 @@ def wait_for_report(
     session: requests.Session,
     token: str,
     report_uuid: str,
-    max_attempts: int = 60,
-    sleep_seconds: int = 5,
+    max_attempts: int = REPORT_MAX_ATTEMPTS,
+    sleep_seconds: int = REPORT_SLEEP_SECONDS,
 ) -> bytes:
     report_path = f"/api/client/statistics/report?{urlencode({'UUID': report_uuid})}"
     last_state = "UNKNOWN"
