@@ -43,7 +43,7 @@ def test_shifted_feron_tr_column_is_rejected():
 def test_etm_writer_targets_x_column_for_etm():
     source = ETM_SYNC_PY.read_text(encoding="utf-8")
     assert "FERON_TR_STOCK_ETM_COL = 24" in source
-    assert "target column X (24)" in source
+    assert "target column X (%s)" in source
     assert "FERON_TR_STOCK_SMR_COL = 21" not in source
 
 

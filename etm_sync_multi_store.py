@@ -35,7 +35,8 @@ os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 ETM_TR_ETM_CODE_COL = 20
 FERON_TR_SHEET_NAME = "FERON TR"
 FERON_TR_MATCH_COL = 2
-FERON_TR_STOCK_SMR_COL = 21
+# X (24) is the dedicated ETM feeder column on FERON TR.
+FERON_TR_STOCK_ETM_COL = 24
 FERON_ETM_MAPPING_PATH = Path(__file__).resolve().parent / "СОПОСТАВЛЕННОЕ ЭТМ .xlsx"
 SHEETS_UPDATE_RETRIES = 5
 SHEETS_UPDATE_RETRY_DELAY = 2.0
@@ -1231,8 +1232,8 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
         ETM_TR_ETM_CODE_COL,
     )
     logging.info(
-        "FERON TR stock: warehouse 13, sheet columns B model + C brand -> FTP columns E article + F manufacturer; target column U (%s)",
-        FERON_TR_STOCK_SMR_COL,
+        "FERON TR ETM stock: warehouse 13, sheet columns B model + C brand -> FTP columns E article + F manufacturer; target column X (%s)",
+        FERON_TR_STOCK_ETM_COL,
     )
     logging.info(
         "Warehouse mapping: %s => %s, %s => %s",
@@ -1350,18 +1351,18 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
             f"{gspread.utils.rowcol_to_a1(1 + len(computed['smr_results']), col_stock_smr)}"
         )
         update_sheet_range_with_retry(ws, smr_range, computed["smr_results"])
-        feron_smr_range = (
-            f"{gspread.utils.rowcol_to_a1(2, FERON_TR_STOCK_SMR_COL)}:"
-            f"{gspread.utils.rowcol_to_a1(1 + len(feron_computed['results']), FERON_TR_STOCK_SMR_COL)}"
+        feron_etm_range = (
+            f"{gspread.utils.rowcol_to_a1(2, FERON_TR_STOCK_ETM_COL)}:"
+            f"{gspread.utils.rowcol_to_a1(1 + len(feron_computed['results']), FERON_TR_STOCK_ETM_COL)}"
         )
         update_sheet_range_with_retry(
             feron_ws,
-            feron_smr_range,
+            feron_etm_range,
             feron_computed["results"],
         )
         logging.info(
-            "FERON TR warehouse 13 values written successfully to %s",
-            feron_smr_range,
+            "FERON TR ETM warehouse 13 values written successfully to %s",
+            feron_etm_range,
         )
         state["smr"] = {
             "files": smr_files,
