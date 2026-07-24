@@ -524,7 +524,12 @@ def run(args: argparse.Namespace) -> int:
     session = create_session()
     token = get_token(session)
     running = get_running_campaigns(session, token)
-    running_by_id = {normalize_id(campaign.get("id")): campaign for campaign in running}
+    running_by_id = {
+        normalize_id(campaign.get("id")): campaign
+        for campaign in running
+        if not normalize(campaign.get("PaymentType", campaign.get("paymentType", "")))
+        or normalize(campaign.get("PaymentType", campaign.get("paymentType", ""))) == "cpc"
+    }
     campaign_ids = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id in running_by_id]
     inactive = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id not in running_by_id]
     print(f"Running campaigns={len(running)}; из СРС активных={len(campaign_ids)}; неактивных={len(inactive)}")
