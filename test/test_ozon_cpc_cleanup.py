@@ -57,9 +57,11 @@ class OzonCpcCleanupTests(unittest.TestCase):
 
     def test_write_sheet_metrics_translates_all_empty_cpc_columns(self):
         class FakeWorksheet:
+            def __init__(self):
+                self.updates = []
+
             def update(self, range_label, values):
-                self.range_label = range_label
-                self.values = values
+                self.updates.append((range_label, values))
 
         headers = [
             "art", "model", "brand", "pic", "SKU OZON", "CAMPAIN ID", "Расход", "Показы",
@@ -78,8 +80,12 @@ class OzonCpcCleanupTests(unittest.TestCase):
             {"33230388": {"budget": "1500", "state": "CAMPAIGN_STATE_RUNNING"}},
         )
 
-        self.assertEqual(worksheet.range_label, "A2:P2")
-        self.assertEqual(worksheet.values[0][6:16], [123.45, 100, 12, 12, 10.29, 2, 4, 1500, 3, "CAMPAIGN_STATE_RUNNING"])
+        updates = dict(worksheet.updates)
+        self.assertEqual(set(updates), {"G2:G2", "H2:H2", "I2:I2", "J2:J2", "K2:K2", "L2:L2", "M2:M2", "N2:N2", "O2:O2", "P2:P2"})
+        self.assertEqual(updates["G2:G2"], [[123.45]])
+        self.assertEqual(updates["N2:N2"], [[1500]])
+        self.assertEqual(updates["P2:P2"], [["CAMPAIGN_STATE_RUNNING"]])
+        self.assertNotIn("A2:P2", updates)
 
     def test_build_candidates_requires_sku_still_in_campaign(self):
         rows = [

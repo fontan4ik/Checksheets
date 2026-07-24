@@ -498,28 +498,32 @@ def write_sheet_metrics(
         "дрр в продвижении": "drr",
         "корзины": "carts",
     }
-    all_values: list[list[Any]] = [list(row.values) for row in rows]
     budget_col = header_map.get("бюджет")
     status_col = header_map.get("статус")
-    for row_offset, row in enumerate(rows):
-        metric = metrics.get((row.campaign_id, row.sku), Metric())
-        for header, field_name in metric_columns.items():
-            column = header_map.get(header)
-            if column:
-                all_values[row_offset][column - 1] = getattr(metric, field_name)
-
-        campaign = campaigns_by_id.get(row.campaign_id)
-        if budget_col:
-            all_values[row_offset][budget_col - 1] = campaign_budget(campaign)
-        if status_col:
-            all_values[row_offset][status_col - 1] = (
-                str(campaign.get("state", "NOT_RUNNING")) if campaign else "NOT_RUNNING"
-            )
 
     start_row = rows[0].row_number
     end_row = rows[-1].row_number
-    # The current СРС data block is contiguous (rows 2..5).
-    worksheet.update(f"A{start_row}:{column_letter(len(headers))}{end_row}", all_values)
+    # Update only CPC/Performance columns. Static identity columns are never sent to Sheets.
+    for header, field_name in metric_columns.items():
+        column = header_map.get(header)
+        if not column:
+            continue
+        values = [[getattr(metrics.get((row.campaign_id, row.sku), Metric()), field_name)] for row in rows]
+        cell_range = f"{column_letter(column)}{start_row}:{column_letter(column)}{end_row}"
+        worksheet.update(cell_range, values)
+
+    if budget_col:
+        values = [[campaign_budget(campaigns_by_id.get(row.campaign_id))] for row in rows]
+        cell_range = f"{column_letter(budget_col)}{start_row}:{column_letter(budget_col)}{end_row}"
+        worksheet.update(cell_range, values)
+
+    if status_col:
+        values = [
+            [str(campaigns_by_id[row.campaign_id].get("state", "NOT_RUNNING")) if row.campaign_id in campaigns_by_id else "NOT_RUNNING"]
+            for row in rows
+        ]
+        cell_range = f"{column_letter(status_col)}{start_row}:{column_letter(status_col)}{end_row}"
+        worksheet.update(cell_range, values)
 
 
 def column_letter(number: int) -> str:
