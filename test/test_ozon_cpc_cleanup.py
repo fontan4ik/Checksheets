@@ -10,9 +10,11 @@ from ozon_cpc_cleanup import (
     Metric,
     SheetRow,
     build_candidates,
+    campaign_budget,
     current_day_period,
     parse_report,
     parse_report_block,
+    write_sheet_metrics,
 )
 
 
@@ -47,6 +49,37 @@ class OzonCpcCleanupTests(unittest.TestCase):
             )
         stats = parse_report(content.getvalue(), ["33230388"])
         self.assertEqual(stats[("33230388", "986315608")].clicks, 11)
+
+    def test_campaign_budget_uses_explicit_budget_not_weekly_cap(self):
+        self.assertEqual(campaign_budget({"budget": "1500", "dailyBudget": "0", "weeklyBudget": "2000000000"}), 1500)
+        self.assertEqual(campaign_budget({"budget": "0", "dailyBudget": "250"}), 0)
+        self.assertEqual(campaign_budget(None), 0)
+
+    def test_write_sheet_metrics_translates_all_empty_cpc_columns(self):
+        class FakeWorksheet:
+            def update(self, range_label, values):
+                self.range_label = range_label
+                self.values = values
+
+        headers = [
+            "art", "model", "brand", "pic", "SKU OZON", "CAMPAIN ID", "Расход", "Показы",
+            "Клики", "CTR, %", "Средняя стоимость клика", "Продано", "ДРР в продвижении", "Бюджет",
+            "Корзины", "Статус",
+        ]
+        row = SheetRow(2, "39171-1", "986315608", "33230388", ["39171-1", "39171", "Stekker", "", "986315608", "33230388"] + [""] * 10)
+        metric = Metric(clicks=12, impressions=100, ctr=12, spend=123.45, average_cpc=10.29, sold=2, drr=4, carts=3)
+        worksheet = FakeWorksheet()
+
+        write_sheet_metrics(
+            worksheet,
+            headers,
+            [row],
+            {("33230388", "986315608"): metric},
+            {"33230388": {"budget": "1500", "state": "CAMPAIGN_STATE_RUNNING"}},
+        )
+
+        self.assertEqual(worksheet.range_label, "A2:P2")
+        self.assertEqual(worksheet.values[0][6:16], [123.45, 100, 12, 12, 10.29, 2, 4, 1500, 3, "CAMPAIGN_STATE_RUNNING"])
 
     def test_build_candidates_requires_sku_still_in_campaign(self):
         rows = [

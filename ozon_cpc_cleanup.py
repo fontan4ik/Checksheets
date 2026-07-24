@@ -467,12 +467,23 @@ def delete_sku(session: requests.Session, token: str, campaign_id: str, sku: str
     )
 
 
+def campaign_budget(campaign: dict[str, Any] | None) -> float:
+    """Return the explicit campaign budget, not the technical weekly cap."""
+    if not campaign:
+        return 0.0
+    for field_name in ("budget", "dailyBudget"):
+        raw_value = campaign.get(field_name)
+        if raw_value not in (None, ""):
+            return parse_number(raw_value)
+    return 0.0
+
+
 def write_sheet_metrics(
     worksheet: Any,
     headers: list[str],
     rows: list[SheetRow],
     metrics: dict[tuple[str, str], Metric],
-    candidates: list[Candidate],
+    campaigns_by_id: dict[str, dict[str, Any]],
 ) -> None:
     if not rows:
         return
@@ -487,24 +498,27 @@ def write_sheet_metrics(
         "дрр в продвижении": "drr",
         "корзины": "carts",
     }
-    all_values = [list(row.values) for row in rows]
-    status_by_key = {(item.campaign_id, item.sku): item.action for item in candidates}
+    all_values: list[list[Any]] = [list(row.values) for row in rows]
+    budget_col = header_map.get("бюджет")
     status_col = header_map.get("статус")
     for row_offset, row in enumerate(rows):
-        metric = metrics.get((row.campaign_id, row.sku))
-        if metric:
-            for header, field_name in metric_columns.items():
-                column = header_map.get(header)
-                if column:
-                    all_values[row_offset][column - 1] = getattr(metric, field_name)
+        metric = metrics.get((row.campaign_id, row.sku), Metric())
+        for header, field_name in metric_columns.items():
+            column = header_map.get(header)
+            if column:
+                all_values[row_offset][column - 1] = getattr(metric, field_name)
+
+        campaign = campaigns_by_id.get(row.campaign_id)
+        if budget_col:
+            all_values[row_offset][budget_col - 1] = campaign_budget(campaign)
         if status_col:
-            action = status_by_key.get((row.campaign_id, row.sku))
-            if action:
-                all_values[row_offset][status_col - 1] = action
+            all_values[row_offset][status_col - 1] = (
+                str(campaign.get("state", "NOT_RUNNING")) if campaign else "NOT_RUNNING"
+            )
 
     start_row = rows[0].row_number
     end_row = rows[-1].row_number
-    # The sheet is currently contiguous; use one range to preserve all unrelated columns.
+    # The current СРС data block is contiguous (rows 2..5).
     worksheet.update(f"A{start_row}:{column_letter(len(headers))}{end_row}", all_values)
 
 
@@ -555,7 +569,7 @@ def run(args: argparse.Namespace) -> int:
         print(f"row={candidate.row_number} campaign={candidate.campaign_id} sku={candidate.sku} clicks={candidate.clicks:g} action={candidate.action}")
 
     if args.write_sheet:
-        write_sheet_metrics(worksheet, headers, sheet_rows, metrics, candidates)
+        write_sheet_metrics(worksheet, headers, sheet_rows, metrics, running_by_id)
         print("Метрики/статусы записаны в СРС")
 
     if not args.apply:
