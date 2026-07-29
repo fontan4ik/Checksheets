@@ -429,8 +429,8 @@ def sync_rs():
 
     # Обновляем остатки
     try:
-        gsheets_utils.clear_column(ws, "Остаток АПИ")
-        gsheets_utils.update_column_by_header(ws, "Остаток АПИ", results_stock)
+        gsheets_utils.clear_column_at_index(ws, columns["stock_api"])
+        gsheets_utils.update_column(ws, columns["stock_api"], results_stock)
         print("Stock API updated successfully!")
     except Exception as e:
         update_errors.append(f"stock column: {e}")
@@ -438,8 +438,8 @@ def sync_rs():
 
     # Обновляем цены по заголовку "Цена закуп".
     try:
-        gsheets_utils.clear_column(ws, "Цена закуп")
-        gsheets_utils.update_column_by_header(ws, "Цена закуп", results_price)
+        gsheets_utils.clear_column_at_index(ws, columns["purchase_price"])
+        gsheets_utils.update_column(ws, columns["purchase_price"], results_price)
         print("Purchase prices updated successfully by header 'Цена закуп'!")
     except Exception as e:
         update_errors.append(f"price column: {e}")

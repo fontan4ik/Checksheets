@@ -171,6 +171,12 @@ def clear_column(worksheet, header_name, start_row=2):
         getattr(worksheet, "title", "worksheet"),
     )["target"]
 
+    clear_column_at_index(worksheet, col_index, start_row=start_row)
+
+
+def clear_column_at_index(worksheet, col_index, start_row=2):
+    """Clear a column already resolved from a validated sheet schema."""
+    col_index = int(col_index)
     last_row = worksheet.row_count
     if last_row < start_row:
         return
@@ -178,7 +184,7 @@ def clear_column(worksheet, header_name, start_row=2):
     col_letter = gspread.utils.rowcol_to_a1(1, col_index).strip('1')
     range_label = f"{col_letter}{start_row}:{col_letter}{last_row}"
     _retry_gsheet_call(
-        f"clear column '{header_name}' range {range_label}",
+        f"clear column {col_index} range {range_label}",
         lambda: worksheet.batch_clear([range_label]),
     )
 

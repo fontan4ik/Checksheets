@@ -208,7 +208,7 @@ def sync_feron_mic():
     print(f"Fetched MIC prices for {len(mic_prices)} articles")
 
     values = [[mic_prices.get(article, "")] for article in normalized_articles]
-    gsheets_utils.update_column_by_header(worksheet, TARGET_HEADER, values, start_row=2)
+    gsheets_utils.update_column(worksheet, columns["mic_price"], values, start_row=2)
 
     filled = sum(1 for value in values if value[0] != "")
     print(f"Updated sheet '{TARGET_SHEET_NAME}' header '{TARGET_HEADER}' with {filled} MIC values")

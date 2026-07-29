@@ -383,7 +383,7 @@ def sync_feron():
         
         try:
             print(f"  - Updating Google Sheet header '{FERON_TR_SCHEMA[field_name]}' ({wh_name})...")
-            gsheets_utils.clear_column(ws, FERON_TR_SCHEMA[field_name])
+            gsheets_utils.clear_column_at_index(ws, col_num)
             gsheets_utils.update_column(ws, col_num, formatted_results)
             print(f"  - OK: Warehouse {wh_name} updated successfully.")
         except Exception as e:
