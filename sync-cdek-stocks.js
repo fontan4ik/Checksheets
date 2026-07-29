@@ -67,13 +67,13 @@ function resolveColumns(headers) {
   return result;
 }
 
-function collectUniqueArticles(rows, articleColumn) {
+function collectUniqueModels(rows, modelColumn) {
   const unique = new Set();
   for (const row of rows) {
-    const article = text(row[articleColumn - 1]);
-    if (article) unique.add(article);
+    const model = text(row[modelColumn - 1]);
+    if (model) unique.add(model);
   }
-  if (!unique.size) throw new Error("В колонке art нет значений для CDEK-запроса");
+  if (!unique.size) throw new Error("В колонке model нет значений для CDEK-запроса");
   return [...unique];
 }
 
@@ -162,9 +162,9 @@ async function listOfferRefs(headers) {
   return refs;
 }
 
-async function loadStocks(articles, headers) {
-  const required = new Set(articles);
-  const stockByArticle = new Map();
+async function loadStocks(models, headers) {
+  const required = new Set(models);
+  const stockByModel = new Map();
   const refs = await listOfferRefs(headers);
 
   for (let index = 0; index < refs.length; index += 1) {
@@ -178,18 +178,18 @@ async function loadStocks(articles, headers) {
       if (!Object.prototype.hasOwnProperty.call(offer || {}, "items")) {
         throw new Error(`Карточка CDEK ${offerId} для art «${article}» не содержит поля items`);
       }
-      stockByArticle.set(article, (stockByArticle.get(article) || 0) + normalStock(offer.items));
+      stockByModel.set(article, (stockByModel.get(article) || 0) + normalStock(offer.items));
     }
     if (index + 1 < refs.length) await sleep(REQUEST_DELAY_MS);
   }
 
-  const missing = articles.filter((article) => !stockByArticle.has(article));
-  for (const article of missing) stockByArticle.set(article, 0);
+  const missing = models.filter((model) => !stockByModel.has(model));
+  for (const model of missing) stockByModel.set(model, 0);
   console.log(JSON.stringify({
-    cdekMatchedByExactArt: articles.length - missing.length,
-    cdekMissingByExactArt: missing.length,
+    cdekMatchedByExactModel: models.length - missing.length,
+    cdekMissingByExactModel: missing.length,
   }));
-  return stockByArticle;
+  return stockByModel;
 }
 
 async function createSheetsClient() {
@@ -210,14 +210,14 @@ async function readSheet(sheets) {
   return { headers: values[0], rows: values.slice(1) };
 }
 
-async function writeStocks(sheets, rows, columns, stockByArticle) {
+async function writeStocks(sheets, rows, columns, stockByModel) {
   const values = rows.map((row) => {
-    const article = text(row[columns.art - 1]);
-    if (!article) return [""];
-    if (!stockByArticle.has(article)) {
-      throw new Error(`Нет CDEK-остатка для art «${article}»; запись отменена`);
+    const model = text(row[columns.model - 1]);
+    if (!model) return [""];
+    if (!stockByModel.has(model)) {
+      throw new Error(`Нет CDEK-остатка для model «${model}»; запись отменена`);
     }
-    return [stockByArticle.get(article)];
+    return [stockByModel.get(model)];
   });
 
   const stockLetter = columnToLetter(columns.stocks);
@@ -236,14 +236,14 @@ async function main() {
   const sheets = await createSheetsClient();
   const { headers, rows } = await readSheet(sheets);
   const columns = resolveColumns(headers);
-  const articles = collectUniqueArticles(rows, columns.art);
-  const stocks = await loadStocks(articles, cdekHeaders());
+  const models = collectUniqueModels(rows, columns.model);
+  const stocks = await loadStocks(models, cdekHeaders());
   const result = await writeStocks(sheets, rows, columns, stocks);
   const nonZero = result.values.filter(([value]) => Number(value) > 0).length;
   console.log(JSON.stringify({
     status: "ok",
     rows: result.values.length,
-    uniqueArticles: articles.length,
+    uniqueModels: models.length,
     nonZero,
     range: result.range,
     durationSec: Math.round((Date.now() - startedAt) / 1000),
@@ -262,7 +262,7 @@ if (require.main === module) {
 }
 
 module.exports = {
-  collectUniqueArticles,
+  collectUniqueModels,
   columnToLetter,
   listOfferRefs,
   loadStocks,
