@@ -32,7 +32,7 @@ import gsheets_utils
 LOG_PATH = os.path.join(os.path.dirname(__file__), "logs", "etm_sync_multi.log")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 
-ETM_TR_ETM_CODE_COL = 20
+ETM_TR_ETM_CODE_COL = 21
 FERON_TR_SHEET_NAME = "FERON TR"
 FERON_TR_MATCH_COL = 2
 # X (24) is the dedicated ETM feeder column on FERON TR.
