@@ -97,7 +97,7 @@ const result = context.syncCdekStocks();
 assert.deepStrictEqual(requests.map((request) => request.model).sort(), ['100', '200']);
 assert.strictEqual(requests.length, 2, 'duplicate model must be fetched once');
 assert.ok(requests.every((request) => request.authorization === 'Basic dGVzdC1sb2dpbjp0ZXN0LWtleQ=='));
-assert.deepStrictEqual(written, [[5], [5], [5]], 'only normal CDEK stock must be summed and copied to duplicate models');
+assert.strictEqual(JSON.stringify(written), JSON.stringify([[5], [5], [5]]), 'only normal CDEK stock must be summed and copied to duplicate models');
 assert.strictEqual(result.rows, 3);
 assert.strictEqual(result.models, 2);
 console.log('PASS test_cdek_fulfillment_stock_sync');
