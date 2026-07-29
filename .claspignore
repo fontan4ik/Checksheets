@@ -7,4 +7,5 @@ ozon_fbs_warehouse_api.js
 sync-etm-stocks.js
 sync-feron-stocks.js
 sync-cdek-stocks.js
+sync-cdek-ozon-stocks.js
 zero-etm-stocks.js
