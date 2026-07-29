@@ -184,9 +184,11 @@ async function loadStocks(articles, headers) {
   }
 
   const missing = articles.filter((article) => !stockByArticle.has(article));
-  if (missing.length) {
-    throw new Error(`CDEK не нашёл ${missing.length} артикулов; пример: «${missing[0]}»`);
-  }
+  for (const article of missing) stockByArticle.set(article, 0);
+  console.log(JSON.stringify({
+    cdekMatchedByExactArt: articles.length - missing.length,
+    cdekMissingByExactArt: missing.length,
+  }));
   return stockByArticle;
 }
 
