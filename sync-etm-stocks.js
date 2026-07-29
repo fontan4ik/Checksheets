@@ -11,9 +11,9 @@ const ETM_TR_WB_WAREHOUSE = 798761; // Updated to correct WB warehouse ID
 
 const ETM_TR_COLS = {
   ARTICUL: 1,
-  CHRLID: 17,
-  STOCK: 16, // Ozon stock column
-  WB_STOCK: 21, // Wildberries stock column U
+  CHRLID: 20,
+  STOCK: 19, // Ozon stock column
+  WB_STOCK: 22, // Wildberries stock column U
 };
 
 const MIN_STOCK_THRESHOLD = 0;
