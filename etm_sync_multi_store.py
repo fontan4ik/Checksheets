@@ -32,11 +32,17 @@ import gsheets_utils
 LOG_PATH = os.path.join(os.path.dirname(__file__), "logs", "etm_sync_multi.log")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 
-ETM_TR_ETM_CODE_COL = 21
+ETM_TR_SCHEMA = {
+    "etm_code": "Коды ЭТМ",
+    "stock_msk": "stocks msk",
+    "stock_smr": "stocks smr",
+}
 FERON_TR_SHEET_NAME = "FERON TR"
-FERON_TR_MATCH_COL = 2
-# X (24) is the dedicated ETM feeder column on FERON TR.
-FERON_TR_STOCK_ETM_COL = 24
+FERON_TR_SCHEMA = {
+    "model": "model",
+    "brand": "brand",
+    "stock_etm": "ЭТМ",
+}
 FERON_ETM_MAPPING_PATH = Path(__file__).resolve().parent / "СОПОСТАВЛЕННОЕ ЭТМ .xlsx"
 SHEETS_UPDATE_RETRIES = 5
 SHEETS_UPDATE_RETRY_DELAY = 2.0
@@ -301,12 +307,6 @@ def normalize_etm_code(value):
     raw = re.sub(r"^ETM", "", raw, flags=re.IGNORECASE)
     digits = re.sub(r"\D", "", raw)
     return digits
-
-
-def get_etm_tr_code(row):
-    if len(row) < ETM_TR_ETM_CODE_COL:
-        return ""
-    return normalize_etm_code(row[ETM_TR_ETM_CODE_COL - 1])
 
 
 def get_sheet_etm_code(row, column):
@@ -1105,7 +1105,7 @@ def update_sheet_range_with_retry(ws, range_name, values):
     raise last_exc
 
 
-def compute_sheet_values(all_data, msk_bundle, smr_bundle):
+def compute_sheet_values(all_data, etm_code_col, msk_bundle, smr_bundle):
     msk_results = []
     smr_results = []
     matched_msk = 0
@@ -1113,7 +1113,7 @@ def compute_sheet_values(all_data, msk_bundle, smr_bundle):
     missing_etm_codes = 0
 
     for row in all_data[1:]:
-        etm_code = get_etm_tr_code(row)
+        etm_code = get_sheet_etm_code(row, etm_code_col)
         if not etm_code:
             missing_etm_codes += 1
 
@@ -1159,14 +1159,14 @@ def compute_single_stock_column(all_data, etm_code_col, stock_lookup):
     }
 
 
-def compute_feron_mapping(all_data, mapping):
+def compute_feron_mapping(all_data, mapping, match_col):
     code_results = []
     stock_codes = []
     matched = 0
 
     for row in all_data[1:]:
         match_key = normalize_mapping_key(
-            row[FERON_TR_MATCH_COL - 1] if len(row) >= FERON_TR_MATCH_COL else ""
+            row[match_col - 1] if len(row) >= match_col else ""
         )
         etm_code = mapping.get(match_key, "")
         if etm_code:
@@ -1188,14 +1188,14 @@ def compute_stock_values_from_codes(etm_codes, stock_lookup):
     return {"results": results, "matched": matched}
 
 
-def compute_feron_stock_by_model_brand(all_data, stock_lookup):
+def compute_feron_stock_by_model_brand(all_data, stock_lookup, model_col, brand_col):
     results = []
     matched = 0
     missing_keys = 0
 
     for row in all_data[1:]:
-        model = normalize(row[1] if len(row) > 1 else "")
-        brand = normalize(row[2] if len(row) > 2 else "")
+        model = normalize(row[model_col - 1] if len(row) >= model_col else "")
+        brand = normalize(row[brand_col - 1] if len(row) >= brand_col else "")
         if not model or not brand:
             missing_keys += 1
         stock = stock_lookup.get((model, brand), 0)
@@ -1228,12 +1228,10 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
         force,
     )
     logging.info(
-        "ETM TR matching: sheet column T (%s) -> FTP columns A 'Код ЭТМ' and D 'Количество'",
-        ETM_TR_ETM_CODE_COL,
+        "ETM TR matching: header 'Коды ЭТМ' -> FTP columns A 'Код ЭТМ' and D 'Количество'",
     )
     logging.info(
-        "FERON TR ETM stock: warehouse 13, sheet columns B model + C brand -> FTP columns E article + F manufacturer; target column X (%s)",
-        FERON_TR_STOCK_ETM_COL,
+        "FERON TR ETM stock: warehouse 13, headers model + brand -> FTP columns E article + F manufacturer; target header 'ЭТМ'",
     )
     logging.info(
         "Warehouse mapping: %s => %s, %s => %s",
@@ -1288,19 +1286,26 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
     if not all_data:
         raise RuntimeError("ETM TR sheet is empty")
 
-    headers_row = [str(h).strip().lower() for h in all_data[0]]
-    col_stock_msk = headers_row.index(WAREHOUSE_DIRS["msk"]["header"]) + 1
-    col_stock_smr = headers_row.index(WAREHOUSE_DIRS["smr"]["header"]) + 1
+    etm_columns = gsheets_utils.resolve_header_columns(
+        all_data[0], ETM_TR_SCHEMA, "ETM TR"
+    )
+    col_stock_msk = etm_columns["stock_msk"]
+    col_stock_smr = etm_columns["stock_smr"]
 
-    computed = compute_sheet_values(all_data, msk_bundle, smr_bundle)
+    computed = compute_sheet_values(
+        all_data, etm_columns["etm_code"], msk_bundle, smr_bundle
+    )
 
     feron_ws = gsheets_utils.get_worksheet(FERON_TR_SHEET_NAME)
     feron_data = feron_ws.get_all_values()
     if not feron_data:
         raise RuntimeError(f"{FERON_TR_SHEET_NAME} sheet is empty")
+    feron_columns = gsheets_utils.resolve_header_columns(
+        feron_data[0], FERON_TR_SCHEMA, FERON_TR_SHEET_NAME
+    )
     feron_computed = compute_feron_stock_by_model_brand(
-        feron_data,
-        smr_bundle["model_brand_lookup"],
+        feron_data, smr_bundle["model_brand_lookup"],
+        feron_columns["model"], feron_columns["brand"],
     )
 
     logging.info(
@@ -1313,7 +1318,7 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
         computed["matched_smr"],
         len(computed["smr_results"]),
     )
-    logging.info("ETM TR rows without ETM code in T: %s", computed["missing_etm_codes"])
+    logging.info("ETM TR rows without 'Коды ЭТМ': %s", computed["missing_etm_codes"])
     logging.info(
         "MATCHED FERON TR WAREHOUSE 13 STOCKS BY MODEL+BRAND: %s / %s",
         feron_computed["matched"],
@@ -1352,8 +1357,8 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
         )
         update_sheet_range_with_retry(ws, smr_range, computed["smr_results"])
         feron_etm_range = (
-            f"{gspread.utils.rowcol_to_a1(2, FERON_TR_STOCK_ETM_COL)}:"
-            f"{gspread.utils.rowcol_to_a1(1 + len(feron_computed['results']), FERON_TR_STOCK_ETM_COL)}"
+            f"{gspread.utils.rowcol_to_a1(2, feron_columns['stock_etm'])}:"
+            f"{gspread.utils.rowcol_to_a1(1 + len(feron_computed['results']), feron_columns['stock_etm'])}"
         )
         update_sheet_range_with_retry(
             feron_ws,

@@ -21,6 +21,55 @@ TRANSIENT_ERROR_TEXT = (
 )
 
 
+def normalize_header(value):
+    """Normalize a Google Sheets header for stable schema matching."""
+    return str(value or "").strip().lower().replace("ё", "е")
+
+
+def resolve_header_columns(headers, schema, sheet_name="worksheet"):
+    """Resolve logical field names to one-and-only-one header columns.
+
+    ``schema`` maps internal field names to their visible sheet headers.  A
+    missing or duplicated header is an unsafe sheet layout, so this function
+    raises before any caller can clear or write data.
+    """
+    normalized_to_columns = {}
+    for column, header in enumerate(headers, start=1):
+        normalized = normalize_header(header)
+        if normalized:
+            normalized_to_columns.setdefault(normalized, []).append(column)
+
+    resolved = {}
+    for field_name, header_name in schema.items():
+        normalized = normalize_header(header_name)
+        columns = normalized_to_columns.get(normalized, [])
+        if not columns:
+            raise ValueError(
+                f"Sheet '{sheet_name}': header '{header_name}' for field "
+                f"'{field_name}' was not found"
+            )
+        if len(columns) != 1:
+            raise ValueError(
+                f"Sheet '{sheet_name}': header '{header_name}' for field "
+                f"'{field_name}' is duplicated in columns {columns}"
+            )
+        resolved[field_name] = columns[0]
+        print(
+            f"Sheet schema: {sheet_name} -> {field_name} -> "
+            f"'{header_name}' -> column {columns[0]}"
+        )
+    return resolved
+
+
+def get_header_columns(worksheet, schema, sheet_name=None):
+    """Read row 1 once and resolve a strict logical schema against it."""
+    return resolve_header_columns(
+        _row_values(worksheet, 1),
+        schema,
+        sheet_name or getattr(worksheet, "title", "worksheet"),
+    )
+
+
 def _is_transient_gsheet_error(exc):
     """Return True for Google Sheets/network failures worth retrying."""
     if isinstance(
@@ -97,15 +146,11 @@ def update_column_by_header(worksheet, header_name, values, start_row=2):
     if not values:
         return
 
-    headers = _row_values(worksheet, 1)
-    try:
-        col_index = headers.index(header_name) + 1
-    except ValueError:
-        # Fallback for ETM if AL is known
-        if header_name == "ЭТМ Стройкерамика":
-            col_index = 38
-        else:
-            raise ValueError(f"Header '{header_name}' not found in sheet")
+    col_index = resolve_header_columns(
+        _row_values(worksheet, 1),
+        {"target": header_name},
+        getattr(worksheet, "title", "worksheet"),
+    )["target"]
 
     range_label = f"{gspread.utils.rowcol_to_a1(start_row, col_index)}:{gspread.utils.rowcol_to_a1(start_row + len(values) - 1, col_index)}"
     _retry_gsheet_call(
@@ -118,16 +163,13 @@ def clear_column(worksheet, header_name, start_row=2):
     """
     Clears all data in a specific column starting from start_row.
     """
-    headers = _row_values(worksheet, 1)
-    try:
-        col_index = headers.index(header_name) + 1
-    except ValueError:
-        if header_name == "ЭТМ Стройкерамика":
-            col_index = 38
-        elif isinstance(header_name, int):
-            col_index = header_name
-        else:
-            return  # Header not found, nothing to clear
+    if isinstance(header_name, int):
+        raise ValueError("clear_column requires a header name, not a column number")
+    col_index = resolve_header_columns(
+        _row_values(worksheet, 1),
+        {"target": header_name},
+        getattr(worksheet, "title", "worksheet"),
+    )["target"]
 
     last_row = worksheet.row_count
     if last_row < start_row:

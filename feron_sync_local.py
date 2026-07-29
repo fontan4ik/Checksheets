@@ -17,13 +17,6 @@ FERON_WAREHOUSE_IDS = {
     "Екатеринбург": "9a521a77-6e27-11ef-96b6-a4bf0186f0c7",
 }
 
-FERON_TR_STOCK_COLUMNS = {
-    "Самара": 10,       # J - stocks SMR
-    "Внуково": 11,      # K - stocks MSK
-    "Новосибирск": 12,  # L - stocks NSB
-    "Екатеринбург": 13, # M - stocks EKB
-}
-
 FERON_TR_STOCK_HEADERS = {
     "Самара": "stocks SMR",
     "Внуково": "stocks MSK",
@@ -32,17 +25,20 @@ FERON_TR_STOCK_HEADERS = {
 }
 
 
-def validate_feron_tr_headers(headers):
-    """Validate the live FERON TR source columns before any sheet write."""
-    normalized_headers = [str(value).strip() for value in headers]
-    for wh_name, col_num in FERON_TR_STOCK_COLUMNS.items():
-        expected = FERON_TR_STOCK_HEADERS[wh_name]
-        actual = normalized_headers[col_num - 1] if len(normalized_headers) >= col_num else ""
-        if actual != expected:
-            raise RuntimeError(
-                f"FERON TR layout mismatch at column {col_num}: "
-                f"expected '{expected}', got '{actual}'"
-            )
+FERON_TR_SCHEMA = {
+    "model": "model",
+    "stock_samara": FERON_TR_STOCK_HEADERS["Самара"],
+    "stock_vnukovo": FERON_TR_STOCK_HEADERS["Внуково"],
+    "stock_novosibirsk": FERON_TR_STOCK_HEADERS["Новосибирск"],
+    "stock_ekaterinburg": FERON_TR_STOCK_HEADERS["Екатеринбург"],
+}
+
+FERON_STOCK_FIELD_BY_WAREHOUSE = {
+    "Самара": "stock_samara",
+    "Внуково": "stock_vnukovo",
+    "Новосибирск": "stock_novosibirsk",
+    "Екатеринбург": "stock_ekaterinburg",
+}
 
 
 class SourceAddressAdapter(HTTPAdapter):
@@ -295,54 +291,6 @@ def fetch_all_feron_data(api_key):
     
     return all_stocks
 
-def update_feron_stock_columns(ws, sheet_label, key_column, warehouse_ids, sheet_columns, all_feron_stocks):
-    """Update Feron stock columns in a Google Sheet by lookup key column."""
-    try:
-        vendor_codes_raw = ws.col_values(key_column)[1:]  # Skip row 1 (header)
-        print(f"Successfully loaded {len(vendor_codes_raw)} articles from column {key_column} in '{sheet_label}'")
-    except Exception as e:
-        print(f"ERROR: Could not read articles from Sheet '{sheet_label}': {e}")
-        return
-
-    for wh_name, wh_id in warehouse_ids.items():
-        col_num = sheet_columns.get(wh_name)
-        if not col_num:
-            continue
-
-        print(f"\nProcessing sheet '{sheet_label}' warehouse: {wh_name} (ID: {wh_id})")
-
-        formatted_results = []
-        stats = {"matched": 0, "not_found": 0, "non_zero": 0}
-
-        for code in vendor_codes_raw:
-            code_str = str(code).strip()
-            if not code_str:
-                formatted_results.append([0])
-                continue
-
-            stocks_for_code = all_feron_stocks.get(code_str)
-            if stocks_for_code is not None:
-                stats["matched"] += 1
-                qty = stocks_for_code.get(wh_id, 0)
-                formatted_results.append([qty])
-                if qty > 0:
-                    stats["non_zero"] += 1
-            else:
-                stats["not_found"] += 1
-                formatted_results.append([0])
-
-        print(f"  - Match Rate: {stats['matched']}/{len(vendor_codes_raw)} articles found in API")
-        print(f"  - Inventory: {stats['non_zero']} articles have stock > 0")
-
-        try:
-            print(f"  - Updating Google Sheet '{sheet_label}' column {col_num} ({wh_name})...")
-            gsheets_utils.clear_column(ws, col_num)
-            gsheets_utils.update_column(ws, col_num, formatted_results)
-            print(f"  - OK: Sheet '{sheet_label}' warehouse {wh_name} updated successfully.")
-        except Exception as e:
-            print(f"  - ERROR: Failed to update '{sheet_label}' {wh_name}: {e}")
-
-
 def sync_feron():
     """
     Main entry point for Feron stock synchronization.
@@ -380,29 +328,8 @@ def sync_feron():
         )
         return
 
-    main_sheet_name = getattr(config, 'FERON_SHEET_NAME', None)
-    if main_sheet_name:
-        try:
-            print(f"\nAccessing Google Sheet: '{main_sheet_name}'...")
-            main_ws = gsheets_utils.get_worksheet(main_sheet_name)
-            update_feron_stock_columns(
-                ws=main_ws,
-                sheet_label=main_sheet_name,
-                key_column=2,  # B - МОДЕЛЬ
-                warehouse_ids=warehouse_ids,
-                sheet_columns={
-                    "Самара": 35,       # AI - Ферон Самара
-                    "Внуково": 36,      # AJ - Ферон Внуково
-                    "Новосибирск": 37,  # AK - Ферон Новосибирск
-                },
-                all_feron_stocks=all_feron_stocks,
-            )
-        except Exception as e:
-            print(f"ERROR: Could not update main Feron sheet '{main_sheet_name}': {e}")
-    
-    sheet_columns = dict(FERON_TR_STOCK_COLUMNS)
-
-    # Phase 2: Update Google Sheet
+    # Phase 2: FERON TR is the only stock target.  The former ТЕСТ write was
+    # intentionally removed to prevent two independent stock sources.
     try:
         sheet_name = getattr(config, 'FERON_SHEET_NAME_FBS', 'FERON TR')
         print(f"\nAccessing Google Sheet: '{sheet_name}'...")
@@ -411,29 +338,23 @@ def sync_feron():
         print(f"ERROR: Could not access Google Sheet: {e}")
         return
 
-    # Do not write zeros to a shifted/misnamed column.  The EKB column was
-    # added by hand to FERON TR, so verify the live header row before writing.
     try:
-        validate_feron_tr_headers(ws.row_values(1))
-        print("FERON TR layout verified: J:M = stocks SMR/MSK/NSB/EKB")
+        columns = gsheets_utils.get_header_columns(ws, FERON_TR_SCHEMA, sheet_name)
     except Exception as e:
-        print(f"ERROR: FERON TR layout verification failed: {e}")
+        print(f"ERROR: FERON TR schema validation failed: {e}")
         return
 
-    # Get vendor codes from column B (Models/Articles)
     try:
-        # col_values(2) gets all non-empty values in column B
-        vendor_codes_raw = ws.col_values(2)[1:] # Skip row 1 (header)
-        print(f"Successfully loaded {len(vendor_codes_raw)} articles from column B")
+        vendor_codes_raw = ws.col_values(columns["model"])[1:]
+        print(f"Successfully loaded {len(vendor_codes_raw)} articles from header 'model'")
     except Exception as e:
         print(f"ERROR: Could not read articles from Sheet: {e}")
         return
 
     # Phase 3: Match and Upload for each warehouse
     for wh_name, wh_id in warehouse_ids.items():
-        col_num = sheet_columns.get(wh_name)
-        if not col_num:
-            continue
+        field_name = FERON_STOCK_FIELD_BY_WAREHOUSE[wh_name]
+        col_num = columns[field_name]
             
         print(f"\nProcessing warehouse: {wh_name} (ID: {wh_id})")
         
@@ -461,8 +382,8 @@ def sync_feron():
         print(f"  - Inventory: {stats['non_zero']} articles have stock > 0")
         
         try:
-            print(f"  - Updating Google Sheet column {col_num} ({wh_name})...")
-            gsheets_utils.clear_column(ws, col_num)
+            print(f"  - Updating Google Sheet header '{FERON_TR_SCHEMA[field_name]}' ({wh_name})...")
+            gsheets_utils.clear_column(ws, FERON_TR_SCHEMA[field_name])
             gsheets_utils.update_column(ws, col_num, formatted_results)
             print(f"  - OK: Warehouse {wh_name} updated successfully.")
         except Exception as e:

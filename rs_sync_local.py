@@ -298,16 +298,22 @@ def sync_rs():
         return
 
     # Найдем колонки
-    headers = ws.row_values(1)
     try:
-        col_model = headers.index("Модель") + 1
-        col_stock_api = headers.index("Остаток АПИ") + 1
+        columns = gsheets_utils.get_header_columns(
+            ws,
+            {
+                "model": "Модель",
+                "stock_api": "Остаток АПИ",
+                "purchase_price": "Цена закуп",
+            },
+            config.RS_SHEET_NAME,
+        )
     except ValueError as e:
-        print(f"Column not found: {e}")
+        print(f"Sheet schema error: {e}")
         return
 
-    models = ws.col_values(col_model)[1:]  # Пропускаем заголовок
-    print(f"Found {len(models)} models in column '{headers[col_model-1]}'")
+    models = ws.col_values(columns["model"])[1:]  # Пропускаем заголовок
+    print(f"Found {len(models)} models in header 'Модель'")
 
     # Покажем несколько первых моделей для понимания формата
     print(f"First 10 models: {models[:10]}")
@@ -430,17 +436,11 @@ def sync_rs():
         update_errors.append(f"stock column: {e}")
         print(f"Error updating stock column after retries: {e}")
 
-    # Обновляем цены в колонку J ("Цена закуп")
+    # Обновляем цены по заголовку "Цена закуп".
     try:
-        if "Цена закуп" in headers:
-            gsheets_utils.clear_column(ws, "Цена закуп")
-            gsheets_utils.update_column_by_header(ws, "Цена закуп", results_price)
-            print("Purchase prices updated successfully by header 'Цена закуп'!")
-        else:
-            print("Header 'Цена закуп' not found. Using column 10 (J) as fallback...")
-            gsheets_utils.clear_column(ws, 10)
-            gsheets_utils.update_column(ws, 10, results_price)
-            print("Purchase prices updated successfully in column J (10)!")
+        gsheets_utils.clear_column(ws, "Цена закуп")
+        gsheets_utils.update_column_by_header(ws, "Цена закуп", results_price)
+        print("Purchase prices updated successfully by header 'Цена закуп'!")
     except Exception as e:
         update_errors.append(f"price column: {e}")
         print(f"Error updating price column after retries: {e}")

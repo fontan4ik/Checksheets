@@ -13,8 +13,8 @@ import gsheets_utils
 
 MIC_PRICE_TYPE_NAME = "МИЦ Маркетплейсы"
 TARGET_SHEET_NAME = "ТЕСТ"
-ARTICLE_COLUMN_INDEX = 2  # B
-TARGET_COLUMN_INDEX = 58  # BF
+ARTICLE_HEADER = "МОДЕЛЬ"
+TARGET_HEADER = "Миц ферон"
 PRICE_SCALE = 100
 
 
@@ -182,7 +182,12 @@ def sync_feron_mic():
         raise RuntimeError("FERON_API_KEY is not configured")
 
     worksheet = gsheets_utils.get_worksheet(TARGET_SHEET_NAME)
-    article_values = worksheet.col_values(ARTICLE_COLUMN_INDEX)[1:]
+    columns = gsheets_utils.get_header_columns(
+        worksheet,
+        {"article": ARTICLE_HEADER, "mic_price": TARGET_HEADER},
+        TARGET_SHEET_NAME,
+    )
+    article_values = worksheet.col_values(columns["article"])[1:]
     normalized_articles = [str(value).strip() for value in article_values]
     articles = sorted({article for article in normalized_articles if article})
 
@@ -203,10 +208,10 @@ def sync_feron_mic():
     print(f"Fetched MIC prices for {len(mic_prices)} articles")
 
     values = [[mic_prices.get(article, "")] for article in normalized_articles]
-    gsheets_utils.update_column(worksheet, TARGET_COLUMN_INDEX, values, start_row=2)
+    gsheets_utils.update_column_by_header(worksheet, TARGET_HEADER, values, start_row=2)
 
     filled = sum(1 for value in values if value[0] != "")
-    print(f"Updated sheet '{TARGET_SHEET_NAME}' column BF with {filled} MIC values")
+    print(f"Updated sheet '{TARGET_SHEET_NAME}' header '{TARGET_HEADER}' with {filled} MIC values")
 
 
 if __name__ == "__main__":

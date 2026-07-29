@@ -77,6 +77,14 @@ class GSheetsRetryTests(unittest.TestCase):
 
         self.assertEqual(calls["count"], 1)
 
+    def test_duplicate_header_is_rejected_before_write(self):
+        with self.assertRaisesRegex(ValueError, "duplicated"):
+            gsheets_utils.resolve_header_columns(
+                ["Артикул", "Остаток АПИ", "остаток апи"],
+                {"stock": "Остаток АПИ"},
+                "test",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

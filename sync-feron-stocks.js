@@ -21,15 +21,14 @@ const FERON_TR_WB_WAREHOUSE = {
   EKB: 1860503,
 };
 
-const FERON_TR_COLS = {
-  VENDOR_CODE: 1,
-  OZON_SKU: 5,
-  // Special marketplace stock columns: S=MSK, T=SMR, U=NSB, V=EKB.
-  STOCK_MSK: 19,
-  STOCK_SMR: 20,
-  STOCK_NSB: 21,
-  STOCK_EKB: 22,
-  CHRT_ID: 23,
+const FERON_TR_SCHEMA = {
+  vendor_code: "art",
+  ozon_sku: "SKU OZON",
+  marketplace_stock_msk: "MSK",
+  marketplace_stock_smr: "SMR",
+  marketplace_stock_nsb: "NSB",
+  marketplace_stock_ekb: "EKB",
+  chrt_id: "chrlid",
 };
 
 const MIN_STOCK_THRESHOLD = 0;
@@ -93,24 +92,37 @@ async function readFeronStocksFromSheet(auth) {
     valueRenderOption: "UNFORMATTED_VALUE",
   });
 
-  const headers = (headersResp.data.values?.[0] || []).map((h) =>
-    String(h).trim().toLowerCase(),
-  );
+  const normalizeHeader = (value) => String(value || "")
+    .trim().toLowerCase().replaceAll("ё", "е");
+  const headers = headersResp.data.values?.[0] || [];
+  const headerColumns = new Map();
+  headers.forEach((header, index) => {
+    const normalized = normalizeHeader(header);
+    if (!normalized) return;
+    const columns = headerColumns.get(normalized) || [];
+    columns.push(index + 1);
+    headerColumns.set(normalized, columns);
+  });
+  const columns = {};
+  for (const [field, header] of Object.entries(FERON_TR_SCHEMA)) {
+    const matches = headerColumns.get(normalizeHeader(header)) || [];
+    if (matches.length === 0) {
+      throw new Error(`Лист ${SHEET_NAME}: заголовок '${header}' (${field}) не найден`);
+    }
+    if (matches.length !== 1) {
+      throw new Error(`Лист ${SHEET_NAME}: заголовок '${header}' (${field}) повторяется в колонках ${matches.join(", ")}`);
+    }
+    columns[field] = matches[0];
+    log(`🔍 Схема: ${field} → '${header}' → колонка ${matches[0]}`);
+  }
 
-  const findCol = (name, fallback) => {
-    const idx = headers.indexOf(name.toLowerCase());
-    return idx >= 0 ? idx + 1 : fallback;
-  };
-
-  const colVendor = findCol("артикул", FERON_TR_COLS.VENDOR_CODE);
-  const colOzonSku = findCol("sku ozon", FERON_TR_COLS.OZON_SKU);
-  // Read special marketplace columns from FERON TR: S=MSK, T=SMR, U=NSB, V=EKB.
-  const colStockMsk = FERON_TR_COLS.STOCK_MSK;
-  const colStockSmr = FERON_TR_COLS.STOCK_SMR;
-  const colStockNsb = FERON_TR_COLS.STOCK_NSB;
-  const colStockEkb = FERON_TR_COLS.STOCK_EKB;
-  const colChrtId =
-    findCol("chrtid", findCol("chrlid", FERON_TR_COLS.CHRT_ID));
+  const colVendor = columns.vendor_code;
+  const colOzonSku = columns.ozon_sku;
+  const colStockMsk = columns.marketplace_stock_msk;
+  const colStockSmr = columns.marketplace_stock_smr;
+  const colStockNsb = columns.marketplace_stock_nsb;
+  const colStockEkb = columns.marketplace_stock_ekb;
+  const colChrtId = columns.chrt_id;
 
   log(
     `🔍 Колонки: offer_id=${colVendor}, sku_ozon=${colOzonSku}, MSK=${colStockMsk}, SMR=${colStockSmr}, NSB=${colStockNsb}, EKB=${colStockEkb}, chrtId=${colChrtId}`,
