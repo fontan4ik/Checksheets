@@ -110,7 +110,8 @@ async function fetchJson(url, headers) {
 }
 
 function normalStock(items) {
-  if (!Array.isArray(items)) throw new Error("В карточке CDEK отсутствует items");
+  if (items === null) return 0;
+  if (!Array.isArray(items)) throw new Error("В карточке CDEK поле items имеет неизвестный формат");
   return items.reduce((sum, item) => {
     if (!INCLUDED_STATES.has(normalizedHeader(item?.state))) return sum;
     const count = Number(item.count);
@@ -174,8 +175,8 @@ async function loadStocks(articles, headers) {
     );
     const article = text(offer?.article);
     if (required.has(article)) {
-      if (!Array.isArray(offer?.items)) {
-        throw new Error(`Карточка CDEK ${offerId} для art «${article}» не содержит items`);
+      if (!Object.prototype.hasOwnProperty.call(offer || {}, "items")) {
+        throw new Error(`Карточка CDEK ${offerId} для art «${article}» не содержит поля items`);
       }
       stockByArticle.set(article, (stockByArticle.get(article) || 0) + normalStock(offer.items));
     }
