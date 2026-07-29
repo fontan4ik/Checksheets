@@ -67,13 +67,13 @@ function resolveColumns(headers) {
   return result;
 }
 
-function collectUniqueModels(rows, modelColumn) {
+function collectUniqueArticles(rows, articleColumn) {
   const unique = new Set();
   for (const row of rows) {
-    const model = text(row[modelColumn - 1]);
-    if (model) unique.add(model);
+    const article = text(row[articleColumn - 1]);
+    if (article) unique.add(article);
   }
-  if (!unique.size) throw new Error("В колонке model нет значений для CDEK-запроса");
+  if (!unique.size) throw new Error("В колонке art нет значений для CDEK-запроса");
   return [...unique];
 }
 
@@ -130,45 +130,63 @@ function safeNextUrl(nextHref) {
   return next;
 }
 
-async function stockForModel(model, headers) {
-  const params = new URLSearchParams();
-  params.set("filter[0][type]", "eq");
-  params.set("filter[0][field]", "article");
-  params.set("filter[0][value]", model);
-
-  let url = `${CDEK_BASE_URL}/products/offer?${params.toString()}`;
-  let matched = 0;
-  let total = 0;
+async function listOfferRefs(headers) {
+  const refs = [];
+  const seen = new Set();
+  let url = `${CDEK_BASE_URL}/products/offer`;
   let pages = 0;
 
   while (url) {
     const payload = await fetchJson(url, headers);
     const offers = payload?._embedded?.product_offer;
     if (!Array.isArray(offers)) {
-      throw new Error(`CDEK вернул неожиданную структуру списка для model «${model}»`);
+      throw new Error("CDEK вернул неожиданную структуру списка offers");
     }
     for (const offer of offers) {
-      if (text(offer.article) !== model) continue;
-      matched += 1;
-      total += normalStock(offer.items);
+      const shopId = offer?._embedded?.shop?.id ?? offer?.shop?.id;
+      const offerId = offer?.id;
+      if (!shopId || !offerId) {
+        throw new Error("В списке CDEK отсутствует shop_id или product_id");
+      }
+      const key = `${shopId}:${offerId}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        refs.push({ shopId, offerId });
+      }
     }
     url = safeNextUrl(payload?._links?.next?.href);
     pages += 1;
-    if (pages > 100) throw new Error(`CDEK pagination превысила 100 страниц для model «${model}»`);
+    if (pages > 100) throw new Error("CDEK pagination превысила 100 страниц");
   }
-
-  if (!matched) throw new Error(`CDEK не нашёл товар с article «${model}»`);
-  return total;
+  return refs;
 }
 
-async function loadStocks(models, headers) {
-  const stockByModel = new Map();
-  for (let index = 0; index < models.length; index += 1) {
-    const model = models[index];
-    stockByModel.set(model, await stockForModel(model, headers));
-    if (index + 1 < models.length) await sleep(REQUEST_DELAY_MS);
+async function loadStocks(articles, headers) {
+  const required = new Set(articles);
+  const stockByArticle = new Map();
+  const refs = await listOfferRefs(headers);
+
+  for (let index = 0; index < refs.length; index += 1) {
+    const { shopId, offerId } = refs[index];
+    const offer = await fetchJson(
+      `${CDEK_BASE_URL}/products/offer/${encodeURIComponent(shopId)}/${encodeURIComponent(offerId)}`,
+      headers,
+    );
+    const article = text(offer?.article);
+    if (required.has(article)) {
+      if (!Array.isArray(offer?.items)) {
+        throw new Error(`Карточка CDEK ${offerId} для art «${article}» не содержит items`);
+      }
+      stockByArticle.set(article, (stockByArticle.get(article) || 0) + normalStock(offer.items));
+    }
+    if (index + 1 < refs.length) await sleep(REQUEST_DELAY_MS);
   }
-  return stockByModel;
+
+  const missing = articles.filter((article) => !stockByArticle.has(article));
+  if (missing.length) {
+    throw new Error(`CDEK не нашёл ${missing.length} артикулов; пример: «${missing[0]}»`);
+  }
+  return stockByArticle;
 }
 
 async function createSheetsClient() {
@@ -189,14 +207,14 @@ async function readSheet(sheets) {
   return { headers: values[0], rows: values.slice(1) };
 }
 
-async function writeStocks(sheets, rows, columns, stockByModel) {
+async function writeStocks(sheets, rows, columns, stockByArticle) {
   const values = rows.map((row) => {
-    const model = text(row[columns.model - 1]);
-    if (!model) return [""];
-    if (!stockByModel.has(model)) {
-      throw new Error(`Нет CDEK-остатка для model «${model}»; запись отменена`);
+    const article = text(row[columns.art - 1]);
+    if (!article) return [""];
+    if (!stockByArticle.has(article)) {
+      throw new Error(`Нет CDEK-остатка для art «${article}»; запись отменена`);
     }
-    return [stockByModel.get(model)];
+    return [stockByArticle.get(article)];
   });
 
   const stockLetter = columnToLetter(columns.stocks);
@@ -215,14 +233,14 @@ async function main() {
   const sheets = await createSheetsClient();
   const { headers, rows } = await readSheet(sheets);
   const columns = resolveColumns(headers);
-  const models = collectUniqueModels(rows, columns.model);
-  const stocks = await loadStocks(models, cdekHeaders());
+  const articles = collectUniqueArticles(rows, columns.art);
+  const stocks = await loadStocks(articles, cdekHeaders());
   const result = await writeStocks(sheets, rows, columns, stocks);
   const nonZero = result.values.filter(([value]) => Number(value) > 0).length;
   console.log(JSON.stringify({
     status: "ok",
     rows: result.values.length,
-    uniqueModels: models.length,
+    uniqueArticles: articles.length,
     nonZero,
     range: result.range,
     durationSec: Math.round((Date.now() - startedAt) / 1000),
@@ -241,11 +259,12 @@ if (require.main === module) {
 }
 
 module.exports = {
-  collectUniqueModels,
+  collectUniqueArticles,
   columnToLetter,
+  listOfferRefs,
+  loadStocks,
   normalStock,
   resolveColumns,
   safeNextUrl,
-  stockForModel,
   writeStocks,
 };
