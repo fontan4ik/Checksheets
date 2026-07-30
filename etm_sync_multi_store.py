@@ -14,7 +14,7 @@ import sys
 import time
 import zipfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from ftplib import FTP, FTP_TLS, error_perm
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
@@ -911,16 +911,40 @@ def today_ftp_date():
     return datetime.now(timezone.utc).strftime("%Y%m%d")
 
 
+def yesterday_ftp_date():
+    return (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y%m%d")
+
+
 def filter_today_files(files: List[FtpFile]) -> List[FtpFile]:
     if not FTP_REQUIRE_TODAY:
         return files
 
     today = today_ftp_date()
     today_files = [item for item in files if ftp_modify_date(item.modified) == today]
-    skipped = len(files) - len(today_files)
+    if today_files:
+        return today_files
+
+    yesterday = yesterday_ftp_date()
+    yesterday_files = [
+        item for item in files if ftp_modify_date(item.modified) == yesterday
+    ]
+    if yesterday_files:
+        logging.warning(
+            "No FTP files dated %s; using %s yesterday fallback file(s)",
+            today,
+            len(yesterday_files),
+        )
+        return yesterday_files
+
+    skipped = len(files)
     if skipped:
-        logging.info("Skipped %s stale FTP files; waiting for files dated %s", skipped, today)
-    return today_files
+        logging.info(
+            "Skipped %s FTP files: no files dated %s or fallback date %s",
+            skipped,
+            today,
+            yesterday,
+        )
+    return []
 
 
 def file_fingerprint(ftp_file: FtpFile):
