@@ -52,6 +52,8 @@ FTP_PORT = int(os.getenv("ETM_FTP_PORT", getattr(config, "ETM_FTP_PORT", "21")))
 FTP_USER = os.getenv("ETM_FTP_USER", getattr(config, "ETM_FTP_USER", "u_energoservis"))
 FTP_PASSWORD = os.getenv("ETM_FTP_PASSWORD", getattr(config, "ETM_FTP_PASSWORD", ""))
 FTP_TIMEOUT = int(os.getenv("ETM_FTP_TIMEOUT", "60"))
+FTP_WAREHOUSE_RETRIES = int(os.getenv("ETM_FTP_WAREHOUSE_RETRIES", "3"))
+FTP_WAREHOUSE_RETRY_DELAY = float(os.getenv("ETM_FTP_WAREHOUSE_RETRY_DELAY", "2"))
 FTP_TLS_MODE = os.getenv("ETM_FTP_TLS", getattr(config, "ETM_FTP_TLS", "disable")).strip().lower()
 FTP_LOCAL_ROOT = Path(
     os.getenv(
@@ -1101,6 +1103,54 @@ def fetch_warehouse_stock_lookup(ftp, remote_dir, label, process_mode, state_key
     return lookup_bundle, selected_fingerprints, bool(selected_files)
 
 
+def close_ftp(ftp):
+    if ftp is None:
+        return
+    try:
+        ftp.quit()
+    except Exception:
+        try:
+            ftp.close()
+        except Exception:
+            pass
+
+
+def fetch_warehouse_stock_lookup_with_retry(
+    remote_dir, label, process_mode, state_key, state, force=False
+):
+    if FTP_WAREHOUSE_RETRIES < 1:
+        raise ValueError("ETM_FTP_WAREHOUSE_RETRIES must be at least 1")
+
+    last_exc = None
+    for attempt in range(1, FTP_WAREHOUSE_RETRIES + 1):
+        ftp = None
+        try:
+            ftp = connect_ftp()
+            return fetch_warehouse_stock_lookup(
+                ftp, remote_dir, label, process_mode, state_key, state, force
+            )
+        except (EOFError, OSError, socket.timeout) as exc:
+            last_exc = exc
+            if attempt >= FTP_WAREHOUSE_RETRIES:
+                break
+            delay = FTP_WAREHOUSE_RETRY_DELAY * attempt
+            logging.warning(
+                "%s FTP read failed on attempt %s/%s: %s. Reconnecting in %.1fs",
+                label,
+                attempt,
+                FTP_WAREHOUSE_RETRIES,
+                exc,
+                delay,
+            )
+            time.sleep(delay)
+        finally:
+            close_ftp(ftp)
+
+    if last_exc is None:
+        raise RuntimeError(f"{label} FTP read failed without a captured exception")
+    raise last_exc
+
+
 def update_sheet_range_with_retry(ws, range_name, values):
     last_exc = None
     for attempt in range(1, SHEETS_UPDATE_RETRIES + 1):
@@ -1266,31 +1316,22 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
     )
 
     state = load_ftp_state()
-    ftp = connect_ftp()
-    try:
-        smr_bundle, smr_files, smr_has_new_files = fetch_warehouse_stock_lookup(
-            ftp,
-            WAREHOUSE_DIRS["smr"]["remote_dir"],
-            WAREHOUSE_DIRS["smr"]["label"],
-            process_mode,
-            "smr",
-            state,
-            force,
-        )
-        msk_bundle, msk_files, msk_has_new_files = fetch_warehouse_stock_lookup(
-            ftp,
-            WAREHOUSE_DIRS["msk"]["remote_dir"],
-            WAREHOUSE_DIRS["msk"]["label"],
-            process_mode,
-            "msk",
-            state,
-            force,
-        )
-    finally:
-        try:
-            ftp.quit()
-        except Exception:
-            ftp.close()
+    smr_bundle, smr_files, smr_has_new_files = fetch_warehouse_stock_lookup_with_retry(
+        WAREHOUSE_DIRS["smr"]["remote_dir"],
+        WAREHOUSE_DIRS["smr"]["label"],
+        process_mode,
+        "smr",
+        state,
+        force,
+    )
+    msk_bundle, msk_files, msk_has_new_files = fetch_warehouse_stock_lookup_with_retry(
+        WAREHOUSE_DIRS["msk"]["remote_dir"],
+        WAREHOUSE_DIRS["msk"]["label"],
+        process_mode,
+        "msk",
+        state,
+        force,
+    )
 
     if not smr_has_new_files and not msk_has_new_files:
         logging.info("No new ETM FTP files to process; Google Sheets values were not written")

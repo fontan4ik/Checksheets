@@ -1,5 +1,4 @@
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 
@@ -43,36 +42,50 @@ class EtmFtpFallbackTests(unittest.TestCase):
 
         self.assertEqual([item.remote_path for item in selected], ["/from_etm/13/today.csv"])
 
-    def test_retries_transient_ftp_download_eof(self):
-        class FlakyFTP:
-            def __init__(self):
-                self.calls = 0
+    def test_retries_warehouse_fetch_with_fresh_ftp_connection_after_eof(self):
+        class FakeFTP:
+            def __init__(self, number):
+                self.number = number
+                self.closed = False
 
-            def retrbinary(self, _command, callback):
-                self.calls += 1
-                if self.calls == 1:
-                    raise EOFError("transient data connection drop")
-                callback(b"payload")
+            def quit(self):
+                self.closed = True
 
-        original_root = etm.FTP_LOCAL_ROOT
+            def close(self):
+                self.closed = True
+
+        original_connect = etm.connect_ftp
+        original_fetch = etm.fetch_warehouse_stock_lookup
         original_sleep = etm.time.sleep
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            try:
-                etm.FTP_LOCAL_ROOT = Path(tmp_dir)
-                etm.time.sleep = lambda _seconds: None
-                ftp = FlakyFTP()
+        connections = []
+        calls = []
+        try:
+            def fake_connect():
+                connection = FakeFTP(len(connections) + 1)
+                connections.append(connection)
+                return connection
 
-                content = etm.download_ftp_file(ftp, "/from_etm/13/price.csv")
+            def fake_fetch(ftp, *_args, **_kwargs):
+                calls.append(ftp.number)
+                if ftp.number == 1:
+                    raise EOFError("transient control connection drop")
+                return ({"records": 1}, [{"remote_path": "price.csv"}], True)
 
-                self.assertEqual(content, b"payload")
-                self.assertEqual(ftp.calls, 2)
-                self.assertEqual(
-                    (Path(tmp_dir) / "from_etm/13/price.csv").read_bytes(),
-                    b"payload",
-                )
-            finally:
-                etm.FTP_LOCAL_ROOT = original_root
-                etm.time.sleep = original_sleep
+            etm.connect_ftp = fake_connect
+            etm.fetch_warehouse_stock_lookup = fake_fetch
+            etm.time.sleep = lambda _seconds: None
+
+            result = etm.fetch_warehouse_stock_lookup_with_retry(
+                "/from_etm/13", "Samara", "latest", "smr", {}, force=True
+            )
+
+            self.assertEqual(result[0]["records"], 1)
+            self.assertEqual(calls, [1, 2])
+            self.assertTrue(all(connection.closed for connection in connections))
+        finally:
+            etm.connect_ftp = original_connect
+            etm.fetch_warehouse_stock_lookup = original_fetch
+            etm.time.sleep = original_sleep
 
 
 if __name__ == "__main__":
