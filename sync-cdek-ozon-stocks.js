@@ -70,7 +70,7 @@ function resolveColumns(headers) {
   });
 
   const columns = {};
-  for (const name of ["art", "stocks"]) {
+  for (const name of ["art", "tr"]) {
     const matches = byName.get(name) || [];
     if (matches.length !== 1) {
       throw new Error(`В листе «${SHEET_NAME}» заголовок «${name}» должен быть ровно один; найдено: ${matches.length}`);
@@ -105,7 +105,7 @@ async function readCdekStocks(sheets) {
     if (byOfferId.has(offerId)) {
       throw new Error(`Повторяющийся art «${offerId}» в листе «${SHEET_NAME}»`);
     }
-    byOfferId.set(offerId, numberStock(row[columns.stocks - 1]));
+    byOfferId.set(offerId, numberStock(row[columns.tr - 1]));
   }
   if (!byOfferId.size) throw new Error(`В листе «${SHEET_NAME}» нет art для выгрузки`);
 
