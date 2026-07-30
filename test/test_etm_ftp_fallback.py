@@ -1,4 +1,5 @@
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -41,6 +42,37 @@ class EtmFtpFallbackTests(unittest.TestCase):
         selected = etm.filter_today_files(files)
 
         self.assertEqual([item.remote_path for item in selected], ["/from_etm/13/today.csv"])
+
+    def test_retries_transient_ftp_download_eof(self):
+        class FlakyFTP:
+            def __init__(self):
+                self.calls = 0
+
+            def retrbinary(self, _command, callback):
+                self.calls += 1
+                if self.calls == 1:
+                    raise EOFError("transient data connection drop")
+                callback(b"payload")
+
+        original_root = etm.FTP_LOCAL_ROOT
+        original_sleep = etm.time.sleep
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            try:
+                etm.FTP_LOCAL_ROOT = Path(tmp_dir)
+                etm.time.sleep = lambda _seconds: None
+                ftp = FlakyFTP()
+
+                content = etm.download_ftp_file(ftp, "/from_etm/13/price.csv")
+
+                self.assertEqual(content, b"payload")
+                self.assertEqual(ftp.calls, 2)
+                self.assertEqual(
+                    (Path(tmp_dir) / "from_etm/13/price.csv").read_bytes(),
+                    b"payload",
+                )
+            finally:
+                etm.FTP_LOCAL_ROOT = original_root
+                etm.time.sleep = original_sleep
 
 
 if __name__ == "__main__":
