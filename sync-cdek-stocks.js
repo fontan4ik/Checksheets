@@ -12,7 +12,10 @@
 
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
+const axios = require("axios");
 const { google } = require("googleapis");
+const https = require("https");
+const os = require("os");
 
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const SHEET_NAME = "СДЕК TR";
@@ -90,28 +93,56 @@ function cdekHeaders() {
   };
 }
 
-async function fetchJson(url, headers) {
+function getCdekBypassInterface(
+  networkInterfaces = os.networkInterfaces(),
+  preferred = text(process.env.CHECKSHEETS_BYPASS_INTERFACE),
+) {
+  const candidates = [...new Set([preferred, "en1", "en0"].filter(Boolean))];
+  for (const interfaceName of candidates) {
+    const address = (networkInterfaces[interfaceName] || []).find((entry) =>
+      (entry.family === "IPv4" || entry.family === 4) && !entry.internal && entry.address,
+    );
+    if (address) return { interfaceName, sourceIp: address.address };
+  }
+  throw new Error(
+    "Не найден активный LAN/Wi-Fi-интерфейс для обхода CDEK. " +
+    "Укажите CHECKSHEETS_BYPASS_INTERFACE, если используется другой интерфейс.",
+  );
+}
+
+function createCdekHttpClient(networkInterfaces = os.networkInterfaces()) {
+  const { interfaceName, sourceIp } = getCdekBypassInterface(networkInterfaces);
+  const httpsAgent = new https.Agent({ keepAlive: true, localAddress: sourceIp });
+  console.log(`CDEK bypass interface: ${interfaceName} (${sourceIp})`);
+  return { httpClient: axios, httpsAgent };
+}
+
+async function fetchJson(url, headers, httpClient = axios, httpsAgent) {
   let lastStatus = null;
   let lastContentType = null;
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30000);
     try {
-      const response = await fetch(url, { headers, signal: controller.signal });
-      lastStatus = response.status;
-      lastContentType = response.headers.get("content-type");
-      if (response.ok) {
-        try {
-          return await response.json();
-        } catch {
+      const response = await httpClient.get(url, {
+        headers,
+        httpsAgent,
+        timeout: 30000,
+        validateStatus: () => true,
+      });
+      lastStatus = response.status || 0;
+      lastContentType = response.headers?.["content-type"] || null;
+      if (lastStatus >= 200 && lastStatus < 300) {
+        if (!response.data || typeof response.data !== "object") {
           throw new Error(`CDEK API вернул некорректный JSON для ${new URL(url).pathname}`);
         }
+        return response.data;
       }
-      if (response.status !== 429 && response.status < 500) {
-        throw new Error(`CDEK API вернул HTTP ${response.status}`);
+      if (lastStatus !== 429 && lastStatus < 500) {
+        throw new Error(`CDEK API вернул HTTP ${lastStatus}`);
       }
-    } finally {
-      clearTimeout(timer);
+    } catch (error) {
+      if (String(error?.message || "").startsWith("CDEK API вернул")) throw error;
+      lastStatus = error.response?.status || lastStatus || 0;
+      lastContentType = error.response?.headers?.["content-type"] || lastContentType;
     }
     if (attempt < MAX_RETRIES) await sleep(1000 * attempt);
   }
@@ -143,7 +174,7 @@ function safeNextUrl(nextHref) {
   return next;
 }
 
-async function loadStocks(models, headers) {
+async function loadStocks(models, headers, httpClient = axios, httpsAgent) {
   const stockByModel = new Map();
   let matched = 0;
 
@@ -155,7 +186,7 @@ async function loadStocks(models, headers) {
     let found = false;
 
     while (url) {
-      const payload = await fetchJson(url, headers);
+      const payload = await fetchJson(url, headers, httpClient, httpsAgent);
       const offers = payload?._embedded?.product_offer;
       if (!Array.isArray(offers)) {
         throw new Error(`CDEK вернул неожиданную структуру списка для model «${model}»`);
@@ -229,7 +260,13 @@ async function main() {
   const { headers, rows } = await readSheet(sheets);
   const columns = resolveColumns(headers);
   const models = collectUniqueModels(rows, columns.model);
-  const stocks = await loadStocks(models, cdekHeaders());
+  const { httpClient, httpsAgent } = createCdekHttpClient();
+  let stocks;
+  try {
+    stocks = await loadStocks(models, cdekHeaders(), httpClient, httpsAgent);
+  } finally {
+    httpsAgent.destroy();
+  }
   if (process.argv.includes("--dry-run")) {
     console.log(JSON.stringify({
       status: "dry-run",
@@ -265,7 +302,9 @@ if (require.main === module) {
 module.exports = {
   collectUniqueModels,
   columnToLetter,
+  createCdekHttpClient,
   fetchJson,
+  getCdekBypassInterface,
   loadStocks,
   normalStock,
   resolveColumns,

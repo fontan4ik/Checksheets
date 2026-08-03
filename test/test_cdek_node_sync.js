@@ -4,9 +4,8 @@ const cdek = require("../sync-cdek-stocks");
 const ozon = require("../sync-cdek-ozon-stocks");
 
 async function testCdekStockCalculation() {
-  const originalFetch = global.fetch;
   const calls = [];
-  global.fetch = async (url) => {
+  const httpClient = { get: async (url) => {
     const model = new URL(url).searchParams.get("filter[0][value]");
     calls.push(model);
     const product_offer = model === "100"
@@ -15,19 +14,22 @@ async function testCdekStockCalculation() {
         { article: "other", items: [{ state: "normal", count: 100 }] },
       ]
       : [];
-    return new Response(JSON.stringify({ _embedded: { product_offer }, _links: {} }), {
+    return {
       status: 200,
       headers: { "content-type": "application/json" },
-    });
-  };
-  try {
-    const stocks = await cdek.loadStocks(["100", "200"], { Accept: "application/json" });
-    assert.deepStrictEqual(calls, ["100", "200"]);
-    assert.strictEqual(stocks.get("100"), 5);
-    assert.strictEqual(stocks.get("200"), 0);
-  } finally {
-    global.fetch = originalFetch;
-  }
+      data: { _embedded: { product_offer }, _links: {} },
+    };
+  }};
+  const stocks = await cdek.loadStocks(["100", "200"], { Accept: "application/json" }, httpClient);
+  assert.deepStrictEqual(calls, ["100", "200"]);
+  assert.strictEqual(stocks.get("100"), 5);
+  assert.strictEqual(stocks.get("200"), 0);
+}
+
+function testCdekBypassInterface() {
+  assert.deepStrictEqual(cdek.getCdekBypassInterface({
+    en0: [{ family: "IPv4", internal: false, address: "192.168.1.5" }],
+  }, ""), { interfaceName: "en0", sourceIp: "192.168.1.5" });
 }
 
 async function testOzonUploadAndVerification() {
@@ -79,6 +81,7 @@ async function testOzonRetry() {
 
 (async () => {
   await testCdekStockCalculation();
+  testCdekBypassInterface();
   await testOzonUploadAndVerification();
   await testSheetInputValidation();
   await testOzonRetry();
