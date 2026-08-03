@@ -4,25 +4,27 @@
 /**
  * Read-only Ozon Local Sales client.
  *
- * The endpoint is an internal Seller web-gateway route, so this script does
- * not copy cookies or API keys. It connects to the already authenticated
- * local Chrome instance over CDP and performs fetch() inside the Ozon page.
+ * The endpoint is an internal Seller web-gateway route. This script does not
+ * copy cookies or API keys: it connects to the already authenticated local
+ * Chrome instance over CDP and executes fetch() inside the Ozon page.
  *
  * Usage:
- *   node test/ozon-local-sales-api.js \
- *     --from 2026-07-04 --to 2026-08-02
+ *   node test/ozon-local-sales-api.js --from 2026-07-04 --to 2026-08-02
+ *   node test/ozon-local-sales-api.js --from 2026-07-04 --to 2026-08-02 --items
  *
  * Requirements:
  *   - Chrome must be running with remote debugging on 127.0.0.1:9227.
  *   - An authenticated seller.ozon.ru page must be open in that profile.
  *
- * This version intentionally has no Google Sheets write path. It is a
- * read-only probe until the per-SKU mapping and write policy are approved.
+ * The script is read-only. Google Sheets writes are deliberately not enabled
+ * until the per-SKU reconciliation policy is approved.
  */
 
 const DEFAULT_CDP_URL = process.env.OZON_CDP_URL || 'http://127.0.0.1:9227';
 const COMPANY_ID = process.env.OZON_COMPANY_ID || '142355';
-const ENDPOINT = '/api/logistic/v1/statistic';
+const STATISTIC_ENDPOINT = '/api/logistic/v1/statistic';
+const ITEMS_ENDPOINT = '/api/logistic/v1/items/table';
+const ITEMS_PAGE_SIZE = 28; // frontend default (T.UN)
 
 function parseArgs(argv) {
   const args = {};
@@ -54,7 +56,7 @@ function parseDate(value, flag) {
 
 function usage() {
   console.error(
-    'Usage: node test/ozon-local-sales-api.js --from YYYY-MM-DD --to YYYY-MM-DD [--cdp-url URL]'
+    'Usage: node test/ozon-local-sales-api.js --from YYYY-MM-DD --to YYYY-MM-DD [--items] [--cdp-url URL]'
   );
 }
 
@@ -108,48 +110,78 @@ async function findOzonPage(cdpUrl) {
       target.webSocketDebuggerUrl
   );
   if (!page) {
-    throw new Error('No authenticated seller.ozon.ru page found in the local CDP browser');
+    throw new Error('No seller.ozon.ru page found in the local CDP browser');
   }
   return page;
 }
 
-async function fetchStatistic(page, period) {
-  const cdp = new CdpClient(page.webSocketDebuggerUrl);
-  try {
-    const expression = `
-      (async () => {
-        const response = await fetch(${JSON.stringify(ENDPOINT)}, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'content-type': 'application/json',
-            'x-o3-company-id': ${JSON.stringify(COMPANY_ID)},
-            'x-o3-app-name': 'seller-ui',
-            'x-o3-language': 'ru'
-          },
-          body: JSON.stringify(${JSON.stringify({
-            period,
-            flags: { skuFlag: { count: 3, withTopOverpaymentSku: true } }
-          })})
-        });
-        const text = await response.text();
-        let body = null;
-        try { body = JSON.parse(text); } catch (_) { body = { rawPrefix: text.slice(0, 300) }; }
-        return { status: response.status, body };
-      })()
-    `;
-    const result = await cdp.send('Runtime.evaluate', {
-      expression,
-      awaitPromise: true,
-      returnByValue: true
-    });
-    if (result.exceptionDetails) {
-      throw new Error(result.exceptionDetails.text || 'Browser evaluation failed');
-    }
-    return result.result.value;
-  } finally {
-    cdp.close();
+async function fetchInPage(cdp, endpoint, body) {
+  const expression = `
+    (async () => {
+      const response = await fetch(${JSON.stringify(endpoint)}, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'content-type': 'application/json',
+          'x-o3-company-id': ${JSON.stringify(COMPANY_ID)},
+          'x-o3-app-name': 'seller-ui',
+          'x-o3-language': 'ru'
+        },
+        body: JSON.stringify(${JSON.stringify(body)})
+      });
+      const text = await response.text();
+      let parsed = null;
+      try { parsed = JSON.parse(text); } catch (_) { parsed = { rawPrefix: text.slice(0, 300) }; }
+      return { status: response.status, body: parsed };
+    })()
+  `;
+  const result = await cdp.send('Runtime.evaluate', {
+    expression,
+    awaitPromise: true,
+    returnByValue: true
+  });
+  if (result.exceptionDetails) {
+    throw new Error(result.exceptionDetails.text || 'Browser evaluation failed');
   }
+  return result.result.value;
+}
+
+function makePeriod(from, to) {
+  return { from, to };
+}
+
+async function fetchAllItems(cdp, period) {
+  const items = [];
+  let offset = 0;
+  let total = null;
+  let firstPage = true;
+
+  while (total === null || offset < total) {
+    const response = await fetchInPage(cdp, ITEMS_ENDPOINT, {
+      filter: { period, supplyPeriod: 'PERIOD_UNKNOWN' },
+      limit: String(ITEMS_PAGE_SIZE),
+      offset: String(offset)
+    });
+    if (response.status !== 200 || !response.body) {
+      throw new Error(`Items endpoint HTTP ${response.status} at offset ${offset}`);
+    }
+    const pageItems = Array.isArray(response.body.items) ? response.body.items : [];
+    total = Number(response.body.total || 0);
+    items.push(...pageItems);
+    if (!pageItems.length || items.length >= total) break;
+    offset += pageItems.length;
+    if (firstPage) firstPage = false;
+  }
+
+  return { items, total };
+}
+
+function sumItemOverpayments(items) {
+  return Number(
+    items
+      .reduce((sum, item) => sum + Number(item?.metrics?.overpayment?.total || 0), 0)
+      .toFixed(2)
+  );
 }
 
 async function main() {
@@ -162,27 +194,50 @@ async function main() {
 
   const from = parseDate(args.from, '--from');
   const to = parseDate(args.to, '--to');
-  const period = { from, to };
+  const period = makePeriod(from, to);
   const cdpUrl = args['cdp-url'] || DEFAULT_CDP_URL;
   const page = await findOzonPage(cdpUrl);
-  const response = await fetchStatistic(page, period);
+  const cdp = new CdpClient(page.webSocketDebuggerUrl);
 
-  const output = {
-    endpoint: ENDPOINT,
-    page: page.url,
-    period,
-    http_status: response.status,
-    local_data: response.body && response.body.localData,
-    overpayment: response.body && response.body.overpayment,
-    overpayment_reasons: response.body && response.body.overpaymentReasons,
-    top_sku: response.body && response.body.overpaymentSku,
-    calculation_days: response.body && response.body.calculationDays,
-    grace: response.body && response.body.grace
-  };
-  console.log(JSON.stringify(output, null, 2));
+  try {
+    const statistic = await fetchInPage(cdp, STATISTIC_ENDPOINT, {
+      period,
+      flags: { skuFlag: { count: 3, withTopOverpaymentSku: true } }
+    });
+    const output = {
+      endpoint: STATISTIC_ENDPOINT,
+      page: page.url,
+      period,
+      http_status: statistic.status,
+      local_data: statistic.body && statistic.body.localData,
+      overpayment: statistic.body && statistic.body.overpayment,
+      overpayment_reasons: statistic.body && statistic.body.overpaymentReasons,
+      top_sku: statistic.body && statistic.body.overpaymentSku,
+      calculation_days: statistic.body && statistic.body.calculationDays,
+      grace: statistic.body && statistic.body.grace
+    };
 
-  if (response.status !== 200 || !response.body || !response.body.overpayment) {
-    process.exitCode = 1;
+    if (args.items) {
+      const allItems = await fetchAllItems(cdp, period);
+      output.items_endpoint = ITEMS_ENDPOINT;
+      output.items_total = allItems.total;
+      output.items_fetched = allItems.items.length;
+      output.items_overpayment_sum = sumItemOverpayments(allItems.items);
+      output.items_sum_matches_statistic =
+        output.items_overpayment_sum === Number(output.overpayment?.total || NaN);
+    }
+
+    console.log(JSON.stringify(output, null, 2));
+    if (
+      statistic.status !== 200 ||
+      !statistic.body ||
+      !statistic.body.overpayment ||
+      (args.items && !output.items_sum_matches_statistic)
+    ) {
+      process.exitCode = 1;
+    }
+  } finally {
+    cdp.close();
   }
 }
 
