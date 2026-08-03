@@ -29,7 +29,7 @@ const OZON_NTC_YNX_UNIT_ART_COLUMN = 1; // A: art / ShopSku Яндекс
 const OZON_NTC_YNX_UNIT_STOCK_COLUMN = 25; // Y: НТЦ STOCK
 const OZON_NTC_YNX_OZON_ART_COLUMN = 1; // A: Артикул
 const OZON_NTC_YNX_OZON_SKU_COLUMN = 22; // V: SKU Ozon
-const OZON_NTC_YNX_OZON_WAREHOUSE_NAME = 'НТЦ';
+const OZON_NTC_YNX_OZON_WAREHOUSE_NAME = 'НТЦ СКЛАД';
 const OZON_NTC_YNX_OZON_WAREHOUSE_LIST_URL = 'https://api-seller.ozon.ru/v2/warehouse/list';
 const OZON_NTC_YNX_OZON_STOCKS_URL = 'https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs';
 const OZON_NTC_YNX_OZON_BATCH_SIZE = 500;
@@ -239,16 +239,12 @@ function findOzonNtcWarehouse_() {
   const data = JSON.parse(response.getContentText());
   const warehouses = Array.isArray(data.warehouses) ? data.warehouses : [];
   const targetName = OZON_NTC_YNX_OZON_WAREHOUSE_NAME.toLowerCase();
-  const exact = warehouses.filter(function(item) {
+  const matches = warehouses.filter(function(item) {
     return String(item.name || '').trim().toLowerCase() === targetName;
   });
-  const partial = warehouses.filter(function(item) {
-    return String(item.name || '').toLowerCase().indexOf(targetName) !== -1;
-  });
-  const matches = exact.length ? exact : partial;
 
   if (matches.length !== 1) {
-    throw new Error('Ozon: найдено складов с «' + OZON_NTC_YNX_OZON_WAREHOUSE_NAME + '»: ' + matches.length + '. Нельзя безопасно выбрать склад.');
+    throw new Error('Ozon: не найден ровно один склад «' + OZON_NTC_YNX_OZON_WAREHOUSE_NAME + '». Совпадений: ' + matches.length + '.');
   }
 
   return { id: String(matches[0].warehouse_id), name: String(matches[0].name || '') };
