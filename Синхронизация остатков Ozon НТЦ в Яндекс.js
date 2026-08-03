@@ -45,7 +45,7 @@ const OZON_NTC_YNX_YANDEX_BATCH_SIZE = 2000;
 /**
  * Главная функция. Не создаёт и не меняет триггеры.
  */
-function syncOzonNtcStocksToGoogleSheet_() {
+function syncOzonNtcStocksToYandex() {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) {
     throw new Error('Синхронизация уже выполняется: получен lock не был.');
@@ -91,42 +91,6 @@ function syncOzonNtcStocksToGoogleSheet_() {
     Logger.log('Ненулевых остатков в Google Sheets: ' + Object.keys(freshByOfferId).filter(function(offerId) {
       return freshByOfferId[offerId] > 0;
     }).length + '.');
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-/**
- * Временная совместимость для запуска одноразового отката через старое имя функции.
- */
-function syncOzonNtcStocksToYandex() {
-  return zeroOzonNtcYnxStocksInYandex();
-}
-
-/**
- * Одноразовый откат ранее отправленных остатков в Яндекс Маркет.
- * После выполнения эту функцию и Яндекс-блок можно удалить.
- */
-function zeroOzonNtcYnxStocksInYandex() {
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(5000)) throw new Error('Синхронизация уже выполняется.');
-
-  try {
-    const yandexApiKey = getOzonNtcYnxYandexApiKey_();
-    const spreadsheet = SpreadsheetApp.openById(OZON_NTC_YNX_SPREADSHEET_ID);
-    const unitSheet = getOzonNtcYnxSheet_(spreadsheet, OZON_NTC_YNX_UNIT_SHEET_NAME);
-    const ozonSheet = getOzonNtcYnxSheet_(spreadsheet, OZON_NTC_YNX_OZON_SHEET_NAME);
-    const unitData = readOzonNtcYnxUnitRows_(unitSheet);
-    const ozonSkuByArt = readOzonNtcYnxOzonSkuMap_(ozonSheet);
-    const apiRows = unitData.rows.filter(function(row) {
-      return row.offerId && ozonSkuByArt[row.offerId];
-    });
-    if (!apiRows.length) throw new Error('Не найдено SKU для обнуления в Яндекс.');
-
-    uploadOzonNtcYnxStocksToYandex_(apiRows.map(function(row) {
-      return { sku: row.offerId, count: 0 };
-    }), yandexApiKey);
-    Logger.log('✅ В Яндекс обнулено SKU: ' + apiRows.length + '.');
   } finally {
     lock.releaseLock();
   }
