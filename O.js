@@ -1931,7 +1931,7 @@ function writeOzonReport65FinanceColumns_(sheet, headerMap, rowItems, accrualMap
     const overpayment = Number(accrual.overpayment) || 0;
     const storage = getOzonReport65StorageValue_(storageMap, item);
 
-    if (accrual.unitSum || accrual.unitQty || accrual.reward || accrual.logistics || accrual.extra || accrual.starsAndAcquiring) matchedAccrual++;
+    if (accrual.unitSum || accrual.unitQty || accrual.reward || accrual.logistics || accrual.overpayment || accrual.extra || accrual.starsAndAcquiring) matchedAccrual++;
     const cpoPayment = cpoMap ? (Number(cpo.spend) || 0) : -((Number(accrual.unitSum) || 0) * commonCpoRate);
     const clicksPayment = -((Number(accrual.unitSum) || 0) * commonClicksRate);
     if (cpoPayment) matchedCpo++;
