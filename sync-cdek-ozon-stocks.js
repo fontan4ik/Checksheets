@@ -7,9 +7,10 @@
  *   OZON_API_KEY
  */
 
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
 const axios = require("axios");
 const { google } = require("googleapis");
-const path = require("path");
 
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const SHEET_NAME = "СДЕК TR";
@@ -117,19 +118,19 @@ function isRetryable(error) {
   return status === 429 || status >= 500 || !status;
 }
 
-async function postWithRetry(url, body, headers, retry = 0) {
+async function postWithRetry(url, body, headers, retry = 0, httpClient = axios) {
   try {
-    return await axios.post(url, body, { headers, timeout: 30000 });
+    return await httpClient.post(url, body, { headers, timeout: 30000 });
   } catch (error) {
     if (isRetryable(error) && retry < MAX_RETRIES) {
       await sleep(1000 * 2 ** retry);
-      return postWithRetry(url, body, headers, retry + 1);
+      return postWithRetry(url, body, headers, retry + 1, httpClient);
     }
     throw error;
   }
 }
 
-async function uploadBatch(batch, headers) {
+async function uploadBatch(batch, headers, httpClient = axios) {
   const response = await postWithRetry(
     `${OZON_API_URL}/v2/products/stocks`,
     {
@@ -140,6 +141,8 @@ async function uploadBatch(batch, headers) {
       })),
     },
     headers,
+    0,
+    httpClient,
   );
   const results = Array.isArray(response.data?.result) ? response.data.result : [];
   const errors = results.filter((result) => Array.isArray(result.errors) && result.errors.length > 0);
@@ -150,17 +153,17 @@ async function uploadBatch(batch, headers) {
   return results.filter((result) => result.updated).length;
 }
 
-async function uploadStocks(stocks, headers) {
+async function uploadStocks(stocks, headers, httpClient = axios) {
   let updated = 0;
   for (let start = 0; start < stocks.length; start += BATCH_SIZE) {
     const batch = stocks.slice(start, start + BATCH_SIZE);
-    updated += await uploadBatch(batch, headers);
+    updated += await uploadBatch(batch, headers, httpClient);
     if (start + BATCH_SIZE < stocks.length) await sleep(REQUEST_INTERVAL_MS);
   }
   return updated;
 }
 
-async function fetchOzonStocks(stocks, headers) {
+async function fetchOzonStocks(stocks, headers, httpClient = axios) {
   const result = new Map();
   for (let start = 0; start < stocks.length; start += BATCH_SIZE) {
     const batch = stocks.slice(start, start + BATCH_SIZE);
@@ -168,6 +171,8 @@ async function fetchOzonStocks(stocks, headers) {
       `${OZON_API_URL}/v2/product/info/stocks-by-warehouse/fbs`,
       { offer_id: batch.map((item) => item.offer_id), warehouse_id: WAREHOUSE_ID, limit: 1000 },
       headers,
+      0,
+      httpClient,
     );
     for (const item of response.data?.products || []) {
       if (String(item.warehouse_id) !== String(WAREHOUSE_ID)) continue;
@@ -185,6 +190,17 @@ async function main() {
   const stocks = await readCdekStocks(sheets);
   const positive = stocks.filter((item) => item.stock > 0).length;
   const total = stocks.reduce((sum, item) => sum + item.stock, 0);
+  if (process.argv.includes("--dry-run")) {
+    console.log(JSON.stringify({
+      status: "dry-run",
+      warehouse: WAREHOUSE_NAME,
+      warehouseId: WAREHOUSE_ID,
+      rows: stocks.length,
+      positive,
+      total,
+    }));
+    return;
+  }
 
   const updated = await uploadStocks(stocks, headers);
   await sleep(POSTCHECK_DELAY_MS);
@@ -216,7 +232,10 @@ if (require.main === module) {
 
 module.exports = {
   numberStock,
+  fetchOzonStocks,
+  postWithRetry,
   readCdekStocks,
   resolveColumns,
   uploadBatch,
+  uploadStocks,
 };

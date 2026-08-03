@@ -1,0 +1,73 @@
+const assert = require("assert");
+
+const cdek = require("../sync-cdek-stocks");
+const ozon = require("../sync-cdek-ozon-stocks");
+
+async function testCdekStockCalculation() {
+  const originalFetch = global.fetch;
+  const calls = [];
+  global.fetch = async (url) => {
+    const model = new URL(url).searchParams.get("filter[0][value]");
+    calls.push(model);
+    const product_offer = model === "100"
+      ? [
+        { article: "100", items: [{ state: "normal", count: 3 }, { state: "booked", count: 9 }, { state: "normal", count: "2" }] },
+        { article: "other", items: [{ state: "normal", count: 100 }] },
+      ]
+      : [];
+    return new Response(JSON.stringify({ _embedded: { product_offer }, _links: {} }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  };
+  try {
+    const stocks = await cdek.loadStocks(["100", "200"], { Accept: "application/json" });
+    assert.deepStrictEqual(calls, ["100", "200"]);
+    assert.strictEqual(stocks.get("100"), 5);
+    assert.strictEqual(stocks.get("200"), 0);
+  } finally {
+    global.fetch = originalFetch;
+  }
+}
+
+async function testOzonUploadAndVerification() {
+  const calls = [];
+  const httpClient = { post: async (url, body) => {
+    calls.push({ url, body });
+    if (url.endsWith("/v2/products/stocks")) {
+      return { data: { result: body.stocks.map((stock) => ({ offer_id: stock.offer_id, updated: true, errors: [] })) } };
+    }
+    return { data: { products: body.offer_id.map((offer_id) => ({ offer_id, warehouse_id: 1020002321437000, free_stock: offer_id === "a" ? 7 : 0 })) } };
+  }};
+  const stocks = [{ offer_id: "a", stock: 7 }, { offer_id: "b", stock: 0 }];
+  assert.strictEqual(await ozon.uploadStocks(stocks, {}, httpClient), 2);
+  const actual = await ozon.fetchOzonStocks(stocks, {}, httpClient);
+  assert.strictEqual(actual.get("a"), 7);
+  assert.strictEqual(actual.get("b"), 0);
+  assert.strictEqual(calls.length, 2);
+}
+
+async function testSheetInputValidation() {
+  const sheets = {
+    spreadsheets: {
+      values: {
+        get: async () => ({ data: { values: [["art", "tr"], ["a", "5"], ["b", "-1"], ["c", "not-a-number"]] } }),
+      },
+    },
+  };
+  assert.deepStrictEqual(await ozon.readCdekStocks(sheets), [
+    { offer_id: "a", stock: 5 },
+    { offer_id: "b", stock: 0 },
+    { offer_id: "c", stock: 0 },
+  ]);
+}
+
+(async () => {
+  await testCdekStockCalculation();
+  await testOzonUploadAndVerification();
+  await testSheetInputValidation();
+  console.log("PASS test_cdek_node_sync");
+})().catch((error) => {
+  console.error(error.stack || error.message);
+  process.exit(1);
+});

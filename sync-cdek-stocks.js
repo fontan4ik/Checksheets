@@ -92,13 +92,21 @@ function cdekHeaders() {
 
 async function fetchJson(url, headers) {
   let lastStatus = null;
+  let lastContentType = null;
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 30000);
     try {
       const response = await fetch(url, { headers, signal: controller.signal });
       lastStatus = response.status;
-      if (response.ok) return await response.json();
+      lastContentType = response.headers.get("content-type");
+      if (response.ok) {
+        try {
+          return await response.json();
+        } catch {
+          throw new Error(`CDEK API вернул некорректный JSON для ${new URL(url).pathname}`);
+        }
+      }
       if (response.status !== 429 && response.status < 500) {
         throw new Error(`CDEK API вернул HTTP ${response.status}`);
       }
@@ -107,7 +115,10 @@ async function fetchJson(url, headers) {
     }
     if (attempt < MAX_RETRIES) await sleep(1000 * attempt);
   }
-  throw new Error(`CDEK API недоступен после ${MAX_RETRIES} попыток (последний HTTP ${lastStatus})`);
+  throw new Error(
+    `CDEK API недоступен после ${MAX_RETRIES} попыток ` +
+    `(последний HTTP ${lastStatus}, ${new URL(url).pathname}, content-type: ${lastContentType || "не указан"})`,
+  );
 }
 
 function normalStock(items) {
@@ -219,6 +230,15 @@ async function main() {
   const columns = resolveColumns(headers);
   const models = collectUniqueModels(rows, columns.model);
   const stocks = await loadStocks(models, cdekHeaders());
+  if (process.argv.includes("--dry-run")) {
+    console.log(JSON.stringify({
+      status: "dry-run",
+      rows: rows.length,
+      uniqueModels: models.length,
+      nonZero: [...stocks.values()].filter((value) => value > 0).length,
+    }));
+    return;
+  }
   const result = await writeStocks(sheets, rows, columns, stocks);
   const nonZero = result.values.filter(([value]) => Number(value) > 0).length;
   console.log(JSON.stringify({
@@ -245,6 +265,7 @@ if (require.main === module) {
 module.exports = {
   collectUniqueModels,
   columnToLetter,
+  fetchJson,
   loadStocks,
   normalStock,
   resolveColumns,
