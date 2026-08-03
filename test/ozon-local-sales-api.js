@@ -18,8 +18,8 @@
  * Dry-run against UNIT API:
  *   node test/ozon-local-sales-api.js --from 2026-07-04 --to 2026-08-02 --items --sheet-dry-run
  *
- * Explicit write to UNIT API!ПЕРЕПЛАТА:
- *   node test/ozon-local-sales-api.js --from 2026-07-04 --to 2026-08-02 --write-sheet
+ * Explicit write and clear unmatched rows:
+ *   node test/ozon-local-sales-api.js --from 2026-07-04 --to 2026-08-02 --write-sheet --clear-unmatched
  *
  * Requirements:
  *   - Chrome with remote debugging on 127.0.0.1:9227.
@@ -220,10 +220,12 @@ function makeItemMap(items) {
   return map;
 }
 
-function buildSheetPlan(sheetData, items) {
+function buildSheetPlan(sheetData, items, options = {}) {
+  const clearUnmatched = Boolean(options.clearUnmatched);
   const itemMap = makeItemMap(items);
   const { rows, headerIndex, columns } = sheetData;
   const values = [];
+  const currentValues = [];
   let matchedRows = 0;
   let unmatchedRows = 0;
   let newTotal = 0;
@@ -231,14 +233,16 @@ function buildSheetPlan(sheetData, items) {
   for (let rowIndex = headerIndex + 1; rowIndex < rows.length; rowIndex += 1) {
     const row = rows[rowIndex] || [];
     const current = Number(row[columns.overpayment] || 0);
+    currentValues.push([row[columns.overpayment] ?? '']);
     currentTotal += Number.isFinite(current) ? current : 0;
     const keySku = normalizeKey(row[columns.sku]);
     const keyArticle = normalizeKey(row[columns.article]);
     const matched = itemMap.has(keySku) ? itemMap.get(keySku) : itemMap.get(keyArticle);
     if (matched === undefined) {
       unmatchedRows += 1;
-      values.push([row[columns.overpayment] ?? '']);
-      newTotal += Number.isFinite(current) ? current : 0;
+      const unmatchedValue = clearUnmatched ? 0 : (row[columns.overpayment] ?? '');
+      values.push([unmatchedValue]);
+      newTotal += clearUnmatched ? 0 : (Number.isFinite(current) ? current : 0);
     } else {
       matchedRows += 1;
       const sheetValue = Number((-matched).toFixed(2));
@@ -248,6 +252,7 @@ function buildSheetPlan(sheetData, items) {
   }
   return {
     values,
+    currentValues,
     headerRow: headerIndex + 1,
     firstDataRow: headerIndex + 2,
     lastDataRow: rows.length,
@@ -258,12 +263,15 @@ function buildSheetPlan(sheetData, items) {
     newTotal: Number(newTotal.toFixed(2)),
     apiItems: items.length,
     apiOverpaymentTotal: sumItemOverpayments(items)
+    ,unmatchedAction: clearUnmatched ? 'zeroed' : 'preserved'
   };
 }
 
 async function writeAndReadBack(sheets, plan) {
   const column = columnToA1(plan.columns.overpayment);
   const range = `'${SHEET_NAME}'!${column}${plan.firstDataRow}:${column}${plan.lastDataRow}`;
+  const backupPath = path.resolve(__dirname, `ozon-local-sales-backup-${Date.now()}.json`);
+  fs.writeFileSync(backupPath, JSON.stringify({ sheet: SHEET_NAME, range, values: plan.currentValues }, null, 2));
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
     range,
@@ -278,7 +286,7 @@ async function writeAndReadBack(sheets, plan) {
     const actual = values[i]?.[0] ?? '';
     if (String(expected) !== String(actual)) mismatches += 1;
   }
-  return { range, rows: plan.values.length, read_back_rows: values.length, mismatches };
+  return { range, rows: plan.values.length, read_back_rows: values.length, mismatches, backup_path: backupPath };
 }
 
 function makePeriod(from, to) { return { from, to }; }
@@ -318,16 +326,17 @@ async function main() {
       if (args['sheet-dry-run'] || args['write-sheet']) {
         const sheets = await getSheetsApi();
         const sheetData = await readSheetRows(sheets);
-        const plan = buildSheetPlan(sheetData, items);
+        const plan = buildSheetPlan(sheetData, items, { clearUnmatched: Boolean(args['clear-unmatched']) });
         output.sheet_plan = {
           sheet: SHEET_NAME,
           header_row: plan.headerRow,
           data_rows: plan.values.length,
           matched_rows: plan.matchedRows,
-          unmatched_rows_preserved: plan.unmatchedRows,
+          unmatched_rows: plan.unmatchedRows,
           api_items: plan.apiItems,
           api_overpayment_total: plan.apiOverpaymentTotal,
           planned_sheet_total: plan.newTotal,
+          unmatched_action: plan.unmatchedAction,
           sheet_value_sign: 'negative_expense_like_existing_O.js'
         };
         if (args['write-sheet']) output.sheet_write = await writeAndReadBack(sheets, plan);
