@@ -11,8 +11,9 @@
  * - Яндекс Market Partner API: кампания «ВольтМир НТЦ».
  *
  * Безопасность:
- * - Yandex API-Key не хранится в исходнике. Однократно выполните
- *   setupYandexMarketApiKey() вручную и вставьте ключ в диалог.
+ * - Yandex API-Key по умолчанию читается из Script Properties.
+ * - Для простого ручного запуска предусмотрен отдельный слот
+ *   OZON_NTC_YNX_YANDEX_API_KEY; заполненный ключ не коммитьте и не публикуйте.
  * - Триггер запускает только syncOzonNtcStocksToYandex().
  *
  * Официальная документация:
@@ -36,6 +37,9 @@ const OZON_NTC_YNX_YANDEX_CAMPAIGN_ID = 149209348;
 const OZON_NTC_YNX_YANDEX_STOCKS_URL = 'https://api.partner.market.yandex.ru/v2/campaigns/' + OZON_NTC_YNX_YANDEX_CAMPAIGN_ID + '/offers/stocks';
 const OZON_NTC_YNX_YANDEX_CAMPAIGNS_URL = 'https://api.partner.market.yandex.ru/v2/campaigns';
 const OZON_NTC_YNX_YANDEX_PROPERTY = 'YANDEX_MARKET_API_KEY';
+// Вставьте API-Key Яндекс Маркета только в эту строку, если не хотите использовать Script Properties.
+// Не коммитьте заполненный ключ в Git и не публикуйте его в комментариях/логах.
+const OZON_NTC_YNX_YANDEX_API_KEY = '';
 const OZON_NTC_YNX_YANDEX_BATCH_SIZE = 2000;
 
 /**
@@ -166,11 +170,13 @@ function verifyYandexNtcConfiguration() {
 }
 
 function getOzonNtcYnxYandexApiKey_() {
-  const value = PropertiesService.getScriptProperties().getProperty(OZON_NTC_YNX_YANDEX_PROPERTY);
-  if (!value || !String(value).trim()) {
-    throw new Error('Не задан Script Property ' + OZON_NTC_YNX_YANDEX_PROPERTY + '. Сначала выполните setupYandexMarketApiKey().');
-  }
-  return String(value).trim();
+  const inlineKey = String(OZON_NTC_YNX_YANDEX_API_KEY || '').trim();
+  if (inlineKey) return inlineKey;
+
+  const propertyValue = PropertiesService.getScriptProperties().getProperty(OZON_NTC_YNX_YANDEX_PROPERTY);
+  if (propertyValue && String(propertyValue).trim()) return String(propertyValue).trim();
+
+  throw new Error('Укажите API-Key в OZON_NTC_YNX_YANDEX_API_KEY или Script Property ' + OZON_NTC_YNX_YANDEX_PROPERTY + '.');
 }
 
 function getOzonNtcYnxSheet_(spreadsheet, name) {

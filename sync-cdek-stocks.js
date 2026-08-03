@@ -20,7 +20,9 @@ const os = require("os");
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const SHEET_NAME = "СДЕК TR";
 const CDEK_BASE_URL = "https://cdek.orderadmin.ru/api";
-const REQUEST_DELAY_MS = 120;
+// OrderAdmin advertises a limit of 3 requests. Keep a conservative one-request-per-second
+// pace because this tenant returns HTTP 500, rather than 429, when the limit is exceeded.
+const REQUEST_DELAY_MS = Math.max(334, Number(process.env.CDEK_REQUEST_DELAY_MS || 1000));
 const MAX_RETRIES = 3;
 const INCLUDED_STATES = new Set(["normal"]);
 const SERVICE_ACCOUNT_FILE =
