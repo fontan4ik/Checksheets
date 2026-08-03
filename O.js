@@ -7,7 +7,8 @@
  * - UNIT ШТ = восстановленное количество продаж из accrual/by-day: sale_amount / seller_price
  * - ВОЗНАГРАЖДЕНИЕ = posting.products[].commission.commission из accrual/by-day
  * - ЛОГИСТИКА = delivery.services type_id=32 из accrual/by-day
- * - ПЕРЕПЛАТА = отдельная корректировка логистики из листа UNIT API/UNIT, отдельного поля в accrual/by-day нет
+ * - ПЕРЕПЛАТА = положительная корректировка delivery.services type_id=32 из accrual/by-day,
+ *   записанная со знаком расхода (отрицательно) и вычитаемая из ЛОГИСТИКИ
  * - ХРАНЕНИЕ = отчёт стоимости размещения /v1/report/placement/by-products/create
  * - ДОП = зелёная группа поартикульных дополнительных услуг из отчёта начислений
  * - ОЗОН ДОП ВОЗНЯ = общие non_item_fee без артикула из accrual/by-day со знаком расхода, кроме кликов и оплаты за заказ
@@ -634,7 +635,9 @@ function aggregateOzonReport65ByDayAccrual_(result, unknownTypes, accrual) {
       const typeId = normalizeOzonReport65Key_(service && service.type_id);
       const amount = parseOzonReport65Money_(service && service.accrued);
       if (typeId === "32" && amount > 0) {
-        addOzonReport65SkuAmount_(result, unknownTypes, sku, "delivery:32:extra_reversal", "extra", amount);
+        // Ozon отдаёт возврат/переплату за логистику положительным начислением.
+        // В UNIT API ПЕРЕПЛАТА хранится как отрицательная корректировка расходов.
+        addOzonReport65SkuAmount_(result, unknownTypes, sku, "delivery:32:overpayment", "overpayment", -amount);
         return;
       }
 
@@ -1202,7 +1205,7 @@ function addOzonReport65SkuOfferAlias_(skuToOffer, sku, offerId) {
 }
 
 function mergeOzonReport65AccrualBucket_(target, source) {
-  ["unitSum", "unitQty", "reward", "logistics", "extra", "starsAndAcquiring", "commonExtra", "cpoPayment", "clicksPayment"].forEach(field => {
+  ["unitSum", "unitQty", "reward", "logistics", "overpayment", "extra", "starsAndAcquiring", "commonExtra", "cpoPayment", "clicksPayment"].forEach(field => {
     target[field] += Number(source[field]) || 0;
   });
 }
@@ -1328,7 +1331,7 @@ function isOzonReport65CommonAdvertisingCost_(operationName) {
 }
 
 function createOzonReport65AccrualBucket_() {
-  return { unitSum: 0, unitQty: 0, reward: 0, logistics: 0, extra: 0, starsAndAcquiring: 0, commonExtra: 0, cpoPayment: 0, clicksPayment: 0 };
+  return { unitSum: 0, unitQty: 0, reward: 0, logistics: 0, overpayment: 0, extra: 0, starsAndAcquiring: 0, commonExtra: 0, cpoPayment: 0, clicksPayment: 0 };
 }
 
 function classifyOzonReport65Charge_(text) {
@@ -1868,57 +1871,11 @@ function sumOzonReport65Stats_(stats, field) {
   return Object.keys(stats || {}).reduce((sum, sku) => sum + (Number(stats[sku][field]) || 0), 0);
 }
 
-function getOzonReport65OverpaymentValues_(sheet, headerMap, rowItems) {
-  const overpaymentCol = getOzonReport65Column_(headerMap, "ПЕРЕПЛАТА");
-  if (overpaymentCol) {
-    return sheet.getRange(headerMap.__headerRow + 1, overpaymentCol, rowItems.length, 1).getValues();
-  }
-
-  const sourceSheet = sheet.getParent().getSheetByName("UNIT");
-  if (!sourceSheet || sourceSheet.getName() === sheet.getName()) {
-    Logger.log("Колонка ПЕРЕПЛАТА не найдена, корректировка логистики не применяется");
-    return [];
-  }
-
-  const sourceHeaderMap = getOzonReport65HeaderMap_(sourceSheet);
-  const sourceOverpaymentCol = getOzonReport65Column_(sourceHeaderMap, "ПЕРЕПЛАТА");
-  const sourceArticleCol = getOzonReport65Column_(sourceHeaderMap, "Артикул");
-  const sourceSkuCol = getOzonReport65Column_(sourceHeaderMap, "СКУ OZ");
-  if (!sourceOverpaymentCol || !sourceArticleCol || !sourceSkuCol) {
-    Logger.log("На листе UNIT не найдены Артикул/СКУ OZ/ПЕРЕПЛАТА, корректировка логистики не применяется");
-    return [];
-  }
-
-  const rowCount = sourceSheet.getLastRow() - sourceHeaderMap.__headerRow;
-  if (rowCount <= 0) return [];
-
-  const width = Math.max(sourceArticleCol, sourceSkuCol, sourceOverpaymentCol);
-  const rows = sourceSheet.getRange(sourceHeaderMap.__headerRow + 1, 1, rowCount, width).getValues();
-  const overpaymentByKey = {};
-
-  rows.forEach(row => {
-    const article = normalizeOzonReport65Key_(row[sourceArticleCol - 1]);
-    const sku = normalizeOzonReport65Key_(row[sourceSkuCol - 1]);
-    const amount = parseOzonReport65Money_(row[sourceOverpaymentCol - 1]);
-    if (article || sku) overpaymentByKey[article + "|" + sku] = amount;
-    if (article && overpaymentByKey[article + "|"] === undefined) overpaymentByKey[article + "|"] = amount;
-  });
-
-  Logger.log("ПЕРЕПЛАТА взята с листа UNIT: " + Object.keys(overpaymentByKey).length + " ключей");
-  return rowItems.map(item => {
-    const exactKey = item.article + "|" + item.sku;
-    const articleKey = item.article + "|";
-    const amount = overpaymentByKey[exactKey] !== undefined ? overpaymentByKey[exactKey] : (overpaymentByKey[articleKey] || 0);
-    return [amount];
-  });
-}
-
 function getOzonReport65CommonExtraBase_(accrual, item) {
   return (Number(accrual && accrual.unitSum) || 0) + (Number(item && item.upd) || 0);
 }
 
 function writeOzonReport65FinanceColumns_(sheet, headerMap, rowItems, accrualMap, cpoMap, storageMap) {
-  const overpaymentValues = getOzonReport65OverpaymentValues_(sheet, headerMap, rowItems);
   const commonCosts = accrualMap[OZON_REPORT65_COMMON_COSTS_KEY] || createOzonReport65AccrualBucket_();
   const totalCommonExtraBase = rowItems.reduce((sum, item) => {
     const accrual = accrualMap[item.article] || accrualMap[item.sku] || createOzonReport65AccrualBucket_();
@@ -1971,9 +1928,7 @@ function writeOzonReport65FinanceColumns_(sheet, headerMap, rowItems, accrualMap
   rowItems.forEach((item, index) => {
     const accrual = accrualMap[item.article] || accrualMap[item.sku] || createOzonReport65AccrualBucket_();
     const cpo = cpoMap ? (cpoMap[item.sku] || cpoMap[item.article] || { spend: 0 }) : { spend: 0 };
-    const overpayment = overpaymentValues[index]
-      ? parseOzonReport65Money_(overpaymentValues[index][0])
-      : 0;
+    const overpayment = Number(accrual.overpayment) || 0;
     const storage = getOzonReport65StorageValue_(storageMap, item);
 
     if (accrual.unitSum || accrual.unitQty || accrual.reward || accrual.logistics || accrual.extra || accrual.starsAndAcquiring) matchedAccrual++;
@@ -2008,7 +1963,11 @@ function writeOzonReport65FinanceColumns_(sheet, headerMap, rowItems, accrualMap
   });
 
   Logger.log("Начисления сопоставлены: " + matchedAccrual + " строк");
-  Logger.log("ПЕРЕПЛАТА записана из листа UNIT API/UNIT: " + roundOzonReport65Money_(overpaymentValues.reduce((sum, row) => sum + parseOzonReport65Money_(row && row[0]), 0)));
+  const writtenOverpayment = rowItems.reduce((sum, item) => {
+    const accrual = accrualMap[item.article] || accrualMap[item.sku] || createOzonReport65AccrualBucket_();
+    return sum + (Number(accrual.overpayment) || 0);
+  }, 0);
+  Logger.log("ПЕРЕПЛАТА записана из accrual/by-day delivery type_id=32: " + roundOzonReport65Money_(writtenOverpayment));
   Logger.log("ХРАНЕНИЕ сопоставлено: " + matchedStorage + " строк; записано " + roundOzonReport65Money_(writtenStorage));
   Logger.log("Общие расходы без артикула для ОЗОН ДОП ВОЗНЯ: " + roundOzonReport65Money_(commonCosts.commonExtra || 0) + "; база UNIT СУММА + УПД: " + roundOzonReport65Money_(totalCommonExtraBase) + "; процент: " + (commonExtraRate * 100).toFixed(4) + "%; коэффициент: " + (1 + commonExtraRate).toFixed(4));
   Logger.log("Оплата за заказ из accrual/by-day: " + roundOzonReport65Money_(commonCosts.cpoPayment || 0) + "; процент: " + (commonCpoRate * 100).toFixed(4) + "%");
