@@ -45,7 +45,7 @@ const OZON_NTC_YNX_YANDEX_BATCH_SIZE = 2000;
 /**
  * Главная функция. Не создаёт и не меняет триггеры.
  */
-function syncOzonNtcStocksToYandex() {
+function syncOzonNtcStocksToGoogleSheet_() {
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(5000)) {
     throw new Error('Синхронизация уже выполняется: получен lock не был.');
@@ -94,6 +94,13 @@ function syncOzonNtcStocksToYandex() {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Временная совместимость для запуска одноразового отката через старое имя функции.
+ */
+function syncOzonNtcStocksToYandex() {
+  return zeroOzonNtcYnxStocksInYandex();
 }
 
 /**
