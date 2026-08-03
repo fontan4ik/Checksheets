@@ -10,6 +10,7 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
 const axios = require("axios");
+const fs = require("fs");
 const { google } = require("googleapis");
 
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
@@ -47,9 +48,25 @@ function numberStock(value) {
   return Math.trunc(parsed);
 }
 
+function parseLegacyOzonCredentials(source) {
+  const clientId = source.match(/const clientId\s*=\s*process\.env\.OZON_CLIENT_ID\s*\|\|\s*["']([^"']+)["']/)?.[1];
+  const apiKey = source.match(/const apiKey\s*=\s*\n?\s*process\.env\.OZON_API_KEY\s*\|\|\s*["']([^"']+)["']/)?.[1];
+  return { clientId: text(clientId), apiKey: text(apiKey) };
+}
+
+function legacyOzonCredentials() {
+  const legacyPath = path.join(__dirname, "ozon_fbs_warehouse_api.js");
+  try {
+    return parseLegacyOzonCredentials(fs.readFileSync(legacyPath, "utf8"));
+  } catch {
+    return { clientId: "", apiKey: "" };
+  }
+}
+
 function ozonHeaders() {
-  const clientId = text(process.env.OZON_CLIENT_ID);
-  const apiKey = text(process.env.OZON_API_KEY);
+  const legacy = legacyOzonCredentials();
+  const clientId = text(process.env.OZON_CLIENT_ID) || legacy.clientId;
+  const apiKey = text(process.env.OZON_API_KEY) || legacy.apiKey;
   if (!clientId || !apiKey) {
     throw new Error("Не заданы OZON_CLIENT_ID и/или OZON_API_KEY в окружении");
   }
@@ -233,6 +250,8 @@ if (require.main === module) {
 module.exports = {
   numberStock,
   fetchOzonStocks,
+  legacyOzonCredentials,
+  parseLegacyOzonCredentials,
   postWithRetry,
   readCdekStocks,
   resolveColumns,

@@ -64,6 +64,14 @@ async function testSheetInputValidation() {
   ]);
 }
 
+function testLegacyOzonCredentials() {
+  const credentials = ozon.parseLegacyOzonCredentials(
+    'const clientId = process.env.OZON_CLIENT_ID || "test-client";\n' +
+    'const apiKey =\n  process.env.OZON_API_KEY || "test-key";',
+  );
+  assert.deepStrictEqual(credentials, { clientId: "test-client", apiKey: "test-key" });
+}
+
 async function testOzonRetry() {
   let attempts = 0;
   const httpClient = { post: async () => {
@@ -84,6 +92,7 @@ async function testOzonRetry() {
   testCdekBypassInterface();
   await testOzonUploadAndVerification();
   await testSheetInputValidation();
+  testLegacyOzonCredentials();
   await testOzonRetry();
   console.log("PASS test_cdek_node_sync");
 })().catch((error) => {
