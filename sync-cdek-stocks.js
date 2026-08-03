@@ -82,11 +82,14 @@ function collectUniqueModels(rows, modelColumn) {
 }
 
 function cdekHeaders() {
-  const login = text(process.env.CDEK_FULFILLMENT_LOGIN);
+  const configuredLogin = text(process.env.CDEK_FULFILLMENT_LOGIN);
   const apiKey = text(process.env.CDEK_FULFILLMENT_API_KEY);
-  if (!login || !apiKey) {
+  if (!configuredLogin || !apiKey) {
     throw new Error("Не заданы CDEK_FULFILLMENT_LOGIN и/или CDEK_FULFILLMENT_API_KEY в окружении");
   }
+  const login = configuredLogin.includes("@")
+    ? configuredLogin
+    : `${configuredLogin.toLowerCase()}@ff.cdek.ru`;
   return {
     Accept: "application/json",
     Authorization: `Basic ${Buffer.from(`${login}:${apiKey}`, "utf8").toString("base64")}`,
