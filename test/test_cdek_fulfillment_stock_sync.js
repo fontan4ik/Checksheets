@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const scriptPath = path.join(__dirname, 'tmp', 'cdek-fulfillment-stage', 'Синхронизация остатков СДЭК.js');
+const scriptPath = path.join(__dirname, 'tmp', 'apps-script-local-backup-cdek-removal-20260729T135446Z', 'Синхронизация остатков СДЭК.js');
 const source = fs.readFileSync(scriptPath, 'utf8');
 assert.ok(source.includes("getProperty('CDEK_FULFILLMENT_LOGIN')"));
 assert.ok(source.includes("getProperty('CDEK_FULFILLMENT_API_KEY')"));

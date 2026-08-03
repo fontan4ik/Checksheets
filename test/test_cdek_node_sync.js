@@ -62,10 +62,26 @@ async function testSheetInputValidation() {
   ]);
 }
 
+async function testOzonRetry() {
+  let attempts = 0;
+  const httpClient = { post: async () => {
+    attempts += 1;
+    if (attempts === 1) {
+      const error = new Error("temporary Ozon error");
+      error.response = { status: 500 };
+      throw error;
+    }
+    return { data: { result: [{ offer_id: "retry", updated: true, errors: [] }] } };
+  }};
+  assert.strictEqual(await ozon.uploadBatch([{ offer_id: "retry", stock: 1 }], {}, httpClient), 1);
+  assert.strictEqual(attempts, 2);
+}
+
 (async () => {
   await testCdekStockCalculation();
   await testOzonUploadAndVerification();
   await testSheetInputValidation();
+  await testOzonRetry();
   console.log("PASS test_cdek_node_sync");
 })().catch((error) => {
   console.error(error.stack || error.message);
