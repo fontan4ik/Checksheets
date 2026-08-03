@@ -16,8 +16,8 @@
  * - Триггер запускает только syncOzonNtcStocksToYandex().
  *
  * Официальная документация:
- * - Ozon: POST /v1/warehouse/list и
- *   POST /v1/product/info/stocks-by-warehouse/fbs
+ * - Ozon: POST /v2/warehouse/list и
+ *   POST /v2/product/info/stocks-by-warehouse/fbs
  * - Yandex: PUT /v2/campaigns/{campaignId}/offers/stocks
  */
 
@@ -29,8 +29,8 @@ const OZON_NTC_YNX_UNIT_STOCK_COLUMN = 25; // Y: НТЦ STOCK
 const OZON_NTC_YNX_OZON_ART_COLUMN = 1; // A: Артикул
 const OZON_NTC_YNX_OZON_SKU_COLUMN = 22; // V: SKU Ozon
 const OZON_NTC_YNX_OZON_WAREHOUSE_NAME = 'НТЦ';
-const OZON_NTC_YNX_OZON_WAREHOUSE_LIST_URL = 'https://api-seller.ozon.ru/v1/warehouse/list';
-const OZON_NTC_YNX_OZON_STOCKS_URL = 'https://api-seller.ozon.ru/v1/product/info/stocks-by-warehouse/fbs';
+const OZON_NTC_YNX_OZON_WAREHOUSE_LIST_URL = 'https://api-seller.ozon.ru/v2/warehouse/list';
+const OZON_NTC_YNX_OZON_STOCKS_URL = 'https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs';
 const OZON_NTC_YNX_OZON_BATCH_SIZE = 500;
 const OZON_NTC_YNX_YANDEX_CAMPAIGN_ID = 149209348;
 const OZON_NTC_YNX_YANDEX_STOCKS_URL = 'https://api.partner.market.yandex.ru/v2/campaigns/' + OZON_NTC_YNX_YANDEX_CAMPAIGN_ID + '/offers/stocks';
@@ -231,7 +231,7 @@ function findOzonNtcWarehouse_() {
   if (code < 200 || code >= 300) throw new Error('Ozon: список складов завершился HTTP ' + code + '.');
 
   const data = JSON.parse(response.getContentText());
-  const warehouses = Array.isArray(data.result) ? data.result : [];
+  const warehouses = Array.isArray(data.warehouses) ? data.warehouses : [];
   const targetName = OZON_NTC_YNX_OZON_WAREHOUSE_NAME.toLowerCase();
   const exact = warehouses.filter(function(item) {
     return String(item.name || '').trim().toLowerCase() === targetName;
@@ -280,7 +280,7 @@ function fetchOzonNtcStocks_(unitRows, skuByArt, warehouseId) {
     if (code < 200 || code >= 300) throw new Error('Ozon: остатки завершились HTTP ' + code + ' на батче ' + (Math.floor(start / OZON_NTC_YNX_OZON_BATCH_SIZE) + 1) + '.');
 
     const data = JSON.parse(response.getContentText());
-    const result = Array.isArray(data.result) ? data.result : [];
+    const result = Array.isArray(data.products) ? data.products : [];
     result.forEach(function(item) {
       if (String(item.warehouse_id) !== String(warehouseId)) return;
       const sku = String(item.sku || '').trim();
