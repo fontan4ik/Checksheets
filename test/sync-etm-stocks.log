@@ -254,3 +254,27 @@
 18:08:42.817    - 61972-5: sheet=291, free=0, present=0, reserved=0
 18:08:42.818 🛠️ Ozon repair 1/2: повторно пишем 30 расхождений на склад ЭТМ САМАРА
 18:08:43.024 🛠️ Ozon repair 1/2: ✅ 24, ❌ 6; ждём 60 сек и перепроверяем
+18:09:51.428 📊 Ozon non-zero check (склад ЭТМ САМАРА 1020005000689690): Google P>0=1410, marketplace free_stock>0=1404, delta=-6
+18:09:51.429 ⚠️ Ozon post-check: найдено 6 расхождений по складу ЭТМ САМАРА
+18:09:51.429    - 130511315-1: sheet=3, free=0, present=0, reserved=0
+18:09:51.429    - LDKU1-1013-100-5000-K03-1: sheet=1442, free=0, present=0, reserved=0
+18:09:51.429    - LDKU1-1013-150-5000-K03-1: sheet=99, free=0, present=0, reserved=0
+18:09:51.429    - 028174-1: sheet=2, free=0, present=0, reserved=0
+18:09:51.429    - 017431(2)-4: sheet=3, free=0, present=0, reserved=0
+18:09:51.430    - LkecLED15wA60E2745: sheet=43, free=0, present=0, reserved=0
+18:09:51.430 🛠️ Ozon repair 2/2: повторно пишем 6 расхождений на склад ЭТМ САМАРА
+18:09:51.488 🛠️ Ozon repair 2/2: ✅ 0, ❌ 6; ждём 60 сек и перепроверяем
+18:11:00.259 📊 Ozon non-zero check (склад ЭТМ САМАРА 1020005000689690): Google P>0=1410, marketplace free_stock>0=1398, delta=-12
+18:11:00.260 ⚠️ Ozon post-check: найдено 12 расхождений по складу ЭТМ САМАРА
+18:11:00.261    - 71362-5: sheet=7, free=0, present=0, reserved=0
+18:11:00.261    - 71362-10: sheet=4, free=0, present=0, reserved=0
+18:11:00.261    - 130511315-1: sheet=3, free=0, present=0, reserved=0
+18:11:00.262    - 61132-10: sheet=84, free=0, present=0, reserved=0
+18:11:00.262    - 61132-5: sheet=169, free=0, present=0, reserved=0
+18:11:00.263    - LDKU1-1013-100-5000-K03-1: sheet=1442, free=0, present=0, reserved=0
+18:11:00.263    - LDKU1-1013-150-5000-K03-1: sheet=99, free=0, present=0, reserved=0
+18:11:00.263    - MVA20-2-016-C-3: sheet=776, free=0, present=0, reserved=0
+18:11:00.263    - MVA20-2-016-C-1: sheet=2329, free=0, present=0, reserved=0
+18:11:00.263    - 028174-1: sheet=2, free=0, present=0, reserved=0
+18:11:00.263 
+18:11:00.263 🟣 Шаг 5: Ожидание 15 минут перед финальным WB post-check...
