@@ -45,9 +45,11 @@ const OZON_NTC_YNX_YANDEX_PRICE_LIMIT_COOLDOWN_MS = 61000;
  * Главная функция. Не создаёт и не меняет триггеры.
  */
 function syncOzonNtcStocksToYandex() {
-  const lock = LockService.getScriptLock();
+  // Не блокируемся глобальными ScriptLock из других Ozon/WB задач проекта.
+  // UserLock всё ещё защищает от одновременного повторного запуска тем же пользователем.
+  const lock = LockService.getUserLock();
   if (!lock.tryLock(5000)) {
-    throw new Error('Синхронизация уже выполняется: получен lock не был.');
+    throw new Error('Синхронизация НТЦ уже выполняется для текущего пользователя.');
   }
 
   try {
