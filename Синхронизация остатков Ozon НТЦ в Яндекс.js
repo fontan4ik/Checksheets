@@ -1,12 +1,15 @@
 /**
  * Ozon НТЦ → UNIT YNX → Яндекс Маркет (остатки и цены).
  *
- * Основная функция для ручного запуска:
- *   syncOzonNtcStocksToYandex()
+ * Основные функции для ручного запуска:
+ *   syncOzonNtcStocksToUnitYnx()
+ *   syncUnitYnxNtcStocksToYandex()
+ *   syncUnitYnxPricesToYandex()
  *
  * Источники/назначения:
- * - Ozon Seller API: FBS-остаток по складу с названием «НТЦ».
- * - Google Sheets, лист «UNIT YNX»: A = offerId/ShopSku Яндекс,
+ * - Ozon Seller API: FBS-остаток по точному имени склада «НТЦ СКЛАД» и
+ *   offer_id из UNIT YNX!A.
+ * - Google Sheets, лист «UNIT YNX»: A = offer_id Ozon / ShopSku Яндекс,
  *   T = «Целевая цена», Y = «НТЦ STOCK».
  * - Яндекс Market Partner API: кампания «ВольтМир НТЦ».
  *
@@ -16,7 +19,7 @@
  *
  * Официальная документация:
  * - Ozon: POST /v2/warehouse/list и
- *   POST /v2/product/info/stocks-by-warehouse/fbs
+ *   POST /v4/product/info/stocks (filter.offer_id).
  * - Яндекс: PUT /v2/campaigns/{campaignId}/offers/stocks и
  *   POST /v2/campaigns/{campaignId}/offer-prices/updates
  */

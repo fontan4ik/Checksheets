@@ -44,7 +44,7 @@ function mockSheet(values) {
 }
 
 const header = Array(25).fill('');
-header[0] = 'art';
+header[0] = 'offer_id';
 header[19] = 'Целевая цена';
 header[24] = 'НТЦ STOCK';
 const rowA = Array(25).fill('');
@@ -66,6 +66,39 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(context.readOzonNtcYnxYandexPri
   { offerId: 'A-1', price: 1299.9 },
   { offerId: 'B-2', price: 500 },
 ]);
+
+const requests = [];
+context.retryFetch = (url, options) => {
+  requests.push({ url, body: JSON.parse(options.payload) });
+  return {
+    getResponseCode() { return 200; },
+    getContentText() {
+      return JSON.stringify({
+        cursor: '',
+        items: [
+          {
+            offer_id: 'A-1',
+            stocks: [
+              { warehouse_ids: [102], present: 5, reserved: 2 },
+              { warehouse_ids: [777], present: 99, reserved: 0 },
+            ],
+          },
+          { offer_id: 'B-2', stocks: [{ warehouse_ids: [102], present: 0, reserved: 0 }] },
+        ],
+      });
+    },
+  };
+};
+const fetched = context.fetchOzonNtcStocks_([{ offerId: 'A-1' }, { offerId: 'B-2' }], '102');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(fetched)), { 'A-1': 7, 'B-2': 0 });
+assert.strictEqual(requests.length, 1);
+assert.strictEqual(requests[0].url, 'https://api-seller.ozon.ru/v4/product/info/stocks');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(requests[0].body)), {
+  cursor: '',
+  filter: { offer_id: ['A-1', 'B-2'], visibility: 'ALL' },
+  limit: 2,
+});
+assert.ok(!Object.prototype.hasOwnProperty.call(requests[0].body, 'sku'));
 
 const sourceStage1 = source.slice(source.indexOf('function syncOzonNtcStocksToUnitYnx'), source.indexOf('function syncUnitYnxNtcStocksToYandex'));
 assert.ok(sourceStage1.includes('writeOzonNtcYnxStocks_'));
