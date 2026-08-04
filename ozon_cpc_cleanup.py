@@ -47,7 +47,10 @@ BASE_URL = str(config.OZON_PERF_BASE_URL).rstrip("/")
 SHEET_NAME = str(getattr(config, "OZON_CPC_SHEET_NAME", "СРС"))
 DEFAULT_THRESHOLD = float(getattr(config, "OZON_CPC_CLICK_THRESHOLD", 10))
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
-REPORT_GROUP_BY = os.getenv("OZON_CPC_REPORT_GROUP_BY", "SKU")
+VALID_REPORT_GROUP_BY = {"NO_GROUP_BY", "DATE", "START_OF_WEEK", "START_OF_MONTH"}
+# ``SKU`` is a report column, not a valid value of the API's time ``groupBy``.
+# DATE preserves the current-day semantics while the CSV still contains SKU rows.
+REPORT_GROUP_BY = os.getenv("OZON_CPC_REPORT_GROUP_BY", "DATE").strip().upper()
 REPORT_MAX_ATTEMPTS = int(os.getenv("OZON_CPC_REPORT_MAX_ATTEMPTS", "180"))
 REPORT_SLEEP_SECONDS = int(os.getenv("OZON_CPC_REPORT_SLEEP_SECONDS", "5"))
 TRANSIENT_STATUSES = {408, 409, 425, 429, 500, 502, 503, 504}
@@ -171,6 +174,34 @@ def current_day_period(now: datetime | None = None) -> tuple[str, str]:
     return f"{day}T00:00:00+03:00", f"{day}T23:59:59+03:00"
 
 
+def build_statistics_payload(
+    campaign_ids: list[str],
+    date_from: str,
+    date_to: str,
+    group_by: str = REPORT_GROUP_BY,
+) -> dict[str, Any]:
+    """Build the documented asynchronous campaign-statistics request.
+
+    Ozon accepts either RFC3339 ``from``/``to`` or date-only
+    ``dateFrom``/``dateTo``. The cleanup job uses the former so that the
+    current Moscow day is explicit and matches the operational contract.
+    """
+    normalized_group_by = str(group_by or "").strip().upper()
+    if normalized_group_by not in VALID_REPORT_GROUP_BY:
+        raise ValueError(
+            "OZON_CPC_REPORT_GROUP_BY должен быть одним из: "
+            + ", ".join(sorted(VALID_REPORT_GROUP_BY))
+        )
+    if not campaign_ids:
+        raise ValueError("Для отчёта нужна хотя бы одна кампания")
+    return {
+        "campaigns": campaign_ids,
+        "from": date_from,
+        "to": date_to,
+        "groupBy": normalized_group_by,
+    }
+
+
 def request_json(
     session: requests.Session,
     method: str,
@@ -273,12 +304,7 @@ def create_statistics_report(
     date_to: str,
     retries: int = 3,
 ) -> str:
-    payload = {
-        "campaigns": campaign_ids,
-        "dateFrom": date_from[:10],
-        "dateTo": date_to[:10],
-        "groupBy": REPORT_GROUP_BY,
-    }
+    payload = build_statistics_payload(campaign_ids, date_from, date_to)
     for attempt in range(1, retries + 1):
         try:
             data = request_json(session, "POST", "/api/client/statistics", token=token, payload=payload, timeout=60)
@@ -585,8 +611,23 @@ def run(args: argparse.Namespace) -> int:
 
     if os.getenv("OZON_CPC_CONFIRM_DELETE", "") != "YES":
         raise RuntimeError("Для live-удаления установите OZON_CPC_CONFIRM_DELETE=YES вместе с --apply")
+    # The report can wait in Ozon's queue for minutes. Re-read campaign
+    # membership immediately before every destructive request rather than
+    # trusting the earlier discovery snapshot.
+    current_products: dict[str, set[str]] = {}
     for candidate in deletions:
+        products = current_products.get(candidate.campaign_id)
+        if products is None:
+            products = get_campaign_products(session, token, candidate.campaign_id)
+            current_products[candidate.campaign_id] = products
+        if candidate.sku not in products:
+            print(
+                f"Пропущен SKU {candidate.sku} из кампании {candidate.campaign_id}: "
+                "на момент удаления товара уже нет в кампании"
+            )
+            continue
         delete_sku(session, token, candidate.campaign_id, candidate.sku)
+        products.remove(candidate.sku)
         print(f"Удалён SKU {candidate.sku} из кампании {candidate.campaign_id}")
     return 0
 

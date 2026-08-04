@@ -9,6 +9,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from ozon_cpc_cleanup import (
     Metric,
     SheetRow,
+    build_statistics_payload,
     build_candidates,
     campaign_budget,
     current_day_period,
@@ -24,6 +25,21 @@ class OzonCpcCleanupTests(unittest.TestCase):
         self.assertTrue(start.endswith("T00:00:00+03:00"))
         self.assertTrue(end.endswith("T23:59:59+03:00"))
         self.assertEqual(start[:10], end[:10])
+
+    def test_statistics_payload_uses_documented_rfc3339_fields_and_date_grouping(self):
+        payload = build_statistics_payload(
+            ["33230388"],
+            "2026-08-04T00:00:00+03:00",
+            "2026-08-04T23:59:59+03:00",
+        )
+        self.assertEqual(payload["campaigns"], ["33230388"])
+        self.assertEqual(payload["from"], "2026-08-04T00:00:00+03:00")
+        self.assertEqual(payload["to"], "2026-08-04T23:59:59+03:00")
+        self.assertEqual(payload["groupBy"], "DATE")
+        self.assertNotIn("dateFrom", payload)
+        self.assertNotIn("dateTo", payload)
+        with self.assertRaises(ValueError):
+            build_statistics_payload(["33230388"], "from", "to", "SKU")
 
     def test_parse_report_block_maps_clicks_and_metrics_by_header(self):
         csv_text = (

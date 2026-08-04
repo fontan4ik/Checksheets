@@ -28,11 +28,13 @@
 1. Получить running SKU-кампании.
 2. Оставить только CPC-кампании, связанные с `СРС`.
 3. Проверить состав товаров через `/api/client/campaign/{campaignId}/v2/products`.
-4. Создать отчёт `/api/client/statistics` за текущий день по московскому времени с `groupBy=SKU`.
+4. Создать отчёт `/api/client/statistics` за текущий день по московскому времени: RFC3339-поля `from`/`to` и `groupBy=DATE`.
 5. Дождаться `GET /api/client/statistics/{UUID}` со `state=OK`.
 6. Скачать CSV/ZIP через `/api/client/statistics/report?UUID=...`.
 7. Извлечь SKU и `Клики`.
 8. Для `Клики >= 10` подготовить удаление только если SKU всё ещё есть в кампании.
+
+`SKU` — поле строк CSV, а не значение `groupBy`. Актуальная документация Ozon разрешает для `groupBy` только `NO_GROUP_BY`, `DATE`, `START_OF_WEEK` и `START_OF_MONTH`. Перед live-удалением скрипт повторно читает состав каждой кампании: отчёт может ждать в очереди несколько минут.
 
 Ozon может формировать статистику дольше пяти минут. Скрипт ждёт до 15 минут по умолчанию (`180 × 5 секунд`). Параметры можно изменить через `OZON_CPC_REPORT_MAX_ATTEMPTS` и `OZON_CPC_REPORT_SLEEP_SECONDS`.
 
