@@ -11,8 +11,7 @@
  * - Яндекс Market Partner API: кампания «ВольтМир НТЦ».
  *
  * Безопасность:
- * - Yandex API-Key читается функцией YANDEX_MARKET_API_KEY() из settings.js;
- *   значение хранится только в Script Properties.
+ * - Yandex API-Key читается функцией YANDEX_MARKET_API_KEY() из settings.js.
  * - Триггеры не создаются и не меняются.
  *
  * Официальная документация:
@@ -109,32 +108,6 @@ function syncOzonNtcStocksToYandex() {
   } finally {
     lock.releaseLock();
   }
-}
-
-/**
- * Однократная ручная настройка ключа Яндекс.
- * Ключ вводится пользователем в диалог и сохраняется в Script Properties.
- */
-function setupYandexMarketApiKey() {
-  const ui = SpreadsheetApp.getUi();
-  const result = ui.prompt(
-    'Настройка Яндекс Market API',
-    'Вставьте API-Key Яндекс Маркета. Значение не записывается в исходник.',
-    ui.ButtonSet.OK_CANCEL
-  );
-
-  if (result.getSelectedButton() !== ui.Button.OK) {
-    Logger.log('Настройка отменена.');
-    return;
-  }
-
-  const apiKey = String(result.getResponseText() || '').trim();
-  if (!apiKey) {
-    throw new Error('Пустой API-Key Яндекс Маркета.');
-  }
-
-  PropertiesService.getScriptProperties().setProperty(YANDEX_MARKET_API_KEY_PROPERTY, apiKey);
-  Logger.log('✅ API-Key Яндекс Маркета сохранён в Script Properties.');
 }
 
 /**

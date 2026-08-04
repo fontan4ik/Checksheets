@@ -18,12 +18,12 @@
 - Перед первой записью проверяются заголовки `T = Целевая цена` и `Y` с `НТЦ`/`STOCK`.
 - Склад Ozon выбирается только точным совпадением имени; ноль или несколько совпадений останавливают запуск.
 - Некорректная/пустая целевая цена останавливает запуск до записей в Google Sheets и Яндекс.
-- API-Key Яндекс Маркета не находится в исходнике: `YANDEX_MARKET_API_KEY()` в `settings.js` читает Script Property `YANDEX_MARKET_API_KEY`.
+- API-Key Яндекс Маркета задаётся вручную в `settings.js` в константе `YANDEX_MARKET_API_KEY_VALUE`; не добавляйте этот файл с заполненным ключом в публичный Git.
 - Цена передаётся только store-specific методом `POST /v2/campaigns/{campaignId}/offer-prices/updates`; при недоступности индивидуальных цен скрипт завершится с ошибкой, а не переключится молча на общий business-level метод.
 
 ## Ручная настройка и запуск
 
-1. В редакторе Apps Script один раз выполнить `setupYandexMarketApiKey()` и самостоятельно вставить API-Key в диалог.
+1. В `settings.js` заполнить `YANDEX_MARKET_API_KEY_VALUE`.
 2. Выполнить `verifyYandexNtcConfiguration()` — только read-only проверка доступа и кампании.
 3. Выполнить `syncOzonNtcStocksToYandex()` для обновления остатков и цен.
 

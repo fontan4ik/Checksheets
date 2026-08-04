@@ -47,15 +47,15 @@ function WB_API_TOKEN() {
 // ============================================
 
 const mainSheet = () => SpreadsheetApp.getActiveSpreadsheet().getSheetByName("тест");
-// API-Key Яндекс Маркета хранится в Script Properties, не в исходнике.
-// Настройка выполняется один раз через setupYandexMarketApiKey().
-const YANDEX_MARKET_API_KEY_PROPERTY = 'YANDEX_MARKET_API_KEY';
+// Вставьте API-Key Яндекс Маркета между кавычками ниже.
+// Значение не выводится в логи и используется только синхронизацией НТЦ.
+const YANDEX_MARKET_API_KEY_VALUE = '';
 function YANDEX_MARKET_API_KEY() {
-  const value = PropertiesService.getScriptProperties().getProperty(YANDEX_MARKET_API_KEY_PROPERTY);
-  if (!value || !String(value).trim()) {
-    throw new Error('Не задан Script Property ' + YANDEX_MARKET_API_KEY_PROPERTY + '. Сначала выполните setupYandexMarketApiKey().');
+  const value = String(YANDEX_MARKET_API_KEY_VALUE || '').trim();
+  if (!value) {
+    throw new Error('Заполните YANDEX_MARKET_API_KEY_VALUE в settings.js.');
   }
-  return String(value).trim();
+  return value;
 }
 
 const RPS = () => 20; // Ограничение RPS по умолчанию (Ozon до 50 запросов в секунду)
