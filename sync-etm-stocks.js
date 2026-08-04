@@ -1076,7 +1076,7 @@ async function main() {
 
   log("");
   log("🟣 Шаг 3: Обновление остатков WB (Новосемейкино)...");
-  // await updateETMStocksWB(stocks); // Выгрузка на WB временно отключена.
+  await updateETMStocksWB(stocks);
 
   log("");
   log(

@@ -488,7 +488,7 @@ function syncStocksFromSheets() {
   if (feronWarehouseId) {
     Logger.log(``);
     Logger.log(`🟣 Шаг 4: Обновление остатков WB...`);
-    // updateWBStocks(stocks, feronWarehouseId); // Выгрузка на WB временно отключена.
+    updateWBStocks(stocks, feronWarehouseId);
   }
 
   const endTime = new Date();

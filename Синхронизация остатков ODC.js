@@ -496,7 +496,7 @@ function syncStocksFromSheetsSkipODC() {
   if (feronWarehouseId) {
     Logger.log(``);
     Logger.log(`🟣 Шаг 4: Обновление остатков WB (с пропуском ODC/CD+)...`);
-    // updateODCWBStocks(stocks, feronWarehouseId); // Выгрузка на WB временно отключена.
+    updateODCWBStocks(stocks, feronWarehouseId);
   }
 
   const endTime = new Date();

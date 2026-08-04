@@ -766,7 +766,7 @@ async function main() {
 
   log(``);
   log(`🟣 Шаг 3: Обновление остатков WB...`);
-  // await updateFeronStocksWB(stocks); // Выгрузка на WB временно отключена.
+  await updateFeronStocksWB(stocks);
 
   if (ozonPendingChecks.length > 0) {
     log(``);

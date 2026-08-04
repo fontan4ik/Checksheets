@@ -919,7 +919,7 @@ function syncARLStocksImpl() {
   // Шаг 4: Обновляем остатки WB
   Logger.log(``);
   Logger.log(`🟣 Шаг 4: Обновление остатков WB FBS (ФБС Ферон Москва)...`);
-  // updateARLStocksWB(stocks, feronWbId); // Выгрузка на WB временно отключена.
+  updateARLStocksWB(stocks, feronWbId);
 
   // Шаг 5: Пост-проверка Ozon после завершения WB
   Logger.log(``);

@@ -653,7 +653,7 @@ function syncRSTableToMarketplaces() {
   // Шаг 4: Обновляем остатки WB
   Logger.log(``);
   Logger.log(`🟣 Шаг 4: Обновление остатков WB FBS (ВольтМир)...`);
-  // updateRSStocksWB(stocks, rsWbId); // Выгрузка на WB временно отключена.
+  updateRSStocksWB(stocks, rsWbId);
 
   // Пост-проверка Ozon после завершения WB
   Logger.log(``);
@@ -718,7 +718,7 @@ function syncRSStocks() {
   // Шаг 4: Обновляем остатки WB
   Logger.log(``);
   Logger.log(`🟣 Шаг 4: Обновление остатков WB FBS (ВольтМир)...`);
-  // updateRSStocksWB(stocks, rsWbId); // Выгрузка на WB временно отключена.
+  updateRSStocksWB(stocks, rsWbId);
 
   // Шаг 5: Пост-проверка Ozon после завершения WB
   Logger.log(``);

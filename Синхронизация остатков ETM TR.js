@@ -472,7 +472,7 @@ function syncETMTableToMarketplaces() {
   // Шаг 4: Обновляем остатки WB
   Logger.log("");
   Logger.log("🟣 Шаг 4: Обновление остатков WB FBS (Новосемейкино)...");
-  // updateETMStocksWB(stocks, etmWbId); // Выгрузка на WB временно отключена.
+  updateETMStocksWB(stocks, etmWbId);
 
   Logger.log("✅ Синхронизация с маркетплейсами завершена.");
 }
@@ -520,7 +520,7 @@ function syncETMStocks() {
   // Шаг 4: Обновляем остатки WB
   Logger.log("");
   Logger.log("🟣 Шаг 4: Обновление остатков WB FBS (Новосемейкино)...");
-  // updateETMStocksWB(stocks, etmWbId); // Выгрузка на WB временно отключена.
+  updateETMStocksWB(stocks, etmWbId);
 
   const endTime = new Date();
   const duration = Math.round((endTime - startTime) / 1000);

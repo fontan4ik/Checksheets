@@ -449,7 +449,7 @@ async function main() {
   await updateETMStocksOzon(items);
 
   log("🟣 Шаг 2: зануление WB...");
-  // await updateETMStocksWB(items); // Выгрузка на WB временно отключена.
+  await updateETMStocksWB(items);
 
   log("✅ Зануление ETM завершено");
 }
