@@ -6,6 +6,7 @@ const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const BATCH_SIZE = 200;
 const REQUEST_INTERVAL_MS = 10_000;
 const MAX_RETRIES = 3;
+let nextRequestAt = 0;
 
 // Охватывает все активные выгрузки FBS: ETM, Feron и Arlight.
 const SOURCES = [
@@ -49,6 +50,9 @@ async function readChrtIds(sheets, source) {
 }
 
 async function sendBatch(warehouseId, stocks, attempt = 0) {
+  const delay = Math.max(0, nextRequestAt - Date.now());
+  if (delay) await sleep(delay);
+  nextRequestAt = Date.now() + 500;
   try {
     const response = await axios.put(
       `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`,
@@ -88,29 +92,30 @@ async function zeroWarehouse(warehouseId, ids) {
   let skipped = 0;
   let failed = 0;
 
-  for (let offset = 0; offset < stocks.length; offset += BATCH_SIZE) {
-    if (offset > 0) await sleep(REQUEST_INTERVAL_MS);
-    const batch = stocks.slice(offset, offset + BATCH_SIZE);
+  async function zeroBatch(batch) {
     const result = await sendBatch(warehouseId, batch);
     if (result.ok) {
       zeroed += batch.length;
-      log(`Склад ${warehouseId}: обнулено ${zeroed}/${stocks.length}.`);
-      continue;
+      return;
     }
 
-    if (result.cargoRestriction) {
-      for (const item of batch) {
-        await sleep(500);
-        const single = await sendBatch(warehouseId, [item]);
-        if (single.ok) zeroed++;
-        else if (single.cargoRestriction) skipped++;
-        else failed++;
-      }
-      continue;
+    if (result.status === 409 && batch.length > 1) {
+      const midpoint = Math.ceil(batch.length / 2);
+      await zeroBatch(batch.slice(0, midpoint));
+      await zeroBatch(batch.slice(midpoint));
+      return;
     }
 
-    failed += batch.length;
-    log(`Склад ${warehouseId}: ошибка ${result.status}; пачка из ${batch.length} не обнулена.`);
+    if (result.cargoRestriction) skipped += batch.length;
+    else failed += batch.length;
+    log(`Склад ${warehouseId}: chrtId ${batch[0].chrtId} не обнулен (HTTP ${result.status}).`);
+  }
+
+  for (let offset = 0; offset < stocks.length; offset += BATCH_SIZE) {
+    if (offset > 0) await sleep(REQUEST_INTERVAL_MS);
+    const batch = stocks.slice(offset, offset + BATCH_SIZE);
+    await zeroBatch(batch);
+    log(`Склад ${warehouseId}: обработано ${Math.min(offset + BATCH_SIZE, stocks.length)}/${stocks.length}.`);
   }
 
   return { zeroed, skipped, failed, total: stocks.length };
