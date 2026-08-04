@@ -47,6 +47,17 @@ function WB_API_TOKEN() {
 // ============================================
 
 const mainSheet = () => SpreadsheetApp.getActiveSpreadsheet().getSheetByName("тест");
+// API-Key Яндекс Маркета хранится в Script Properties, не в исходнике.
+// Настройка выполняется один раз через setupYandexMarketApiKey().
+const YANDEX_MARKET_API_KEY_PROPERTY = 'YANDEX_MARKET_API_KEY';
+function YANDEX_MARKET_API_KEY() {
+  const value = PropertiesService.getScriptProperties().getProperty(YANDEX_MARKET_API_KEY_PROPERTY);
+  if (!value || !String(value).trim()) {
+    throw new Error('Не задан Script Property ' + YANDEX_MARKET_API_KEY_PROPERTY + '. Сначала выполните setupYandexMarketApiKey().');
+  }
+  return String(value).trim();
+}
+
 const RPS = () => 20; // Ограничение RPS по умолчанию (Ozon до 50 запросов в секунду)
 const WB_RPS = () => 2; // RPS для Wildberries
 

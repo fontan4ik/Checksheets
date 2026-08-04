@@ -1,31 +1,32 @@
 /**
- * Ozon НТЦ → UNIT YNX → Яндекс Маркет.
+ * Ozon НТЦ → UNIT YNX → Яндекс Маркет (остатки и цены).
  *
- * Основная функция для ручного запуска и часового триггера:
+ * Основная функция для ручного запуска:
  *   syncOzonNtcStocksToYandex()
  *
  * Источники/назначения:
  * - Ozon Seller API: FBS-остаток по складу с названием «НТЦ».
  * - Google Sheets, лист «UNIT YNX»: A = offerId/ShopSku Яндекс,
- *   Y = «НТЦ STOCK».
+ *   T = «Целевая цена», Y = «НТЦ STOCK».
  * - Яндекс Market Partner API: кампания «ВольтМир НТЦ».
  *
  * Безопасность:
- * - Yandex API-Key по умолчанию читается из Script Properties.
- * - Для простого ручного запуска предусмотрен отдельный слот
- *   OZON_NTC_YNX_YANDEX_API_KEY; заполненный ключ не коммитьте и не публикуйте.
- * - Триггер запускает только syncOzonNtcStocksToYandex().
+ * - Yandex API-Key читается функцией YANDEX_MARKET_API_KEY() из settings.js;
+ *   значение хранится только в Script Properties.
+ * - Триггеры не создаются и не меняются.
  *
  * Официальная документация:
  * - Ozon: POST /v2/warehouse/list и
  *   POST /v2/product/info/stocks-by-warehouse/fbs
- * - Yandex: PUT /v2/campaigns/{campaignId}/offers/stocks
+ * - Яндекс: PUT /v2/campaigns/{campaignId}/offers/stocks и
+ *   POST /v2/campaigns/{campaignId}/offer-prices/updates
  */
 
 const OZON_NTC_YNX_SPREADSHEET_ID = '15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI';
 const OZON_NTC_YNX_UNIT_SHEET_NAME = 'UNIT YNX';
 const OZON_NTC_YNX_OZON_SHEET_NAME = 'ТЕСТ';
 const OZON_NTC_YNX_UNIT_ART_COLUMN = 1; // A: art / ShopSku Яндекс
+const OZON_NTC_YNX_UNIT_PRICE_COLUMN = 20; // T: Целевая цена
 const OZON_NTC_YNX_UNIT_STOCK_COLUMN = 25; // Y: НТЦ STOCK
 const OZON_NTC_YNX_OZON_ART_COLUMN = 1; // A: Артикул
 const OZON_NTC_YNX_OZON_SKU_COLUMN = 22; // V: SKU Ozon
@@ -35,11 +36,8 @@ const OZON_NTC_YNX_OZON_STOCKS_URL = 'https://api-seller.ozon.ru/v2/product/info
 const OZON_NTC_YNX_OZON_BATCH_SIZE = 500;
 const OZON_NTC_YNX_YANDEX_CAMPAIGN_ID = 149209348;
 const OZON_NTC_YNX_YANDEX_STOCKS_URL = 'https://api.partner.market.yandex.ru/v2/campaigns/' + OZON_NTC_YNX_YANDEX_CAMPAIGN_ID + '/offers/stocks';
+const OZON_NTC_YNX_YANDEX_PRICES_URL = 'https://api.partner.market.yandex.ru/v2/campaigns/' + OZON_NTC_YNX_YANDEX_CAMPAIGN_ID + '/offer-prices/updates';
 const OZON_NTC_YNX_YANDEX_CAMPAIGNS_URL = 'https://api.partner.market.yandex.ru/v2/campaigns';
-const OZON_NTC_YNX_YANDEX_PROPERTY = 'YANDEX_MARKET_API_KEY';
-// Вставьте API-Key Яндекс Маркета только в эту строку, если не хотите использовать Script Properties.
-// Не коммитьте заполненный ключ в Git и не публикуйте его в комментариях/логах.
-const OZON_NTC_YNX_YANDEX_API_KEY = '';
 const OZON_NTC_YNX_YANDEX_BATCH_SIZE = 2000;
 
 /**
@@ -52,6 +50,7 @@ function syncOzonNtcStocksToYandex() {
   }
 
   try {
+    const yandexApiKey = YANDEX_MARKET_API_KEY();
     const spreadsheet = SpreadsheetApp.openById(OZON_NTC_YNX_SPREADSHEET_ID);
     const unitSheet = getOzonNtcYnxSheet_(spreadsheet, OZON_NTC_YNX_UNIT_SHEET_NAME);
     const ozonSheet = getOzonNtcYnxSheet_(spreadsheet, OZON_NTC_YNX_OZON_SHEET_NAME);
@@ -66,31 +65,47 @@ function syncOzonNtcStocksToYandex() {
     const apiRows = unitData.rows.filter(function(row) {
       return row.offerId && ozonSkuByArt[row.offerId];
     });
-
     if (!apiRows.length) {
       throw new Error('Не найдено ни одного соответствия UNIT YNX!A ↔ ТЕСТ!A с SKU Ozon в V.');
     }
 
     const warehouse = findOzonNtcWarehouse_();
     Logger.log('Ozon: выбран склад «' + warehouse.name + '», ID ' + warehouse.id + '.');
-
     const stockBySku = fetchOzonNtcStocks_(apiRows, ozonSkuByArt, warehouse.id);
     const freshByOfferId = {};
     apiRows.forEach(function(row) {
-      const sku = ozonSkuByArt[row.offerId];
-      const skuKey = String(sku);
+      const skuKey = String(ozonSkuByArt[row.offerId]);
       freshByOfferId[row.offerId] = Object.prototype.hasOwnProperty.call(stockBySku, skuKey)
         ? stockBySku[skuKey]
         : 0;
     });
 
-    writeOzonNtcYnxStocks_(unitSheet, unitData, freshByOfferId);
+    const invalidPrices = [];
+    const yandexStockEntries = [];
+    const yandexPriceEntries = [];
+    apiRows.forEach(function(row) {
+      const price = parseOzonNtcYnxPrice_(row.price);
+      if (price === null) {
+        invalidPrices.push(row.offerId);
+        return;
+      }
+      yandexStockEntries.push({ sku: row.offerId, count: freshByOfferId[row.offerId] });
+      yandexPriceEntries.push({ offerId: row.offerId, price: price });
+    });
+    if (invalidPrices.length) {
+      throw new Error('UNIT YNX!T («Целевая цена»): пустая или некорректная цена у ' + invalidPrices.length + ' SKU; записи в Google Sheets и Яндекс не выполнены.');
+    }
 
-    Logger.log('✅ Ozon НТЦ СКЛАД → UNIT YNX завершено.');
+    writeOzonNtcYnxStocks_(unitSheet, unitData, freshByOfferId);
+    uploadOzonNtcYnxStocksToYandex_(yandexStockEntries, yandexApiKey);
+    uploadOzonNtcYnxPricesToYandex_(yandexPriceEntries, yandexApiKey);
+
+    Logger.log('✅ Ozon НТЦ СКЛАД → UNIT YNX → Яндекс завершено.');
     Logger.log('Строк UNIT YNX: ' + unitData.rows.length + '; получено из Ozon: ' + apiRows.length + '.');
-    Logger.log('Ненулевых остатков в Google Sheets: ' + Object.keys(freshByOfferId).filter(function(offerId) {
-      return freshByOfferId[offerId] > 0;
+    Logger.log('Ненулевых остатков: ' + yandexStockEntries.filter(function(item) {
+      return item.count > 0;
     }).length + '.');
+    Logger.log('Отправлено в Яндекс: остатки ' + yandexStockEntries.length + ' SKU; цены ' + yandexPriceEntries.length + ' SKU.');
   } finally {
     lock.releaseLock();
   }
@@ -118,7 +133,7 @@ function setupYandexMarketApiKey() {
     throw new Error('Пустой API-Key Яндекс Маркета.');
   }
 
-  PropertiesService.getScriptProperties().setProperty(OZON_NTC_YNX_YANDEX_PROPERTY, apiKey);
+  PropertiesService.getScriptProperties().setProperty(YANDEX_MARKET_API_KEY_PROPERTY, apiKey);
   Logger.log('✅ API-Key Яндекс Маркета сохранён в Script Properties.');
 }
 
@@ -126,7 +141,7 @@ function setupYandexMarketApiKey() {
  * Read-only проверка ключа и кампании. Запись остатков не выполняется.
  */
 function verifyYandexNtcConfiguration() {
-  const apiKey = getOzonNtcYnxYandexApiKey_();
+  const apiKey = YANDEX_MARKET_API_KEY();
   const response = retryFetch(OZON_NTC_YNX_YANDEX_CAMPAIGNS_URL, {
     method: 'get',
     headers: {
@@ -161,16 +176,6 @@ function verifyYandexNtcConfiguration() {
   };
 }
 
-function getOzonNtcYnxYandexApiKey_() {
-  const inlineKey = String(OZON_NTC_YNX_YANDEX_API_KEY || '').trim();
-  if (inlineKey) return inlineKey;
-
-  const propertyValue = PropertiesService.getScriptProperties().getProperty(OZON_NTC_YNX_YANDEX_PROPERTY);
-  if (propertyValue && String(propertyValue).trim()) return String(propertyValue).trim();
-
-  throw new Error('Укажите API-Key в OZON_NTC_YNX_YANDEX_API_KEY или Script Property ' + OZON_NTC_YNX_YANDEX_PROPERTY + '.');
-}
-
 function getOzonNtcYnxSheet_(spreadsheet, name) {
   const sheet = spreadsheet.getSheetByName(name);
   if (!sheet) throw new Error('Не найден лист «' + name + '».');
@@ -183,7 +188,11 @@ function readOzonNtcYnxUnitRows_(sheet) {
 
   const values = sheet.getRange(1, 1, lastRow, OZON_NTC_YNX_UNIT_STOCK_COLUMN).getDisplayValues();
   const headers = values[0];
+  const priceHeader = String(headers[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1] || '').trim().toLowerCase();
   const stockHeader = String(headers[OZON_NTC_YNX_UNIT_STOCK_COLUMN - 1] || '').trim().toLowerCase();
+  if (priceHeader !== 'целевая цена') {
+    throw new Error('UNIT YNX!T: ожидался заголовок «Целевая цена», получено «' + headers[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1] + '».');
+  }
   if (stockHeader.indexOf('нтц') === -1 || stockHeader.indexOf('stock') === -1) {
     throw new Error('UNIT YNX!Y: ожидался заголовок с «НТЦ» и «STOCK», получено «' + headers[OZON_NTC_YNX_UNIT_STOCK_COLUMN - 1] + '».');
   }
@@ -193,10 +202,24 @@ function readOzonNtcYnxUnitRows_(sheet) {
   values.slice(1).forEach(function(row, index) {
     const offerId = String(row[OZON_NTC_YNX_UNIT_ART_COLUMN - 1] || '').trim();
     stockValues.push([row[OZON_NTC_YNX_UNIT_STOCK_COLUMN - 1] || '']);
-    if (offerId) rows.push({ rowNumber: index + 2, offerId: offerId });
+    if (offerId) rows.push({
+      rowNumber: index + 2,
+      offerId: offerId,
+      price: row[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1]
+    });
   });
 
   return { rows: rows, stockValues: stockValues };
+}
+
+function parseOzonNtcYnxPrice_(rawValue) {
+  const normalized = String(rawValue === undefined || rawValue === null ? '' : rawValue)
+    .replace(/\s|\u00A0/g, '')
+    .replace(',', '.');
+  if (!normalized || !/^\d+(\.\d+)?$/.test(normalized)) return null;
+  const value = Number(normalized);
+  if (!isFinite(value) || value <= 0) return null;
+  return Math.round(value * 100) / 100;
 }
 
 function readOzonNtcYnxOzonSkuMap_(sheet) {
@@ -333,6 +356,40 @@ function uploadOzonNtcYnxStocksToYandex_(entries, apiKey) {
       throw new Error('Яндекс: передача остатков завершилась HTTP ' + code + ' на батче ' + (Math.floor(start / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + 1) + '.');
     }
 
-    Logger.log('Яндекс: батч ' + (Math.floor(start / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + 1) + '/' + Math.ceil(entries.length / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + ', SKU: ' + batch.length + '.');
+    Logger.log('Яндекс: остатки, батч ' + (Math.floor(start / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + 1) + '/' + Math.ceil(entries.length / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + ', SKU: ' + batch.length + '.');
+  }
+}
+
+function uploadOzonNtcYnxPricesToYandex_(entries, apiKey) {
+  for (let start = 0; start < entries.length; start += OZON_NTC_YNX_YANDEX_BATCH_SIZE) {
+    const batch = entries.slice(start, start + OZON_NTC_YNX_YANDEX_BATCH_SIZE);
+    const response = retryFetch(OZON_NTC_YNX_YANDEX_PRICES_URL, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: {
+        'Api-Key': apiKey,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify({
+        offers: batch.map(function(item) {
+          return {
+            offerId: item.offerId,
+            price: {
+              value: item.price,
+              currencyId: 'RUR'
+            }
+          };
+        })
+      }),
+      muteHttpExceptions: true
+    }, 3);
+
+    if (!response) throw new Error('Яндекс: не получен ответ на батч цен ' + (Math.floor(start / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + 1) + '.');
+    const code = response.getResponseCode();
+    if (code < 200 || code >= 300) {
+      throw new Error('Яндекс: передача цен завершилась HTTP ' + code + ' на батче ' + (Math.floor(start / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + 1) + '.');
+    }
+
+    Logger.log('Яндекс: цены, батч ' + (Math.floor(start / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + 1) + '/' + Math.ceil(entries.length / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + ', SKU: ' + batch.length + '.');
   }
 }
