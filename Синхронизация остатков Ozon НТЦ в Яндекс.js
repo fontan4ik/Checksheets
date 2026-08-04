@@ -42,23 +42,16 @@ const OZON_NTC_YNX_YANDEX_PRICE_PER_MINUTE_LIMIT = 10000;
 const OZON_NTC_YNX_YANDEX_PRICE_LIMIT_COOLDOWN_MS = 61000;
 
 /**
- * Главная функция. Не создаёт и не меняет триггеры.
+ * Шаг 1. Ozon НТЦ СКЛАД → UNIT YNX!Y («НТЦ STOCK»).
+ * Работает по артикулам: UNIT YNX!A ↔ ТЕСТ!A, SKU Ozon берётся из ТЕСТ!V.
+ * В Яндекс ничего не отправляет.
  */
-function syncOzonNtcStocksToYandex() {
-  // Не блокируемся глобальными ScriptLock из других Ozon/WB задач проекта.
-  // UserLock всё ещё защищает от одновременного повторного запуска тем же пользователем.
-  const lock = LockService.getUserLock();
-  if (!lock.tryLock(5000)) {
-    throw new Error('Синхронизация НТЦ уже выполняется для текущего пользователя.');
-  }
-
-  try {
-    const yandexApiKey = YANDEX_MARKET_API_KEY();
+function syncOzonNtcStocksToUnitYnx() {
+  withOzonNtcYnxUserLock_('загрузка остатков Ozon НТЦ в UNIT YNX', function() {
     const spreadsheet = SpreadsheetApp.openById(OZON_NTC_YNX_SPREADSHEET_ID);
     const unitSheet = getOzonNtcYnxSheet_(spreadsheet, OZON_NTC_YNX_UNIT_SHEET_NAME);
     const ozonSheet = getOzonNtcYnxSheet_(spreadsheet, OZON_NTC_YNX_OZON_SHEET_NAME);
-
-    const unitData = readOzonNtcYnxUnitRows_(unitSheet);
+    const unitData = readOzonNtcYnxUnitStockRows_(unitSheet);
     if (!unitData.rows.length) {
       Logger.log('UNIT YNX: нет строк с art для обновления.');
       return;
@@ -66,7 +59,7 @@ function syncOzonNtcStocksToYandex() {
 
     const ozonSkuByArt = readOzonNtcYnxOzonSkuMap_(ozonSheet);
     const apiRows = unitData.rows.filter(function(row) {
-      return row.offerId && ozonSkuByArt[row.offerId];
+      return Object.prototype.hasOwnProperty.call(ozonSkuByArt, row.offerId);
     });
     if (!apiRows.length) {
       throw new Error('Не найдено ни одного соответствия UNIT YNX!A ↔ ТЕСТ!A с SKU Ozon в V.');
@@ -83,32 +76,53 @@ function syncOzonNtcStocksToYandex() {
         : 0;
     });
 
-    const invalidPrices = [];
-    const yandexStockEntries = [];
-    const yandexPriceEntries = [];
-    apiRows.forEach(function(row) {
-      const price = parseOzonNtcYnxPrice_(row.price);
-      if (price === null) {
-        invalidPrices.push(row.offerId);
-        return;
-      }
-      yandexStockEntries.push({ sku: row.offerId, count: freshByOfferId[row.offerId] });
-      yandexPriceEntries.push({ offerId: row.offerId, price: price });
-    });
-    if (invalidPrices.length) {
-      throw new Error('UNIT YNX!T («Целевая цена»): пустая или некорректная цена у ' + invalidPrices.length + ' SKU; записи в Google Sheets и Яндекс не выполнены.');
-    }
-
     writeOzonNtcYnxStocks_(unitSheet, unitData, freshByOfferId);
-    uploadOzonNtcYnxStocksToYandex_(yandexStockEntries, yandexApiKey);
-    uploadOzonNtcYnxPricesToYandex_(yandexPriceEntries, yandexApiKey);
-
-    Logger.log('✅ Ozon НТЦ СКЛАД → UNIT YNX → Яндекс завершено.');
-    Logger.log('Строк UNIT YNX: ' + unitData.rows.length + '; получено из Ozon: ' + apiRows.length + '.');
-    Logger.log('Ненулевых остатков: ' + yandexStockEntries.filter(function(item) {
-      return item.count > 0;
+    Logger.log('✅ Ozon НТЦ СКЛАД → UNIT YNX!Y завершено.');
+    Logger.log('Строк UNIT YNX с art: ' + unitData.rows.length + '; сопоставлено с Ozon SKU: ' + apiRows.length + '.');
+    Logger.log('Ненулевых остатков: ' + apiRows.filter(function(row) {
+      return freshByOfferId[row.offerId] > 0;
     }).length + '.');
-    Logger.log('Отправлено в Яндекс: остатки ' + yandexStockEntries.length + ' SKU; цены ' + yandexPriceEntries.length + ' SKU.');
+  });
+}
+
+/**
+ * Шаг 2. UNIT YNX!Y («НТЦ STOCK») → Яндекс Маркет.
+ * Ozon и Google Sheets не обновляет: в Яндекс уходят только уже загруженные значения Y.
+ */
+function syncUnitYnxNtcStocksToYandex() {
+  withOzonNtcYnxUserLock_('отправка остатков UNIT YNX в Яндекс', function() {
+    const spreadsheet = SpreadsheetApp.openById(OZON_NTC_YNX_SPREADSHEET_ID);
+    const unitSheet = getOzonNtcYnxSheet_(spreadsheet, OZON_NTC_YNX_UNIT_SHEET_NAME);
+    const entries = readOzonNtcYnxYandexStockEntries_(unitSheet);
+    const apiKey = YANDEX_MARKET_API_KEY();
+    uploadOzonNtcYnxStocksToYandex_(entries, apiKey);
+    Logger.log('✅ UNIT YNX!Y → Яндекс: остатки отправлены для ' + entries.length + ' SKU.');
+  });
+}
+
+/**
+ * Шаг 3. UNIT YNX!T («Целевая цена») → Яндекс Маркет.
+ * Остатки и Ozon не обновляет.
+ */
+function syncUnitYnxPricesToYandex() {
+  withOzonNtcYnxUserLock_('отправка цен UNIT YNX в Яндекс', function() {
+    const spreadsheet = SpreadsheetApp.openById(OZON_NTC_YNX_SPREADSHEET_ID);
+    const unitSheet = getOzonNtcYnxSheet_(spreadsheet, OZON_NTC_YNX_UNIT_SHEET_NAME);
+    const entries = readOzonNtcYnxYandexPriceEntries_(unitSheet);
+    const apiKey = YANDEX_MARKET_API_KEY();
+    uploadOzonNtcYnxPricesToYandex_(entries, apiKey);
+    Logger.log('✅ UNIT YNX!T → Яндекс: цены отправлены для ' + entries.length + ' SKU.');
+  });
+}
+
+function withOzonNtcYnxUserLock_(operationName, callback) {
+  // Не блокируемся глобальными ScriptLock из других Ozon/WB задач проекта.
+  const lock = LockService.getUserLock();
+  if (!lock.tryLock(5000)) {
+    throw new Error('НТЦ: уже выполняется «' + operationName + '».');
+  }
+  try {
+    return callback();
   } finally {
     lock.releaseLock();
   }
@@ -159,20 +173,13 @@ function getOzonNtcYnxSheet_(spreadsheet, name) {
   return sheet;
 }
 
-function readOzonNtcYnxUnitRows_(sheet) {
+function readOzonNtcYnxUnitStockRows_(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return { rows: [], stockValues: [] };
 
   const values = sheet.getRange(1, 1, lastRow, OZON_NTC_YNX_UNIT_STOCK_COLUMN).getDisplayValues();
   const headers = values[0];
-  const priceHeader = String(headers[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1] || '').trim().toLowerCase();
-  const stockHeader = String(headers[OZON_NTC_YNX_UNIT_STOCK_COLUMN - 1] || '').trim().toLowerCase();
-  if (priceHeader !== 'целевая цена') {
-    throw new Error('UNIT YNX!T: ожидался заголовок «Целевая цена», получено «' + headers[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1] + '».');
-  }
-  if (stockHeader.indexOf('нтц') === -1 || stockHeader.indexOf('stock') === -1) {
-    throw new Error('UNIT YNX!Y: ожидался заголовок с «НТЦ» и «STOCK», получено «' + headers[OZON_NTC_YNX_UNIT_STOCK_COLUMN - 1] + '».');
-  }
+  validateOzonNtcYnxStockHeader_(headers);
 
   const rows = [];
   const stockValues = [];
@@ -181,12 +188,80 @@ function readOzonNtcYnxUnitRows_(sheet) {
     stockValues.push([row[OZON_NTC_YNX_UNIT_STOCK_COLUMN - 1] || '']);
     if (offerId) rows.push({
       rowNumber: index + 2,
-      offerId: offerId,
-      price: row[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1]
+      offerId: offerId
     });
   });
 
   return { rows: rows, stockValues: stockValues };
+}
+
+function readOzonNtcYnxYandexStockEntries_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) throw new Error('UNIT YNX: нет строк для передачи остатков в Яндекс.');
+
+  const values = sheet.getRange(1, 1, lastRow, OZON_NTC_YNX_UNIT_STOCK_COLUMN).getDisplayValues();
+  validateOzonNtcYnxStockHeader_(values[0]);
+  const entries = [];
+  const invalidOfferIds = [];
+
+  values.slice(1).forEach(function(row) {
+    const offerId = String(row[OZON_NTC_YNX_UNIT_ART_COLUMN - 1] || '').trim();
+    if (!offerId) return;
+    const count = parseOzonNtcYnxStock_(row[OZON_NTC_YNX_UNIT_STOCK_COLUMN - 1]);
+    if (count === null) {
+      invalidOfferIds.push(offerId);
+      return;
+    }
+    entries.push({ sku: offerId, count: count });
+  });
+
+  if (invalidOfferIds.length) {
+    throw new Error('UNIT YNX!Y («НТЦ STOCK»): пустой или некорректный остаток у ' + invalidOfferIds.length + ' SKU; в Яндекс ничего не отправлено.');
+  }
+  if (!entries.length) throw new Error('UNIT YNX: нет SKU с остатками для передачи в Яндекс.');
+  return entries;
+}
+
+function readOzonNtcYnxYandexPriceEntries_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) throw new Error('UNIT YNX: нет строк для передачи цен в Яндекс.');
+
+  const values = sheet.getRange(1, 1, lastRow, OZON_NTC_YNX_UNIT_PRICE_COLUMN).getDisplayValues();
+  const headers = values[0];
+  validateOzonNtcYnxPriceHeader_(headers);
+  const entries = [];
+  const invalidOfferIds = [];
+
+  values.slice(1).forEach(function(row) {
+    const offerId = String(row[OZON_NTC_YNX_UNIT_ART_COLUMN - 1] || '').trim();
+    if (!offerId) return;
+    const price = parseOzonNtcYnxPrice_(row[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1]);
+    if (price === null) {
+      invalidOfferIds.push(offerId);
+      return;
+    }
+    entries.push({ offerId: offerId, price: price });
+  });
+
+  if (invalidOfferIds.length) {
+    throw new Error('UNIT YNX!T («Целевая цена»): пустая или некорректная цена у ' + invalidOfferIds.length + ' SKU; в Яндекс ничего не отправлено.');
+  }
+  if (!entries.length) throw new Error('UNIT YNX: нет SKU с ценами для передачи в Яндекс.');
+  return entries;
+}
+
+function validateOzonNtcYnxStockHeader_(headers) {
+  const stockHeader = String(headers[OZON_NTC_YNX_UNIT_STOCK_COLUMN - 1] || '').trim().toLowerCase();
+  if (stockHeader.indexOf('нтц') === -1 || stockHeader.indexOf('stock') === -1) {
+    throw new Error('UNIT YNX!Y: ожидался заголовок с «НТЦ» и «STOCK», получено «' + headers[OZON_NTC_YNX_UNIT_STOCK_COLUMN - 1] + '».');
+  }
+}
+
+function validateOzonNtcYnxPriceHeader_(headers) {
+  const priceHeader = String(headers[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1] || '').trim().toLowerCase();
+  if (priceHeader !== 'целевая цена') {
+    throw new Error('UNIT YNX!T: ожидался заголовок «Целевая цена», получено «' + headers[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1] + '».');
+  }
 }
 
 function parseOzonNtcYnxPrice_(rawValue) {
@@ -197,6 +272,16 @@ function parseOzonNtcYnxPrice_(rawValue) {
   const value = Number(normalized);
   if (!isFinite(value) || value <= 0) return null;
   return Math.round(value * 100) / 100;
+}
+
+function parseOzonNtcYnxStock_(rawValue) {
+  const normalized = String(rawValue === undefined || rawValue === null ? '' : rawValue)
+    .replace(/\s|\u00A0/g, '')
+    .replace(',', '.');
+  if (!normalized || !/^\d+(\.0+)?$/.test(normalized)) return null;
+  const value = Number(normalized);
+  if (!isFinite(value) || value < 0) return null;
+  return Math.trunc(value);
 }
 
 function readOzonNtcYnxOzonSkuMap_(sheet) {
