@@ -6,8 +6,8 @@
 
 `Синхронизация остатков Ozon НТЦ в Яндекс.js` теперь содержит три независимые ручные функции:
 
-1. `syncOzonNtcStocksToUnitYnx()` — Ozon НТЦ СКЛАД → `UNIT YNX!Y` (`НТЦ STOCK`) **по `offer_id` из `UNIT YNX!A`**. Использует Ozon `POST /v2/product/info/stocks-by-warehouse/fbs` с `offer_id`; лист `ТЕСТ` и Ozon SKU не участвуют. В Яндекс не пишет.
-2. `syncUnitYnxNtcStocksToYandex()` — отправляет в Яндекс только уже загруженные значения `UNIT YNX!A/Y`. Ozon и таблицу не читает/не меняет.
+1. `syncOzonNtcStocksToUnitYnx()` — Ozon НТЦ СКЛАД → колонка, найденная по точному заголовку `НТЦ STOCK API`, в `UNIT YNX`. Запрос — **по `offer_id` из `UNIT YNX!A`**. Использует Ozon `POST /v2/product/info/stocks-by-warehouse/fbs` с `offer_id`; лист `ТЕСТ` и Ozon SKU не участвуют. В Яндекс не пишет.
+2. `syncUnitYnxNtcStocksToYandex()` — отправляет в Яндекс значения из колонки, найденной по точному заголовку `TR YA`, используя `UNIT YNX!A` как ShopSku. Ozon и таблицу не читает/не меняет.
 3. `syncUnitYnxPricesToYandex()` — отправляет в Яндекс только цены `UNIT YNX!A/T` (`Целевая цена`). Остатки и Ozon не трогает.
 
 Ранее единый запуск `syncOzonNtcStocksToYandex()` объединял все три тяжёлых этапа и по журналу Apps Script достиг лимита времени 360 секунд. Старый entrypoint удалён, чтобы не запускать длинную цепочку повторно.

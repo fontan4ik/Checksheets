@@ -33,27 +33,31 @@ assert.strictEqual(context.parseOzonNtcYnxStock_('-1'), null);
 function mockSheet(values) {
   return {
     getLastRow() { return values.length; },
+    getLastColumn() { return values[0].length; },
     getRange(row, col, rows, cols) {
       assert.strictEqual(row, 1);
       assert.strictEqual(col, 1);
       assert.strictEqual(rows, values.length);
-      assert.ok(cols === 20 || cols === 25);
+      assert.ok(cols === 20 || cols === 27);
       return { getDisplayValues() { return values.map(r => r.slice(0, cols)); } };
     },
   };
 }
 
-const header = Array(25).fill('');
+const header = Array(27).fill('');
 header[0] = 'offer_id';
 header[19] = 'Целевая цена';
-header[24] = 'НТЦ STOCK';
-const rowA = Array(25).fill('');
-rowA[0] = 'A-1'; rowA[19] = '1 299,90'; rowA[24] = '7';
-const rowB = Array(25).fill('');
-rowB[0] = 'B-2'; rowB[19] = '500'; rowB[24] = '0';
+header[24] = 'НТЦ STOCK API';
+header[26] = 'TR YA';
+const rowA = Array(27).fill('');
+rowA[0] = 'A-1'; rowA[19] = '1 299,90'; rowA[24] = '3'; rowA[26] = '7';
+const rowB = Array(27).fill('');
+rowB[0] = 'B-2'; rowB[19] = '500'; rowB[24] = '4'; rowB[26] = '0';
 const sheet = mockSheet([header, rowA, rowB]);
 
 const stockRows = context.readOzonNtcYnxUnitStockRows_(sheet);
+assert.strictEqual(stockRows.stockColumn, 25);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(stockRows.stockValues)), [['3'], ['4']]);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(stockRows.rows)), [
   { rowNumber: 2, offerId: 'A-1' },
   { rowNumber: 3, offerId: 'B-2' },
