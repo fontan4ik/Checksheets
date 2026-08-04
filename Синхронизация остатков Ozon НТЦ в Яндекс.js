@@ -38,6 +38,8 @@ const OZON_NTC_YNX_YANDEX_STOCKS_URL = 'https://api.partner.market.yandex.ru/v2/
 const OZON_NTC_YNX_YANDEX_PRICES_URL = 'https://api.partner.market.yandex.ru/v2/campaigns/' + OZON_NTC_YNX_YANDEX_CAMPAIGN_ID + '/offer-prices/updates';
 const OZON_NTC_YNX_YANDEX_CAMPAIGNS_URL = 'https://api.partner.market.yandex.ru/v2/campaigns';
 const OZON_NTC_YNX_YANDEX_BATCH_SIZE = 2000;
+const OZON_NTC_YNX_YANDEX_PRICE_PER_MINUTE_LIMIT = 10000;
+const OZON_NTC_YNX_YANDEX_PRICE_LIMIT_COOLDOWN_MS = 61000;
 
 /**
  * Главная функция. Не создаёт и не меняет триггеры.
@@ -334,35 +336,60 @@ function uploadOzonNtcYnxStocksToYandex_(entries, apiKey) {
 }
 
 function uploadOzonNtcYnxPricesToYandex_(entries, apiKey) {
+  let pricesSentInCurrentWindow = 0;
+
   for (let start = 0; start < entries.length; start += OZON_NTC_YNX_YANDEX_BATCH_SIZE) {
     const batch = entries.slice(start, start + OZON_NTC_YNX_YANDEX_BATCH_SIZE);
-    const response = retryFetch(OZON_NTC_YNX_YANDEX_PRICES_URL, {
-      method: 'post',
-      contentType: 'application/json',
-      headers: {
-        'Api-Key': apiKey,
-        'Content-Type': 'application/json'
-      },
-      payload: JSON.stringify({
-        offers: batch.map(function(item) {
-          return {
-            offerId: item.offerId,
-            price: {
-              value: item.price,
-              currencyId: 'RUR'
-            }
-          };
-        })
-      }),
-      muteHttpExceptions: true
-    }, 3);
+    const batchNumber = Math.floor(start / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + 1;
 
-    if (!response) throw new Error('Яндекс: не получен ответ на батч цен ' + (Math.floor(start / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + 1) + '.');
-    const code = response.getResponseCode();
-    if (code < 200 || code >= 300) {
-      throw new Error('Яндекс: передача цен завершилась HTTP ' + code + ' на батче ' + (Math.floor(start / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + 1) + '.');
+    if (pricesSentInCurrentWindow + batch.length > OZON_NTC_YNX_YANDEX_PRICE_PER_MINUTE_LIMIT) {
+      Logger.log('Яндекс: достигнут лимит цен ' + OZON_NTC_YNX_YANDEX_PRICE_PER_MINUTE_LIMIT + ' SKU/мин; ожидание ' + (OZON_NTC_YNX_YANDEX_PRICE_LIMIT_COOLDOWN_MS / 1000) + ' сек.');
+      Utilities.sleep(OZON_NTC_YNX_YANDEX_PRICE_LIMIT_COOLDOWN_MS);
+      pricesSentInCurrentWindow = 0;
     }
 
-    Logger.log('Яндекс: цены, батч ' + (Math.floor(start / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + 1) + '/' + Math.ceil(entries.length / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + ', SKU: ' + batch.length + '.');
+    let response = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      response = retryFetch(OZON_NTC_YNX_YANDEX_PRICES_URL, {
+        method: 'post',
+        contentType: 'application/json',
+        headers: {
+          'Api-Key': apiKey,
+          'Content-Type': 'application/json'
+        },
+        payload: JSON.stringify({
+          offers: batch.map(function(item) {
+            return {
+              offerId: item.offerId,
+              price: {
+                value: item.price,
+                currencyId: 'RUR'
+              }
+            };
+          })
+        }),
+        muteHttpExceptions: true
+      }, 3);
+
+      if (!response) break;
+      const code = response.getResponseCode();
+      if (code >= 200 && code < 300) break;
+      if (code === 420 && attempt === 1) {
+        Logger.log('Яндекс: HTTP 420 для цен, ожидание ' + (OZON_NTC_YNX_YANDEX_PRICE_LIMIT_COOLDOWN_MS / 1000) + ' сек. перед одной повторной попыткой.');
+        Utilities.sleep(OZON_NTC_YNX_YANDEX_PRICE_LIMIT_COOLDOWN_MS);
+        pricesSentInCurrentWindow = 0;
+        continue;
+      }
+      throw new Error('Яндекс: передача цен завершилась HTTP ' + code + ' на батче ' + batchNumber + '.');
+    }
+
+    if (!response) throw new Error('Яндекс: не получен ответ на батч цен ' + batchNumber + '.');
+    const finalCode = response.getResponseCode();
+    if (finalCode < 200 || finalCode >= 300) {
+      throw new Error('Яндекс: передача цен завершилась HTTP ' + finalCode + ' на батче ' + batchNumber + '.');
+    }
+
+    pricesSentInCurrentWindow += batch.length;
+    Logger.log('Яндекс: цены, батч ' + batchNumber + '/' + Math.ceil(entries.length / OZON_NTC_YNX_YANDEX_BATCH_SIZE) + ', SKU: ' + batch.length + '.');
   }
 }
