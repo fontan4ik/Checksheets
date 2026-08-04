@@ -444,7 +444,7 @@ function syncFeronStocks() {
 
   Logger.log(``);
   Logger.log(`🟣 Шаг 3: Обновление остатков WB (3 склада)...`);
-  updateFeronStocksWB(stocks);
+  // updateFeronStocksWB(stocks); // Выгрузка на WB временно отключена.
 
   const endTime = new Date();
   const duration = Math.round((endTime - startTime) / 1000);
