@@ -3,21 +3,20 @@ const axios = require("axios");
 const path = require("path");
 
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
-const BATCH_SIZE = 200;
-const REQUEST_INTERVAL_MS = 10_000;
+const BATCH_SIZE = 1000;
+const REQUEST_INTERVAL_MS = 5_000;
 const MAX_RETRIES = 3;
 let nextRequestAt = 0;
 
 // Охватывает все активные выгрузки FBS: ETM, Feron и Arlight.
 const SOURCES = [
-  { sheet: "ETM TR", range: "A:Q", chrtColumn: 17, warehouses: [798761] },
+  { sheet: "ETM TR", chrtHeader: "chrlid", warehouses: [798761] },
   {
     sheet: "FERON TR",
-    range: "A:T",
-    chrtColumn: 20,
+    chrtHeader: "chrlid",
     warehouses: [1449484, 798761, 1724900, 1860503],
   },
-  { sheet: "ARL TR", range: "A:J", chrtColumn: 10, warehouses: [1449484] },
+  { sheet: "ARL TR", chrtHeader: "chrlid", warehouses: [1449484] },
 ];
 
 const wbToken = process.env.WB_API_TOKEN;
@@ -37,12 +36,19 @@ function isCargoRestriction(text) {
 async function readChrtIds(sheets, source) {
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `'${source.sheet}'!${source.range}`,
+    range: `'${source.sheet}'`,
     majorDimension: "ROWS",
   });
+  const rows = response.data.values || [];
+  const headers = (rows[0] || []).map((value) => String(value || "")
+    .trim().toLowerCase().replaceAll("ё", "е"));
+  const column = headers.indexOf(source.chrtHeader);
+  if (column < 0) {
+    throw new Error(`${source.sheet}: не найден заголовок '${source.chrtHeader}'.`);
+  }
   const ids = new Set();
-  for (const row of (response.data.values || []).slice(1)) {
-    const id = Number(row[source.chrtColumn - 1]);
+  for (const row of rows.slice(1)) {
+    const id = Number(row[column]);
     if (Number.isSafeInteger(id) && id > 0) ids.add(id);
   }
   log(`${source.sheet}: найдено ${ids.size} уникальных chrtId.`);
@@ -52,7 +58,7 @@ async function readChrtIds(sheets, source) {
 async function sendBatch(warehouseId, stocks, attempt = 0) {
   const delay = Math.max(0, nextRequestAt - Date.now());
   if (delay) await sleep(delay);
-  nextRequestAt = Date.now() + 500;
+  nextRequestAt = Date.now() + REQUEST_INTERVAL_MS;
   try {
     const response = await axios.put(
       `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`,
