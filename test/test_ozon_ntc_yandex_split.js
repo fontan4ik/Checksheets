@@ -75,15 +75,11 @@ context.retryFetch = (url, options) => {
     getContentText() {
       return JSON.stringify({
         cursor: '',
-        items: [
-          {
-            offer_id: 'A-1',
-            stocks: [
-              { warehouse_ids: [102], present: 5, reserved: 2 },
-              { warehouse_ids: [777], present: 99, reserved: 0 },
-            ],
-          },
-          { offer_id: 'B-2', stocks: [{ warehouse_ids: [102], present: 0, reserved: 0 }] },
+        has_next: false,
+        products: [
+          { offer_id: 'A-1', warehouse_id: 102, present: 5, reserved: 2 },
+          { offer_id: 'A-1', warehouse_id: 777, present: 99, reserved: 0 },
+          { offer_id: 'B-2', warehouse_id: 102, present: 0, reserved: 0 },
         ],
       });
     },
@@ -92,10 +88,10 @@ context.retryFetch = (url, options) => {
 const fetched = context.fetchOzonNtcStocks_([{ offerId: 'A-1' }, { offerId: 'B-2' }], '102');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(fetched)), { 'A-1': 7, 'B-2': 0 });
 assert.strictEqual(requests.length, 1);
-assert.strictEqual(requests[0].url, 'https://api-seller.ozon.ru/v4/product/info/stocks');
+assert.strictEqual(requests[0].url, 'https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(requests[0].body)), {
   cursor: '',
-  filter: { offer_id: ['A-1', 'B-2'], visibility: 'ALL' },
+  offer_id: ['A-1', 'B-2'],
   limit: 2,
 });
 assert.ok(!Object.prototype.hasOwnProperty.call(requests[0].body, 'sku'));

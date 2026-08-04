@@ -19,7 +19,7 @@
  *
  * Официальная документация:
  * - Ozon: POST /v2/warehouse/list и
- *   POST /v4/product/info/stocks (filter.offer_id).
+ *   POST /v2/product/info/stocks-by-warehouse/fbs (offer_id).
  * - Яндекс: PUT /v2/campaigns/{campaignId}/offers/stocks и
  *   POST /v2/campaigns/{campaignId}/offer-prices/updates
  */
@@ -31,7 +31,7 @@ const OZON_NTC_YNX_UNIT_PRICE_COLUMN = 20; // T: Целевая цена
 const OZON_NTC_YNX_UNIT_STOCK_COLUMN = 25; // Y: НТЦ STOCK
 const OZON_NTC_YNX_OZON_WAREHOUSE_NAME = 'НТЦ СКЛАД';
 const OZON_NTC_YNX_OZON_WAREHOUSE_LIST_URL = 'https://api-seller.ozon.ru/v2/warehouse/list';
-const OZON_NTC_YNX_OZON_STOCKS_URL = 'https://api-seller.ozon.ru/v4/product/info/stocks';
+const OZON_NTC_YNX_OZON_STOCKS_URL = 'https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs';
 const OZON_NTC_YNX_OZON_BATCH_SIZE = 1000;
 const OZON_NTC_YNX_YANDEX_CAMPAIGN_ID = 149209348;
 const OZON_NTC_YNX_YANDEX_STOCKS_URL = 'https://api.partner.market.yandex.ru/v2/campaigns/' + OZON_NTC_YNX_YANDEX_CAMPAIGN_ID + '/offers/stocks';
@@ -313,7 +313,8 @@ function fetchOzonNtcStocks_(unitRows, warehouseId) {
     const chunk = uniqueOfferIds.slice(start, start + OZON_NTC_YNX_OZON_BATCH_SIZE);
     let cursor = '';
     let page = 0;
-    do {
+    let hasNext = true;
+    while (hasNext) {
       page += 1;
       const response = retryFetch(OZON_NTC_YNX_OZON_STOCKS_URL, {
         method: 'post',
@@ -321,10 +322,7 @@ function fetchOzonNtcStocks_(unitRows, warehouseId) {
         headers: ozonHeaders(),
         payload: JSON.stringify({
           cursor: cursor,
-          filter: {
-            offer_id: chunk,
-            visibility: 'ALL'
-          },
+          offer_id: chunk,
           limit: chunk.length
         }),
         muteHttpExceptions: true
@@ -336,26 +334,23 @@ function fetchOzonNtcStocks_(unitRows, warehouseId) {
       if (code < 200 || code >= 300) throw new Error('Ozon: остатки завершились HTTP ' + code + ' на батче offer_id ' + batchNumber + '.');
 
       const data = JSON.parse(response.getContentText());
-      const result = Array.isArray(data.items) ? data.items : [];
+      const result = Array.isArray(data.products) ? data.products : [];
       result.forEach(function(item) {
+        if (String(item.warehouse_id) !== warehouseKey) return;
         const offerId = String(item.offer_id || '').trim();
         if (!offerId) return;
-        const stock = (Array.isArray(item.stocks) ? item.stocks : []).reduce(function(total, stockItem) {
-          const warehouseIds = Array.isArray(stockItem.warehouse_ids) ? stockItem.warehouse_ids : [];
-          const belongsToNtc = warehouseIds.some(function(id) {
-            return String(id) === warehouseKey;
-          });
-          if (!belongsToNtc) return total;
-          const present = Math.max(0, Number(stockItem.present) || 0);
-          const reserved = Math.max(0, Number(stockItem.reserved) || 0);
-          return total + present + reserved;
-        }, 0);
-        stockByOfferId[offerId] = Math.trunc(stock);
+        const present = Math.max(0, Number(item.present) || 0);
+        const reserved = Math.max(0, Number(item.reserved) || 0);
+        stockByOfferId[offerId] = Math.trunc(present + reserved);
       });
 
       cursor = String(data.cursor || '').trim();
+      hasNext = data.has_next === true;
+      if (hasNext && !cursor) {
+        throw new Error('Ozon: получен has_next без cursor на батче offer_id ' + batchNumber + '.');
+      }
       Logger.log('Ozon: offer_id батч ' + batchNumber + '/' + Math.ceil(uniqueOfferIds.length / OZON_NTC_YNX_OZON_BATCH_SIZE) + ', страница ' + page + ', offer_id: ' + chunk.length + '.');
-    } while (cursor);
+    }
   }
 
   uniqueOfferIds.forEach(function(offerId) {
