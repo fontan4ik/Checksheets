@@ -27,7 +27,7 @@
 const OZON_NTC_YNX_SPREADSHEET_ID = '15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI';
 const OZON_NTC_YNX_UNIT_SHEET_NAME = 'UNIT YNX';
 const OZON_NTC_YNX_UNIT_ART_COLUMN = 1; // A: offer_id Ozon / ShopSku Яндекс
-const OZON_NTC_YNX_UNIT_PRICE_COLUMN = 20; // T: Целевая цена
+const OZON_NTC_YNX_UNIT_PRICE_COLUMN = 24; // x: Целевая цена
 const OZON_NTC_YNX_OZON_STOCK_HEADER = 'НТЦ STOCK API';
 const OZON_NTC_YNX_YANDEX_STOCK_HEADER = 'TR YA';
 const OZON_NTC_YNX_OZON_WAREHOUSE_NAME = 'НТЦ СКЛАД';
