@@ -23,16 +23,13 @@
 
 const OZON_NTC_YNX_SPREADSHEET_ID = '15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI';
 const OZON_NTC_YNX_UNIT_SHEET_NAME = 'UNIT YNX';
-const OZON_NTC_YNX_OZON_SHEET_NAME = 'ТЕСТ';
-const OZON_NTC_YNX_UNIT_ART_COLUMN = 1; // A: art / ShopSku Яндекс
+const OZON_NTC_YNX_UNIT_ART_COLUMN = 1; // A: offer_id Ozon / ShopSku Яндекс
 const OZON_NTC_YNX_UNIT_PRICE_COLUMN = 20; // T: Целевая цена
 const OZON_NTC_YNX_UNIT_STOCK_COLUMN = 25; // Y: НТЦ STOCK
-const OZON_NTC_YNX_OZON_ART_COLUMN = 1; // A: Артикул
-const OZON_NTC_YNX_OZON_SKU_COLUMN = 22; // V: SKU Ozon
 const OZON_NTC_YNX_OZON_WAREHOUSE_NAME = 'НТЦ СКЛАД';
 const OZON_NTC_YNX_OZON_WAREHOUSE_LIST_URL = 'https://api-seller.ozon.ru/v2/warehouse/list';
-const OZON_NTC_YNX_OZON_STOCKS_URL = 'https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs';
-const OZON_NTC_YNX_OZON_BATCH_SIZE = 500;
+const OZON_NTC_YNX_OZON_STOCKS_URL = 'https://api-seller.ozon.ru/v4/product/info/stocks';
+const OZON_NTC_YNX_OZON_BATCH_SIZE = 1000;
 const OZON_NTC_YNX_YANDEX_CAMPAIGN_ID = 149209348;
 const OZON_NTC_YNX_YANDEX_STOCKS_URL = 'https://api.partner.market.yandex.ru/v2/campaigns/' + OZON_NTC_YNX_YANDEX_CAMPAIGN_ID + '/offers/stocks';
 const OZON_NTC_YNX_YANDEX_PRICES_URL = 'https://api.partner.market.yandex.ru/v2/campaigns/' + OZON_NTC_YNX_YANDEX_CAMPAIGN_ID + '/offer-prices/updates';
@@ -50,36 +47,20 @@ function syncOzonNtcStocksToUnitYnx() {
   withOzonNtcYnxUserLock_('загрузка остатков Ozon НТЦ в UNIT YNX', function() {
     const spreadsheet = SpreadsheetApp.openById(OZON_NTC_YNX_SPREADSHEET_ID);
     const unitSheet = getOzonNtcYnxSheet_(spreadsheet, OZON_NTC_YNX_UNIT_SHEET_NAME);
-    const ozonSheet = getOzonNtcYnxSheet_(spreadsheet, OZON_NTC_YNX_OZON_SHEET_NAME);
     const unitData = readOzonNtcYnxUnitStockRows_(unitSheet);
     if (!unitData.rows.length) {
-      Logger.log('UNIT YNX: нет строк с art для обновления.');
+      Logger.log('UNIT YNX: нет строк с offer_id в колонке A для обновления.');
       return;
-    }
-
-    const ozonSkuByArt = readOzonNtcYnxOzonSkuMap_(ozonSheet);
-    const apiRows = unitData.rows.filter(function(row) {
-      return Object.prototype.hasOwnProperty.call(ozonSkuByArt, row.offerId);
-    });
-    if (!apiRows.length) {
-      throw new Error('Не найдено ни одного соответствия UNIT YNX!A ↔ ТЕСТ!A с SKU Ozon в V.');
     }
 
     const warehouse = findOzonNtcWarehouse_();
     Logger.log('Ozon: выбран склад «' + warehouse.name + '», ID ' + warehouse.id + '.');
-    const stockBySku = fetchOzonNtcStocks_(apiRows, ozonSkuByArt, warehouse.id);
-    const freshByOfferId = {};
-    apiRows.forEach(function(row) {
-      const skuKey = String(ozonSkuByArt[row.offerId]);
-      freshByOfferId[row.offerId] = Object.prototype.hasOwnProperty.call(stockBySku, skuKey)
-        ? stockBySku[skuKey]
-        : 0;
-    });
+    const freshByOfferId = fetchOzonNtcStocks_(unitData.rows, warehouse.id);
 
     writeOzonNtcYnxStocks_(unitSheet, unitData, freshByOfferId);
     Logger.log('✅ Ozon НТЦ СКЛАД → UNIT YNX!Y завершено.');
-    Logger.log('Строк UNIT YNX с art: ' + unitData.rows.length + '; сопоставлено с Ozon SKU: ' + apiRows.length + '.');
-    Logger.log('Ненулевых остатков: ' + apiRows.filter(function(row) {
+    Logger.log('Строк UNIT YNX с offer_id в A: ' + unitData.rows.length + '; запрошено в Ozon: ' + Object.keys(freshByOfferId).length + '.');
+    Logger.log('Ненулевых остатков: ' + unitData.rows.filter(function(row) {
       return freshByOfferId[row.offerId] > 0;
     }).length + '.');
   });
@@ -284,22 +265,6 @@ function parseOzonNtcYnxStock_(rawValue) {
   return Math.trunc(value);
 }
 
-function readOzonNtcYnxOzonSkuMap_(sheet) {
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) throw new Error('Лист «' + OZON_NTC_YNX_OZON_SHEET_NAME + '» пуст.');
-
-  const values = sheet.getRange(1, 1, lastRow, OZON_NTC_YNX_OZON_SKU_COLUMN).getDisplayValues();
-  const map = {};
-  values.slice(1).forEach(function(row) {
-    const offerId = String(row[OZON_NTC_YNX_OZON_ART_COLUMN - 1] || '').trim();
-    const sku = String(row[OZON_NTC_YNX_OZON_SKU_COLUMN - 1] || '').trim();
-    if (!offerId || !sku || !/^\d+$/.test(sku)) return;
-    if (!Object.prototype.hasOwnProperty.call(map, offerId)) map[offerId] = sku;
-  });
-
-  return map;
-}
-
 function findOzonNtcWarehouse_() {
   const response = retryFetch(OZON_NTC_YNX_OZON_WAREHOUSE_LIST_URL, {
     method: 'post',
@@ -327,52 +292,73 @@ function findOzonNtcWarehouse_() {
   return { id: String(matches[0].warehouse_id), name: String(matches[0].name || '') };
 }
 
-function fetchOzonNtcStocks_(unitRows, skuByArt, warehouseId) {
-  const stockBySku = {};
-  const uniqueSkus = [];
+function fetchOzonNtcStocks_(unitRows, warehouseId) {
+  const stockByOfferId = {};
+  const uniqueOfferIds = [];
   const seen = {};
+  const warehouseKey = String(warehouseId);
 
   unitRows.forEach(function(row) {
-    const sku = String(skuByArt[row.offerId] || '').trim();
-    if (sku && !seen[sku]) {
-      seen[sku] = true;
-      uniqueSkus.push(sku);
+    const offerId = String(row.offerId || '').trim();
+    if (offerId && !seen[offerId]) {
+      seen[offerId] = true;
+      uniqueOfferIds.push(offerId);
     }
   });
 
-  for (let start = 0; start < uniqueSkus.length; start += OZON_NTC_YNX_OZON_BATCH_SIZE) {
-    const chunk = uniqueSkus.slice(start, start + OZON_NTC_YNX_OZON_BATCH_SIZE).map(Number);
-    const response = retryFetch(OZON_NTC_YNX_OZON_STOCKS_URL, {
-      method: 'post',
-      contentType: 'application/json',
-      headers: ozonHeaders(),
-      payload: JSON.stringify({
-        sku: chunk,
-        warehouse_id: Number(warehouseId),
-        limit: OZON_NTC_YNX_OZON_BATCH_SIZE
-      }),
-      muteHttpExceptions: true
-    }, 3);
+  for (let start = 0; start < uniqueOfferIds.length; start += OZON_NTC_YNX_OZON_BATCH_SIZE) {
+    const chunk = uniqueOfferIds.slice(start, start + OZON_NTC_YNX_OZON_BATCH_SIZE);
+    let cursor = '';
+    let page = 0;
+    do {
+      page += 1;
+      const response = retryFetch(OZON_NTC_YNX_OZON_STOCKS_URL, {
+        method: 'post',
+        contentType: 'application/json',
+        headers: ozonHeaders(),
+        payload: JSON.stringify({
+          cursor: cursor,
+          filter: {
+            offer_id: chunk,
+            visibility: 'ALL'
+          },
+          limit: chunk.length
+        }),
+        muteHttpExceptions: true
+      }, 3);
 
-    if (!response) throw new Error('Ozon: не получены остатки для батча ' + (Math.floor(start / OZON_NTC_YNX_OZON_BATCH_SIZE) + 1) + '.');
-    const code = response.getResponseCode();
-    if (code < 200 || code >= 300) throw new Error('Ozon: остатки завершились HTTP ' + code + ' на батче ' + (Math.floor(start / OZON_NTC_YNX_OZON_BATCH_SIZE) + 1) + '.');
+      const batchNumber = Math.floor(start / OZON_NTC_YNX_OZON_BATCH_SIZE) + 1;
+      if (!response) throw new Error('Ozon: не получены остатки для батча offer_id ' + batchNumber + '.');
+      const code = response.getResponseCode();
+      if (code < 200 || code >= 300) throw new Error('Ozon: остатки завершились HTTP ' + code + ' на батче offer_id ' + batchNumber + '.');
 
-    const data = JSON.parse(response.getContentText());
-    const result = Array.isArray(data.products) ? data.products : [];
-    result.forEach(function(item) {
-      if (String(item.warehouse_id) !== String(warehouseId)) return;
-      const sku = String(item.sku || '').trim();
-      if (!sku) return;
-      const present = Math.max(0, Number(item.present) || 0);
-      const reserved = Math.max(0, Number(item.reserved) || 0);
-      stockBySku[sku] = Math.trunc(present + reserved);
-    });
+      const data = JSON.parse(response.getContentText());
+      const result = Array.isArray(data.items) ? data.items : [];
+      result.forEach(function(item) {
+        const offerId = String(item.offer_id || '').trim();
+        if (!offerId) return;
+        const stock = (Array.isArray(item.stocks) ? item.stocks : []).reduce(function(total, stockItem) {
+          const warehouseIds = Array.isArray(stockItem.warehouse_ids) ? stockItem.warehouse_ids : [];
+          const belongsToNtc = warehouseIds.some(function(id) {
+            return String(id) === warehouseKey;
+          });
+          if (!belongsToNtc) return total;
+          const present = Math.max(0, Number(stockItem.present) || 0);
+          const reserved = Math.max(0, Number(stockItem.reserved) || 0);
+          return total + present + reserved;
+        }, 0);
+        stockByOfferId[offerId] = Math.trunc(stock);
+      });
 
-    Logger.log('Ozon: батч ' + (Math.floor(start / OZON_NTC_YNX_OZON_BATCH_SIZE) + 1) + '/' + Math.ceil(uniqueSkus.length / OZON_NTC_YNX_OZON_BATCH_SIZE) + ', SKU: ' + chunk.length + '.');
+      cursor = String(data.cursor || '').trim();
+      Logger.log('Ozon: offer_id батч ' + batchNumber + '/' + Math.ceil(uniqueOfferIds.length / OZON_NTC_YNX_OZON_BATCH_SIZE) + ', страница ' + page + ', offer_id: ' + chunk.length + '.');
+    } while (cursor);
   }
 
-  return stockBySku;
+  uniqueOfferIds.forEach(function(offerId) {
+    if (!Object.prototype.hasOwnProperty.call(stockByOfferId, offerId)) stockByOfferId[offerId] = 0;
+  });
+  return stockByOfferId;
 }
 
 function writeOzonNtcYnxStocks_(sheet, unitData, freshByOfferId) {
