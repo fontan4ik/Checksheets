@@ -714,7 +714,7 @@ def run(args: argparse.Namespace) -> int:
         )
 
     if args.write_sheet:
-        write_sheet_metrics(worksheet, headers, sheet_rows, metrics_by_period, running_by_id)
+        write_sheet_metrics(worksheet, headers, sheet_rows, metrics_by_period, campaigns_by_id)
         print("Метрики/статусы записаны в СРС")
 
     if not args.apply:
