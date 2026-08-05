@@ -19,6 +19,7 @@ from ozon_cpc_cleanup import (
     parse_report,
     parse_report_block,
     period_range,
+    rows_from_values,
     write_sheet_metrics,
 )
 
@@ -169,6 +170,22 @@ class OzonCpcCleanupTests(unittest.TestCase):
         }
         candidates = build_candidates(rows, metrics_by_period, {"33230388": set()})
         self.assertEqual(candidates[0].action, "skip_not_in_campaign")
+
+    def test_rows_from_values_skips_rows_without_article(self):
+        headers = [
+            "art", "model", "brand", "pic", "SKU OZON", "CAMPAIN ID", "Фильтр клики день", "Фильтр ДРР месяц",
+        ]
+        values = [
+            headers,
+            ["39171-1", "39171", "Stekker", "", "986315608", "33230388", "10", "5"],
+            ["", "no-art", "x", "", "123456", "999", "10", "5"],
+            ["39172-2", "39172", "Stekker", "", "986315609", "33230389", "", ""],
+        ]
+        _, rows = rows_from_values(values)
+        self.assertEqual([(row.row_number, row.article, row.sku) for row in rows], [
+            (2, "39171-1", "986315608"),
+            (4, "39172-2", "986315609"),
+        ])
 
 
 if __name__ == "__main__":

@@ -448,7 +448,11 @@ def parse_report(raw: bytes, campaign_ids: list[str]) -> dict[tuple[str, str], M
 
 def read_sheet_rows() -> tuple[Any, list[str], list[SheetRow]]:
     worksheet = gsheets_utils.get_worksheet(SHEET_NAME)
-    values = worksheet.get_all_values()
+    headers, rows = rows_from_values(worksheet.get_all_values())
+    return worksheet, headers, rows
+
+
+def rows_from_values(values: list[list[str]]) -> tuple[list[str], list[SheetRow]]:
     if not values:
         raise RuntimeError(f"Лист {SHEET_NAME!r} пустой")
     headers = values[0]
@@ -463,6 +467,9 @@ def read_sheet_rows() -> tuple[Any, list[str], list[SheetRow]]:
     rows: list[SheetRow] = []
     for row_number, values_row in enumerate(values[1:], start=2):
         padded = list(values_row) + [""] * (len(headers) - len(values_row))
+        article = str(padded[article_index]).strip() if article_index >= 0 else ""
+        if article_index >= 0 and not article:
+            continue
         sku = normalize_id(padded[sku_index])
         campaign_id = normalize_id(padded[campaign_index])
         if not sku and not campaign_id:
@@ -474,7 +481,7 @@ def read_sheet_rows() -> tuple[Any, list[str], list[SheetRow]]:
         rows.append(
             SheetRow(
                 row_number=row_number,
-                article=str(padded[article_index]).strip() if article_index >= 0 else "",
+                article=article,
                 sku=sku,
                 campaign_id=campaign_id,
                 filter_clicks=filter_clicks,
@@ -482,7 +489,7 @@ def read_sheet_rows() -> tuple[Any, list[str], list[SheetRow]]:
                 values=padded,
             )
         )
-    return worksheet, headers, rows
+    return headers, rows
 
 
 def is_cpc_campaign(campaign: dict[str, Any] | None) -> bool:
