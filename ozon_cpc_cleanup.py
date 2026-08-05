@@ -279,14 +279,11 @@ def get_token(session: requests.Session) -> str:
     return str(token)
 
 
-def get_running_campaigns(session: requests.Session, token: str) -> list[dict[str, Any]]:
-    data = request_json(
-        session,
-        "GET",
-        "/api/client/campaign",
-        token=token,
-        params={"advObjectType": "SKU", "state": "CAMPAIGN_STATE_RUNNING"},
-    )
+def get_campaigns(session: requests.Session, token: str, state: str | None = None) -> list[dict[str, Any]]:
+    params: dict[str, str] = {"advObjectType": "SKU"}
+    if state:
+        params["state"] = state
+    data = request_json(session, "GET", "/api/client/campaign", token=token, params=params)
     campaigns = data.get("list", []) if isinstance(data, dict) else []
     return [campaign for campaign in campaigns if normalize_id(campaign.get("id"))]
 
@@ -669,24 +666,36 @@ def run(args: argparse.Namespace) -> int:
 
     session = create_session()
     token = get_token(session)
-    running = get_running_campaigns(session, token)
-    running_by_id = {normalize_id(campaign.get("id")): campaign for campaign in running if is_cpc_campaign(campaign)}
-    campaign_ids = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id in running_by_id]
-    inactive = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id not in running_by_id]
-    print(f"Running campaigns={len(running)}; из СРС активных={len(campaign_ids)}; неактивных={len(inactive)}")
+    campaigns_by_id = {normalize_id(campaign.get("id")): campaign for campaign in get_campaigns(session, token)}
+    running_cpc_ids = {
+        campaign_id
+        for campaign_id, campaign in campaigns_by_id.items()
+        if normalize(campaign.get("state")) == "campaign_state_running" and is_cpc_campaign(campaign)
+    }
+    report_campaign_ids = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id in campaigns_by_id]
+    missing = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id not in campaigns_by_id]
+    print(
+        f"SKU-кампаний в Ozon={len(campaigns_by_id)}; из СРС в Ozon={len(report_campaign_ids)}; "
+        f"не найдено в Ozon={len(missing)}; running CPC из СРС="
+        f"{sum(1 for campaign_id in report_campaign_ids if campaign_id in running_cpc_ids)}"
+    )
 
     products_by_campaign: dict[str, set[str]] = {}
     metrics_by_period: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
-    if campaign_ids:
-        products_by_campaign = {campaign_id: get_campaign_products(session, token, campaign_id) for campaign_id in campaign_ids}
+    if report_campaign_ids:
+        products_by_campaign = {campaign_id: get_campaign_products(session, token, campaign_id) for campaign_id in report_campaign_ids}
         batch_size = max(1, int(args.batch_size))
-        metrics_by_period = fetch_period_metrics(session, token, campaign_ids, batch_size)
+        metrics_by_period = fetch_period_metrics(session, token, report_campaign_ids, batch_size)
         for period in PERIODS:
             print(f"Период {period}: SKU/кампания пар={len(metrics_by_period[period])}")
     else:
-        print("Нет активных кампаний из листа СРС; отчёты не создаются")
+        print("Нет кампаний из листа СРС в Ozon; отчёты не создаются")
 
-    candidates = build_candidates(sheet_rows, metrics_by_period, products_by_campaign)
+    candidates = [
+        candidate
+        for candidate in build_candidates(sheet_rows, metrics_by_period, products_by_campaign)
+        if candidate.campaign_id in running_cpc_ids
+    ]
     deletions = [candidate for candidate in candidates if candidate.action == "delete"]
     skipped = [candidate for candidate in candidates if candidate.action != "delete"]
     print(f"Кандидаты по фильтрам: {len(candidates)}; к удалению={len(deletions)}; пропущено={len(skipped)}")
