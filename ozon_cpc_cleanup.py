@@ -1,17 +1,31 @@
 #!/usr/bin/env python3
-"""Ozon Performance CPC cleanup for the ``СРС`` sheet.
+"""Ozon Performance CPC sync for the ``СРС`` sheet.
 
-The normal invocation is a read-only dry-run.  Real SKU deletion requires
-``--apply`` and is intentionally separate from the optional Sheets write.
+The worksheet layout (already applied in Google Sheets):
+
+    art | model | brand | pic | SKU OZON | CAMPAIN ID | CAMPAIN NAME |
+    Расход день | Расход неделя | Расход месяц |
+    Показы день | Показы неделя | Показы месяц |
+    Клики день | Клики неделя | Клики месяц |
+    CTR, % месяц | Средняя стоимость клика месяц | Продано месяц |
+    ДРР в продвижении месяц | Бюджет | Корзины месяц | Статус |
+    Фильтр клики день | Фильтр ДРР месяц
+
+Only identity columns ``art/model/brand/pic/SKU OZON`` are static and are never
+rewritten.  Everything else is regenerated from the Ozon Performance API on
+every run.  The last two columns (``Фильтр клики день`` / ``Фильтр ДРР месяц``)
+are per-row thresholds edited by the user; the script reads them and, when a
+campaign/SKU crosses a threshold, stops the article (SKU) first and the whole
+campaign only if the article cannot be stopped.
 
 Flow:
-1. Read campaign/SKU pairs from the ``СРС`` worksheet.
-2. Read running SKU campaigns from Ozon Performance API.
-3. Read campaign products and keep only SKU pairs present in both sources.
-4. Generate a current-day SKU report and wait for it to become ready.
-5. Parse clicks from the CSV/ZIP report.
-6. Plan deletion for rows with clicks >= threshold.
-7. Optionally write metrics/status back to ``СРС`` and/or delete SKU from Ozon.
+1. Read campaign/SKU pairs and per-row filter thresholds from ``СРС``.
+2. Read running SKU campaigns from Ozon Performance API (title/budget/state).
+3. Generate SKU reports for day, week and month periods and parse them.
+4. Write day/week/month metrics, budget, status and campaign name back to ``СРС``.
+5. Evaluate ``Фильтр клики день`` (day clicks >= threshold) and
+   ``Фильтр ДРР месяц`` (month DRR % >= threshold): delete the SKU from the
+   campaign, and deactivate the whole campaign if the SKU cannot be deleted.
 
 Credentials are read from the existing local ``config.py`` and are never
 printed.  The script does not alter the Google Sheet or Ozon campaigns unless
@@ -45,15 +59,15 @@ import gsheets_utils
 
 BASE_URL = str(config.OZON_PERF_BASE_URL).rstrip("/")
 SHEET_NAME = str(getattr(config, "OZON_CPC_SHEET_NAME", "СРС"))
-DEFAULT_THRESHOLD = float(getattr(config, "OZON_CPC_CLICK_THRESHOLD", 10))
 MOSCOW_TZ = ZoneInfo("Europe/Moscow")
-VALID_REPORT_GROUP_BY = {"NO_GROUP_BY", "DATE", "START_OF_WEEK", "START_OF_MONTH"}
-# ``SKU`` is a report column, not a valid value of the API's time ``groupBy``.
-# DATE preserves the current-day semantics while the CSV still contains SKU rows.
-REPORT_GROUP_BY = os.getenv("OZON_CPC_REPORT_GROUP_BY", "DATE").strip().upper()
 REPORT_MAX_ATTEMPTS = int(os.getenv("OZON_CPC_REPORT_MAX_ATTEMPTS", "180"))
 REPORT_SLEEP_SECONDS = int(os.getenv("OZON_CPC_REPORT_SLEEP_SECONDS", "5"))
 TRANSIENT_STATUSES = {408, 409, 425, 429, 500, 502, 503, 504}
+
+PERIOD_DAY = "day"
+PERIOD_WEEK = "week"
+PERIOD_MONTH = "month"
+PERIODS = (PERIOD_DAY, PERIOD_WEEK, PERIOD_MONTH)
 
 
 class SourceAddressAdapter(HTTPAdapter):
@@ -108,6 +122,8 @@ class SheetRow:
     article: str
     sku: str
     campaign_id: str
+    filter_clicks: float
+    filter_drr: float
     values: list[str]
 
 
@@ -119,6 +135,7 @@ class Metric:
     spend: float = 0.0
     average_cpc: float = 0.0
     sold: float = 0.0
+    revenue: float = 0.0
     drr: float = 0.0
     carts: float = 0.0
 
@@ -135,6 +152,9 @@ class Candidate:
     campaign_id: str
     sku: str
     clicks: float
+    drr: float
+    filter_clicks: float
+    filter_drr: float
     action: str
 
 
@@ -168,37 +188,34 @@ def parse_number(value: Any) -> float:
         return 0.0
 
 
-def current_day_period(now: datetime | None = None) -> tuple[str, str]:
-    current = now.astimezone(MOSCOW_TZ) if now else datetime.now(MOSCOW_TZ)
-    day = current.date().isoformat()
-    return f"{day}T00:00:00+03:00", f"{day}T23:59:59+03:00"
+def period_range(period: str, now: datetime | None = None) -> tuple[str, str]:
+    """Return RFC3339 ``from``/``to`` bounds for day/week/month in Moscow time."""
+    current = (now or datetime.now()).astimezone(MOSCOW_TZ)
+    today = current.date()
+    if period == PERIOD_DAY:
+        start = today
+    elif period == PERIOD_WEEK:
+        start = today - timedelta(days=6)
+    elif period == PERIOD_MONTH:
+        start = today.replace(day=1)
+    else:
+        raise ValueError(f"Неизвестный период: {period}")
+    return f"{start.isoformat()}T00:00:00+03:00", f"{today.isoformat()}T23:59:59+03:00"
 
 
-def build_statistics_payload(
-    campaign_ids: list[str],
-    date_from: str,
-    date_to: str,
-    group_by: str = REPORT_GROUP_BY,
-) -> dict[str, Any]:
+def build_statistics_payload(campaign_ids: list[str], date_from: str, date_to: str) -> dict[str, Any]:
     """Build the documented asynchronous campaign-statistics request.
 
-    Ozon accepts either RFC3339 ``from``/``to`` or date-only
-    ``dateFrom``/``dateTo``. The cleanup job uses the former so that the
-    current Moscow day is explicit and matches the operational contract.
+    ``NO_GROUP_BY`` returns one row per SKU aggregated over the requested
+    period, which is the exact granularity the ``СРС`` sheet needs.
     """
-    normalized_group_by = str(group_by or "").strip().upper()
-    if normalized_group_by not in VALID_REPORT_GROUP_BY:
-        raise ValueError(
-            "OZON_CPC_REPORT_GROUP_BY должен быть одним из: "
-            + ", ".join(sorted(VALID_REPORT_GROUP_BY))
-        )
     if not campaign_ids:
         raise ValueError("Для отчёта нужна хотя бы одна кампания")
     return {
         "campaigns": campaign_ids,
         "from": date_from,
         "to": date_to,
-        "groupBy": normalized_group_by,
+        "groupBy": "NO_GROUP_BY",
     }
 
 
@@ -378,6 +395,7 @@ def parse_report_block(filename: str, text: str, fallback_campaign_id: str | Non
         "spend": find_column(headers, ["расход, ₽, с ндс", "расход", "spend"]),
         "average_cpc": find_column(headers, ["средняя стоимость клика, ₽", "средняя стоимость клика", "cpc"]),
         "sold": find_column(headers, ["продано товаров", "заказы", "orders"]),
+        "revenue": find_column(headers, ["продажи в продвижении, ₽", "продажи в продвижении", "revenue"]),
         "drr": find_column(headers, ["дрр в продвижении, %", "ддр в продвижении, %"]),
         "carts": find_column(headers, ["добавления в корзину", "корзины", "carts"]),
     }
@@ -422,7 +440,7 @@ def parse_report(raw: bytes, campaign_ids: list[str]) -> dict[tuple[str, str], M
     for filename, text in blocks:
         block = parse_report_block(filename, text, fallback)
         if not block.campaign_id:
-            raise RuntimeError(f"Не удалось определить campaign_id для блока {filename}; удаление остановлено")
+            raise RuntimeError(f"Не удалось определить campaign_id для блока {filename}; запись остановлена")
         for sku, metric in block.metrics.items():
             key = (block.campaign_id, sku)
             existing = result.setdefault(key, Metric())
@@ -440,6 +458,8 @@ def read_sheet_rows() -> tuple[Any, list[str], list[SheetRow]]:
     sku_index = find_column(headers, ["sku ozon", "sku"])
     campaign_index = find_column(headers, ["campain id", "campaign id", "campaign_id"])
     article_index = find_column(headers, ["art", "артикул"])
+    filter_clicks_index = find_column(headers, ["фильтр клики день"])
+    filter_drr_index = find_column(headers, ["фильтр дрр месяц"])
     if sku_index < 0 or campaign_index < 0:
         raise RuntimeError("В листе СРС нужны колонки 'SKU OZON' и 'CAMPAIN ID'")
 
@@ -452,33 +472,60 @@ def read_sheet_rows() -> tuple[Any, list[str], list[SheetRow]]:
             continue
         if not sku or not campaign_id:
             raise RuntimeError(f"СРС строка {row_number}: SKU OZON и CAMPAIN ID должны быть заполнены вместе")
+        filter_clicks = parse_number(padded[filter_clicks_index]) if filter_clicks_index >= 0 else 0.0
+        filter_drr = parse_number(padded[filter_drr_index]) if filter_drr_index >= 0 else 0.0
         rows.append(
             SheetRow(
                 row_number=row_number,
                 article=str(padded[article_index]).strip() if article_index >= 0 else "",
                 sku=sku,
                 campaign_id=campaign_id,
+                filter_clicks=filter_clicks,
+                filter_drr=filter_drr,
                 values=padded,
             )
         )
     return worksheet, headers, rows
 
 
+def is_cpc_campaign(campaign: dict[str, Any] | None) -> bool:
+    if not campaign:
+        return False
+    payment_type = normalize(campaign.get("PaymentType", campaign.get("paymentType", "")))
+    return not payment_type or payment_type == "cpc"
+
+
 def build_candidates(
     rows: list[SheetRow],
-    metrics: dict[tuple[str, str], Metric],
+    metrics_by_period: dict[str, dict[tuple[str, str], Metric]],
     products_by_campaign: dict[str, set[str]],
-    threshold: float,
 ) -> list[Candidate]:
+    day_metrics = metrics_by_period.get(PERIOD_DAY, {})
+    month_metrics = metrics_by_period.get(PERIOD_MONTH, {})
     candidates: list[Candidate] = []
     for row in rows:
-        metric = metrics.get((row.campaign_id, row.sku), Metric())
-        if metric.clicks < threshold:
+        day = day_metrics.get((row.campaign_id, row.sku), Metric())
+        month = month_metrics.get((row.campaign_id, row.sku), Metric())
+        clicks_triggered = row.filter_clicks > 0 and day.clicks >= row.filter_clicks
+        drr_triggered = row.filter_drr > 0 and month.drr >= row.filter_drr
+        if not clicks_triggered and not drr_triggered:
             continue
         if row.sku not in products_by_campaign.get(row.campaign_id, set()):
-            candidates.append(Candidate(row.row_number, row.campaign_id, row.sku, metric.clicks, "skip_not_in_campaign"))
+            action = "skip_not_in_campaign"
         else:
-            candidates.append(Candidate(row.row_number, row.campaign_id, row.sku, metric.clicks, "delete"))
+            action = "delete"
+        candidates.append(
+            Candidate(
+                row_number=row.row_number,
+                campaign_id=row.campaign_id,
+                sku=row.sku,
+                clicks=day.clicks,
+                drr=month.drr,
+                filter_clicks=row.filter_clicks,
+                filter_drr=row.filter_drr,
+                action=action,
+            )
+        )
     unique: dict[tuple[str, str], Candidate] = {}
     for candidate in candidates:
         unique.setdefault((candidate.campaign_id, candidate.sku), candidate)
@@ -492,6 +539,17 @@ def delete_sku(session: requests.Session, token: str, campaign_id: str, sku: str
         f"/api/client/campaign/{campaign_id}/products/delete",
         token=token,
         payload={"sku": [sku]},
+        timeout=60,
+    )
+
+
+def deactivate_campaign(session: requests.Session, token: str, campaign_id: str) -> Any:
+    return request_json(
+        session,
+        "POST",
+        f"/api/client/campaign/{campaign_id}/deactivate",
+        token=token,
+        payload={},
         timeout=60,
     )
 
@@ -511,33 +569,52 @@ def write_sheet_metrics(
     worksheet: Any,
     headers: list[str],
     rows: list[SheetRow],
-    metrics: dict[tuple[str, str], Metric],
+    metrics_by_period: dict[str, dict[tuple[str, str], Metric]],
     campaigns_by_id: dict[str, dict[str, Any]],
 ) -> None:
     if not rows:
         return
     header_map = {normalize(header): index + 1 for index, header in enumerate(headers)}
     metric_columns = {
-        "расход": "spend",
-        "показы": "impressions",
-        "клики": "clicks",
-        "ctr, %": "ctr",
-        "средняя стоимость клика": "average_cpc",
-        "продано": "sold",
-        "дрр в продвижении": "drr",
-        "корзины": "carts",
+        "расход день": (PERIOD_DAY, "spend"),
+        "расход неделя": (PERIOD_WEEK, "spend"),
+        "расход месяц": (PERIOD_MONTH, "spend"),
+        "показы день": (PERIOD_DAY, "impressions"),
+        "показы неделя": (PERIOD_WEEK, "impressions"),
+        "показы месяц": (PERIOD_MONTH, "impressions"),
+        "клики день": (PERIOD_DAY, "clicks"),
+        "клики неделя": (PERIOD_WEEK, "clicks"),
+        "клики месяц": (PERIOD_MONTH, "clicks"),
+        "ctr, % месяц": (PERIOD_MONTH, "ctr"),
+        "средняя стоимость клика месяц": (PERIOD_MONTH, "average_cpc"),
+        "продано месяц": (PERIOD_MONTH, "sold"),
+        "дрр в продвижении месяц": (PERIOD_MONTH, "drr"),
+        "корзины месяц": (PERIOD_MONTH, "carts"),
     }
+    name_col = header_map.get("campain name")
     budget_col = header_map.get("бюджет")
     status_col = header_map.get("статус")
 
     start_row = rows[0].row_number
     end_row = rows[-1].row_number
-    # Update only CPC/Performance columns. Static identity columns are never sent to Sheets.
-    for header, field_name in metric_columns.items():
+    period_metrics = {period: metrics_by_period.get(period, {}) for period in PERIODS}
+
+    def value_for(row: SheetRow, period: str, field_name: str) -> Any:
+        return getattr(period_metrics[period].get((row.campaign_id, row.sku), Metric()), field_name)
+
+    if name_col:
+        values = [
+            [str(campaigns_by_id[row.campaign_id].get("title", "")) if row.campaign_id in campaigns_by_id else ""]
+            for row in rows
+        ]
+        cell_range = f"{column_letter(name_col)}{start_row}:{column_letter(name_col)}{end_row}"
+        worksheet.update(cell_range, values)
+
+    for header, (period, field_name) in metric_columns.items():
         column = header_map.get(header)
         if not column:
             continue
-        values = [[getattr(metrics.get((row.campaign_id, row.sku), Metric()), field_name)] for row in rows]
+        values = [[value_for(row, period, field_name)] for row in rows]
         cell_range = f"{column_letter(column)}{start_row}:{column_letter(column)}{end_row}"
         worksheet.update(cell_range, values)
 
@@ -563,6 +640,28 @@ def column_letter(number: int) -> str:
     return result
 
 
+def fetch_period_metrics(
+    session: requests.Session,
+    token: str,
+    campaign_ids: list[str],
+    batch_size: int,
+) -> dict[str, dict[tuple[str, str], Metric]]:
+    result: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
+    for period in PERIODS:
+        date_from, date_to = period_range(period)
+        print(f"Период {period}: {date_from} -> {date_to}")
+        for start in range(0, len(campaign_ids), batch_size):
+            batch = campaign_ids[start : start + batch_size]
+            report_uuid = create_statistics_report(session, token, batch, date_from, date_to)
+            print(f"  Отчёт создан: кампаний={len(batch)}")
+            metrics = parse_report(wait_for_report(session, token, report_uuid), batch)
+            for key, metric in metrics.items():
+                existing = result[period].setdefault(key, Metric())
+                for field_name in vars(metric):
+                    setattr(existing, field_name, getattr(existing, field_name) + getattr(metric, field_name))
+    return result
+
+
 def run(args: argparse.Namespace) -> int:
     worksheet, headers, sheet_rows = read_sheet_rows()
     print(f"Лист {SHEET_NAME}: строк с SKU/campaign={len(sheet_rows)}")
@@ -571,46 +670,43 @@ def run(args: argparse.Namespace) -> int:
     session = create_session()
     token = get_token(session)
     running = get_running_campaigns(session, token)
-    running_by_id = {
-        normalize_id(campaign.get("id")): campaign
-        for campaign in running
-        if not normalize(campaign.get("PaymentType", campaign.get("paymentType", "")))
-        or normalize(campaign.get("PaymentType", campaign.get("paymentType", ""))) == "cpc"
-    }
+    running_by_id = {normalize_id(campaign.get("id")): campaign for campaign in running if is_cpc_campaign(campaign)}
     campaign_ids = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id in running_by_id]
     inactive = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id not in running_by_id]
     print(f"Running campaigns={len(running)}; из СРС активных={len(campaign_ids)}; неактивных={len(inactive)}")
-    if not campaign_ids:
-        print("Нет активных кампаний из листа СРС; отчёт не создаётся")
-        return 0
 
-    products_by_campaign = {campaign_id: get_campaign_products(session, token, campaign_id) for campaign_id in campaign_ids}
-    date_from, date_to = current_day_period()
-    metrics: dict[tuple[str, str], Metric] = {}
-    batch_size = max(1, int(args.batch_size))
-    for start in range(0, len(campaign_ids), batch_size):
-        batch = campaign_ids[start : start + batch_size]
-        report_uuid = create_statistics_report(session, token, batch, date_from, date_to)
-        print(f"Отчёт создан: кампаний={len(batch)}")
-        metrics.update(parse_report(wait_for_report(session, token, report_uuid), batch))
+    products_by_campaign: dict[str, set[str]] = {}
+    metrics_by_period: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
+    if campaign_ids:
+        products_by_campaign = {campaign_id: get_campaign_products(session, token, campaign_id) for campaign_id in campaign_ids}
+        batch_size = max(1, int(args.batch_size))
+        metrics_by_period = fetch_period_metrics(session, token, campaign_ids, batch_size)
+        for period in PERIODS:
+            print(f"Период {period}: SKU/кампания пар={len(metrics_by_period[period])}")
+    else:
+        print("Нет активных кампаний из листа СРС; отчёты не создаются")
 
-    candidates = build_candidates(sheet_rows, metrics, products_by_campaign, args.threshold)
+    candidates = build_candidates(sheet_rows, metrics_by_period, products_by_campaign)
     deletions = [candidate for candidate in candidates if candidate.action == "delete"]
     skipped = [candidate for candidate in candidates if candidate.action != "delete"]
-    print(f"Кандидаты clicks>={args.threshold:g}: {len(candidates)}; к удалению={len(deletions)}; пропущено={len(skipped)}")
+    print(f"Кандидаты по фильтрам: {len(candidates)}; к удалению={len(deletions)}; пропущено={len(skipped)}")
     for candidate in candidates:
-        print(f"row={candidate.row_number} campaign={candidate.campaign_id} sku={candidate.sku} clicks={candidate.clicks:g} action={candidate.action}")
+        print(
+            f"row={candidate.row_number} campaign={candidate.campaign_id} sku={candidate.sku} "
+            f"clicks_day={candidate.clicks:g}/{candidate.filter_clicks:g} drr_month={candidate.drr:g}/{candidate.filter_drr:g} "
+            f"action={candidate.action}"
+        )
 
     if args.write_sheet:
-        write_sheet_metrics(worksheet, headers, sheet_rows, metrics, running_by_id)
+        write_sheet_metrics(worksheet, headers, sheet_rows, metrics_by_period, running_by_id)
         print("Метрики/статусы записаны в СРС")
 
     if not args.apply:
-        print("DRY-RUN: удаление не выполнялось")
+        print("DRY-RUN: остановка не выполнялась")
         return 0
 
     if os.getenv("OZON_CPC_CONFIRM_DELETE", "") != "YES":
-        raise RuntimeError("Для live-удаления установите OZON_CPC_CONFIRM_DELETE=YES вместе с --apply")
+        raise RuntimeError("Для live-остановки установите OZON_CPC_CONFIRM_DELETE=YES вместе с --apply")
     # The report can wait in Ozon's queue for minutes. Re-read campaign
     # membership immediately before every destructive request rather than
     # trusting the earlier discovery snapshot.
@@ -626,18 +722,29 @@ def run(args: argparse.Namespace) -> int:
                 "на момент удаления товара уже нет в кампании"
             )
             continue
-        delete_sku(session, token, candidate.campaign_id, candidate.sku)
-        products.remove(candidate.sku)
-        print(f"Удалён SKU {candidate.sku} из кампании {candidate.campaign_id}")
+        try:
+            delete_sku(session, token, candidate.campaign_id, candidate.sku)
+            products.remove(candidate.sku)
+            print(f"Остановлен SKU {candidate.sku} из кампании {candidate.campaign_id}")
+        except RuntimeError as exc:
+            print(
+                f"Не удалось остановить SKU {candidate.sku} ({candidate.campaign_id}): {exc}. "
+                "Останавливаем кампанию целиком"
+            )
+            try:
+                deactivate_campaign(session, token, candidate.campaign_id)
+                current_products[candidate.campaign_id] = set()
+                print(f"Остановлена кампания {candidate.campaign_id}")
+            except RuntimeError as deactivate_exc:
+                print(f"Не удалось остановить кампанию {candidate.campaign_id}: {deactivate_exc}")
     return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD, help="Порог кликов, по умолчанию 10")
     parser.add_argument("--batch-size", type=int, default=10, help="Кампаний в одном отчёте")
     parser.add_argument("--write-sheet", action="store_true", help="Записать метрики и статусы в СРС")
-    parser.add_argument("--apply", action="store_true", help="Выполнить удаление SKU из кампаний")
+    parser.add_argument("--apply", action="store_true", help="Остановить SKU/кампании по фильтрам")
     return parser
 
 
