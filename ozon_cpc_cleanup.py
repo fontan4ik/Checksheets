@@ -650,6 +650,26 @@ def column_letter(number: int) -> str:
     return result
 
 
+def fetch_report_metrics(
+    session: requests.Session,
+    token: str,
+    batch: list[str],
+    date_from: str,
+    date_to: str,
+) -> dict[tuple[str, str], Metric]:
+    last_exc: Exception | None = None
+    for attempt in range(1, 4):
+        report_uuid = create_statistics_report(session, token, batch, date_from, date_to)
+        print(f"  Отчёт создан: кампаний={len(batch)}")
+        try:
+            return parse_report(wait_for_report(session, token, report_uuid), batch)
+        except RuntimeError as exc:
+            last_exc = exc
+            print(f"  Ошибка отчёта (попытка {attempt}/3): {exc}")
+            time.sleep(10)
+    raise RuntimeError(f"Не удалось получить отчёт после 3 попыток: {last_exc}")
+
+
 def fetch_period_metrics(
     session: requests.Session,
     token: str,
@@ -662,9 +682,7 @@ def fetch_period_metrics(
         print(f"Период {period}: {date_from} -> {date_to}")
         for start in range(0, len(campaign_ids), batch_size):
             batch = campaign_ids[start : start + batch_size]
-            report_uuid = create_statistics_report(session, token, batch, date_from, date_to)
-            print(f"  Отчёт создан: кампаний={len(batch)}")
-            metrics = parse_report(wait_for_report(session, token, report_uuid), batch)
+            metrics = fetch_report_metrics(session, token, batch, date_from, date_to)
             for key, metric in metrics.items():
                 existing = result[period].setdefault(key, Metric())
                 for field_name in vars(metric):
@@ -696,11 +714,14 @@ def run(args: argparse.Namespace) -> int:
     products_by_campaign: dict[str, set[str]] = {}
     metrics_by_period: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
     if report_campaign_ids:
-        products_by_campaign = {campaign_id: get_campaign_products(session, token, campaign_id) for campaign_id in report_campaign_ids}
-        batch_size = max(1, int(args.batch_size))
-        metrics_by_period = fetch_period_metrics(session, token, report_campaign_ids, batch_size)
-        for period in PERIODS:
-            print(f"Период {period}: SKU/кампания пар={len(metrics_by_period[period])}")
+        try:
+            products_by_campaign = {campaign_id: get_campaign_products(session, token, campaign_id) for campaign_id in report_campaign_ids}
+            batch_size = max(1, int(args.batch_size))
+            metrics_by_period = fetch_period_metrics(session, token, report_campaign_ids, batch_size)
+            for period in PERIODS:
+                print(f"Период {period}: SKU/кампания пар={len(metrics_by_period[period])}")
+        except Exception as exc:
+            print(f"Ошибка сбора метрик: {exc}; продолжаем с пустыми метриками (фильтры не применяются, но toggle выполнится)")
     else:
         print("Нет кампаний из листа СРС в Ozon; отчёты не создаются")
 
