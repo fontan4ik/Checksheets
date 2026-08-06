@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import gsheets_utils
@@ -29,20 +30,26 @@ from ozon_cpc_cleanup import (
 )
 
 
+def _request_with_retry(session, method: str, path: str, token: str, max_attempts: int = 5) -> None:
+    last_exc: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            request_json(session, method, path, token=token, payload={}, timeout=60)
+            return
+        except Exception as exc:
+            last_exc = exc
+            if "429" not in str(exc):
+                raise
+            time.sleep(min(2 ** attempt, 15))
+    raise last_exc  # type: ignore[misc]
+
+
 def activate_campaign(token: str, session, campaign_id: str) -> None:
-    request_json(
-        session, "POST",
-        f"/api/client/campaign/{campaign_id}/activate",
-        token=token, payload={}, timeout=60,
-    )
+    _request_with_retry(session, "POST", f"/api/client/campaign/{campaign_id}/activate", token)
 
 
 def deactivate_campaign(token: str, session, campaign_id: str) -> None:
-    request_json(
-        session, "POST",
-        f"/api/client/campaign/{campaign_id}/deactivate",
-        token=token, payload={}, timeout=60,
-    )
+    _request_with_retry(session, "POST", f"/api/client/campaign/{campaign_id}/deactivate", token)
 
 
 def main() -> int:
@@ -52,7 +59,7 @@ def main() -> int:
         action="store_true",
         help="Реально дёргать activate/deactivate (по умолчанию dry-run).",
     )
-    parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--workers", type=int, default=2)
     args = parser.parse_args()
 
     if args.apply and os.getenv("OZON_CPC_CONFIRM_TOGGLE", "") != "YES":
