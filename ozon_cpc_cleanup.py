@@ -508,6 +508,8 @@ def build_candidates(
     month_metrics = metrics_by_period.get(PERIOD_MONTH, {})
     candidates: list[Candidate] = []
     for row in rows:
+        if row.filter_clicks <= 0 and row.filter_drr <= 0:
+            continue
         day = day_metrics.get((row.campaign_id, row.sku), Metric())
         month = month_metrics.get((row.campaign_id, row.sku), Metric())
         clicks_triggered = row.filter_clicks > 0 and day.clicks >= row.filter_clicks

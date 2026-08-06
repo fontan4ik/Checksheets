@@ -160,6 +160,17 @@ class OzonCpcCleanupTests(unittest.TestCase):
         )
         self.assertEqual({item.sku for item in candidates}, {"986315608", "123", "777"})
 
+    def test_build_candidates_skips_row_when_both_filters_zero(self):
+        rows = [
+            SheetRow(2, "39171-1", "986315608", "33230388", 0, 0, []),
+        ]
+        metrics_by_period = {
+            PERIOD_DAY: {("33230388", "986315608"): Metric(clicks=9999)},
+            PERIOD_MONTH: {("33230388", "986315608"): Metric(drr=9999)},
+        }
+        candidates = build_candidates(rows, metrics_by_period, {"33230388": {"986315608"}})
+        self.assertEqual(candidates, [])
+
     def test_build_candidates_skips_when_sku_not_in_campaign(self):
         rows = [
             SheetRow(2, "a", "111", "33230388", 5, 0, []),
