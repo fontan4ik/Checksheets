@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import dataclass
 from typing import Any
 
 import config
@@ -29,10 +30,35 @@ from ozon_cpc_cleanup import (
     create_session,
     find_column,
     get_token,
+    normalize,
     normalize_id,
+    parse_number,
     request_json,
-    rows_from_values,
 )
+
+
+@dataclass(frozen=True)
+class CreationRow:
+    row_number: int
+    article: str
+    sku: str
+
+
+def read_creation_rows(values: list[list[str]]) -> list[CreationRow]:
+    if not values:
+        return []
+    headers = values[0]
+    article_index = find_column(headers, ["art", "артикул"])
+    sku_index = find_column(headers, ["sku ozon", "sku"])
+    rows: list[CreationRow] = []
+    for row_number, values_row in enumerate(values[1:], start=2):
+        padded = list(values_row) + [""] * (len(headers) - len(values_row))
+        article = str(padded[article_index]).strip() if article_index >= 0 else ""
+        sku = normalize_id(padded[sku_index]) if sku_index >= 0 else ""
+        if not article or not sku:
+            continue
+        rows.append(CreationRow(row_number=row_number, article=article, sku=sku))
+    return rows
 
 
 CAMPAIGN_BUDGET_MICRORUBLES = 2000 * 1_000_000
@@ -87,6 +113,12 @@ def activate_campaign(session, token: str, campaign_id: str) -> Any:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Обработать только первые N строк (0 = все).",
+    )
+    parser.add_argument(
         "--skip-sheet-write",
         action="store_true",
         help="Не записывать новые CAMPAIN ID в СРС (только в консоль).",
@@ -102,13 +134,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def run(args: argparse.Namespace) -> int:
     worksheet = gsheets_utils.get_worksheet(SHEET_NAME)
     values = worksheet.get_all_values()
-    headers, rows = rows_from_values(values)
+    rows = read_creation_rows(values)
+    headers = values[0] if values else []
     campaign_column = find_column(headers, ["campain id", "campaign id", "campaign_id"])
     if campaign_column < 0:
         raise RuntimeError("В листе СРС нет колонки 'CAMPAIN ID'")
     campaign_col_letter = column_letter(campaign_column + 1)
 
     print(f"Лист {SHEET_NAME}: строк с art+SKU={len(rows)}")
+    if args.limit and args.limit > 0:
+        rows = rows[: args.limit]
+        print(f"--limit={args.limit}: обрабатываем первые {len(rows)} строк")
     if not rows:
         print("Нет строк для обработки")
         return 0
@@ -116,8 +152,9 @@ def run(args: argparse.Namespace) -> int:
     session = create_session()
     token = get_token(session)
 
-    created: list[tuple[Any, str]] = []
-    for row in rows:
+    created: list[tuple[CreationRow, str]] = []
+    failed: list[tuple[CreationRow, str]] = []
+    for index, row in enumerate(rows, start=1):
         title = f"я {row.article}"
         try:
             data = create_cpc_campaign(session, token, title)
@@ -127,20 +164,21 @@ def run(args: argparse.Namespace) -> int:
             add_sku_to_campaign(session, token, new_id, row.sku)
             activate_campaign(session, token, new_id)
         except Exception as exc:
-            print(f"row={row.row_number} art={row.article} FAILED: {type(exc).__name__}: {exc}")
+            failed.append((row, f"{type(exc).__name__}: {exc}"))
+            print(f"[{index}/{len(rows)}] row={row.row_number} art={row.article} FAILED: {type(exc).__name__}: {exc}")
             continue
         created.append((row, new_id))
-        print(f"row={row.row_number} art={row.article} sku={row.sku} -> campaign {new_id} ({title})")
+        print(f"[{index}/{len(rows)}] row={row.row_number} art={row.article} sku={row.sku} -> campaign {new_id} ({title})")
+
+    print(f"\nСоздано: {len(created)}; ошибок: {len(failed)}")
 
     if created and not args.skip_sheet_write:
         for row, new_id in created:
-            worksheet.update(
-                f"{campaign_col_letter}{row.row_number}",
-                [[new_id]],
-            )
-        print(f"Записаны новые CAMPAIN ID для {len(created)} строк ({campaign_col_letter}2:{campaign_col_letter}{rows[-1].row_number})")
+            worksheet.update(values=[[new_id]], range_name=f"{campaign_col_letter}{row.row_number}")
+        last_row = max(row.row_number for row, _ in created)
+        print(f"Записаны новые CAMPAIN ID для {len(created)} строк ({campaign_col_letter}2:{campaign_col_letter}{last_row})")
     elif created:
-        print(f"--skip-sheet-write: новые CAMPAIN ID НЕ записаны в СРС")
+        print("--skip-sheet-write: новые CAMPAIN ID НЕ записаны в СРС")
 
     if args.skip_analytics:
         return 0

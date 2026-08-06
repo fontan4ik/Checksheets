@@ -475,7 +475,7 @@ def rows_from_values(values: list[list[str]]) -> tuple[list[str], list[SheetRow]
         if not sku and not campaign_id:
             continue
         if not sku or not campaign_id:
-            raise RuntimeError(f"СРС строка {row_number}: SKU OZON и CAMPAIN ID должны быть заполнены вместе")
+            continue
         filter_clicks = parse_number(padded[filter_clicks_index]) if filter_clicks_index >= 0 else 0.0
         filter_drr = parse_number(padded[filter_drr_index]) if filter_drr_index >= 0 else 0.0
         rows.append(
