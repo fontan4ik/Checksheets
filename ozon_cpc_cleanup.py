@@ -725,11 +725,15 @@ def run(args: argparse.Namespace) -> int:
     else:
         print("Нет кампаний из листа СРС в Ozon; отчёты не создаются")
 
-    candidates = [
-        candidate
-        for candidate in build_candidates(sheet_rows, metrics_by_period, products_by_campaign)
-        if candidate.campaign_id in running_cpc_ids
-    ]
+    candidates: list[Candidate] = []
+    try:
+        candidates = [
+            candidate
+            for candidate in build_candidates(sheet_rows, metrics_by_period, products_by_campaign)
+            if candidate.campaign_id in running_cpc_ids
+        ]
+    except Exception as exc:
+        print(f"Ошибка построения кандидатов: {exc}; фильтры пропущены")
     deletions = [candidate for candidate in candidates if candidate.action == "delete"]
     skipped = [candidate for candidate in candidates if candidate.action != "delete"]
     print(f"Кандидаты по фильтрам: {len(candidates)}; к удалению={len(deletions)}; пропущено={len(skipped)}")
@@ -741,8 +745,11 @@ def run(args: argparse.Namespace) -> int:
         )
 
     if args.write_sheet:
-        write_sheet_metrics(worksheet, headers, sheet_rows, metrics_by_period, campaigns_by_id)
-        print("Метрики/статусы записаны в СРС")
+        try:
+            write_sheet_metrics(worksheet, headers, sheet_rows, metrics_by_period, campaigns_by_id)
+            print("Метрики/статусы записаны в СРС")
+        except Exception as exc:
+            print(f"Ошибка записи в таблицу: {exc}; toggle всё равно выполнится")
 
     if not args.apply and not args.apply_toggle:
         print("DRY-RUN: остановка не выполнялась")
