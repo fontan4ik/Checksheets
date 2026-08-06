@@ -97,7 +97,7 @@ class OzonCpcCleanupTests(unittest.TestCase):
             "Фильтр клики день", "Фильтр ДРР месяц",
         ]
         values = ["39171-1", "39171", "Stekker", "", "986315608", "33230388"] + [""] * 19
-        row = SheetRow(2, "39171-1", "986315608", "33230388", 5, 0, values)
+        row = SheetRow(2, "39171-1", "986315608", "33230388", 5, 0, "1", values)
         metrics_by_period = {
             PERIOD_DAY: {("33230388", "986315608"): Metric(clicks=12, impressions=100, spend=123.45)},
             PERIOD_WEEK: {("33230388", "986315608"): Metric(clicks=40, impressions=350, spend=400)},
@@ -137,10 +137,10 @@ class OzonCpcCleanupTests(unittest.TestCase):
 
     def test_build_candidates_triggers_by_day_clicks_and_month_drr(self):
         rows = [
-            SheetRow(2, "39171-1", "986315608", "33230388", 5, 0, []),
-            SheetRow(3, "other", "123", "33230388", 5, 0, []),
-            SheetRow(4, "third", "777", "33230388", 0, 10, []),
-            SheetRow(5, "clean", "999", "33230388", 0, 0, []),
+            SheetRow(2, "39171-1", "986315608", "33230388", 5, 0, "1", []),
+            SheetRow(3, "other", "123", "33230388", 5, 0, "1", []),
+            SheetRow(4, "third", "777", "33230388", 0, 10, "1", []),
+            SheetRow(5, "clean", "999", "33230388", 0, 0, "1", []),
         ]
         metrics_by_period = {
             PERIOD_DAY: {
@@ -162,7 +162,7 @@ class OzonCpcCleanupTests(unittest.TestCase):
 
     def test_build_candidates_skips_row_when_both_filters_zero(self):
         rows = [
-            SheetRow(2, "39171-1", "986315608", "33230388", 0, 0, []),
+            SheetRow(2, "39171-1", "986315608", "33230388", 0, 0, "1", []),
         ]
         metrics_by_period = {
             PERIOD_DAY: {("33230388", "986315608"): Metric(clicks=9999)},
@@ -173,7 +173,7 @@ class OzonCpcCleanupTests(unittest.TestCase):
 
     def test_build_candidates_skips_when_sku_not_in_campaign(self):
         rows = [
-            SheetRow(2, "a", "111", "33230388", 5, 0, []),
+            SheetRow(2, "a", "111", "33230388", 5, 0, "1", []),
         ]
         metrics_by_period = {
             PERIOD_DAY: {("33230388", "111"): Metric(clicks=10)},
@@ -197,6 +197,20 @@ class OzonCpcCleanupTests(unittest.TestCase):
             (2, "39171-1", "986315608"),
             (4, "39172-2", "986315609"),
         ])
+
+    def test_rows_from_values_reads_toggle_column(self):
+        headers = [
+            "art", "model", "brand", "pic", "SKU OZON", "CAMPAIN ID",
+            "Фильтр клики день", "Фильтр ДРР месяц", "Включение/отключение компании",
+        ]
+        values = [
+            headers,
+            ["39171-1", "39171", "Stekker", "", "986315608", "33230388", "10", "5", "1"],
+            ["39172-2", "39172", "Stekker", "", "986315609", "33230389", "", "", "0"],
+            ["39173-3", "39173", "Stekker", "", "986315610", "33230390", "", "", ""],
+        ]
+        _, rows = rows_from_values(values)
+        self.assertEqual([(row.row_number, row.toggle) for row in rows], [(2, "1"), (3, "0"), (4, "")])
 
 
 if __name__ == "__main__":

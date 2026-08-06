@@ -124,6 +124,7 @@ class SheetRow:
     campaign_id: str
     filter_clicks: float
     filter_drr: float
+    toggle: str
     values: list[str]
 
 
@@ -461,6 +462,7 @@ def rows_from_values(values: list[list[str]]) -> tuple[list[str], list[SheetRow]
     article_index = find_column(headers, ["art", "артикул"])
     filter_clicks_index = find_column(headers, ["фильтр клики день"])
     filter_drr_index = find_column(headers, ["фильтр дрр месяц"])
+    toggle_index = find_column(headers, ["включение/отключение компании", "включение отключение компании"])
     if sku_index < 0 or campaign_index < 0:
         raise RuntimeError("В листе СРС нужны колонки 'SKU OZON' и 'CAMPAIN ID'")
 
@@ -478,6 +480,7 @@ def rows_from_values(values: list[list[str]]) -> tuple[list[str], list[SheetRow]
             continue
         filter_clicks = parse_number(padded[filter_clicks_index]) if filter_clicks_index >= 0 else 0.0
         filter_drr = parse_number(padded[filter_drr_index]) if filter_drr_index >= 0 else 0.0
+        toggle = padded[toggle_index].strip() if toggle_index >= 0 else ""
         rows.append(
             SheetRow(
                 row_number=row_number,
@@ -486,6 +489,7 @@ def rows_from_values(values: list[list[str]]) -> tuple[list[str], list[SheetRow]
                 campaign_id=campaign_id,
                 filter_clicks=filter_clicks,
                 filter_drr=filter_drr,
+                toggle=toggle,
                 values=padded,
             )
         )
@@ -719,16 +723,17 @@ def run(args: argparse.Namespace) -> int:
         write_sheet_metrics(worksheet, headers, sheet_rows, metrics_by_period, campaigns_by_id)
         print("Метрики/статусы записаны в СРС")
 
-    if not args.apply:
+    if not args.apply and not args.apply_toggle:
         print("DRY-RUN: остановка не выполнялась")
         return 0
 
     if os.getenv("OZON_CPC_CONFIRM_DELETE", "") != "YES":
-        raise RuntimeError("Для live-остановки установите OZON_CPC_CONFIRM_DELETE=YES вместе с --apply")
+        raise RuntimeError("Для live-остановки установите OZON_CPC_CONFIRM_DELETE=YES вместе с --apply/--apply-toggle")
     # The report can wait in Ozon's queue for minutes. Re-read campaign
     # membership immediately before every destructive request rather than
     # trusting the earlier discovery snapshot.
     current_products: dict[str, set[str]] = {}
+    deactivated_by_filter: set[str] = set()
     for candidate in deletions:
         products = current_products.get(candidate.campaign_id)
         if products is None:
@@ -752,10 +757,70 @@ def run(args: argparse.Namespace) -> int:
             try:
                 deactivate_campaign(session, token, candidate.campaign_id)
                 current_products[candidate.campaign_id] = set()
+                deactivated_by_filter.add(candidate.campaign_id)
                 print(f"Остановлена кампания {candidate.campaign_id}")
             except RuntimeError as deactivate_exc:
                 print(f"Не удалось остановить кампанию {candidate.campaign_id}: {deactivate_exc}")
+
+    if args.apply_toggle:
+        _apply_toggle(session, token, sheet_rows, campaigns_by_id, deactivated_by_filter)
     return 0
+
+
+def _apply_toggle(
+    session,
+    token: str,
+    sheet_rows: list[SheetRow],
+    campaigns_by_id: dict[str, dict[str, Any]],
+    deactivated_by_filter: set[str],
+) -> None:
+    """Применяет переключатель Z (Включение/отключение компании).
+
+    - '1' → activate если кампания не RUNNING
+    - '0' → deactivate если кампания RUNNING
+    - пусто/прочее → пропуск
+    Кампании, остановленные фильтрами в этом же запуске, не активируем.
+    """
+    on_count = off_count = skip_count = 0
+    for row in sheet_rows:
+        cid = row.campaign_id
+        campaign = campaigns_by_id.get(cid)
+        if not campaign:
+            continue
+        state = normalize(campaign.get("state", ""))
+        toggle = (row.toggle or "").strip()
+        if toggle not in ("0", "1"):
+            skip_count += 1
+            continue
+        if toggle == "1":
+            if state == "campaign_state_running":
+                skip_count += 1
+                continue
+            if cid in deactivated_by_filter:
+                print(f"row={row.row_number} campaign={cid}: пропуск activate — остановлена фильтром")
+                skip_count += 1
+                continue
+            try:
+                request_json(
+                    session, "POST",
+                    f"/api/client/campaign/{cid}/activate",
+                    token=token, payload={}, timeout=60,
+                )
+                on_count += 1
+                print(f"row={row.row_number} campaign={cid}: активирована (toggle=1)")
+            except RuntimeError as exc:
+                print(f"row={row.row_number} campaign={cid}: ошибка activate: {exc}")
+        else:
+            if state != "campaign_state_running":
+                skip_count += 1
+                continue
+            try:
+                deactivate_campaign(session, token, cid)
+                off_count += 1
+                print(f"row={row.row_number} campaign={cid}: деактивирована (toggle=0)")
+            except RuntimeError as exc:
+                print(f"row={row.row_number} campaign={cid}: ошибка deactivate: {exc}")
+    print(f"Toggle: активировано={on_count}, деактивировано={off_count}, пропущено={skip_count}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -763,6 +828,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--batch-size", type=int, default=10, help="Кампаний в одном отчёте")
     parser.add_argument("--write-sheet", action="store_true", help="Записать метрики и статусы в СРС")
     parser.add_argument("--apply", action="store_true", help="Остановить SKU/кампании по фильтрам")
+    parser.add_argument(
+        "--apply-toggle",
+        action="store_true",
+        help="Боевой режим: фильтры + переключатель Z (1=activate, 0=deactivate, пусто=не трогать)",
+    )
     return parser
 
 
