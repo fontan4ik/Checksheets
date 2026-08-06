@@ -173,10 +173,12 @@ def run(args: argparse.Namespace) -> int:
     print(f"\nСоздано: {len(created)}; ошибок: {len(failed)}")
 
     if created and not args.skip_sheet_write:
-        for row, new_id in created:
-            worksheet.update(values=[[new_id]], range_name=f"{campaign_col_letter}{row.row_number}")
-        last_row = max(row.row_number for row, _ in created)
-        print(f"Записаны новые CAMPAIN ID для {len(created)} строк ({campaign_col_letter}2:{campaign_col_letter}{last_row})")
+        values = [[new_id] for _, new_id in sorted(created, key=lambda item: item[0].row_number)]
+        first_row = values_range_start = min(item.row_number for item, _ in created)
+        last_row = max(item.row_number for item, _ in created)
+        range_name = f"{campaign_col_letter}{first_row}:{campaign_col_letter}{last_row}"
+        worksheet.update(values=values, range_name=range_name)
+        print(f"Записаны новые CAMPAIN ID для {len(created)} строк ({range_name})")
     elif created:
         print("--skip-sheet-write: новые CAMPAIN ID НЕ записаны в СРС")
 
