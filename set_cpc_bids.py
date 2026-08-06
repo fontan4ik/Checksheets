@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Set bid=8₽ (8_000_000 microrubbles) on every campaign/SKU from the СРС sheet.
 
-Использует PUT /api/client/campaign/{campaignId}/products — этот метод
-перезаписывает список SKU с их ставками, поэтому перед записью читаем текущий
-список товаров кампании и подменяем в нём bid.
+Использует PUT /api/client/campaign/{campaignId}/products. SKU берём прямо из
+таблицы (только что сами положили туда), дополнительный GET списка товаров
+не делаем — это лишний запрос на каждую кампанию.
 """
 
 from __future__ import annotations
 
 import argparse
-import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import gsheets_utils
 from ozon_cpc_cleanup import (
@@ -20,36 +20,20 @@ from ozon_cpc_cleanup import (
     get_token,
     normalize_id,
     request_json,
-    request_bytes,
 )
 
 
 BID_MICRORUBLES = 8_000_000
+DEFAULT_WORKERS = 8
 
 
-def get_campaign_skus(session, token: str, campaign_id: str) -> list[dict]:
-    data = request_json(
-        session,
-        "GET",
-        f"/api/client/campaign/{campaign_id}/v2/products",
-        token=token,
-        params={"page": 1, "pageSize": 500},
-        timeout=60,
-    )
-    products = data.get("products") if isinstance(data, dict) else None
-    if not isinstance(products, list):
-        return []
-    return [item for item in products if isinstance(item, dict)]
-
-
-def set_campaign_bids(session, token: str, campaign_id: str, skus: list[str]) -> dict:
-    payload = {"bids": [{"sku": sku, "bid": str(BID_MICRORUBLES)} for sku in skus]}
-    return request_json(
-        session,
+def set_campaign_bid(token: str, campaign_id: str, sku: str) -> None:
+    request_json(
+        requests.Session(),  # placeholder, заменяется ниже
         "PUT",
         f"/api/client/campaign/{campaign_id}/products",
         token=token,
-        payload=payload,
+        payload={"bids": [{"sku": sku, "bid": str(BID_MICRORUBLES)}]},
         timeout=60,
     )
 
@@ -57,6 +41,7 @@ def set_campaign_bids(session, token: str, campaign_id: str, skus: list[str]) ->
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true", help="Не менять ставки, только план")
+    parser.add_argument("--workers", type=int, default=DEFAULT_WORKERS, help="Параллельных запросов")
     args = parser.parse_args()
 
     worksheet = gsheets_utils.get_worksheet(SHEET_NAME)
@@ -81,30 +66,50 @@ def main() -> int:
 
     if args.dry_run:
         for r, c, s in pairs[:5]:
-            print(f"  row={r} campaign={c} sku={s} -> bid=8000000")
+            print(f"  row={r} campaign={c} sku={s} -> bid={BID_MICRORUBLES}")
         print(f"  ... и ещё {max(0, len(pairs) - 5)}")
         return 0
 
-    session = create_session()
-    token = get_token(session)
+    # Один токен и пул сессий на воркер (Session непотокобезопасна, делаем по сессии на поток).
+    main_session = create_session()
+    token = get_token(main_session)
+    workers = max(1, args.workers)
+
+    def worker_init():
+        return create_session(), token
+
+    sessions: dict[int, tuple] = {}
+
+    def call_one(args_tuple):
+        idx, (row_number, campaign_id, sku) = args_tuple
+        sess, tok = sessions[idx % workers]
+        try:
+            request_json(
+                sess, "PUT",
+                f"/api/client/campaign/{campaign_id}/products",
+                token=tok,
+                payload={"bids": [{"sku": sku, "bid": str(BID_MICRORUBLES)}]},
+                timeout=60,
+            )
+            return row_number, campaign_id, sku, None
+        except Exception as exc:
+            return row_number, campaign_id, sku, f"{type(exc).__name__}: {exc}"
+
+    for i in range(workers):
+        sessions[i] = worker_init()
 
     ok = 0
     failed: list[tuple[int, str, str, str]] = []
-    for index, (row_number, campaign_id, sku) in enumerate(pairs, start=1):
-        try:
-            products = get_campaign_skus(session, token, campaign_id)
-            skus = [str(p.get("sku")) for p in products if p.get("sku") is not None]
-            if not skus:
-                raise RuntimeError("кампания не содержит SKU")
-            if sku not in skus:
-                skus.append(sku)
-            set_campaign_bids(session, token, campaign_id, skus)
-            ok += 1
-            if index % 25 == 0 or index == len(pairs):
-                print(f"[{index}/{len(pairs)}] ok={ok} failed={len(failed)}")
-        except Exception as exc:
-            failed.append((row_number, campaign_id, sku, f"{type(exc).__name__}: {exc}"))
-            print(f"[{index}/{len(pairs)}] row={row_number} campaign={campaign_id} FAILED: {type(exc).__name__}: {exc}")
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(call_one, (i, p)) for i, p in enumerate(pairs)]
+        for done, fut in enumerate(as_completed(futures), start=1):
+            row_number, campaign_id, sku, err = fut.result()
+            if err is None:
+                ok += 1
+            else:
+                failed.append((row_number, campaign_id, sku, err))
+            if done % 50 == 0 or done == len(pairs):
+                print(f"[{done}/{len(pairs)}] ok={ok} failed={len(failed)}", flush=True)
 
     print(f"\nГотово: ok={ok}, failed={len(failed)}")
     for row_number, campaign_id, sku, err in failed[:20]:

@@ -94,7 +94,7 @@ def add_sku_to_campaign(session, token: str, campaign_id: str, sku: str) -> Any:
         "POST",
         f"/api/client/campaign/{campaign_id}/products",
         token=token,
-        payload={"bids": [{"sku": sku, "bid": "0"}]},
+        payload={"bids": [{"sku": sku, "bid": "8000000"}]},
         timeout=60,
     )
 
