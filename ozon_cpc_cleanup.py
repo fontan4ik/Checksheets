@@ -914,7 +914,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--batch-size", type=int, default=10, help="Кампаний в одном отчёте")
     parser.add_argument("--write-sheet", action="store_true", help="Записать метрики и статусы в СРС")
     parser.add_argument("--apply", action="store_true", help="Остановить SKU/кампании по фильтрам")
-parser.add_argument(
+    parser.add_argument(
         "--apply-toggle",
         action="store_true",
         help="Применить вкл/выкл по колонке Z",
