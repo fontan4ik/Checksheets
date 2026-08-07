@@ -242,11 +242,17 @@ def period_range(period: str, now: datetime | None = None) -> tuple[str, str]:
     return f"{start.isoformat()}T00:00:00+03:00", f"{today.isoformat()}T23:59:59+03:00"
 
 
-def build_statistics_payload(campaign_ids: list[str], date_from: str, date_to: str) -> dict[str, Any]:
+def build_statistics_payload(
+    campaign_ids: list[str],
+    date_from: str,
+    date_to: str,
+    group_by: str = "NO_GROUP_BY",
+) -> dict[str, Any]:
     """Build the documented asynchronous campaign-statistics request.
 
     ``NO_GROUP_BY`` returns one row per SKU aggregated over the requested
-    period, which is the exact granularity the ``СРС`` sheet needs.
+    period.  ``DATE`` returns one row per SKU per day, which lets a single
+    month-scoped report serve day/week/month aggregations at once.
     """
     if not campaign_ids:
         raise ValueError("Для отчёта нужна хотя бы одна кампания")
@@ -254,7 +260,7 @@ def build_statistics_payload(campaign_ids: list[str], date_from: str, date_to: s
         "campaigns": campaign_ids,
         "from": date_from,
         "to": date_to,
-        "groupBy": "NO_GROUP_BY",
+        "groupBy": group_by,
     }
 
 
@@ -355,9 +361,10 @@ def create_statistics_report(
     campaign_ids: list[str],
     date_from: str,
     date_to: str,
+    group_by: str = "NO_GROUP_BY",
     retries: int = 3,
 ) -> str:
-    payload = build_statistics_payload(campaign_ids, date_from, date_to)
+    payload = build_statistics_payload(campaign_ids, date_from, date_to, group_by=group_by)
     for attempt in range(1, retries + 1):
         try:
             data = request_json(session, "POST", "/api/client/statistics", token=token, payload=payload, timeout=60)
@@ -410,7 +417,13 @@ def campaign_id_from_filename(filename: str) -> str | None:
     return match.group(1) if match else None
 
 
-def parse_report_block(filename: str, text: str, fallback_campaign_id: str | None = None) -> ReportBlock:
+def parse_report_block(
+    filename: str,
+    text: str,
+    fallback_campaign_id: str | None = None,
+    day_from: str | None = None,
+    day_to: str | None = None,
+) -> ReportBlock:
     rows = [row for row in csv.reader(io.StringIO(text), delimiter=";") if any(cell.strip() for cell in row)]
     header_index = -1
     for index, row in enumerate(rows[:20]):
@@ -425,6 +438,7 @@ def parse_report_block(filename: str, text: str, fallback_campaign_id: str | Non
     sku_index = find_column(headers, ["sku"])
     clicks_index = find_column(headers, ["клики", "clicks"])
     campaign_index = find_column(headers, ["campaign id", "campaign_id", "id кампании"])
+    day_index = find_column(headers, ["день", "day", "дата"])
     metric_indexes = {
         "impressions": find_column(headers, ["показы", "impressions"]),
         "ctr": find_column(headers, ["ctr, %", "ctr"]),
@@ -446,6 +460,10 @@ def parse_report_block(filename: str, text: str, fallback_campaign_id: str | Non
     for row in rows[header_index + 1 :]:
         if len(row) <= max(sku_index, clicks_index):
             continue
+        if day_index >= 0 and day_index < len(row) and (day_from or day_to):
+            day_raw = normalize(row[day_index])
+            if day_from and day_raw < day_from or day_to and day_raw > day_to:
+                continue
         sku = normalize_id(row[sku_index])
         if not sku or normalize(sku) in {"sku", "всего", "total"}:
             continue
@@ -459,7 +477,12 @@ def parse_report_block(filename: str, text: str, fallback_campaign_id: str | Non
     return ReportBlock(campaign_id=campaign_id, metrics=metrics)
 
 
-def parse_report(raw: bytes, campaign_ids: list[str]) -> dict[tuple[str, str], Metric]:
+def parse_report(
+    raw: bytes,
+    campaign_ids: list[str],
+    day_from: str | None = None,
+    day_to: str | None = None,
+) -> dict[tuple[str, str], Metric]:
     blocks: list[tuple[str, str]] = []
     if raw[:2] == b"PK":
         with zipfile.ZipFile(io.BytesIO(raw)) as archive:
@@ -474,7 +497,7 @@ def parse_report(raw: bytes, campaign_ids: list[str]) -> dict[tuple[str, str], M
     fallback = campaign_ids[0] if len(campaign_ids) == 1 else None
     result: dict[tuple[str, str], Metric] = {}
     for filename, text in blocks:
-        block = parse_report_block(filename, text, fallback)
+        block = parse_report_block(filename, text, fallback, day_from=day_from, day_to=day_to)
         if not block.campaign_id:
             raise RuntimeError(f"Не удалось определить campaign_id для блока {filename}; запись остановлена")
         for sku, metric in block.metrics.items():
@@ -688,19 +711,20 @@ def column_letter(number: int) -> str:
     return result
 
 
-def fetch_report_metrics(
+def fetch_report_bytes(
     session: requests.Session,
     token: str,
     batch: list[str],
     date_from: str,
     date_to: str,
-) -> dict[tuple[str, str], Metric]:
+    group_by: str = "NO_GROUP_BY",
+) -> bytes:
     last_exc: Exception | None = None
     for attempt in range(1, 4):
-        report_uuid = create_statistics_report(session, token, batch, date_from, date_to)
+        report_uuid = create_statistics_report(session, token, batch, date_from, date_to, group_by=group_by)
         print(f"  Отчёт создан: кампаний={len(batch)}")
         try:
-            return parse_report(wait_for_report(session, token, report_uuid), batch)
+            return wait_for_report(session, token, report_uuid)
         except RuntimeError as exc:
             last_exc = exc
             print(f"  Ошибка отчёта (попытка {attempt}/3): {exc}")
@@ -714,13 +738,26 @@ def fetch_period_metrics(
     campaign_ids: list[str],
     batch_size: int,
 ) -> dict[str, dict[tuple[str, str], Metric]]:
+    """Fill day/week/month from a single month-scoped DATE report per batch.
+
+    Ozon limits every statistics report to 10 campaigns and 1 active report at
+    a time, so the only reliable speed-up is to fetch one month report per
+    batch (groupBy=DATE) and split the daily rows into the three periods.
+    """
+    today_str = datetime.now(MOSCOW_TZ).date().strftime("%d.%m.%Y")
+    week_from = (datetime.now(MOSCOW_TZ).date() - timedelta(days=6)).strftime("%d.%m.%Y")
+    month_from, month_to = period_range(PERIOD_MONTH)
     result: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
-    for period in PERIODS:
-        date_from, date_to = period_range(period)
-        print(f"Период {period}: {date_from} -> {date_to}")
-        for start in range(0, len(campaign_ids), batch_size):
-            batch = campaign_ids[start : start + batch_size]
-            metrics = fetch_report_metrics(session, token, batch, date_from, date_to)
+    for start in range(0, len(campaign_ids), batch_size):
+        batch = campaign_ids[start : start + batch_size]
+        raw = fetch_report_bytes(session, token, batch, month_from, month_to, group_by="DATE")
+        filters = {
+            PERIOD_DAY: (today_str, today_str),
+            PERIOD_WEEK: (week_from, today_str),
+            PERIOD_MONTH: (None, None),
+        }
+        for period, (day_from, day_to) in filters.items():
+            metrics = parse_report(raw, batch, day_from=day_from, day_to=day_to)
             for key, metric in metrics.items():
                 existing = result[period].setdefault(key, Metric())
                 for field_name in vars(metric):
