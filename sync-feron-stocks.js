@@ -33,6 +33,10 @@ const FERON_TR_SCHEMA = {
 
 const MIN_STOCK_THRESHOLD = 0;
 
+// Скидка WB-остатка: когда true, склад Екатеринбург (EKB) записывает только 0.
+// Установи false, чтобы вернуть обычный расчёт остатков.
+const FORCE_ZERO_WB_EKB = true;
+
 const RPS = 10;
 const WB_RPS = 0.1;
 
@@ -639,6 +643,10 @@ async function updateFeronStocksWB(stocks) {
   for (const wh of warehouses) {
     log(`\n📦 Обработка склада: ${wh.name} (ID: ${wh.id})...`);
 
+    if (FORCE_ZERO_WB_EKB && wh.key === "EKB") {
+      log(`⏸️ FORCE_ZERO_WB_EKB: склад EKB будет записан нулями`);
+    }
+
     const batchSize = 200;
     const batches = Math.ceil(validStocks.length / batchSize);
 
@@ -659,7 +667,9 @@ async function updateFeronStocksWB(stocks) {
           warehouseError++;
           continue;
         }
-        validBatch.push({ chrtId: idNum, amount: item[wh.col] });
+        const amount =
+          FORCE_ZERO_WB_EKB && wh.key === "EKB" ? 0 : item[wh.col];
+        validBatch.push({ chrtId: idNum, amount });
       }
 
       if (validBatch.length === 0) continue;
