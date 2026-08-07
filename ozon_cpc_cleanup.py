@@ -720,16 +720,22 @@ def fetch_report_bytes(
     group_by: str = "NO_GROUP_BY",
 ) -> bytes:
     last_exc: Exception | None = None
-    for attempt in range(1, 4):
-        report_uuid = create_statistics_report(session, token, batch, date_from, date_to, group_by=group_by)
+    for attempt in range(1, 6):
+        try:
+            report_uuid = create_statistics_report(session, token, batch, date_from, date_to, group_by=group_by)
+        except Exception as exc:
+            last_exc = exc
+            print(f"  Ошибка создания отчёта (попытка {attempt}/5): {exc}")
+            time.sleep(15 * attempt)
+            continue
         print(f"  Отчёт создан: кампаний={len(batch)}")
         try:
             return wait_for_report(session, token, report_uuid)
         except RuntimeError as exc:
             last_exc = exc
-            print(f"  Ошибка отчёта (попытка {attempt}/3): {exc}")
-            time.sleep(10)
-    raise RuntimeError(f"Не удалось получить отчёт после 3 попыток: {last_exc}")
+            print(f"  Ошибка отчёта (попытка {attempt}/5): {exc}")
+            time.sleep(15 * attempt)
+    raise RuntimeError(f"Не удалось получить отчёт после 5 попыток: {last_exc}")
 
 
 def fetch_period_metrics(
@@ -750,7 +756,11 @@ def fetch_period_metrics(
     result: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
     for start in range(0, len(campaign_ids), batch_size):
         batch = campaign_ids[start : start + batch_size]
-        raw = fetch_report_bytes(session, token, batch, month_from, month_to, group_by="DATE")
+        try:
+            raw = fetch_report_bytes(session, token, batch, month_from, month_to, group_by="DATE")
+        except Exception as exc:
+            print(f"Пропущен батч {start // batch_size + 1}: {exc}")
+            continue
         filters = {
             PERIOD_DAY: (today_str, today_str),
             PERIOD_WEEK: (week_from, today_str),
@@ -763,6 +773,42 @@ def fetch_period_metrics(
                 for field_name in vars(metric):
                     setattr(existing, field_name, getattr(existing, field_name) + getattr(metric, field_name))
     return result
+
+
+def _pending_rows(
+    headers: list[str],
+    rows: list[SheetRow],
+    sheet_campaign_ids: list[str],
+) -> list[SheetRow]:
+    """Строки, у которых метрики ещё не выгружены (пустая колонка расхода за день).
+
+    Используется для инкрементальной обработки: каждый прогон заполняет первые
+    N незаполненных строк, следующий прогон продолжает со следующих.
+    """
+    marker_index = find_column(headers, ["расход день", "спенд день", "spend day"])
+    if marker_index >= 0:
+        pending = [
+            row
+            for row in rows
+            if marker_index >= len(row.values)
+            or not (str(row.values[marker_index]).replace(",", ".").strip() or "").replace(" ", "")
+        ]
+    else:
+        pending = [
+            row
+            for row in rows
+            if not (row.campaign_id and row.sku)
+        ]
+    seen: set[str] = set()
+    unique: list[SheetRow] = []
+    for row in pending:
+        if row.campaign_id in seen:
+            continue
+        if row.campaign_id not in sheet_campaign_ids:
+            continue
+        seen.add(row.campaign_id)
+        unique.append(row)
+    return unique
 
 
 def run(args: argparse.Namespace) -> int:
@@ -780,6 +826,16 @@ def run(args: argparse.Namespace) -> int:
     }
     report_campaign_ids = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id in campaigns_by_id]
     missing = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id not in campaigns_by_id]
+    limit_rows = max(0, int(getattr(args, "limit_rows", 0) or 0))
+    if limit_rows > 0:
+        pending = _pending_rows(headers, sheet_rows, sheet_campaign_ids)
+        selected = pending[:limit_rows]
+        if selected:
+            report_campaign_ids = sorted({row.campaign_id for row in selected})
+            print(f"Инкрементно: строк с метриками={len(pending)} к обработке={len(selected)} кампаний={len(report_campaign_ids)} (лимит {limit_rows})")
+        else:
+            report_campaign_ids = []
+            print(f"Инкрементно: нет незаполненных строк (лимит {limit_rows}), все данные уже внесены")
     print(
         f"SKU-кампаний в Ozon={len(campaigns_by_id)}; из СРС в Ozon={len(report_campaign_ids)}; "
         f"не найдено в Ozon={len(missing)}; running CPC из СРС="
@@ -964,6 +1020,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=float(os.getenv("OZON_CPC_LOCK_TIMEOUT", "0")),
         help="Секунд ждать захвата lock-файла, прежде чем прерваться (0 = не ждать)",
+    )
+    parser.add_argument(
+        "--limit-rows",
+        type=int,
+        default=int(os.getenv("OZON_CPC_LIMIT_ROWS", "0")),
+        help="Обработать только первые N незаполненных строк (0 = все). Используется для инкрементальной загрузки.",
     )
     return parser
 
