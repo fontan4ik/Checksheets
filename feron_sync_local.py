@@ -14,7 +14,7 @@ FERON_WAREHOUSE_IDS = {
     "Самара": "67e4fb8a-6e27-11ef-96b6-a4bf0186f0c7",
     "Внуково": "de099cee-372a-11ef-96b6-a4bf0186f0c7",
     "Новосибирск": "ab50cafe-6e27-11ef-96b6-a4bf0186f0c7",
-    "Екатеринбург": "9a521a77-6e27-11ef-96b6-a4bf0186f0c7",
+    # "Екатеринбург": "9a521a77-6e27-11ef-96b6-a4bf0186f0c7",
 }
 
 FERON_TR_STOCK_HEADERS = {
