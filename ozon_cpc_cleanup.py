@@ -819,12 +819,15 @@ def run(args: argparse.Namespace) -> int:
             f"action={candidate.action}"
         )
 
-    if args.write_sheet:
+    metrics_ok = any(metrics_by_period.get(period) for period in PERIODS)
+    if args.write_sheet and metrics_ok:
         try:
             write_sheet_metrics(worksheet, headers, sheet_rows, metrics_by_period, campaigns_by_id)
             print("Метрики/статусы записаны в СРС")
         except Exception as exc:
             print(f"Ошибка записи в таблицу: {exc}; toggle всё равно выполнится")
+    elif args.write_sheet:
+        print("Метрики не собраны — запись в таблицу пропущена (прежние данные сохранены); toggle всё равно выполнится")
 
     if not args.apply and not args.apply_toggle:
         print("DRY-RUN: остановка не выполнялась")
