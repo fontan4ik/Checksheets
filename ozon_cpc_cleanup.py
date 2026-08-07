@@ -47,7 +47,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
@@ -761,12 +761,16 @@ def fetch_period_metrics(
     token: str,
     campaign_ids: list[str],
     batch_size: int,
+    on_batch: Callable[[list[str], dict[str, dict[tuple[str, str], Metric]]], None] | None = None,
 ) -> dict[str, dict[tuple[str, str], Metric]]:
     """Fill day/week/month from a single month-scoped DATE report per batch.
 
     Ozon limits every statistics report to 10 campaigns and 1 active report at
     a time, so the only reliable speed-up is to fetch one month report per
     batch (groupBy=DATE) and split the daily rows into the three periods.
+
+    ``on_batch`` is called right after each successfully fetched batch so the
+    caller can write that slice to the sheet without waiting for the whole run.
     """
     today_str = datetime.now(MOSCOW_TZ).date().strftime("%d.%m.%Y")
     week_from = (datetime.now(MOSCOW_TZ).date() - timedelta(days=6)).strftime("%d.%m.%Y")
@@ -784,12 +788,16 @@ def fetch_period_metrics(
             PERIOD_WEEK: (week_from, today_str),
             PERIOD_MONTH: (None, None),
         }
+        batch_metrics: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
         for period, (day_from, day_to) in filters.items():
             metrics = parse_report(raw, batch, day_from=day_from, day_to=day_to)
             for key, metric in metrics.items():
                 existing = result[period].setdefault(key, Metric())
                 for field_name in vars(metric):
                     setattr(existing, field_name, getattr(existing, field_name) + getattr(metric, field_name))
+                batch_metrics[period][key] = metric
+        if on_batch is not None:
+            on_batch(batch, batch_metrics)
     return result
 
 
@@ -856,11 +864,35 @@ def run(args: argparse.Namespace) -> int:
 
     products_by_campaign: dict[str, set[str]] = {}
     metrics_by_period: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
+    written_incremental: set[str] = set()
     if report_campaign_ids:
         try:
             products_by_campaign = {campaign_id: get_campaign_products(session, token, campaign_id) for campaign_id in report_campaign_ids}
             batch_size = max(1, int(args.batch_size))
-            metrics_by_period = fetch_period_metrics(session, token, report_campaign_ids, batch_size)
+
+            def _on_batch(
+                batch: list[str],
+                batch_metrics: dict[str, dict[tuple[str, str], Metric]],
+            ) -> None:
+                nonlocal written_incremental
+                if args.write_sheet and any(batch_metrics.get(period) for period in PERIODS):
+                    batch_ids = set(batch)
+                    batch_rows = [
+                        row
+                        for row in sheet_rows
+                        if row.campaign_id in batch_ids
+                        and (row.campaign_id, row.sku) in batch_metrics[PERIOD_DAY]
+                    ]
+                    if not batch_rows:
+                        return
+                    try:
+                        write_sheet_metrics(worksheet, headers, batch_rows, batch_metrics, campaigns_by_id)
+                        written_incremental.update(batch_ids)
+                        print(f"Порция записана сразу: кампаний={len(batch_ids)} строк={len(batch_rows)}")
+                    except Exception as exc:
+                        print(f"Ошибка записи порции {batch_ids}: {exc}")
+
+            metrics_by_period = fetch_period_metrics(session, token, report_campaign_ids, batch_size, on_batch=_on_batch)
             for period in PERIODS:
                 print(f"Период {period}: SKU/кампания пар={len(metrics_by_period[period])}")
         except Exception as exc:
@@ -889,20 +921,18 @@ def run(args: argparse.Namespace) -> int:
 
     metrics_ok = any(metrics_by_period.get(period) for period in PERIODS)
     if args.write_sheet and metrics_ok:
-        try:
-            write_sheet_metrics(worksheet, headers, sheet_rows, metrics_by_period, campaigns_by_id)
-            print("Метрики/статусы записаны в СРС")
-            if limit_rows > 0:
-                written_ids = {
-                    campaign_id
-                    for campaign_id in report_campaign_ids
-                    if any((campaign_id, sku) in metrics_by_period[PERIOD_DAY] for sku in _sheet_sku(sheet_rows, campaign_id))
-                }
-                if written_ids:
-                    _save_progress(sorted(written_ids))
-                    print(f"Прогресс обновлён: помечено {len(written_ids)} кампаний")
-        except Exception as exc:
-            print(f"Ошибка записи в таблицу: {exc}; toggle всё равно выполнится")
+        if limit_rows > 0:
+            if written_incremental:
+                _save_progress(sorted(written_incremental))
+                print(f"Инкрементная запись завершена: помечено {len(written_incremental)} кампаний")
+            else:
+                print("Инкрементно: данные уже внесены, повторная запись не требуется")
+        else:
+            try:
+                write_sheet_metrics(worksheet, headers, sheet_rows, metrics_by_period, campaigns_by_id)
+                print("Метрики/статусы записаны в СРС")
+            except Exception as exc:
+                print(f"Ошибка записи в таблицу: {exc}; toggle всё равно выполнится")
     elif args.write_sheet:
         print("Метрики не собраны — запись в таблицу пропущена (прежние данные сохранены); toggle всё равно выполнится")
 
