@@ -74,6 +74,26 @@ class OzonCpcCleanupTests(unittest.TestCase):
         stats = parse_report(content.getvalue(), ["33230388"])
         self.assertEqual(stats[("33230388", "986315608")].clicks, 11)
 
+    def test_parse_report_filters_by_day_range_in_date_grouped_report(self):
+        csv_text = (
+            "День;sku;Показы;Клики;Расход, ₽, с НДС\n"
+            "05.08.2026;986315608;10;1;5\n"
+            "06.08.2026;986315608;20;4;10\n"
+            "07.08.2026;986315608;30;6;15\n"
+            "Всего;;;;;10;21;11;30\n"
+        )
+        all_block = parse_report_block("33230388.csv", csv_text)
+        self.assertEqual(all_block.metrics["986315608"].clicks, 11)
+        self.assertEqual(all_block.metrics["986315608"].impressions, 60)
+        day09 = parse_report_block(
+            "33230388.csv", csv_text, day_from="07.08.2026", day_to="07.08.2026"
+        )
+        self.assertEqual(day09.metrics["986315608"].clicks, 6)
+        week_from = parse_report_block(
+            "33230388.csv", csv_text, day_from="06.08.2026", day_to="07.08.2026"
+        )
+        self.assertEqual(week_from.metrics["986315608"].clicks, 10)
+
     def test_campaign_budget_uses_explicit_budget_not_weekly_cap(self):
         self.assertEqual(campaign_budget({"budget": "1500", "dailyBudget": "0", "weeklyBudget": "2000000000"}), 1500)
         self.assertEqual(campaign_budget({"budget": "0", "dailyBudget": "250"}), 0)
