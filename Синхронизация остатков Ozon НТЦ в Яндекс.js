@@ -27,7 +27,7 @@
 const OZON_NTC_YNX_SPREADSHEET_ID = '15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI';
 const OZON_NTC_YNX_UNIT_SHEET_NAME = 'UNIT YNX';
 const OZON_NTC_YNX_UNIT_ART_COLUMN = 1; // A: offer_id Ozon / ShopSku Яндекс
-const OZON_NTC_YNX_UNIT_PRICE_COLUMN = 24; // x: Целевая цена
+const OZON_NTC_YNX_UNIT_PRICE_HEADER = 'Целевая цена';
 const OZON_NTC_YNX_OZON_STOCK_HEADER = 'НТЦ STOCK API';
 const OZON_NTC_YNX_YANDEX_STOCK_HEADER = 'TR YA';
 const OZON_NTC_YNX_OZON_WAREHOUSE_NAME = 'НТЦ СКЛАД';
@@ -222,16 +222,16 @@ function readOzonNtcYnxYandexPriceEntries_(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) throw new Error('UNIT YNX: нет строк для передачи цен в Яндекс.');
 
-  const values = sheet.getRange(1, 1, lastRow, OZON_NTC_YNX_UNIT_PRICE_COLUMN).getDisplayValues();
-  const headers = values[0];
-  validateOzonNtcYnxPriceHeader_(headers);
+  const lastColumn = sheet.getLastColumn();
+  const values = sheet.getRange(1, 1, lastRow, lastColumn).getDisplayValues();
+  const priceColumn = findOzonNtcYnxHeaderColumn_(values[0], OZON_NTC_YNX_UNIT_PRICE_HEADER);
   const entries = [];
   const invalidOfferIds = [];
 
   values.slice(1).forEach(function(row) {
     const offerId = String(row[OZON_NTC_YNX_UNIT_ART_COLUMN - 1] || '').trim();
     if (!offerId) return;
-    const price = parseOzonNtcYnxPrice_(row[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1]);
+    const price = parseOzonNtcYnxPrice_(row[priceColumn - 1]);
     if (price === null) {
       invalidOfferIds.push(offerId);
       return;
@@ -240,17 +240,10 @@ function readOzonNtcYnxYandexPriceEntries_(sheet) {
   });
 
   if (invalidOfferIds.length) {
-    throw new Error('UNIT YNX!T («Целевая цена»): пустая или некорректная цена у ' + invalidOfferIds.length + ' SKU; в Яндекс ничего не отправлено.');
+    throw new Error('UNIT YNX!«' + OZON_NTC_YNX_UNIT_PRICE_HEADER + '»: пустая или некорректная цена у ' + invalidOfferIds.length + ' SKU; в Яндекс ничего не отправлено.');
   }
   if (!entries.length) throw new Error('UNIT YNX: нет SKU с ценами для передачи в Яндекс.');
   return entries;
-}
-
-function validateOzonNtcYnxPriceHeader_(headers) {
-  const priceHeader = String(headers[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1] || '').trim().toLowerCase();
-  if (priceHeader !== 'целевая цена') {
-    throw new Error('UNIT YNX!T: ожидался заголовок «Целевая цена», получено «' + headers[OZON_NTC_YNX_UNIT_PRICE_COLUMN - 1] + '».');
-  }
 }
 
 function parseOzonNtcYnxPrice_(rawValue) {
