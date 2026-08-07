@@ -36,12 +36,14 @@ from __future__ import annotations
 
 import argparse
 import csv
+import fcntl
 import io
 import json
 import os
 import re
 import time
 import zipfile
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -55,6 +57,42 @@ from urllib3.poolmanager import PoolManager
 
 import config
 import gsheets_utils
+
+
+LOCK_FILE = Path(__file__).resolve().parent / "logs" / "cpc-hourly.lock"
+
+
+@contextmanager
+def run_lock(timeout: int = 0):
+    """Межпроцессная блокировка, чтобы agent-прогоны не перекрывались.
+
+    Блокировка в неблокирующем режиме: если другой процесс уже держит прогон,
+    сразу выходим (возвращаем False), не дожидаясь. ``timeout`` > 0 ждёт
+    указанное число секунд до захвата.
+    """
+    LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lock_handle = open(LOCK_FILE, "a+")
+    deadline = time.monotonic() + timeout if timeout > 0 else None
+    acquired = False
+    try:
+        while True:
+            try:
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                yield True
+                return
+            except OSError:
+                if deadline is None or time.monotonic() >= deadline:
+                    raise RuntimeError(
+                        f"Другой процесс уже выполняет прогон (lock: {LOCK_FILE})"
+                    )
+                time.sleep(5)
+    finally:
+        if acquired:
+            try:
+                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+            finally:
+                lock_handle.close()
 
 
 BASE_URL = str(config.OZON_PERF_BASE_URL).rstrip("/")
@@ -876,17 +914,28 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--batch-size", type=int, default=10, help="Кампаний в одном отчёте")
     parser.add_argument("--write-sheet", action="store_true", help="Записать метрики и статусы в СРС")
     parser.add_argument("--apply", action="store_true", help="Остановить SKU/кампании по фильтрам")
-    parser.add_argument(
+parser.add_argument(
         "--apply-toggle",
         action="store_true",
-        help="Боевой режим: фильтры + переключатель Z (1=activate, 0=deactivate, пусто=не трогать)",
+        help="Применить вкл/выкл по колонке Z",
+    )
+    parser.add_argument(
+        "--lock-timeout",
+        type=float,
+        default=float(os.getenv("OZON_CPC_LOCK_TIMEOUT", "0")),
+        help="Секунд ждать захвата lock-файла, прежде чем прерваться (0 = не ждать)",
     )
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
-    return run(args)
+    try:
+        with run_lock(args.lock_timeout):
+            return run(args)
+    except RuntimeError as exc:
+        print(str(exc))
+        return 3
 
 
 if __name__ == "__main__":
