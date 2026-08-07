@@ -60,6 +60,24 @@ import gsheets_utils
 
 
 LOCK_FILE = Path(__file__).resolve().parent / "logs" / "cpc-hourly.lock"
+PROGRESS_FILE = Path(__file__).resolve().parent / "logs" / "cpc-progress.json"
+
+
+def _load_progress() -> dict[str, float]:
+    try:
+        data = json.loads(PROGRESS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_progress(campaign_ids: list[str]) -> None:
+    progress = _load_progress()
+    now = time.time()
+    for campaign_id in campaign_ids:
+        progress[campaign_id] = now
+    PROGRESS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    PROGRESS_FILE.write_text(json.dumps(progress, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 @contextmanager
@@ -775,40 +793,34 @@ def fetch_period_metrics(
     return result
 
 
+def _sheet_sku(rows: list[SheetRow], campaign_id: str) -> list[str]:
+    return [row.sku for row in rows if row.campaign_id == campaign_id and row.sku]
+
+
 def _pending_rows(
     headers: list[str],
     rows: list[SheetRow],
     sheet_campaign_ids: list[str],
 ) -> list[SheetRow]:
-    """Строки, у которых метрики ещё не выгружены (пустая колонка расхода за день).
+    """Строки, ещё не отмеченные в локальном прогрессе успешной выгрузки.
 
-    Используется для инкрементальной обработки: каждый прогон заполняет первые
-    N незаполненных строк, следующий прогон продолжает со следующих.
+    Прогресс хранится в ``logs/cpc-progress.json``. Каждый инкрементальный
+    прогон (``--limit-rows N``) берёт первые N необработанных строк и после
+    успешной записи помечает их, следующий прогон продолжает со следующих.
     """
-    marker_index = find_column(headers, ["расход день", "спенд день", "spend day"])
-    if marker_index >= 0:
-        pending = [
-            row
-            for row in rows
-            if marker_index >= len(row.values)
-            or not (str(row.values[marker_index]).replace(",", ".").strip() or "").replace(" ", "")
-        ]
-    else:
-        pending = [
-            row
-            for row in rows
-            if not (row.campaign_id and row.sku)
-        ]
+    progress = _load_progress()
     seen: set[str] = set()
-    unique: list[SheetRow] = []
-    for row in pending:
+    pending: list[SheetRow] = []
+    for row in rows:
         if row.campaign_id in seen:
             continue
         if row.campaign_id not in sheet_campaign_ids:
             continue
+        if str(row.campaign_id) in progress:
+            continue
         seen.add(row.campaign_id)
-        unique.append(row)
-    return unique
+        pending.append(row)
+    return pending
 
 
 def run(args: argparse.Namespace) -> int:
@@ -880,6 +892,15 @@ def run(args: argparse.Namespace) -> int:
         try:
             write_sheet_metrics(worksheet, headers, sheet_rows, metrics_by_period, campaigns_by_id)
             print("Метрики/статусы записаны в СРС")
+            if limit_rows > 0:
+                written_ids = {
+                    campaign_id
+                    for campaign_id in report_campaign_ids
+                    if any((campaign_id, sku) in metrics_by_period[PERIOD_DAY] for sku in _sheet_sku(sheet_rows, campaign_id))
+                }
+                if written_ids:
+                    _save_progress(sorted(written_ids))
+                    print(f"Прогресс обновлён: помечено {len(written_ids)} кампаний")
         except Exception as exc:
             print(f"Ошибка записи в таблицу: {exc}; toggle всё равно выполнится")
     elif args.write_sheet:
