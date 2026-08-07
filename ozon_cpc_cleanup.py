@@ -795,6 +795,30 @@ def run(args: argparse.Namespace) -> int:
     return 0
 
 
+def toggle_set_campaign(
+    token: str,
+    session,
+    campaign_id: str,
+    activate: bool,
+    max_attempts: int = 5,
+) -> None:
+    """Вызывает activate/deactivate с ретраем на 429/5xx (403 учитываем как транзиентный)."""
+    action = "activate" if activate else "deactivate"
+    path = f"/api/client/campaign/{campaign_id}/{action}"
+    last_exc: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            request_json(session, "POST", path, token=token, payload={}, timeout=60)
+            return
+        except RuntimeError as exc:
+            last_exc = exc
+            text = str(exc)
+            if "429" not in text and "403" not in text and "5" not in text.split("HTTP ")[-1][:3]:
+                raise
+            time.sleep(min(2 ** attempt, 15))
+    raise last_exc  # type: ignore[misc]
+
+
 def _apply_toggle(
     session,
     token: str,
@@ -829,11 +853,7 @@ def _apply_toggle(
                 skip_count += 1
                 continue
             try:
-                request_json(
-                    session, "POST",
-                    f"/api/client/campaign/{cid}/activate",
-                    token=token, payload={}, timeout=60,
-                )
+                toggle_set_campaign(token, session, cid, activate=True)
                 on_count += 1
                 print(f"row={row.row_number} campaign={cid}: активирована (toggle=1)")
             except RuntimeError as exc:
@@ -843,7 +863,7 @@ def _apply_toggle(
                 skip_count += 1
                 continue
             try:
-                deactivate_campaign(session, token, cid)
+                toggle_set_campaign(token, session, cid, activate=False)
                 off_count += 1
                 print(f"row={row.row_number} campaign={cid}: деактивирована (toggle=0)")
             except RuntimeError as exc:
