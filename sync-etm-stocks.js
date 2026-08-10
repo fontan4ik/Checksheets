@@ -47,6 +47,14 @@ const SHEET_STABILITY_MAX_WAIT_MS = parseInt(
   process.env.ETM_SHEET_STABILITY_MAX_WAIT_MS || "1800000",
   10,
 );
+const GOOGLE_SHEETS_TIMEOUT_MS = parseInt(
+  process.env.ETM_GOOGLE_SHEETS_TIMEOUT_MS || "60000",
+  10,
+);
+
+// Prevent a Sheets API request from holding the hourly lock forever.
+// Individual marketplace requests already have their own axios timeouts.
+google.options({ timeout: GOOGLE_SHEETS_TIMEOUT_MS });
 
 let lastRequestTime = Date.now() - 1000 / RPS;
 
