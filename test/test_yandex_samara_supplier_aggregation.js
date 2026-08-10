@@ -40,7 +40,9 @@ assert.throws(() => sandbox.parseSamaraSupplierYnxStock_('1.5', 'TEST', 'A'));
 assert(source.includes("{ sheetName: 'FERON TR', keyHeader: 'art', stockHeader: 'SMR' }"));
 assert(source.includes("{ sheetName: 'ETM TR', keyHeader: 'art', stockHeader: 'SMR' }"));
 assert(source.includes("{ sheetName: 'РуСВ TR', keyHeader: 'Артикул', stockHeader: 'Округлённое' }"));
-assert(source.includes("const SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGN_ID = 58480133;"));
+assert(source.includes('SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGN_NAME'));
+assert(!source.includes('SAMARA_SUPPLIER_YNX_CAMPAIGN_NAME_FOR_LOG_'));
+assert(source.includes('58480133'));
 assert(source.includes("'/offers/stocks'"));
 assert(source.includes("const SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER = 'TR YA FBS';"));
 

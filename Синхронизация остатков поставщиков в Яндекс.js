@@ -130,7 +130,7 @@ function syncSamaraSupplierStocksToYandexFbs() {
     const apiKey = YANDEX_MARKET_API_KEY();
     uploadSamaraSupplierYnxStocksToYandex_(entries, apiKey);
     Logger.log('✅ UNIT YNX!«' + SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER +
-      '» → Яндекс «' + SAMARA_SUPPLIER_YNX_CAMPAIGN_NAME_FOR_LOG_() +
+      '» → Яндекс «' + SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGN_NAME +
       '»: отправлено SKU ' + entries.length + '.');
   });
 }
