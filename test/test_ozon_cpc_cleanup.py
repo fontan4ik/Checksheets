@@ -180,6 +180,41 @@ class OzonCpcCleanupTests(unittest.TestCase):
 
         self.assertEqual([[row.row_number for row in group] for group in groups], [[2], [4, 5]])
 
+    def test_write_sheet_metrics_preserves_week_month_when_day_is_empty(self):
+        class FakeWorksheet:
+            def __init__(self):
+                self.updates = []
+
+            def update(self, range_name=None, values=None, **kwargs):
+                self.updates.append((range_name, values))
+
+        headers = [
+            "CAMPAIN NAME", "Расход день", "Расход неделя", "Расход месяц",
+            "Показы день", "Показы неделя", "Показы месяц",
+            "Клики день", "Клики неделя", "Клики месяц", "Бюджет", "Статус",
+        ]
+        row = SheetRow(2, "39171-1", "986315608", "33230388", 0, 0, "", [])
+        key = ("33230388", "986315608")
+        metrics_by_period = {
+            PERIOD_DAY: {},
+            PERIOD_WEEK: {key: Metric(spend=400, clicks=40, impressions=350)},
+            PERIOD_MONTH: {key: Metric(spend=800, clicks=90, impressions=900)},
+        }
+        campaigns_by_id = {
+            "33230388": {"budget": "1500", "state": "CAMPAIGN_STATE_INACTIVE", "title": "Кампания"}
+        }
+        worksheet = FakeWorksheet()
+
+        write_sheet_metrics(worksheet, headers, [row], metrics_by_period, campaigns_by_id)
+
+        updates = dict(worksheet.updates)
+        self.assertEqual(updates["B2:B2"], [[0.0]])
+        self.assertEqual(updates["C2:C2"], [[400]])
+        self.assertEqual(updates["D2:D2"], [[800]])
+        self.assertEqual(updates["H2:H2"], [[0.0]])
+        self.assertEqual(updates["I2:I2"], [[40]])
+        self.assertEqual(updates["J2:J2"], [[90]])
+
     def test_build_candidates_triggers_by_day_clicks_and_month_drr(self):
         rows = [
             SheetRow(2, "39171-1", "986315608", "33230388", 5, 0, "1", []),
