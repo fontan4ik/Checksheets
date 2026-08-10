@@ -11,14 +11,16 @@ from ozon_cpc_cleanup import (
     PERIOD_DAY,
     PERIOD_MONTH,
     PERIOD_WEEK,
+    Candidate,
     Metric,
     SheetRow,
-    build_statistics_payload,
     build_candidates,
-    campaign_budget,
+    contiguous_row_groups,
+
     parse_report,
     parse_report_block,
     period_range,
+    rows_for_campaign_batch,
     rows_from_values,
     write_sheet_metrics,
 )
@@ -154,6 +156,17 @@ class OzonCpcCleanupTests(unittest.TestCase):
         self.assertEqual(updates["V2:V2"], [[20]])
         self.assertEqual(updates["W2:W2"], [["CAMPAIGN_STATE_RUNNING"]])
         self.assertNotIn("A2:Y2", updates)
+
+    def test_incremental_batch_keeps_rows_when_day_metrics_are_empty(self):
+        rows = [
+            SheetRow(2, "39171-1", "986315608", "33230388", 0, 0, "", []),
+            SheetRow(3, "39172-1", "986315609", "33230388", 0, 0, "", []),
+            SheetRow(4, "39173-1", "986315610", "33230389", 0, 0, "", []),
+        ]
+
+        selected = rows_for_campaign_batch(rows, ["33230388"])
+
+        self.assertEqual([row.row_number for row in selected], [2, 3])
 
     def test_build_candidates_triggers_by_day_clicks_and_month_drr(self):
         rows = [

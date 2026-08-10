@@ -159,7 +159,12 @@ def get_active_interface_ip() -> tuple[str, str]:
 
 def create_session() -> requests.Session:
     session = requests.Session()
-    if os.getenv("OZON_PERF_SKIP_BYPASS", "").lower() == "true":
+    skip_bypass = any(
+        os.getenv(name, "").lower() == "true"
+        for name in ("OZON_PERF_SKIP_BYPASS", "OZON_CPC_SKIP_BYPASS")
+    )
+    if skip_bypass:
+        print("Bypass skipped via environment setting")
         return session
     try:
         interface, source_ip = get_active_interface_ip()
@@ -697,7 +702,7 @@ def write_sheet_metrics(
             for row in rows
         ]
         cell_range = f"{column_letter(name_col)}{start_row}:{column_letter(name_col)}{end_row}"
-        worksheet.update(cell_range, values)
+        worksheet.update(range_name=cell_range, values=values)
 
     for header, (period, field_name) in metric_columns.items():
         column = header_map.get(header)
@@ -705,12 +710,12 @@ def write_sheet_metrics(
             continue
         values = [[value_for(row, period, field_name)] for row in rows]
         cell_range = f"{column_letter(column)}{start_row}:{column_letter(column)}{end_row}"
-        worksheet.update(cell_range, values)
+        worksheet.update(range_name=cell_range, values=values)
 
     if budget_col:
         values = [[campaign_budget(campaigns_by_id.get(row.campaign_id))] for row in rows]
         cell_range = f"{column_letter(budget_col)}{start_row}:{column_letter(budget_col)}{end_row}"
-        worksheet.update(cell_range, values)
+        worksheet.update(range_name=cell_range, values=values)
 
     if status_col:
         values = [
@@ -718,7 +723,7 @@ def write_sheet_metrics(
             for row in rows
         ]
         cell_range = f"{column_letter(status_col)}{start_row}:{column_letter(status_col)}{end_row}"
-        worksheet.update(cell_range, values)
+        worksheet.update(range_name=cell_range, values=values)
 
 
 def column_letter(number: int) -> str:
@@ -831,6 +836,32 @@ def _pending_rows(
     return pending
 
 
+def rows_for_campaign_batch(rows: list[SheetRow], campaign_ids: Iterable[str]) -> list[SheetRow]:
+    """Return every sheet row belonging to a successfully fetched batch.
+
+    A campaign can have no activity today while still having valid week/month
+    metrics. Incremental writes must therefore not use the day metric map as
+    the row-selection gate; otherwise historical metrics are silently skipped
+    and the same batch is retried forever.
+    """
+    selected_ids = {normalize_id(campaign_id) for campaign_id in campaign_ids}
+    return [row for row in rows if row.campaign_id in selected_ids]
+
+
+def contiguous_row_groups(rows: list[SheetRow]) -> list[list[SheetRow]]:
+    """Split rows into contiguous sheet ranges safe for rectangular updates."""
+    if not rows:
+        return []
+    ordered = sorted(rows, key=lambda row: row.row_number)
+    groups: list[list[SheetRow]] = [[ordered[0]]]
+    for row in ordered[1:]:
+        if row.row_number == groups[-1][-1].row_number + 1:
+            groups[-1].append(row)
+        else:
+            groups.append([row])
+    return groups
+
+
 def run(args: argparse.Namespace) -> int:
     worksheet, headers, sheet_rows = read_sheet_rows()
     print(f"Лист {SHEET_NAME}: строк с SKU/campaign={len(sheet_rows)}")
@@ -875,22 +906,25 @@ def run(args: argparse.Namespace) -> int:
                 batch_metrics: dict[str, dict[tuple[str, str], Metric]],
             ) -> None:
                 nonlocal written_incremental
-                if args.write_sheet and any(batch_metrics.get(period) for period in PERIODS):
-                    batch_ids = set(batch)
-                    batch_rows = [
-                        row
-                        for row in sheet_rows
-                        if row.campaign_id in batch_ids
-                        and (row.campaign_id, row.sku) in batch_metrics[PERIOD_DAY]
-                    ]
-                    if not batch_rows:
-                        return
-                    try:
-                        write_sheet_metrics(worksheet, headers, batch_rows, batch_metrics, campaigns_by_id)
-                        written_incremental.update(batch_ids)
-                        print(f"Порция записана сразу: кампаний={len(batch_ids)} строк={len(batch_rows)}")
-                    except Exception as exc:
-                        print(f"Ошибка записи порции {batch_ids}: {exc}")
+                if not args.write_sheet:
+                    return
+                batch_ids = set(batch)
+                batch_rows = rows_for_campaign_batch(sheet_rows, batch_ids)
+                row_groups = contiguous_row_groups(batch_rows)
+                if not row_groups:
+                    return
+                try:
+                    # A successful empty report is still a valid zero-metrics
+                    # result; write it and advance progress instead of looping
+                    # on the same campaigns forever.  Split non-contiguous
+                    # rows so rectangular Sheets ranges cannot overwrite rows
+                    # from another campaign.
+                    for row_group in row_groups:
+                        write_sheet_metrics(worksheet, headers, row_group, batch_metrics, campaigns_by_id)
+                    written_incremental.update(batch_ids)
+                    print(f"Порция записана сразу: кампаний={len(batch_ids)} строк={len(batch_rows)}")
+                except Exception as exc:
+                    print(f"Ошибка записи порции {batch_ids}: {exc}")
 
             metrics_by_period = fetch_period_metrics(session, token, report_campaign_ids, batch_size, on_batch=_on_batch)
             for period in PERIODS:
