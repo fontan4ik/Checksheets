@@ -124,6 +124,7 @@ PERIOD_DAY = "day"
 PERIOD_WEEK = "week"
 PERIOD_MONTH = "month"
 PERIODS = (PERIOD_DAY, PERIOD_WEEK, PERIOD_MONTH)
+SHEET_WRITE_BATCH_SIZE = 20
 
 
 class SourceAddressAdapter(HTTPAdapter):
@@ -896,37 +897,72 @@ def run(args: argparse.Namespace) -> int:
     products_by_campaign: dict[str, set[str]] = {}
     metrics_by_period: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
     written_incremental: set[str] = set()
+    streamed_write_count = 0
     if report_campaign_ids:
         try:
             products_by_campaign = {campaign_id: get_campaign_products(session, token, campaign_id) for campaign_id in report_campaign_ids}
             batch_size = max(1, int(args.batch_size))
+            write_buffer_ids: list[str] = []
+            write_buffer_metrics: dict[str, dict[tuple[str, str], Metric]] = {
+                period: {} for period in PERIODS
+            }
+
+            def _flush_write_buffer() -> None:
+                nonlocal streamed_write_count, written_incremental
+                if not write_buffer_ids:
+                    return
+                buffer_ids = list(dict.fromkeys(write_buffer_ids))
+                buffer_rows = rows_for_campaign_batch(sheet_rows, buffer_ids)
+                row_groups = contiguous_row_groups(buffer_rows)
+                if not row_groups:
+                    write_buffer_ids.clear()
+                    for period in PERIODS:
+                        write_buffer_metrics[period].clear()
+                    return
+                try:
+                    # Write only after two API batches (20 campaigns), with a
+                    # smaller final flush when the total is not divisible by 20.
+                    for row_group in row_groups:
+                        write_sheet_metrics(
+                            worksheet,
+                            headers,
+                            row_group,
+                            write_buffer_metrics,
+                            campaigns_by_id,
+                        )
+                    written_incremental.update(buffer_ids)
+                    streamed_write_count += len(buffer_ids)
+                    print(
+                        f"Порция записана: кампаний={len(buffer_ids)} строк={len(buffer_rows)}"
+                    )
+                    write_buffer_ids.clear()
+                    for period in PERIODS:
+                        write_buffer_metrics[period].clear()
+                except Exception as exc:
+                    print(f"Ошибка записи порции {buffer_ids}: {exc}")
 
             def _on_batch(
                 batch: list[str],
                 batch_metrics: dict[str, dict[tuple[str, str], Metric]],
             ) -> None:
-                nonlocal written_incremental
                 if not args.write_sheet:
                     return
-                batch_ids = set(batch)
-                batch_rows = rows_for_campaign_batch(sheet_rows, batch_ids)
-                row_groups = contiguous_row_groups(batch_rows)
-                if not row_groups:
-                    return
-                try:
-                    # A successful empty report is still a valid zero-metrics
-                    # result; write it and advance progress instead of looping
-                    # on the same campaigns forever.  Split non-contiguous
-                    # rows so rectangular Sheets ranges cannot overwrite rows
-                    # from another campaign.
-                    for row_group in row_groups:
-                        write_sheet_metrics(worksheet, headers, row_group, batch_metrics, campaigns_by_id)
-                    written_incremental.update(batch_ids)
-                    print(f"Порция записана сразу: кампаний={len(batch_ids)} строк={len(batch_rows)}")
-                except Exception as exc:
-                    print(f"Ошибка записи порции {batch_ids}: {exc}")
+                write_buffer_ids.extend(batch)
+                for period in PERIODS:
+                    for key, metric in batch_metrics.get(period, {}).items():
+                        existing = write_buffer_metrics[period].setdefault(key, Metric())
+                        for field_name in vars(metric):
+                            setattr(
+                                existing,
+                                field_name,
+                                getattr(existing, field_name) + getattr(metric, field_name),
+                            )
+                if len(write_buffer_ids) >= SHEET_WRITE_BATCH_SIZE:
+                    _flush_write_buffer()
 
             metrics_by_period = fetch_period_metrics(session, token, report_campaign_ids, batch_size, on_batch=_on_batch)
+            if args.write_sheet:
+                _flush_write_buffer()
             for period in PERIODS:
                 print(f"Период {period}: SKU/кампания пар={len(metrics_by_period[period])}")
         except Exception as exc:
@@ -954,21 +990,17 @@ def run(args: argparse.Namespace) -> int:
         )
 
     metrics_ok = any(metrics_by_period.get(period) for period in PERIODS)
-    if args.write_sheet and metrics_ok:
-        if limit_rows > 0:
-            if written_incremental:
+    if args.write_sheet:
+        if streamed_write_count:
+            if limit_rows > 0:
                 _save_progress(sorted(written_incremental))
                 print(f"Инкрементная запись завершена: помечено {len(written_incremental)} кампаний")
             else:
-                print("Инкрементно: данные уже внесены, повторная запись не требуется")
+                print(f"Потоковая запись завершена: кампаний={streamed_write_count}")
+        elif not metrics_ok:
+            print("Метрики не собраны — запись в таблицу пропущена (прежние данные сохранены); toggle всё равно выполнится")
         else:
-            try:
-                write_sheet_metrics(worksheet, headers, sheet_rows, metrics_by_period, campaigns_by_id)
-                print("Метрики/статусы записаны в СРС")
-            except Exception as exc:
-                print(f"Ошибка записи в таблицу: {exc}; toggle всё равно выполнится")
-    elif args.write_sheet:
-        print("Метрики не собраны — запись в таблицу пропущена (прежние данные сохранены); toggle всё равно выполнится")
+            print("Успешных порций для записи нет; прежние данные сохранены")
 
     if not args.apply and not args.apply_toggle:
         print("DRY-RUN: остановка не выполнялась")
