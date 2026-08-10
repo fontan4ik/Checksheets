@@ -292,12 +292,8 @@ function uploadSamaraSupplierYnxStocksToYandex_(entries, apiKey) {
     if (code < 200 || code >= 300) {
       throw new Error('Яндекс: обновление остатков завершилось HTTP ' + code + ' на батче ' + batchNumber + '.');
     }
-    Logger.log('Яндекс «' + SAMARA_SUPPLIER_YNX_CAMPAIGN_NAME + '»: батч ' +
+    Logger.log('Яндекс «' + SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGN_NAME + '»: батч ' +
       batchNumber + '/' + Math.ceil(entries.length / SAMARA_SUPPLIER_YNX_YANDEX_BATCH_SIZE) +
       ', SKU: ' + batch.length + '.');
   }
-}
-
-function SAMARA_SUPPLIER_YNX_CAMPAIGN_NAME_FOR_LOG_() {
-  return SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGN_NAME;
 }
