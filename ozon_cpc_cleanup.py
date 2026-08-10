@@ -900,7 +900,13 @@ def run(args: argparse.Namespace) -> int:
     streamed_write_count = 0
     if report_campaign_ids:
         try:
-            products_by_campaign = {campaign_id: get_campaign_products(session, token, campaign_id) for campaign_id in report_campaign_ids}
+            if args.apply:
+                products_by_campaign = {
+                    campaign_id: get_campaign_products(session, token, campaign_id)
+                    for campaign_id in report_campaign_ids
+                }
+            else:
+                print("Состав товаров не запрашивается: --apply не задан")
             batch_size = max(1, int(args.batch_size))
             write_buffer_ids: list[str] = []
             write_buffer_metrics: dict[str, dict[tuple[str, str], Metric]] = {
@@ -1013,33 +1019,34 @@ def run(args: argparse.Namespace) -> int:
     # trusting the earlier discovery snapshot.
     current_products: dict[str, set[str]] = {}
     deactivated_by_filter: set[str] = set()
-    for candidate in deletions:
-        products = current_products.get(candidate.campaign_id)
-        if products is None:
-            products = get_campaign_products(session, token, candidate.campaign_id)
-            current_products[candidate.campaign_id] = products
-        if candidate.sku not in products:
-            print(
-                f"Пропущен SKU {candidate.sku} из кампании {candidate.campaign_id}: "
-                "на момент удаления товара уже нет в кампании"
-            )
-            continue
-        try:
-            delete_sku(session, token, candidate.campaign_id, candidate.sku)
-            products.remove(candidate.sku)
-            print(f"Остановлен SKU {candidate.sku} из кампании {candidate.campaign_id}")
-        except RuntimeError as exc:
-            print(
-                f"Не удалось остановить SKU {candidate.sku} ({candidate.campaign_id}): {exc}. "
-                "Останавливаем кампанию целиком"
-            )
+    if args.apply:
+        for candidate in deletions:
+            products = current_products.get(candidate.campaign_id)
+            if products is None:
+                products = get_campaign_products(session, token, candidate.campaign_id)
+                current_products[candidate.campaign_id] = products
+            if candidate.sku not in products:
+                print(
+                    f"Пропущен SKU {candidate.sku} из кампании {candidate.campaign_id}: "
+                    "на момент удаления товара уже нет в кампании"
+                )
+                continue
             try:
-                deactivate_campaign(session, token, candidate.campaign_id)
-                current_products[candidate.campaign_id] = set()
-                deactivated_by_filter.add(candidate.campaign_id)
-                print(f"Остановлена кампания {candidate.campaign_id}")
-            except RuntimeError as deactivate_exc:
-                print(f"Не удалось остановить кампанию {candidate.campaign_id}: {deactivate_exc}")
+                delete_sku(session, token, candidate.campaign_id, candidate.sku)
+                products.remove(candidate.sku)
+                print(f"Остановлен SKU {candidate.sku} из кампании {candidate.campaign_id}")
+            except RuntimeError as exc:
+                print(
+                    f"Не удалось остановить SKU {candidate.sku} ({candidate.campaign_id}): {exc}. "
+                    "Останавливаем кампанию целиком"
+                )
+                try:
+                    deactivate_campaign(session, token, candidate.campaign_id)
+                    current_products[candidate.campaign_id] = set()
+                    deactivated_by_filter.add(candidate.campaign_id)
+                    print(f"Остановлена кампания {candidate.campaign_id}")
+                except RuntimeError as deactivate_exc:
+                    print(f"Не удалось остановить кампанию {candidate.campaign_id}: {deactivate_exc}")
 
     if args.apply_toggle:
         _apply_toggle(session, token, sheet_rows, campaigns_by_id, deactivated_by_filter)
