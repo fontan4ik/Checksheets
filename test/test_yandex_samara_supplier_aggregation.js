@@ -45,6 +45,9 @@ assert(!source.includes('SAMARA_SUPPLIER_YNX_CAMPAIGN_NAME_FOR_LOG_'));
 assert(source.includes('58480133'));
 assert(source.includes("'/offers/stocks'"));
 assert(source.includes("const SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER = 'TR YA FBS';"));
+assert(source.includes('readSamaraSupplierYnxFormulaSummary_'));
+assert(source.includes('SpreadsheetApp.flush();'));
+assert(!source.includes('targetSheet.getRange(2, targetStockColumn, values.length, 1).setValues(values);'));
 
 console.log('PASS node_check');
 console.log('PASS overlapping_supplier_stocks_are_summed');

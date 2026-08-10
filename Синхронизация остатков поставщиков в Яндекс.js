@@ -12,7 +12,7 @@
  *
  * Основные функции:
  * - verifyYandexSamaraSupplierConfiguration() — только чтение API Яндекса;
- * - aggregateSamaraSupplierStocksToUnitYnx() — только Google Sheets;
+ * - aggregateSamaraSupplierStocksToUnitYnx() — проверка формулы в Google Sheets;
  * - syncSamaraSupplierStocksToYandexFbs() — отправка UNIT YNX → Яндекс.
  *
  * Существующий столбец «TR YA» не используется и не изменяется: он относится
@@ -81,40 +81,20 @@ function verifyYandexSamaraSupplierConfiguration() {
 }
 
 /**
- * Собирает сумму трёх источников в UNIT YNX!«TR YA FBS».
- * Отсутствующий артикул в источнике считается остатком 0.
- * Дубли в одном источнике складываются, чтобы не терять остаток.
+ * Совместимый entrypoint для проверки формульного UNIT YNX!«TR YA FBS».
+ * Сама сумма считается формулой в AH2 и автоматически протягивается вниз.
+ * Apps Script не перезаписывает формульный столбец значениями.
  */
 function aggregateSamaraSupplierStocksToUnitYnx() {
   withSamaraSupplierYnxLock_('агрегация самарских остатков', function() {
     const spreadsheet = SpreadsheetApp.openById(SAMARA_SUPPLIER_YNX_SPREADSHEET_ID);
     const targetSheet = getSamaraSupplierYnxSheet_(spreadsheet, SAMARA_SUPPLIER_YNX_TARGET_SHEET);
-    const target = readSamaraSupplierYnxRows_(targetSheet, SAMARA_SUPPLIER_YNX_TARGET_KEY_HEADER);
-    if (!target.rows.length) throw new Error('UNIT YNX: нет SKU в колонке «' + SAMARA_SUPPLIER_YNX_TARGET_KEY_HEADER + '».');
-
-    const sourceMaps = {};
-    SAMARA_SUPPLIER_YNX_SOURCES.forEach(function(source) {
-      const sourceSheet = getSamaraSupplierYnxSheet_(spreadsheet, source.sheetName);
-      sourceMaps[source.sheetName] = readSamaraSupplierYnxSourceMap_(sourceSheet, source.keyHeader, source.stockHeader);
-    });
-
-    const values = aggregateSamaraSupplierMaps_(
-      target.rows.map(function(row) { return row.key; }),
-      sourceMaps['FERON TR'],
-      sourceMaps['ETM TR'],
-      sourceMaps['РуСВ TR']
-    );
-
-    const targetStockColumn = ensureSamaraSupplierYnxHeader_(
-      targetSheet,
-      SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER
-    );
-    targetSheet.getRange(2, targetStockColumn, values.length, 1).setValues(values);
-
-    const positive = values.filter(function(row) { return Number(row[0]) > 0; }).length;
-    const total = values.reduce(function(sum, row) { return sum + Number(row[0] || 0); }, 0);
-    Logger.log('✅ Самарские остатки собраны в UNIT YNX!«' + SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER + '».');
-    Logger.log('SKU: ' + values.length + '; с остатком > 0: ' + positive + '; сумма: ' + total + '.');
+    const summary = readSamaraSupplierYnxFormulaSummary_(targetSheet);
+    Logger.log('✅ UNIT YNX!«' + SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER +
+      '» работает формулой, запись значений Apps Script не выполняется.');
+    Logger.log('SKU: ' + summary.dataRows + '; с остатком > 0: ' + summary.positive +
+      '; сумма: ' + summary.total + '.');
+    return summary;
   });
 }
 
@@ -126,6 +106,8 @@ function syncSamaraSupplierStocksToYandexFbs() {
   withSamaraSupplierYnxLock_('отправка самарских остатков в Яндекс FBS', function() {
     const spreadsheet = SpreadsheetApp.openById(SAMARA_SUPPLIER_YNX_SPREADSHEET_ID);
     const targetSheet = getSamaraSupplierYnxSheet_(spreadsheet, SAMARA_SUPPLIER_YNX_TARGET_SHEET);
+    readSamaraSupplierYnxFormulaSummary_(targetSheet);
+    SpreadsheetApp.flush();
     const entries = readSamaraSupplierYnxStockEntries_(targetSheet);
     const apiKey = YANDEX_MARKET_API_KEY();
     uploadSamaraSupplierYnxStocksToYandex_(entries, apiKey);
@@ -181,6 +163,34 @@ function ensureSamaraSupplierYnxHeader_(sheet, header) {
   sheet.getRange(1, column).setValue(header);
   Logger.log('UNIT YNX: добавлен новый контрольный заголовок «' + header + '» в колонку ' + column + '.');
   return column;
+}
+
+function readSamaraSupplierYnxFormulaSummary_(sheet) {
+  const stockColumn = findSamaraSupplierYnxHeader_(
+    sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getDisplayValues()[0],
+    SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER
+  );
+  if (sheet.getLastRow() < 2) throw new Error('UNIT YNX: нет строк для формульного остатка.');
+
+  const formula = String(sheet.getRange(2, stockColumn).getFormula() || '');
+  const formulaMarkers = ['ARRAYFORMULA', 'SUMIF', 'FERON TR', 'ETM TR', 'РуСВ TR'];
+  if (!formula || formulaMarkers.some(function(marker) { return formula.indexOf(marker) === -1; })) {
+    throw new Error('UNIT YNX!«' + SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER +
+      '»: в первой строке данных нет ожидаемой формулы поставщиков.');
+  }
+
+  SpreadsheetApp.flush();
+  const values = sheet.getRange(2, stockColumn, sheet.getLastRow() - 1, 1).getDisplayValues();
+  let positive = 0;
+  let total = 0;
+  values.forEach(function(row, index) {
+    const raw = String(row[0] || '').trim();
+    if (!raw) return;
+    const value = parseSamaraSupplierYnxStock_(raw, sheet.getName(), 'строка ' + (index + 2));
+    if (value > 0) positive += 1;
+    total += value;
+  });
+  return { formula: formula, dataRows: values.length, positive: positive, total: total };
 }
 
 function readSamaraSupplierYnxRows_(sheet, keyHeader) {
