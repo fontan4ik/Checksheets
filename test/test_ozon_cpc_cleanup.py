@@ -15,8 +15,9 @@ from ozon_cpc_cleanup import (
     Metric,
     SheetRow,
     build_candidates,
+    build_statistics_payload,
+    campaign_budget,
     contiguous_row_groups,
-
     parse_report,
     parse_report_block,
     period_range,
@@ -106,8 +107,8 @@ class OzonCpcCleanupTests(unittest.TestCase):
             def __init__(self):
                 self.updates = []
 
-            def update(self, range_label, values):
-                self.updates.append((range_label, values))
+            def update(self, range_name=None, values=None, **kwargs):
+                self.updates.append((range_name, values))
 
         headers = [
             "art", "model", "brand", "pic", "SKU OZON", "CAMPAIN ID", "CAMPAIN NAME",
@@ -167,6 +168,17 @@ class OzonCpcCleanupTests(unittest.TestCase):
         selected = rows_for_campaign_batch(rows, ["33230388"])
 
         self.assertEqual([row.row_number for row in selected], [2, 3])
+
+    def test_contiguous_row_groups_prevent_rectangular_range_overwrite(self):
+        rows = [
+            SheetRow(5, "later", "2", "1", 0, 0, "", []),
+            SheetRow(2, "first", "1", "1", 0, 0, "", []),
+            SheetRow(4, "gap", "3", "1", 0, 0, "", []),
+        ]
+
+        groups = contiguous_row_groups(rows)
+
+        self.assertEqual([[row.row_number for row in group] for group in groups], [[2], [4, 5]])
 
     def test_build_candidates_triggers_by_day_clicks_and_month_drr(self):
         rows = [
