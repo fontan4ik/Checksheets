@@ -70,6 +70,8 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(context.readOzonNtcYnxYandexPri
   { offerId: 'A-1', price: 1299.9 },
   { offerId: 'B-2', price: 500 },
 ]);
+assert.strictEqual(context.getOzonNtcYnxYandexPricesUrl_(58480133), 'https://api.partner.market.yandex.ru/v2/campaigns/58480133/offer-prices/updates');
+assert.ok(source.includes('const OZON_NTC_YNX_YANDEX_PRICE_CAMPAIGN_IDS = [149209348, 58480133];'));
 
 const requests = [];
 context.retryFetch = (url, options) => {
@@ -105,5 +107,20 @@ assert.ok(sourceStage1.includes('writeOzonNtcYnxStocks_'));
 assert.ok(!sourceStage1.includes('uploadOzonNtcYnxStocksToYandex_'));
 assert.ok(!sourceStage1.includes('uploadOzonNtcYnxPricesToYandex_'));
 assert.ok(!/function\s+syncOzonNtcStocksToYandex\s*\(/.test(source));
+
+const priceRequests = [];
+context.Utilities.sleep = () => {};
+context.retryFetch = (url, options) => {
+  priceRequests.push({ url, body: JSON.parse(options.payload) });
+  return { getResponseCode() { return 200; } };
+};
+const sharedRateState = { sentInCurrentWindow: 0 };
+context.uploadOzonNtcYnxPricesToYandex_([{ offerId: 'A-1', price: 1299.9 }], 'test', 58480133, sharedRateState);
+assert.strictEqual(priceRequests.length, 1);
+assert.strictEqual(priceRequests[0].url, 'https://api.partner.market.yandex.ru/v2/campaigns/58480133/offer-prices/updates');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(priceRequests[0].body)), {
+  offers: [{ offerId: 'A-1', price: { value: 1299.9, currencyId: 'RUR' } }],
+});
+assert.strictEqual(sharedRateState.sentInCurrentWindow, 1);
 
 console.log('OK: Ozon NTC split-function mapping and parsers verified');
