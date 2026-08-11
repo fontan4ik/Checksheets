@@ -38,7 +38,7 @@ function mockSheet(values) {
       assert.strictEqual(row, 1);
       assert.strictEqual(col, 1);
       assert.strictEqual(rows, values.length);
-      assert.ok(cols === 20 || cols === 27);
+      assert.ok(cols === 20 || cols === 27 || cols === 32);
       return { getDisplayValues() { return values.map(r => r.slice(0, cols)); } };
     },
   };
@@ -48,11 +48,12 @@ const header = Array(27).fill('');
 header[0] = 'offer_id';
 header[19] = 'Целевая цена';
 header[24] = 'НТЦ STOCK API';
+header[31] = 'ДА/НЕТ';
 header[26] = 'TR YA';
 const rowA = Array(27).fill('');
-rowA[0] = 'A-1'; rowA[19] = '1 299,90'; rowA[24] = '3'; rowA[26] = '7';
+rowA[0] = 'A-1'; rowA[19] = '1 299,90'; rowA[24] = '3'; rowA[26] = '7'; rowA[31] = '1';
 const rowB = Array(27).fill('');
-rowB[0] = 'B-2'; rowB[19] = '500'; rowB[24] = '4'; rowB[26] = '0';
+rowB[0] = 'B-2'; rowB[19] = '500'; rowB[24] = '4'; rowB[26] = '0'; rowB[31] = '0';
 const sheet = mockSheet([header, rowA, rowB]);
 
 const stockRows = context.readOzonNtcYnxUnitStockRows_(sheet);
@@ -64,12 +65,14 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(stockRows.rows)), [
 ]);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(context.readOzonNtcYnxYandexStockEntries_(sheet))), [
   { sku: 'A-1', count: 7 },
-  { sku: 'B-2', count: 0 },
 ]);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(context.readOzonNtcYnxYandexPriceEntries_(sheet))), [
   { offerId: 'A-1', price: 1299.9 },
   { offerId: 'B-2', price: 500 },
 ]);
+assert.strictEqual(context.isOzonNtcYnxYandexEnabled_('1'), true);
+assert.strictEqual(context.isOzonNtcYnxYandexEnabled_('0'), false);
+assert.strictEqual(context.isOzonNtcYnxYandexEnabled_(''), false);
 assert.strictEqual(context.getOzonNtcYnxYandexPricesUrl_(58480133), 'https://api.partner.market.yandex.ru/v2/campaigns/58480133/offer-prices/updates');
 assert.ok(source.includes('const OZON_NTC_YNX_YANDEX_PRICE_CAMPAIGN_IDS = [149209348, 58480133];'));
 

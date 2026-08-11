@@ -10,6 +10,7 @@
  * - Ozon Seller API: FBS-остаток по точному имени склада «НТЦ СКЛАД» и
  *   offer_id из UNIT YNX!A.
  * - Google Sheets, лист «UNIT YNX»: A = offer_id Ozon / ShopSku Яндекс,
+ *   «ДА/НЕТ» = переключатель загрузки в Яндекс (1 = загружать, 0 = не загружать),
  *   T = «Целевая цена», Y = «НТЦ STOCK».
  * - Яндекс Market Partner API: кампания «ВольтМир НТЦ».
  *
@@ -28,6 +29,7 @@ const OZON_NTC_YNX_SPREADSHEET_ID = '15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKh
 const OZON_NTC_YNX_UNIT_SHEET_NAME = 'UNIT YNX';
 const OZON_NTC_YNX_UNIT_ART_COLUMN = 1; // A: offer_id Ozon / ShopSku Яндекс
 const OZON_NTC_YNX_UNIT_PRICE_HEADER = 'Целевая цена';
+const OZON_NTC_YNX_YANDEX_ENABLED_HEADER = 'ДА/НЕТ';
 const OZON_NTC_YNX_OZON_STOCK_HEADER = 'НТЦ STOCK API';
 const OZON_NTC_YNX_YANDEX_STOCK_HEADER = 'TR YA';
 const OZON_NTC_YNX_OZON_WAREHOUSE_NAME = 'НТЦ СКЛАД';
@@ -73,6 +75,7 @@ function syncOzonNtcStocksToUnitYnx() {
 
 /**
  * Шаг 2. UNIT YNX!колонка «TR YA» → Яндекс Маркет.
+ * В Яндекс загружаются только строки, где UNIT YNX!«ДА/НЕТ» равно 1.
  * Ozon и Google Sheets не обновляет: в Яндекс уходят только значения из найденной колонки.
  */
 function syncUnitYnxNtcStocksToYandex() {
@@ -190,6 +193,7 @@ function readOzonNtcYnxYandexStockEntries_(sheet) {
 
   const lastColumn = sheet.getLastColumn();
   const values = sheet.getRange(1, 1, lastRow, lastColumn).getDisplayValues();
+  const enabledColumn = findOzonNtcYnxHeaderColumn_(values[0], OZON_NTC_YNX_YANDEX_ENABLED_HEADER);
   const stockColumn = findOzonNtcYnxHeaderColumn_(values[0], OZON_NTC_YNX_YANDEX_STOCK_HEADER);
   const entries = [];
   const invalidOfferIds = [];
@@ -197,6 +201,7 @@ function readOzonNtcYnxYandexStockEntries_(sheet) {
   values.slice(1).forEach(function(row) {
     const offerId = String(row[OZON_NTC_YNX_UNIT_ART_COLUMN - 1] || '').trim();
     if (!offerId) return;
+    if (!isOzonNtcYnxYandexEnabled_(row[enabledColumn - 1])) return;
     const count = parseOzonNtcYnxStock_(row[stockColumn - 1]);
     if (count === null) {
       invalidOfferIds.push(offerId);
@@ -223,6 +228,11 @@ function findOzonNtcYnxHeaderColumn_(headers, requiredHeader) {
   }
   return matches[0];
 }
+
+function isOzonNtcYnxYandexEnabled_(rawValue) {
+  return String(rawValue === undefined || rawValue === null ? '' : rawValue).trim() === '1';
+}
+
 function readOzonNtcYnxYandexPriceEntries_(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) throw new Error('UNIT YNX: нет строк для передачи цен в Яндекс.');
