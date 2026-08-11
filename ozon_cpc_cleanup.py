@@ -288,26 +288,84 @@ def build_statistics_payload(
     }
 
 
+class TokenManager:
+    """Получает и обновляет Performance API Bearer-токен.
+
+    Ozon выдаёт токен примерно на 30 минут. Длинный CPC-прогон по сотням
+    кампаний может пережить этот срок, поэтому токен нельзя получать только
+    один раз в начале запуска.
+    """
+
+    def __init__(self, session: requests.Session, refresh_margin_seconds: int = 120) -> None:
+        self.session = session
+        self.refresh_margin_seconds = max(30, int(refresh_margin_seconds))
+        self._token: str | None = None
+        self._refresh_at = 0.0
+        self._auth_blocked = False
+
+    def get(self, force: bool = False) -> str:
+        if self._auth_blocked:
+            raise RuntimeError(
+                "Ozon Performance authorization is blocked after repeated HTTP 401/403; "
+                "прогон остановлен без повторных массовых запросов"
+            )
+        now = time.monotonic()
+        if not force and self._token and now < self._refresh_at:
+            return self._token
+
+        data = _fetch_token_data(self.session)
+        token = data.get("access_token") if isinstance(data, dict) else None
+        if not token:
+            raise RuntimeError("Ozon Performance token отсутствует в ответе")
+        expires_in = float(data.get("expires_in", 1800) or 1800)
+        self._token = str(token)
+        self._refresh_at = now + max(30.0, expires_in - self.refresh_margin_seconds)
+        print(f"Ozon Performance token refreshed (expires_in={int(expires_in)}s)")
+        return self._token
+
+    def force_refresh(self) -> str:
+        self._token = None
+        return self.get(force=True)
+
+    def mark_auth_failure(self) -> None:
+        self._auth_blocked = True
+
+
+def _resolve_token(token: str | TokenManager | None, force_refresh: bool = False) -> str | None:
+    if isinstance(token, TokenManager):
+        return token.force_refresh() if force_refresh else token.get()
+    return str(token) if token else None
+
+
 def request_json(
     session: requests.Session,
     method: str,
     path: str,
-    token: str | None = None,
+    token: str | TokenManager | None = None,
     params: dict[str, Any] | None = None,
     payload: dict[str, Any] | None = None,
     timeout: int = 60,
 ) -> Any:
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    response = session.request(
-        method,
-        f"{BASE_URL}{path}",
-        headers=headers,
-        params=params,
-        json=payload,
-        timeout=timeout,
-    )
+    auth_retry_attempted = False
+    while True:
+        token_value = _resolve_token(token, force_refresh=auth_retry_attempted)
+        headers = {"Content-Type": "application/json"}
+        if token_value:
+            headers["Authorization"] = f"Bearer {token_value}"
+        response = session.request(
+            method,
+            f"{BASE_URL}{path}",
+            headers=headers,
+            params=params,
+            json=payload,
+            timeout=timeout,
+        )
+        if response.status_code in (401, 403) and isinstance(token, TokenManager):
+            if not auth_retry_attempted:
+                auth_retry_attempted = True
+                continue
+            token.mark_auth_failure()
+        break
     if response.status_code >= 400:
         detail = response.text[:1000].replace(config.OZON_PERF_CLIENT_SECRET, "[REDACTED]")
         raise RuntimeError(f"{method} {path} -> HTTP {response.status_code}: {detail}")
@@ -319,18 +377,32 @@ def request_json(
         raise RuntimeError(f"{method} {path} -> ответ не JSON") from exc
 
 
-def request_bytes(session: requests.Session, path: str, token: str, timeout: int = 180) -> bytes:
-    response = session.get(
-        path if path.startswith("http") else f"{BASE_URL}{path}",
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=timeout,
-    )
+def request_bytes(
+    session: requests.Session,
+    path: str,
+    token: str | TokenManager,
+    timeout: int = 180,
+) -> bytes:
+    auth_retry_attempted = False
+    while True:
+        token_value = _resolve_token(token, force_refresh=auth_retry_attempted)
+        response = session.get(
+            path if path.startswith("http") else f"{BASE_URL}{path}",
+            headers={"Authorization": f"Bearer {token_value}"},
+            timeout=timeout,
+        )
+        if response.status_code in (401, 403) and isinstance(token, TokenManager):
+            if not auth_retry_attempted:
+                auth_retry_attempted = True
+                continue
+            token.mark_auth_failure()
+        break
     if response.status_code >= 400:
         raise RuntimeError(f"GET report -> HTTP {response.status_code}: {response.text[:500]}")
     return response.content
 
 
-def get_token(session: requests.Session) -> str:
+def _fetch_token_data(session: requests.Session) -> dict[str, Any]:
     data = request_json(
         session,
         "POST",
@@ -342,6 +414,11 @@ def get_token(session: requests.Session) -> str:
         },
         timeout=30,
     )
+    return data if isinstance(data, dict) else {}
+
+
+def get_token(session: requests.Session) -> str:
+    data = _fetch_token_data(session)
     token = data.get("access_token") if isinstance(data, dict) else None
     if not token:
         raise RuntimeError("Ozon Performance token отсутствует в ответе")
