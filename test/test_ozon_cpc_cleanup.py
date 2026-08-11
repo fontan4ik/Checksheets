@@ -1,6 +1,7 @@
 import io
 import pathlib
 import sys
+from unittest.mock import patch
 import unittest
 import zipfile
 from datetime import datetime
@@ -23,11 +24,84 @@ from ozon_cpc_cleanup import (
     period_range,
     rows_for_campaign_batch,
     rows_from_values,
+    request_json,
+    TokenManager,
     write_sheet_metrics,
 )
 
 
+class FakeResponse:
+    def __init__(self, status_code, payload):
+        self.status_code = status_code
+        self._payload = payload
+        self.text = str(payload)
+        self.content = b"{}"
+
+    def json(self):
+        return self._payload
+
+
+class FakeSession:
+    def __init__(self, responses):
+        self.responses = list(responses)
+        self.calls = []
+
+    def request(self, method, url, **kwargs):
+        self.calls.append((method, url, kwargs))
+        return self.responses.pop(0)
+
+
 class OzonCpcCleanupTests(unittest.TestCase):
+    def test_token_manager_refreshes_before_expiry(self):
+        with patch(
+            "ozon_cpc_cleanup._fetch_token_data",
+            side_effect=[
+                {"access_token": "token-1", "expires_in": 1800},
+                {"access_token": "token-2", "expires_in": 1800},
+            ],
+        ) as fetch:
+            manager = TokenManager(object())
+            self.assertEqual(manager.get(), "token-1")
+            manager._refresh_at = 0
+            self.assertEqual(manager.get(), "token-2")
+            self.assertEqual(fetch.call_count, 2)
+
+    def test_request_json_refreshes_once_after_403(self):
+        session = FakeSession([
+            FakeResponse(403, {"error": "forbidden"}),
+            FakeResponse(200, {"ok": True}),
+        ])
+        with patch(
+            "ozon_cpc_cleanup._fetch_token_data",
+            side_effect=[
+                {"access_token": "expired", "expires_in": 1800},
+                {"access_token": "fresh", "expires_in": 1800},
+            ],
+        ) as fetch:
+            manager = TokenManager(session)
+            self.assertEqual(request_json(session, "GET", "/api/client/campaign", token=manager), {"ok": True})
+            self.assertEqual(fetch.call_count, 2)
+            self.assertEqual(len(session.calls), 2)
+            self.assertEqual(session.calls[0][2]["headers"]["Authorization"], "Bearer expired")
+            self.assertEqual(session.calls[1][2]["headers"]["Authorization"], "Bearer fresh")
+
+    def test_request_json_blocks_after_persistent_403(self):
+        session = FakeSession([
+            FakeResponse(403, {"error": "forbidden"}),
+            FakeResponse(403, {"error": "forbidden"}),
+        ])
+        with patch(
+            "ozon_cpc_cleanup._fetch_token_data",
+            side_effect=[
+                {"access_token": "token-1", "expires_in": 1800},
+                {"access_token": "token-2", "expires_in": 1800},
+            ],
+        ):
+            manager = TokenManager(session)
+            with self.assertRaisesRegex(RuntimeError, "HTTP 403"):
+                request_json(session, "POST", "/api/client/campaign/1/activate", token=manager)
+            self.assertTrue(manager._auth_blocked)
+
     def test_period_range_uses_moscow_time(self):
         now = datetime.fromisoformat("2026-08-05T12:00:00+03:00")
         day_start, day_end = period_range(PERIOD_DAY, now)

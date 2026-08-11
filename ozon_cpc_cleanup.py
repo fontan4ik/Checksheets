@@ -830,6 +830,8 @@ def fetch_report_bytes(
         try:
             report_uuid = create_statistics_report(session, token, batch, date_from, date_to, group_by=group_by)
         except Exception as exc:
+            if is_auth_error(exc):
+                raise
             last_exc = exc
             print(f"  Ошибка создания отчёта (попытка {attempt}/5): {exc}")
             time.sleep(15 * attempt)
@@ -838,6 +840,8 @@ def fetch_report_bytes(
         try:
             return wait_for_report(session, token, report_uuid)
         except RuntimeError as exc:
+            if is_auth_error(exc):
+                raise
             last_exc = exc
             print(f"  Ошибка отчёта (попытка {attempt}/5): {exc}")
             time.sleep(15 * attempt)
@@ -1218,6 +1222,8 @@ def _apply_toggle(
                 print(f"row={row.row_number} campaign={cid}: деактивирована (toggle=0)")
             except RuntimeError as exc:
                 print(f"row={row.row_number} campaign={cid}: ошибка deactivate: {exc}")
+                if is_auth_error(exc):
+                    raise
     print(f"Toggle: активировано={on_count}, деактивировано={off_count}, пропущено={skip_count}")
 
 
