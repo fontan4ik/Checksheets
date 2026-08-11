@@ -402,6 +402,11 @@ def request_bytes(
     return response.content
 
 
+def is_auth_error(exc: Exception) -> bool:
+    text = str(exc)
+    return "HTTP 401" in text or "HTTP 403" in text
+
+
 def _fetch_token_data(session: requests.Session) -> dict[str, Any]:
     data = request_json(
         session,
@@ -814,7 +819,7 @@ def column_letter(number: int) -> str:
 
 def fetch_report_bytes(
     session: requests.Session,
-    token: str,
+    token: str | TokenManager,
     batch: list[str],
     date_from: str,
     date_to: str,
@@ -841,7 +846,7 @@ def fetch_report_bytes(
 
 def fetch_period_metrics(
     session: requests.Session,
-    token: str,
+    token: str | TokenManager,
     campaign_ids: list[str],
     batch_size: int,
     on_batch: Callable[[list[str], dict[str, dict[tuple[str, str], Metric]]], None] | None = None,
@@ -864,6 +869,8 @@ def fetch_period_metrics(
         try:
             raw = fetch_report_bytes(session, token, batch, month_from, month_to, group_by="DATE")
         except Exception as exc:
+            if is_auth_error(exc):
+                raise
             print(f"Пропущен батч {start // batch_size + 1}: {exc}")
             continue
         filters = {
@@ -946,7 +953,7 @@ def run(args: argparse.Namespace) -> int:
     sheet_campaign_ids = sorted({row.campaign_id for row in sheet_rows})
 
     session = create_session()
-    token = get_token(session)
+    token = TokenManager(session)
     campaigns_by_id = {normalize_id(campaign.get("id")): campaign for campaign in get_campaigns(session, token)}
     running_cpc_ids = {
         campaign_id
@@ -1049,6 +1056,8 @@ def run(args: argparse.Namespace) -> int:
             for period in PERIODS:
                 print(f"Период {period}: SKU/кампания пар={len(metrics_by_period[period])}")
         except Exception as exc:
+            if is_auth_error(exc):
+                raise
             print(f"Ошибка сбора метрик: {exc}; продолжаем с пустыми метриками (фильтры не применяются, но toggle выполнится)")
     else:
         print("Нет кампаний из листа СРС в Ozon; отчёты не создаются")
@@ -1131,13 +1140,17 @@ def run(args: argparse.Namespace) -> int:
 
 
 def toggle_set_campaign(
-    token: str,
+    token: str | TokenManager,
     session,
     campaign_id: str,
     activate: bool,
     max_attempts: int = 5,
 ) -> None:
-    """Вызывает activate/deactivate с ретраем на 429/5xx (403 учитываем как транзиентный)."""
+    """Вызывает activate/deactivate с ретраем только на 429/5xx.
+
+    401/403 обрабатываются TokenManager одним обновлением токена; повторный
+    запрет считается постоянным и не размножается по сотням кампаний.
+    """
     action = "activate" if activate else "deactivate"
     path = f"/api/client/campaign/{campaign_id}/{action}"
     last_exc: Exception | None = None
@@ -1148,7 +1161,7 @@ def toggle_set_campaign(
         except RuntimeError as exc:
             last_exc = exc
             text = str(exc)
-            if "429" not in text and "403" not in text and "5" not in text.split("HTTP ")[-1][:3]:
+            if "429" not in text and "HTTP 5" not in text:
                 raise
             time.sleep(min(2 ** attempt, 15))
     raise last_exc  # type: ignore[misc]
@@ -1156,7 +1169,7 @@ def toggle_set_campaign(
 
 def _apply_toggle(
     session,
-    token: str,
+    token: str | TokenManager,
     sheet_rows: list[SheetRow],
     campaigns_by_id: dict[str, dict[str, Any]],
     deactivated_by_filter: set[str],
@@ -1193,6 +1206,8 @@ def _apply_toggle(
                 print(f"row={row.row_number} campaign={cid}: активирована (toggle=1)")
             except RuntimeError as exc:
                 print(f"row={row.row_number} campaign={cid}: ошибка activate: {exc}")
+                if is_auth_error(exc):
+                    raise
         else:
             if state != "campaign_state_running":
                 skip_count += 1
