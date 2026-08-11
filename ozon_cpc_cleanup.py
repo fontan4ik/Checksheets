@@ -430,7 +430,7 @@ def get_token(session: requests.Session) -> str:
     return str(token)
 
 
-def get_campaigns(session: requests.Session, token: str, state: str | None = None) -> list[dict[str, Any]]:
+def get_campaigns(session: requests.Session, token: str | TokenManager, state: str | None = None) -> list[dict[str, Any]]:
     params: dict[str, str] = {"advObjectType": "SKU"}
     if state:
         params["state"] = state
@@ -451,7 +451,7 @@ def extract_products(data: Any) -> list[dict[str, Any]]:
     return []
 
 
-def get_campaign_products(session: requests.Session, token: str, campaign_id: str) -> set[str]:
+def get_campaign_products(session: requests.Session, token: str | TokenManager, campaign_id: str) -> set[str]:
     data = request_json(session, "GET", f"/api/client/campaign/{campaign_id}/v2/products", token=token)
     result: set[str] = set()
     for product in extract_products(data):
@@ -463,7 +463,7 @@ def get_campaign_products(session: requests.Session, token: str, campaign_id: st
 
 def create_statistics_report(
     session: requests.Session,
-    token: str,
+    token: str | TokenManager,
     campaign_ids: list[str],
     date_from: str,
     date_to: str,
@@ -487,7 +487,7 @@ def create_statistics_report(
 
 def wait_for_report(
     session: requests.Session,
-    token: str,
+    token: str | TokenManager,
     report_uuid: str,
     max_attempts: int = REPORT_MAX_ATTEMPTS,
     sleep_seconds: int = REPORT_SLEEP_SECONDS,
@@ -709,7 +709,7 @@ def build_candidates(
     return list(unique.values())
 
 
-def delete_sku(session: requests.Session, token: str, campaign_id: str, sku: str) -> Any:
+def delete_sku(session: requests.Session, token: str | TokenManager, campaign_id: str, sku: str) -> Any:
     return request_json(
         session,
         "POST",
@@ -720,7 +720,7 @@ def delete_sku(session: requests.Session, token: str, campaign_id: str, sku: str
     )
 
 
-def deactivate_campaign(session: requests.Session, token: str, campaign_id: str) -> Any:
+def deactivate_campaign(session: requests.Session, token: str | TokenManager, campaign_id: str) -> Any:
     return request_json(
         session,
         "POST",
