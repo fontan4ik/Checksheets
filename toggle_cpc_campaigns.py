@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import os
 import sys
 import time
@@ -60,7 +61,16 @@ def main() -> int:
         help="Реально дёргать activate/deactivate (по умолчанию dry-run).",
     )
     parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument(
+        "--scheduled",
+        action="store_true",
+        help="Работать только с 09:00 до 20:00 по локальному времени.",
+    )
     args = parser.parse_args()
+
+    if args.scheduled and not (9 <= datetime.now().hour <= 20):
+        print("Вне окна CPC-переключателя (09:00–20:00), запуск пропущен")
+        return 0
 
     if args.apply and os.getenv("OZON_CPC_CONFIRM_TOGGLE", "") != "YES":
         raise RuntimeError(

@@ -986,6 +986,7 @@ def run(args: argparse.Namespace) -> int:
     metrics_by_period: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
     written_incremental: set[str] = set()
     streamed_write_count = 0
+    filter_deactivated: set[str] = set()
     if report_campaign_ids:
         try:
             if args.apply:
@@ -1039,20 +1040,38 @@ def run(args: argparse.Namespace) -> int:
                 batch: list[str],
                 batch_metrics: dict[str, dict[tuple[str, str], Metric]],
             ) -> None:
-                if not args.write_sheet:
-                    return
-                write_buffer_ids.extend(batch)
-                for period in PERIODS:
-                    for key, metric in batch_metrics.get(period, {}).items():
-                        existing = write_buffer_metrics[period].setdefault(key, Metric())
-                        for field_name in vars(metric):
-                            setattr(
-                                existing,
-                                field_name,
-                                getattr(existing, field_name) + getattr(metric, field_name),
+                if args.write_sheet:
+                    write_buffer_ids.extend(batch)
+                    for period in PERIODS:
+                        for key, metric in batch_metrics.get(period, {}).items():
+                            existing = write_buffer_metrics[period].setdefault(key, Metric())
+                            for field_name in vars(metric):
+                                setattr(
+                                    existing,
+                                    field_name,
+                                    getattr(existing, field_name) + getattr(metric, field_name),
+                                )
+                    if len(write_buffer_ids) >= SHEET_WRITE_BATCH_SIZE:
+                        _flush_write_buffer()
+
+                if args.stop_on_filter:
+                    for row in sheet_rows:
+                        if row.campaign_id not in running_cpc_ids or row.filter_clicks <= 0:
+                            continue
+                        metric = batch_metrics[PERIOD_DAY].get((row.campaign_id, row.sku))
+                        if metric is None or metric.clicks < row.filter_clicks:
+                            continue
+                        if row.campaign_id in filter_deactivated:
+                            continue
+                        try:
+                            deactivate_campaign(session, token, row.campaign_id)
+                            filter_deactivated.add(row.campaign_id)
+                            print(
+                                f"Немедленно остановлена кампания {row.campaign_id}: "
+                                f"клики день={metric.clicks:g} >= фильтр={row.filter_clicks:g}"
                             )
-                if len(write_buffer_ids) >= SHEET_WRITE_BATCH_SIZE:
-                    _flush_write_buffer()
+                        except RuntimeError as exc:
+                            print(f"Не удалось немедленно остановить кампанию {row.campaign_id}: {exc}")
 
             metrics_by_period = fetch_period_metrics(session, token, report_campaign_ids, batch_size, on_batch=_on_batch)
             if args.write_sheet:
@@ -1098,12 +1117,12 @@ def run(args: argparse.Namespace) -> int:
         else:
             print("Успешных порций для записи нет; прежние данные сохранены")
 
-    if not args.apply and not args.apply_toggle:
+    if not args.apply and not args.apply_toggle and not args.stop_on_filter:
         print("DRY-RUN: остановка не выполнялась")
         return 0
 
     if os.getenv("OZON_CPC_CONFIRM_DELETE", "") != "YES":
-        raise RuntimeError("Для live-остановки установите OZON_CPC_CONFIRM_DELETE=YES вместе с --apply/--apply-toggle")
+        raise RuntimeError("Для live-остановки установите OZON_CPC_CONFIRM_DELETE=YES")
     # The report can wait in Ozon's queue for minutes. Re-read campaign
     # membership immediately before every destructive request rather than
     # trusting the earlier discovery snapshot.
@@ -1236,6 +1255,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--apply-toggle",
         action="store_true",
         help="Применить вкл/выкл по колонке Z",
+    )
+    parser.add_argument(
+        "--stop-on-filter",
+        action="store_true",
+        help="Сразу отключать кампанию после получения дневных кликов >= фильтра",
     )
     parser.add_argument(
         "--lock-timeout",
