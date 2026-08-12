@@ -18,9 +18,9 @@ FERON_BASE_URL = "https://api.feron.ru"
 FERON_SHEET_NAME = "ТЕСТ"
 FERON_SHEET_NAME_FBS = "FERON TR"
 # Ozon Performance API Settings
-OZON_PERF_CLIENT_ID = "92353868-1771409527407@advertising.performance.ozon.ru"
+OZON_PERF_CLIENT_ID = "78881994-1754416610151@advertising.performance.ozon.ru"
 OZON_PERF_CLIENT_SECRET = (
-    "qAXQ4PHS8Gccd5FfzX8d47BRm02BDH-9vYfYmwxvCMprrSXzEquYZnKhxPjprirtMakIKAnrR5Dd8894uw"
+    "6YdUGEET2qMNzvHdbrnys7-ZM34O-YfXP7hN4-DkNYsvThKEIcL8YyRuZoXqMyRvSHUHx7R9vxVoafQyUg"
 )
 OZON_PERF_BASE_URL = "https://api-performance.ozon.ru"
 
