@@ -81,6 +81,26 @@ def _save_progress(campaign_ids: list[str]) -> None:
     PROGRESS_FILE.write_text(json.dumps(progress, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+def _load_rotation_state() -> dict[str, Any]:
+    try:
+        data = json.loads(ROTATION_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_rotation_state(campaign_ids: list[str], next_index: int) -> None:
+    ROTATION_FILE.parent.mkdir(parents=True, exist_ok=True)
+    ROTATION_FILE.write_text(
+        json.dumps(
+            {"campaign_ids": campaign_ids, "next_index": next_index},
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
 @contextmanager
 def run_lock(timeout: int = 0):
     """Межпроцессная блокировка, чтобы agent-прогоны не перекрывались.
@@ -265,6 +285,18 @@ def period_range(period: str, now: datetime | None = None) -> tuple[str, str]:
     else:
         raise ValueError(f"Неизвестный период: {period}")
     return f"{start.isoformat()}T00:00:00+03:00", f"{today.isoformat()}T23:59:59+03:00"
+
+
+def rotation_slice(
+    campaign_ids: list[str], start_index: int, count: int
+) -> tuple[list[str], int]:
+    """Select a sequential slice and return the cursor after that slice."""
+    if not campaign_ids or count <= 0:
+        return [], 0
+    start = start_index % len(campaign_ids)
+    selected = campaign_ids[start : start + count]
+    next_index = (start + len(selected)) % len(campaign_ids)
+    return selected, next_index
 
 
 def build_statistics_payload(
