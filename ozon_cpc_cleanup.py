@@ -1027,6 +1027,29 @@ def run(args: argparse.Namespace) -> int:
         else:
             report_campaign_ids = []
             print(f"Инкрементно: нет незаполненных строк (лимит {limit_rows}), все данные уже внесены")
+
+    rotation_batches = max(0, int(getattr(args, "rotation_batches", 0) or 0))
+    rotation_source_ids: list[str] = []
+    rotation_selected_ids: list[str] = []
+    rotation_start_index = 0
+    if rotation_batches:
+        if limit_rows:
+            raise RuntimeError("--rotation-batches нельзя совмещать с --limit-rows")
+        rotation_source_ids = list(report_campaign_ids)
+        state = _load_rotation_state()
+        saved_ids = [normalize_id(value) for value in state.get("campaign_ids", [])]
+        if saved_ids == rotation_source_ids:
+            rotation_start_index = max(0, int(state.get("next_index", 0) or 0))
+        rotation_selected_ids, _ = rotation_slice(
+            rotation_source_ids,
+            rotation_start_index,
+            batch_size * rotation_batches,
+        )
+        report_campaign_ids = rotation_selected_ids
+        print(
+            f"Ротация: батчей={rotation_batches}; кампаний за запуск={len(report_campaign_ids)}; "
+            f"курсор={rotation_start_index}"
+        )
     print(
         f"SKU-кампаний в Ozon={len(campaigns_by_id)}; из СРС в Ozon={len(report_campaign_ids)}; "
         f"не найдено в Ozon={len(missing)}; running CPC из СРС="
@@ -1168,6 +1191,22 @@ def run(args: argparse.Namespace) -> int:
         else:
             print("Успешных порций для записи нет; прежние данные сохранены")
 
+    if rotation_batches and rotation_source_ids:
+        next_index = rotation_advance_index(
+            rotation_source_ids,
+            rotation_start_index,
+            rotation_selected_ids,
+            written_incremental if args.write_sheet else set(),
+        )
+        if args.write_sheet and written_incremental:
+            _save_rotation_state(rotation_source_ids, next_index)
+            print(
+                f"Ротация сохранена: записано кампаний={len(written_incremental)}; "
+                f"следующий курсор={next_index}"
+            )
+        else:
+            print("Ротация не продвинута: нет подтверждённых записей в таблицу")
+
     if not args.apply and not args.apply_toggle and not args.stop_on_filter:
         print("DRY-RUN: остановка не выполнялась")
         return 0
@@ -1300,6 +1339,12 @@ def _apply_toggle(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--batch-size", type=int, default=10, help="Кампаний в одном отчёте")
+    parser.add_argument(
+        "--rotation-batches",
+        type=int,
+        default=int(os.getenv("OZON_CPC_ROTATION_BATCHES", "0")),
+        help="Сколько последовательных отчётов выполнить за запуск (0 = все кампании)",
+    )
     parser.add_argument("--write-sheet", action="store_true", help="Записать метрики и статусы в СРС")
     parser.add_argument("--apply", action="store_true", help="Остановить SKU/кампании по фильтрам")
     parser.add_argument(
