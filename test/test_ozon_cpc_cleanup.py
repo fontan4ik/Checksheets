@@ -25,6 +25,7 @@ from ozon_cpc_cleanup import (
     rows_for_campaign_batch,
     rows_from_values,
     request_json,
+    rotation_slice,
     TokenManager,
     write_sheet_metrics,
 )
