@@ -9,7 +9,8 @@
  *
  * Метод:
  * 1. Общие продажи через v1/analytics/data (dimension: ["sku"], metric: ordered_units)
- * 2. FBS продажи через v3/posting/fbs/list (все статусы кроме cancelled)
+ * 2. FBS продажи через v3/posting/fbs/list (статусы в обработке/доставке;
+ *    cancelled и not_accepted исключены из продаж)
  * 3. FBO = Общие - FBS
  */
 
@@ -91,7 +92,7 @@ function updateOzonFBOSales() {
     const CUSTOM_RPS = 1 / 5;
     let lastRequestTime = Date.now() - 1000 / CUSTOM_RPS;
 
-    const statuses = ["awaiting_packaging", "awaiting_deliver", "delivered", "cancelled"];
+    const statuses = ["awaiting_packaging", "awaiting_deliver", "last_mile", "delivering", "driver_pickup", "delivered"];
 
     statuses.forEach(status => {
       let offset = 0;
