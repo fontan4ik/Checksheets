@@ -1,7 +1,7 @@
 import io
 import pathlib
 import sys
-from typing import Any
+from typing import Any, cast
 from unittest.mock import patch
 import unittest
 import zipfile
@@ -115,7 +115,7 @@ class OzonCpcCleanupTests(unittest.TestCase):
             ),
         ) as request:
             with self.assertRaises(DailyReportLimitError):
-                create_statistics_report(None, "token", ["1"], "from", "to")
+                create_statistics_report(cast(Any, None), "token", ["1"], "from", "to")
             self.assertEqual(request.call_count, 1)
 
     def test_period_range_uses_moscow_time(self):
