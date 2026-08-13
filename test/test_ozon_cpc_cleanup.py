@@ -31,6 +31,7 @@ from ozon_cpc_cleanup import (
     rotation_slice,
     DailyReportLimitError,
     TokenManager,
+    fetch_period_metrics,
     write_sheet_metrics,
 )
 
@@ -117,6 +118,14 @@ class OzonCpcCleanupTests(unittest.TestCase):
             with self.assertRaises(DailyReportLimitError):
                 create_statistics_report(cast(Any, None), "token", ["1"], "from", "to")
             self.assertEqual(request.call_count, 1)
+
+    def test_daily_limit_cooldown_skips_report_fetch(self):
+        with patch("ozon_cpc_cleanup._daily_limit_reached", return_value=True), patch(
+            "ozon_cpc_cleanup.fetch_report_bytes"
+        ) as fetch:
+            with self.assertRaises(DailyReportLimitError):
+                fetch_period_metrics(cast(Any, None), "token", ["1"], 10)
+            fetch.assert_not_called()
 
     def test_period_range_uses_moscow_time(self):
         now = datetime.fromisoformat("2026-08-05T12:00:00+03:00")
