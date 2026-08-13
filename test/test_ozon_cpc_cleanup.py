@@ -244,6 +244,22 @@ class OzonCpcCleanupTests(unittest.TestCase):
 
         self.assertEqual([row.row_number for row in selected], [2, 3])
 
+    def test_rotation_slice_selects_sequential_campaigns_and_wraps_cursor(self):
+        campaigns = ["c1", "c2", "c3", "c4", "c5"]
+        selected, next_index = rotation_slice(campaigns, 3, 2)
+        self.assertEqual(selected, ["c4", "c5"])
+        self.assertEqual(next_index, 0)
+
+        selected, next_index = rotation_slice(campaigns, next_index, 2)
+        self.assertEqual(selected, ["c1", "c2"])
+        self.assertEqual(next_index, 2)
+
+    def test_rotation_slice_does_not_duplicate_within_one_run(self):
+        campaigns = ["c1", "c2", "c3", "c4", "c5"]
+        selected, next_index = rotation_slice(campaigns, 4, 4)
+        self.assertEqual(selected, ["c5"])
+        self.assertEqual(next_index, 0)
+
     def test_contiguous_row_groups_prevent_rectangular_range_overwrite(self):
         rows = [
             SheetRow(5, "later", "2", "1", 0, 0, "", []),

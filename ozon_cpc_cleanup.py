@@ -61,6 +61,7 @@ import gsheets_utils
 
 LOCK_FILE = Path(__file__).resolve().parent / "logs" / "cpc-hourly.lock"
 PROGRESS_FILE = Path(__file__).resolve().parent / "logs" / "cpc-progress.json"
+ROTATION_FILE = Path(__file__).resolve().parent / "logs" / "cpc-rotation.json"
 
 
 def _load_progress() -> dict[str, float]:
