@@ -134,14 +134,29 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def run(args: argparse.Namespace) -> int:
     worksheet = gsheets_utils.get_worksheet(SHEET_NAME)
     values = worksheet.get_all_values()
-    rows = read_creation_rows(values)
+    all_rows = read_creation_rows(values)
     headers = values[0] if values else []
     campaign_column = find_column(headers, ["campain id", "campaign id", "campaign_id"])
     if campaign_column < 0:
         raise RuntimeError("В листе СРС нет колонки 'CAMPAIN ID'")
     campaign_col_letter = column_letter(campaign_column + 1)
 
-    print(f"Лист {SHEET_NAME}: строк с art+SKU={len(rows)}")
+    # Создаём кампании только для новых строк без CAMPAIN ID.
+    # Повторный запуск не должен дублировать уже созданные кампании.
+    rows = [
+        row
+        for row in all_rows
+        if not (
+            row.row_number - 1 < len(values)
+            and campaign_column < len(values[row.row_number - 1])
+            and str(values[row.row_number - 1][campaign_column]).strip()
+        )
+    ]
+
+    print(
+        f"Лист {SHEET_NAME}: строк с art+SKU={len(all_rows)}; "
+        f"новых без CAMPAIN ID={len(rows)}"
+    )
     if args.limit and args.limit > 0:
         rows = rows[: args.limit]
         print(f"--limit={args.limit}: обрабатываем первые {len(rows)} строк")
