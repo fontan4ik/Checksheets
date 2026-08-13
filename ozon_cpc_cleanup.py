@@ -299,6 +299,23 @@ def rotation_slice(
     return selected, next_index
 
 
+def rotation_advance_index(
+    campaign_ids: list[str],
+    start_index: int,
+    selected_ids: list[str],
+    completed_ids: set[str],
+) -> int:
+    """Advance only across the successful prefix of a rotation slice."""
+    if not campaign_ids or not selected_ids:
+        return start_index % len(campaign_ids) if campaign_ids else 0
+    completed = 0
+    for campaign_id in selected_ids:
+        if campaign_id not in completed_ids:
+            break
+        completed += 1
+    return (start_index + completed) % len(campaign_ids)
+
+
 def build_statistics_payload(
     campaign_ids: list[str],
     date_from: str,
@@ -999,6 +1016,7 @@ def run(args: argparse.Namespace) -> int:
     }
     report_campaign_ids = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id in campaigns_by_id]
     missing = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id not in campaigns_by_id]
+    batch_size = max(1, int(args.batch_size))
     limit_rows = max(0, int(getattr(args, "limit_rows", 0) or 0))
     if limit_rows > 0:
         pending = _pending_rows(headers, sheet_rows, sheet_campaign_ids)

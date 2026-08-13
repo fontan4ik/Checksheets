@@ -25,6 +25,7 @@ from ozon_cpc_cleanup import (
     rows_for_campaign_batch,
     rows_from_values,
     request_json,
+    rotation_advance_index,
     rotation_slice,
     TokenManager,
     write_sheet_metrics,
@@ -259,6 +260,17 @@ class OzonCpcCleanupTests(unittest.TestCase):
         selected, next_index = rotation_slice(campaigns, 4, 4)
         self.assertEqual(selected, ["c5"])
         self.assertEqual(next_index, 0)
+
+    def test_rotation_cursor_stops_before_failed_campaign(self):
+        campaigns = ["c1", "c2", "c3", "c4"]
+        self.assertEqual(
+            rotation_advance_index(campaigns, 0, ["c1", "c2", "c3"], {"c1"}),
+            1,
+        )
+        self.assertEqual(
+            rotation_advance_index(campaigns, 0, ["c1", "c2", "c3"], {"c1", "c2", "c3"}),
+            3,
+        )
 
     def test_contiguous_row_groups_prevent_rectangular_range_overwrite(self):
         rows = [
