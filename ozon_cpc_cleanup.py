@@ -141,6 +141,10 @@ REPORT_MAX_ATTEMPTS = int(os.getenv("OZON_CPC_REPORT_MAX_ATTEMPTS", "180"))
 REPORT_SLEEP_SECONDS = int(os.getenv("OZON_CPC_REPORT_SLEEP_SECONDS", "5"))
 TRANSIENT_STATUSES = {408, 409, 425, 429, 500, 502, 503, 504}
 
+
+class DailyReportLimitError(RuntimeError):
+    """Ozon daily report quota is exhausted; retrying cannot help this run."""
+
 PERIOD_DAY = "day"
 PERIOD_WEEK = "week"
 PERIOD_MONTH = "month"
@@ -529,6 +533,8 @@ def create_statistics_report(
                 raise RuntimeError("Ozon Performance не вернул UUID отчёта")
             return str(uuid)
         except RuntimeError as exc:
+            if "Превышен дневной лимит" in str(exc) or "daily limit" in str(exc).lower():
+                raise DailyReportLimitError(str(exc)) from exc
             if "429" not in str(exc) or attempt >= retries:
                 raise
             time.sleep(10 * attempt)
@@ -879,6 +885,8 @@ def fetch_report_bytes(
     for attempt in range(1, 6):
         try:
             report_uuid = create_statistics_report(session, token, batch, date_from, date_to, group_by=group_by)
+        except DailyReportLimitError:
+            raise
         except Exception as exc:
             if is_auth_error(exc):
                 raise
@@ -922,6 +930,9 @@ def fetch_period_metrics(
         batch = campaign_ids[start : start + batch_size]
         try:
             raw = fetch_report_bytes(session, token, batch, month_from, month_to, group_by="DATE")
+        except DailyReportLimitError:
+            print("Дневной лимит отчётов Ozon исчерпан; оставшиеся батчи отложены")
+            raise
         except Exception as exc:
             if is_auth_error(exc):
                 raise
@@ -1061,6 +1072,7 @@ def run(args: argparse.Namespace) -> int:
     written_incremental: set[str] = set()
     streamed_write_count = 0
     filter_deactivated: set[str] = set()
+    flush_write_buffer: Callable[[], None] | None = None
     if report_campaign_ids:
         try:
             if args.apply:
@@ -1110,6 +1122,8 @@ def run(args: argparse.Namespace) -> int:
                 except Exception as exc:
                     print(f"Ошибка записи порции {buffer_ids}: {exc}")
 
+            flush_write_buffer = _flush_write_buffer
+
             def _on_batch(
                 batch: list[str],
                 batch_metrics: dict[str, dict[tuple[str, str], Metric]],
@@ -1148,13 +1162,19 @@ def run(args: argparse.Namespace) -> int:
                             print(f"Не удалось немедленно остановить кампанию {row.campaign_id}: {exc}")
 
             metrics_by_period = fetch_period_metrics(session, token, report_campaign_ids, batch_size, on_batch=_on_batch)
-            if args.write_sheet:
-                _flush_write_buffer()
+            if args.write_sheet and flush_write_buffer is not None:
+                flush_write_buffer()
             for period in PERIODS:
                 print(f"Период {period}: SKU/кампания пар={len(metrics_by_period[period])}")
+        except DailyReportLimitError as exc:
+            if args.write_sheet and flush_write_buffer is not None:
+                flush_write_buffer()
+            print(f"Сбор остановлен до сброса дневного лимита Ozon: {exc}")
         except Exception as exc:
             if is_auth_error(exc):
                 raise
+            if args.write_sheet and flush_write_buffer is not None:
+                flush_write_buffer()
             print(f"Ошибка сбора метрик: {exc}; продолжаем с пустыми метриками (фильтры не применяются, но toggle выполнится)")
     else:
         print("Нет кампаний из листа СРС в Ozon; отчёты не создаются")
