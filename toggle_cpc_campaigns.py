@@ -31,6 +31,25 @@ from ozon_cpc_cleanup import (
 )
 
 
+def activation_filter_reason(
+    clicks_day: str,
+    filter_clicks_day: str,
+    drr_month: str,
+    filter_drr_month: str,
+) -> str | None:
+    """Return the filter that forbids activation, if a threshold is reached."""
+    clicks = parse_number(clicks_day)
+    clicks_threshold = parse_number(filter_clicks_day)
+    if clicks_threshold > 0 and clicks >= clicks_threshold:
+        return f"клики день={clicks:g} >= фильтр={clicks_threshold:g}"
+
+    drr = parse_number(drr_month)
+    drr_threshold = parse_number(filter_drr_month)
+    if drr_threshold > 0 and drr >= drr_threshold:
+        return f"ДРР месяц={drr:g} >= фильтр={drr_threshold:g}"
+    return None
+
+
 def _request_with_retry(session, method: str, path: str, token: str, max_attempts: int = 5) -> None:
     last_exc: Exception | None = None
     for attempt in range(1, max_attempts + 1):
@@ -83,12 +102,17 @@ def main() -> int:
     sku_index = find_column(headers, ["sku ozon", "sku"])
     campaign_index = find_column(headers, ["campain id", "campaign id", "campaign_id"])
     toggle_index = find_column(headers, ["включение/отключение компании", "включение отключение компании"])
+    clicks_day_index = find_column(headers, ["клики день"])
+    drr_month_index = find_column(headers, ["дрр в продвижении месяц"])
+    filter_clicks_index = find_column(headers, ["фильтр клики день"])
+    filter_drr_index = find_column(headers, ["фильтр дрр месяц"])
     if campaign_index < 0 or sku_index < 0 or toggle_index < 0:
         raise RuntimeError("В СРС нужны колонки 'SKU OZON', 'CAMPAIN ID' и 'Включение/отключение компании'")
 
     plan_on: list[tuple[int, str, str]] = []
     plan_off: list[tuple[int, str, str]] = []
     skipped: list[tuple[int, str, str]] = []
+    forced_off_reasons: dict[str, str] = {}
     for row_number, row in enumerate(values[1:], start=2):
         padded = list(row) + [""] * (len(headers) - len(row))
         sku = normalize_id(padded[sku_index])
@@ -97,13 +121,31 @@ def main() -> int:
         if not sku or not cid:
             continue
         if raw in ("1", "1.0"):
-            plan_on.append((row_number, cid, sku))
+            reason = activation_filter_reason(
+                padded[clicks_day_index] if clicks_day_index >= 0 else "",
+                padded[filter_clicks_index] if filter_clicks_index >= 0 else "",
+                padded[drr_month_index] if drr_month_index >= 0 else "",
+                padded[filter_drr_index] if filter_drr_index >= 0 else "",
+            )
+            if reason:
+                plan_off.append((row_number, cid, sku))
+                forced_off_reasons[cid] = reason
+            else:
+                plan_on.append((row_number, cid, sku))
         elif raw in ("0", "0.0"):
             plan_off.append((row_number, cid, sku))
         else:
             skipped.append((row_number, cid, sku))
 
+    # A filter stop has priority over a manual ``1``.  This also prevents a
+    # campaign with multiple SKU rows from receiving activate and deactivate
+    # requests in the same run.
+    blocked_campaigns = {cid for _, cid, _ in plan_off}
+    plan_on = [item for item in plan_on if item[1] not in blocked_campaigns]
+
     print(f"Включить ({len(plan_on)}), выключить ({len(plan_off)}), пропущено ({len(skipped)})")
+    for cid, reason in forced_off_reasons.items():
+        print(f"  [filter-off] campaign={cid}: {reason}")
     if not plan_on and not plan_off:
         return 0
 
@@ -127,10 +169,10 @@ def main() -> int:
 
     sessions: dict[int, tuple] = {i: worker_init() for i in range(workers)}
 
-    def call_one(item: tuple[int, tuple[int, str, str]]):
-        idx, (row_number, cid, sku) = item
+    def call_one(item: tuple[int, tuple[int, str, str, str]]):
+        idx, (row_number, cid, sku, action) = item
         sess, tok = sessions[idx % workers]
-        if cid in {c for _, c, _ in plan_on}:
+        if action == "on":
             try:
                 activate_campaign(tok, sess, cid)
                 return row_number, cid, sku, "on", None
@@ -143,7 +185,11 @@ def main() -> int:
             except Exception as exc:
                 return row_number, cid, sku, "off", f"{type(exc).__name__}: {exc}"
 
-    tasks = [(i, p) for i, p in enumerate(plan_on + plan_off)]
+    tasks = [
+        (i, (*item, "on")) for i, item in enumerate(plan_on)
+    ] + [
+        (len(plan_on) + i, (*item, "off")) for i, item in enumerate(plan_off)
+    ]
     ok = 0
     failed: list[tuple[int, str, str, str, str]] = []
     with ThreadPoolExecutor(max_workers=workers) as pool:
