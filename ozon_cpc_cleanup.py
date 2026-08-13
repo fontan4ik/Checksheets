@@ -62,6 +62,7 @@ import gsheets_utils
 LOCK_FILE = Path(__file__).resolve().parent / "logs" / "cpc-hourly.lock"
 PROGRESS_FILE = Path(__file__).resolve().parent / "logs" / "cpc-progress.json"
 ROTATION_FILE = Path(__file__).resolve().parent / "logs" / "cpc-rotation.json"
+DAILY_LIMIT_FILE = Path(__file__).resolve().parent / "logs" / "cpc-daily-limit.json"
 
 
 def _load_progress() -> dict[str, float]:
@@ -94,6 +95,29 @@ def _save_rotation_state(campaign_ids: list[str], next_index: int) -> None:
     ROTATION_FILE.write_text(
         json.dumps(
             {"campaign_ids": campaign_ids, "next_index": next_index},
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
+def _daily_limit_reached() -> bool:
+    try:
+        data = json.loads(DAILY_LIMIT_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    return data.get("date") == datetime.now(MOSCOW_TZ).date().isoformat()
+
+
+def _mark_daily_limit_reached() -> None:
+    DAILY_LIMIT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    DAILY_LIMIT_FILE.write_text(
+        json.dumps(
+            {
+                "date": datetime.now(MOSCOW_TZ).date().isoformat(),
+                "reason": "ozon_daily_report_limit",
+            },
             ensure_ascii=False,
             indent=2,
         ),
@@ -922,6 +946,8 @@ def fetch_period_metrics(
     ``on_batch`` is called right after each successfully fetched batch so the
     caller can write that slice to the sheet without waiting for the whole run.
     """
+    if _daily_limit_reached():
+        raise DailyReportLimitError("Локальный cooldown: дневной лимит Ozon уже исчерпан сегодня")
     today_str = datetime.now(MOSCOW_TZ).date().strftime("%d.%m.%Y")
     week_from = (datetime.now(MOSCOW_TZ).date() - timedelta(days=6)).strftime("%d.%m.%Y")
     month_from, month_to = period_range(PERIOD_MONTH)
@@ -931,6 +957,7 @@ def fetch_period_metrics(
         try:
             raw = fetch_report_bytes(session, token, batch, month_from, month_to, group_by="DATE")
         except DailyReportLimitError:
+            _mark_daily_limit_reached()
             print("Дневной лимит отчётов Ozon исчерпан; оставшиеся батчи отложены")
             raise
         except Exception as exc:

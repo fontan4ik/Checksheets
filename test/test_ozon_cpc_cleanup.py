@@ -1,6 +1,7 @@
 import io
 import pathlib
 import sys
+from typing import Any
 from unittest.mock import patch
 import unittest
 import zipfile
@@ -18,6 +19,7 @@ from ozon_cpc_cleanup import (
     build_candidates,
     build_statistics_payload,
     campaign_budget,
+    create_statistics_report,
     contiguous_row_groups,
     parse_report,
     parse_report_block,
@@ -27,6 +29,7 @@ from ozon_cpc_cleanup import (
     request_json,
     rotation_advance_index,
     rotation_slice,
+    DailyReportLimitError,
     TokenManager,
     write_sheet_metrics,
 )
@@ -103,6 +106,17 @@ class OzonCpcCleanupTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "HTTP 403"):
                 request_json(session, "POST", "/api/client/campaign/1/activate", token=manager)
             self.assertTrue(manager._auth_blocked)
+
+    def test_statistics_daily_limit_is_not_retried(self):
+        with patch(
+            "ozon_cpc_cleanup.request_json",
+            side_effect=RuntimeError(
+                'HTTP 429: {"error":"Превышен дневной лимит запросов (максимум 2000)"}'
+            ),
+        ) as request:
+            with self.assertRaises(DailyReportLimitError):
+                create_statistics_report(None, "token", ["1"], "from", "to")
+            self.assertEqual(request.call_count, 1)
 
     def test_period_range_uses_moscow_time(self):
         now = datetime.fromisoformat("2026-08-05T12:00:00+03:00")
