@@ -835,34 +835,44 @@ def write_sheet_metrics(
     def value_for(row: SheetRow, period: str, field_name: str) -> Any:
         return getattr(period_metrics[period].get((row.campaign_id, row.sku), Metric()), field_name)
 
+    updates: list[dict[str, Any]] = []
+
+    def queue_update(column: int, values: list[list[Any]]) -> None:
+        cell_range = f"{column_letter(column)}{start_row}:{column_letter(column)}{end_row}"
+        updates.append({"range": cell_range, "values": values})
+
     if name_col:
         values = [
             [str(campaigns_by_id[row.campaign_id].get("title", "")) if row.campaign_id in campaigns_by_id else ""]
             for row in rows
         ]
-        cell_range = f"{column_letter(name_col)}{start_row}:{column_letter(name_col)}{end_row}"
-        worksheet.update(range_name=cell_range, values=values)
+        queue_update(name_col, values)
 
     for header, (period, field_name) in metric_columns.items():
         column = header_map.get(header)
         if not column:
             continue
         values = [[value_for(row, period, field_name)] for row in rows]
-        cell_range = f"{column_letter(column)}{start_row}:{column_letter(column)}{end_row}"
-        worksheet.update(range_name=cell_range, values=values)
+        queue_update(column, values)
 
     if budget_col:
         values = [[campaign_budget(campaigns_by_id.get(row.campaign_id))] for row in rows]
-        cell_range = f"{column_letter(budget_col)}{start_row}:{column_letter(budget_col)}{end_row}"
-        worksheet.update(range_name=cell_range, values=values)
+        queue_update(budget_col, values)
 
     if status_col:
         values = [
             [str(campaigns_by_id[row.campaign_id].get("state", "NOT_RUNNING")) if row.campaign_id in campaigns_by_id else "NOT_RUNNING"]
             for row in rows
         ]
-        cell_range = f"{column_letter(status_col)}{start_row}:{column_letter(status_col)}{end_row}"
-        worksheet.update(range_name=cell_range, values=values)
+        queue_update(status_col, values)
+
+    if updates:
+        gsheets_utils._retry_gsheet_call(
+            "CPC batch metrics update",
+            lambda: worksheet.batch_update(updates, raw=True),
+            max_attempts=6,
+            base_delay=5.0,
+        )
 
 
 def column_letter(number: int) -> str:

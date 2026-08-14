@@ -18,6 +18,8 @@ TRANSIENT_ERROR_TEXT = (
     "Read timed out",
     "The service is currently unavailable",
     "Internal error encountered",
+    "Quota exceeded",
+    "quota metric",
 )
 
 

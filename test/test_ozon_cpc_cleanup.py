@@ -207,8 +207,8 @@ class OzonCpcCleanupTests(unittest.TestCase):
             def __init__(self):
                 self.updates = []
 
-            def update(self, range_name=None, values=None, **kwargs):
-                self.updates.append((range_name, values))
+            def batch_update(self, data, **kwargs):
+                self.updates.extend((item["range"], item["values"]) for item in data)
 
         headers = [
             "art", "model", "brand", "pic", "SKU OZON", "CAMPAIN ID", "CAMPAIN NAME",
@@ -312,8 +312,8 @@ class OzonCpcCleanupTests(unittest.TestCase):
             def __init__(self):
                 self.updates = []
 
-            def update(self, range_name=None, values=None, **kwargs):
-                self.updates.append((range_name, values))
+            def batch_update(self, data, **kwargs):
+                self.updates.extend((item["range"], item["values"]) for item in data)
 
         headers = [
             "CAMPAIN NAME", "Расход день", "Расход неделя", "Расход месяц",
