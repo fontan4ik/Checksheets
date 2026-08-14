@@ -62,8 +62,6 @@ import gsheets_utils
 LOCK_FILE = Path(__file__).resolve().parent / "logs" / "cpc-hourly.lock"
 PROGRESS_FILE = Path(__file__).resolve().parent / "logs" / "cpc-progress.json"
 ROTATION_FILE = Path(__file__).resolve().parent / "logs" / "cpc-rotation.json"
-DAILY_LIMIT_FILE = Path(__file__).resolve().parent / "logs" / "cpc-daily-limit.json"
-DAILY_LIMIT_WINDOW = timedelta(hours=24)
 
 
 def _load_progress() -> dict[str, float]:
@@ -96,77 +94,6 @@ def _save_rotation_state(campaign_ids: list[str], next_index: int) -> None:
     ROTATION_FILE.write_text(
         json.dumps(
             {"campaign_ids": campaign_ids, "next_index": next_index},
-            ensure_ascii=False,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-
-
-def _parse_utc_timestamp(value: Any) -> datetime | None:
-    if not isinstance(value, str) or not value.strip():
-        return None
-    try:
-        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
-
-
-def _daily_limit_until() -> datetime | None:
-    try:
-        data = json.loads(DAILY_LIMIT_FILE.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
-    if not isinstance(data, dict):
-        return None
-
-    explicit_until = _parse_utc_timestamp(data.get("cooldown_until"))
-    if explicit_until is not None:
-        return explicit_until
-
-    detected_at = _parse_utc_timestamp(data.get("detected_at"))
-    if detected_at is None and data.get("date"):
-        # Legacy files only stored a Moscow calendar date. Use their mtime as
-        # a conservative approximation instead of treating midnight as reset.
-        try:
-            detected_at = datetime.fromtimestamp(DAILY_LIMIT_FILE.stat().st_mtime, timezone.utc)
-        except OSError:
-            return None
-    return detected_at + DAILY_LIMIT_WINDOW if detected_at is not None else None
-
-
-def _daily_limit_reached(now: datetime | None = None) -> bool:
-    until = _daily_limit_until()
-    if until is None:
-        return False
-    current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    return current < until
-
-
-def _daily_limit_message() -> str:
-    until = _daily_limit_until()
-    if until is None:
-        return "Локальный cooldown: дневной лимит Ozon уже исчерпан"
-    local_until = until.astimezone(MOSCOW_TZ).isoformat(timespec="seconds")
-    return f"Локальный cooldown: дневной лимит Ozon действует до {local_until}"
-
-
-def _mark_daily_limit_reached() -> None:
-    DAILY_LIMIT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    detected_at = datetime.now(timezone.utc)
-    cooldown_until = detected_at + DAILY_LIMIT_WINDOW
-    DAILY_LIMIT_FILE.write_text(
-        json.dumps(
-            {
-                "date": detected_at.astimezone(MOSCOW_TZ).date().isoformat(),
-                "reason": "ozon_daily_report_limit",
-                "detected_at": detected_at.isoformat(timespec="seconds").replace("+00:00", "Z"),
-                "cooldown_until": cooldown_until.isoformat(timespec="seconds").replace("+00:00", "Z"),
-                "window_hours": int(DAILY_LIMIT_WINDOW.total_seconds() // 3600),
-            },
             ensure_ascii=False,
             indent=2,
         ),
@@ -995,8 +922,6 @@ def fetch_period_metrics(
     ``on_batch`` is called right after each successfully fetched batch so the
     caller can write that slice to the sheet without waiting for the whole run.
     """
-    if _daily_limit_reached():
-        raise DailyReportLimitError(_daily_limit_message())
     today_str = datetime.now(MOSCOW_TZ).date().strftime("%d.%m.%Y")
     week_from = (datetime.now(MOSCOW_TZ).date() - timedelta(days=6)).strftime("%d.%m.%Y")
     month_from, month_to = period_range(PERIOD_MONTH)
@@ -1006,8 +931,7 @@ def fetch_period_metrics(
         try:
             raw = fetch_report_bytes(session, token, batch, month_from, month_to, group_by="DATE")
         except DailyReportLimitError:
-            _mark_daily_limit_reached()
-            print("Дневной лимит отчётов Ozon исчерпан; оставшиеся батчи отложены")
+            print("Ozon API ограничил текущий запуск по дневной квоте; следующий запуск будет по расписанию")
             raise
         except Exception as exc:
             if is_auth_error(exc):
@@ -1245,7 +1169,7 @@ def run(args: argparse.Namespace) -> int:
         except DailyReportLimitError as exc:
             if args.write_sheet and flush_write_buffer is not None:
                 flush_write_buffer()
-            print(f"Сбор остановлен до сброса дневного лимита Ozon: {exc}")
+            print(f"Сбор остановлен ответом Ozon API по квоте: {exc}; следующий запуск будет по расписанию")
         except Exception as exc:
             if is_auth_error(exc):
                 raise
