@@ -1,11 +1,14 @@
 import io
+import json
+import os
 import pathlib
 import sys
+from datetime import datetime, timedelta, timezone
+from tempfile import TemporaryDirectory
 from typing import Any, cast
 from unittest.mock import patch
 import unittest
 import zipfile
-from datetime import datetime
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
@@ -31,6 +34,8 @@ from ozon_cpc_cleanup import (
     rotation_slice,
     DailyReportLimitError,
     TokenManager,
+    _daily_limit_reached,
+    _mark_daily_limit_reached,
     fetch_period_metrics,
     write_sheet_metrics,
 )
@@ -126,6 +131,32 @@ class OzonCpcCleanupTests(unittest.TestCase):
             with self.assertRaises(DailyReportLimitError):
                 fetch_period_metrics(cast(Any, None), "token", ["1"], 10)
             fetch.assert_not_called()
+
+    def test_daily_limit_uses_rolling_24_hour_window(self):
+        with TemporaryDirectory() as temp_dir:
+            limit_file = pathlib.Path(temp_dir) / "cpc-daily-limit.json"
+            with patch("ozon_cpc_cleanup.DAILY_LIMIT_FILE", limit_file):
+                _mark_daily_limit_reached()
+                data = json.loads(limit_file.read_text(encoding="utf-8"))
+                detected_at = datetime.fromisoformat(data["detected_at"].replace("Z", "+00:00"))
+                cooldown_until = datetime.fromisoformat(data["cooldown_until"].replace("Z", "+00:00"))
+                self.assertEqual(data["window_hours"], 24)
+                self.assertTrue(_daily_limit_reached(detected_at + timedelta(hours=23, minutes=59)))
+                self.assertFalse(_daily_limit_reached(cooldown_until + timedelta(seconds=1)))
+
+    def test_legacy_date_only_cooldown_uses_file_mtime(self):
+        with TemporaryDirectory() as temp_dir:
+            limit_file = pathlib.Path(temp_dir) / "cpc-daily-limit.json"
+            limit_file.write_text(
+                json.dumps({"date": "2026-08-14", "reason": "ozon_daily_report_limit"}),
+                encoding="utf-8",
+            )
+            detected_epoch = 1_800_000_000
+            os.utime(limit_file, (detected_epoch, detected_epoch))
+            with patch("ozon_cpc_cleanup.DAILY_LIMIT_FILE", limit_file):
+                detected_at = datetime.fromtimestamp(detected_epoch, timezone.utc)
+                self.assertTrue(_daily_limit_reached(detected_at + timedelta(hours=23)))
+                self.assertFalse(_daily_limit_reached(detected_at + timedelta(hours=24, seconds=1)))
 
     def test_period_range_uses_moscow_time(self):
         now = datetime.fromisoformat("2026-08-05T12:00:00+03:00")
