@@ -3,7 +3,7 @@
  *
  * API: /v2/review/list
  * Вход: SKU Ozon из колонки V.
- * Выход: количество отзывов по SKU.
+ * Выход: количество отзывов по SKU только для доставленных заказов.
  * Запись: BL (64) — "Отзывы".
  *
  * Скрипт читает общий список отзывов один раз и считает только SKU из таблицы.
@@ -131,7 +131,9 @@ function processOzonReviewCountPages_() {
 
     reviews.forEach(function(review) {
       const sku = normalizeOzonReviewSku_(review.sku);
-      if (sku && countMap[sku] !== undefined) {
+      // API также возвращает отзывы к отменённым заказам. В публичной карточке
+      // товара они не отображаются, поэтому считаем только DELIVERED.
+      if (review.order_status === "DELIVERED" && sku && countMap[sku] !== undefined) {
         countMap[sku]++;
       }
     });
