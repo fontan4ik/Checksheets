@@ -46,7 +46,7 @@ function WB_API_TOKEN() {
 // ОСНОВНЫЕ ФУНКЦИИ
 // ============================================
 
-const mainSheet = () => SpreadsheetApp.getActiveSpreadsheet().getSheetByName("тест");
+const mainSheet = () => SpreadsheetApp.getActiveSpreadsheet().getSheetByName("ТЕСТ");
 // Вставьте API-Key Яндекс Маркета между кавычками ниже.
 // Значение не выводится в логи и используется только синхронизацией НТЦ.
 const YANDEX_MARKET_API_KEY_VALUE = 'ACMA:llKMYhGJxlHD28WARi8pvIlrbQPRts2xbVMoJBs8:d7ef9957';
