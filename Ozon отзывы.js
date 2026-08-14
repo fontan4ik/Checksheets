@@ -90,7 +90,9 @@ function processOzonReviewCountPages_() {
     lastRequestTime = rateLimitRPS(lastRequestTime, RPS());
 
     const payload = {
-      filters: {},
+      // Явно запрашиваем все статусы, включая обработанные отзывы.
+      // Иначе значение по умолчанию API может не совпасть со счётчиком кабинета.
+      filters: { status: "ALL" },
       last_id: state.last_id || "",
       limit: OZON_REVIEW_LIST_LIMIT,
       sort_dir: "ASC"

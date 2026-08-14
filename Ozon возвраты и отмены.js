@@ -8,11 +8,11 @@
  * Метод: v1/analytics/data (dimension: ["sku"], metrics: ["cancellations", "returns"])
  * Оба значения получаются за один запрос к API.
  *
- * Время выполнения: ~70-80 сек для 10 000 SKU (10 batch по ~7 сек)
+ * Время выполнения: зависит от числа SKU: запросы выполняются пачками по 1000 SKU.
  */
 
 /**
- * Основная функция: обновляет отмены (BI) и возвраты (BJ) через analytics API
+ * Основная функция: обновляет отмены (BH) и возвраты (BI) через analytics API.
  */
 function updateOzonCancellationsAndReturns() {
   const startTime = new Date();
@@ -61,28 +61,42 @@ function updateOzonCancellationsAndReturns() {
   for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
     lastRequestTime = rateLimitRPS(lastRequestTime, CUSTOM_RPS);
 
-    const offset = batchIndex * batchSize;
+    const skuBatch = validSkus.slice(batchIndex * batchSize, (batchIndex + 1) * batchSize);
 
-    // Один запрос — две метрики (cancellations + returns)
+    // Важно: offset не фильтрует товары. Без filters API возвращает общую
+    // сортированную выдачу кабинета, и часть SKU из листа может не попасть в неё.
+    // Поэтому каждый запрос ограничиваем своей пачкой SKU.
     const body = {
       date_from: startDate,
       date_to: endDate,
       dimension: ["sku"],
       metrics: ["cancellations", "returns"],
+      filters: [{
+        field: "sku",
+        values: skuBatch,
+        type: "INCLUDE"
+      }],
       limit: batchSize,
-      offset: offset
+      offset: 0
     };
 
     const options = {
       method: "post",
       contentType: "application/json",
       headers: ozonHeaders(),
-      payload: JSON.stringify(body)
+      payload: JSON.stringify(body),
+      muteHttpExceptions: true
     };
 
     const response = retryFetch(ozonAnalyticsData(), options);
     if (!response) {
       Logger.log(`  Пакет ${batchIndex + 1}/${totalBatches}: нет ответа, пропускаем`);
+      continue;
+    }
+
+    const responseCode = response.getResponseCode();
+    if (responseCode < 200 || responseCode >= 300) {
+      Logger.log(`  Пакет ${batchIndex + 1}/${totalBatches}: HTTP ${responseCode}: ${response.getContentText()}`);
       continue;
     }
 
@@ -111,11 +125,8 @@ function updateOzonCancellationsAndReturns() {
 
     Logger.log(`  Пакет ${batchIndex + 1}/${totalBatches}: ${items.length} записей`);
 
-    // Если API вернул меньше batchSize — данные кончились
-    if (items.length < batchSize) {
-      Logger.log(`  Данные закончились на пакете ${batchIndex + 1}`);
-      break;
-    }
+    // Неполная пачка означает лишь отсутствие движений у части SKU этой пачки,
+    // а не окончание данных в следующих пачках.
   }
 
   Logger.log(`Отмены: ${Object.keys(cancelMap).length} SKU, Возвраты: ${Object.keys(returnsMap).length} SKU`);
@@ -144,8 +155,8 @@ function updateOzonCancellationsAndReturns() {
   sheet.getRange(2, 60, cancelValues.length, 1).setValues(cancelValues);   // BH (60) — Отмены
   sheet.getRange(2, 61, returnsValues.length, 1).setValues(returnsValues); // BI (61) — Возвраты
 
-  Logger.log(`✅ Отмены записаны в BI (61). Всего: ${totalCancellations} шт`);
-  Logger.log(`✅ Возвраты записаны в BJ (62). Всего: ${totalReturns} шт`);
+  Logger.log(`✅ Отмены записаны в BH (60). Всего: ${totalCancellations} шт`);
+  Logger.log(`✅ Возвраты записаны в BI (61). Всего: ${totalReturns} шт`);
 
   const endTime = new Date();
   const seconds = Math.round((endTime - startTime) / 1000);
