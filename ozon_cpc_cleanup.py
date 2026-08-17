@@ -1002,18 +1002,78 @@ def fetch_report_bytes(
     raise RuntimeError(f"Не удалось получить отчёт после 5 попыток: {last_exc}")
 
 
+def fetch_daily_sku_metrics(
+    session: requests.Session,
+    token: str | TokenManager,
+    campaign_ids: list[str],
+    date_from: str,
+    date_to: str,
+) -> dict[tuple[str, str], Metric]:
+    """Fetch current-day SKU metrics without consuming Performance report quota."""
+    if not campaign_ids:
+        return {}
+    data = request_json(
+        session,
+        "POST",
+        "/api/client/statistics/products/sku",
+        token=token,
+        payload={
+            "campaignIds": campaign_ids,
+            "dateFrom": date_from,
+            "dateTo": date_to,
+        },
+        timeout=120,
+    )
+    rows = data.get("rows", []) if isinstance(data, dict) else []
+    result: dict[tuple[str, str], Metric] = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        campaign_id = normalize_id(row.get("campaignId"))
+        sku = normalize_id(row.get("sku"))
+        if not campaign_id or not sku:
+            continue
+        metric = Metric(
+            clicks=parse_number(row.get("clicks")),
+            impressions=parse_number(row.get("views")),
+            ctr=parse_number(row.get("ctr")),
+            spend=parse_number(row.get("expense")),
+            average_cpc=parse_number(row.get("avgCpc")),
+            sold=parse_number(row.get("orders")),
+            revenue=parse_number(row.get("sales")),
+            drr=parse_number(row.get("drr")),
+            carts=parse_number(row.get("toCart")),
+        )
+        existing = result.setdefault((campaign_id, sku), Metric())
+        for field_name in vars(metric):
+            if field_name in {"ctr", "average_cpc", "drr"}:
+                setattr(existing, field_name, getattr(metric, field_name))
+            else:
+                setattr(
+                    existing,
+                    field_name,
+                    getattr(existing, field_name) + getattr(metric, field_name),
+                )
+    print(
+        f"Ozon daily SKU endpoint: кампаний={len(campaign_ids)}; "
+        f"строк статистики={len(result)}; период={date_from}..{date_to}"
+    )
+    return result
+
+
 def fetch_period_metrics(
     session: requests.Session,
     token: str | TokenManager,
     campaign_ids: list[str],
     batch_size: int,
     on_batch: Callable[[list[str], dict[str, dict[tuple[str, str], Metric]]], None] | None = None,
+    include_day: bool = True,
 ) -> dict[str, dict[tuple[str, str], Metric]]:
-    """Fill day/week/month from a single month-scoped DATE report per batch.
+    """Fill week/month (and optionally day) from a month-scoped DATE report per batch.
 
-    Ozon limits every statistics report to 10 campaigns and 1 active report at
-    a time, so the only reliable speed-up is to fetch one month report per
-    batch (groupBy=DATE) and split the daily rows into the three periods.
+    The quota-free SKU endpoint supplies current-day data separately. ``include_day``
+    remains available for compatibility with callers and tests that use this
+    helper directly.
 
     ``on_batch`` is called right after each successfully fetched batch so the
     caller can write that slice to the sheet without waiting for the whole run.
@@ -1035,10 +1095,11 @@ def fetch_period_metrics(
             print(f"Пропущен батч {start // batch_size + 1}: {exc}")
             continue
         filters = {
-            PERIOD_DAY: (today_str, today_str),
             PERIOD_WEEK: (week_from, today_str),
             PERIOD_MONTH: (None, None),
         }
+        if include_day:
+            filters[PERIOD_DAY] = (today_str, today_str)
         batch_metrics: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
         for period, (day_from, day_to) in filters.items():
             metrics = parse_report(raw, batch, day_from=day_from, day_to=day_to)
@@ -1054,6 +1115,35 @@ def fetch_period_metrics(
 
 def _sheet_sku(rows: list[SheetRow], campaign_id: str) -> list[str]:
     return [row.sku for row in rows if row.campaign_id == campaign_id and row.sku]
+
+
+def apply_daily_filter_stops(
+    session: requests.Session,
+    token: str | TokenManager,
+    sheet_rows: list[SheetRow],
+    running_cpc_ids: set[str],
+    daily_metrics: dict[tuple[str, str], Metric],
+    filter_deactivated: set[str],
+    status_updates: dict[int, str],
+) -> None:
+    for row in sheet_rows:
+        if row.campaign_id not in running_cpc_ids or row.filter_clicks <= 0:
+            continue
+        metric = daily_metrics.get((row.campaign_id, row.sku))
+        if metric is None or metric.clicks < row.filter_clicks:
+            continue
+        if row.campaign_id in filter_deactivated:
+            continue
+        try:
+            deactivate_campaign(session, token, row.campaign_id)
+            filter_deactivated.add(row.campaign_id)
+            queue_campaign_status(status_updates, sheet_rows, row.campaign_id, active=False)
+            print(
+                f"Немедленно остановлена кампания {row.campaign_id}: "
+                f"клики день={metric.clicks:g} >= фильтр={row.filter_clicks:g}"
+            )
+        except RuntimeError as exc:
+            print(f"Не удалось немедленно остановить кампанию {row.campaign_id}: {exc}")
 
 
 def _pending_rows(
@@ -1157,9 +1247,13 @@ def run(args: argparse.Namespace) -> int:
             f"Ротация: батчей={rotation_batches}; кампаний за запуск={len(report_campaign_ids)}; "
             f"курсор={rotation_start_index}"
         )
+    daily_campaign_ids = [campaign_id for campaign_id in sheet_campaign_ids if campaign_id in campaigns_by_id]
+    if limit_rows:
+        daily_campaign_ids = list(report_campaign_ids)
     print(
-        f"SKU-кампаний в Ozon={len(campaigns_by_id)}; из СРС в Ozon={len(report_campaign_ids)}; "
-        f"не найдено в Ozon={len(missing)}; running CPC из СРС="
+        f"SKU-кампаний в Ozon={len(campaigns_by_id)}; в дневной SKU-выгрузке={len(daily_campaign_ids)}; "
+        f"в ротации week/month={len(report_campaign_ids)}; "
+        f"не найдено в Ozon={len(missing)}; running CPC из ротации="
         f"{sum(1 for campaign_id in report_campaign_ids if campaign_id in running_cpc_ids)}"
     )
 
@@ -1170,6 +1264,36 @@ def run(args: argparse.Namespace) -> int:
     filter_deactivated: set[str] = set()
     status_updates: dict[int, str] = {}
     flush_write_buffer: Callable[[], None] | None = None
+    daily_metrics: dict[tuple[str, str], Metric] = {}
+    if daily_campaign_ids:
+        today_str = datetime.now(MOSCOW_TZ).date().isoformat()
+        try:
+            daily_metrics = fetch_daily_sku_metrics(
+                session,
+                token,
+                daily_campaign_ids,
+                today_str,
+                today_str,
+            )
+            metrics_by_period[PERIOD_DAY] = daily_metrics
+            if args.write_sheet:
+                write_sheet_daily_metrics(worksheet, headers, sheet_rows, daily_metrics)
+            if args.stop_on_filter:
+                apply_daily_filter_stops(
+                    session,
+                    token,
+                    sheet_rows,
+                    running_cpc_ids,
+                    daily_metrics,
+                    filter_deactivated,
+                    status_updates,
+                )
+        except Exception as exc:
+            if is_auth_error(exc):
+                raise
+            print(f"Ошибка дневной SKU-аналитики: {exc}; недельно-месячная ротация продолжается")
+    else:
+        print("Нет кампаний из листа СРС в Ozon; дневная SKU-выгрузка не создаётся")
     if report_campaign_ids:
         try:
             if args.apply:
