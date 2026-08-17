@@ -842,6 +842,48 @@ def flush_campaign_statuses(
     print(f"Статусы кампаний записаны: строк={len(updates)}")
 
 
+def write_sheet_daily_metrics(
+    worksheet: Any,
+    headers: list[str],
+    rows: list[SheetRow],
+    daily_metrics: dict[tuple[str, str], Metric],
+) -> None:
+    """Write only current-day SKU metrics from the quota-free Ozon endpoint."""
+    if not rows:
+        return
+    header_map = {normalize(header): index + 1 for index, header in enumerate(headers)}
+    metric_columns = {
+        "расход день": "spend",
+        "показы день": "impressions",
+        "клики день": "clicks",
+    }
+    start_row = rows[0].row_number
+    end_row = rows[-1].row_number
+    updates: list[dict[str, Any]] = []
+    for header, field_name in metric_columns.items():
+        column = header_map.get(header)
+        if not column:
+            continue
+        values = [
+            [getattr(daily_metrics.get((row.campaign_id, row.sku), Metric()), field_name)]
+            for row in rows
+        ]
+        updates.append(
+            {
+                "range": f"{column_letter(column)}{start_row}:{column_letter(column)}{end_row}",
+                "values": values,
+            }
+        )
+    if updates:
+        gsheets_utils._retry_gsheet_call(
+            "CPC daily SKU metrics update",
+            lambda: worksheet.batch_update(updates, raw=True),
+            max_attempts=6,
+            base_delay=5.0,
+        )
+    print(f"Дневная SKU-аналитика записана: строк={len(rows)}")
+
+
 def write_sheet_metrics(
     worksheet: Any,
     headers: list[str],
