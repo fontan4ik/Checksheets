@@ -33,7 +33,9 @@ from ozon_cpc_cleanup import (
     rotation_slice,
     DailyReportLimitError,
     TokenManager,
+    fetch_daily_sku_metrics,
     fetch_period_metrics,
+    write_sheet_daily_metrics,
     write_sheet_metrics,
 )
 
@@ -130,7 +132,103 @@ class OzonCpcCleanupTests(unittest.TestCase):
                 fetch_period_metrics(cast(Any, None), "token", ["1"], 10)
             fetch.assert_called_once()
 
-    def test_period_range_uses_moscow_time(self):
+    def test_fetch_daily_sku_metrics_maps_documented_ozon_fields(self):
+        session = FakeSession([
+            FakeResponse(200, {
+                "rows": [{
+                    "campaignId": "33230388",
+                    "sku": "986315608",
+                    "date": "2026-08-17",
+                    "clicks": "12",
+                    "views": "100",
+                    "expense": "123.45",
+                    "avgCpc": "10.2875",
+                    "orders": "2",
+                    "sales": "456.78",
+                    "ctr": 12.0,
+                    "drr": 27.0,
+                    "toCart": "4",
+                }]
+            })
+        ])
+        metrics = fetch_daily_sku_metrics(
+            session,
+            "token",
+            ["33230388"],
+            "2026-08-17",
+            "2026-08-17",
+        )
+        metric = metrics[("33230388", "986315608")]
+        self.assertEqual(metric.clicks, 12)
+        self.assertEqual(metric.impressions, 100)
+        self.assertEqual(metric.sold, 2)
+        self.assertEqual(metric.carts, 4)
+        self.assertAlmostEqual(metric.spend, 123.45)
+        self.assertEqual(session.calls[0][0], "POST")
+        self.assertIn("/api/client/statistics/products/sku", session.calls[0][1])
+        self.assertEqual(
+            session.calls[0][2]["json"],
+            {
+                "campaignIds": ["33230388"],
+                "dateFrom": "2026-08-17",
+                "dateTo": "2026-08-17",
+            },
+        )
+
+    def test_daily_writer_updates_only_day_columns(self):
+        class FakeWorksheet:
+            def __init__(self):
+                self.updates = []
+
+            def batch_update(self, data, **kwargs):
+                self.updates.extend((item["range"], item["values"]) for item in data)
+
+        headers = [
+            "SKU OZON", "CAMPAIN ID", "Расход день", "Расход неделя", "Расход месяц",
+            "Показы день", "Показы неделя", "Показы месяц", "Клики день", "Клики неделя", "Клики месяц",
+        ]
+        row = SheetRow(2, "39171-1", "986315608", "33230388", 0, 0, "", [])
+        worksheet = FakeWorksheet()
+        write_sheet_daily_metrics(
+            worksheet,
+            headers,
+            [row],
+            {("33230388", "986315608"): Metric(spend=123.45, impressions=100, clicks=12)},
+        )
+        updates = dict(worksheet.updates)
+        self.assertEqual(set(updates), {"C2:C2", "F2:F2", "I2:I2"})
+        self.assertEqual(updates["C2:C2"], [[123.45]])
+        self.assertEqual(updates["F2:F2"], [[100]])
+        self.assertEqual(updates["I2:I2"], [[12]])
+
+    def test_period_writer_does_not_overwrite_day_columns(self):
+        class FakeWorksheet:
+            def __init__(self):
+                self.updates = []
+
+            def batch_update(self, data, **kwargs):
+                self.updates.extend((item["range"], item["values"]) for item in data)
+
+        headers = ["Расход день", "Расход неделя", "Расход месяц", "Клики день", "Клики неделя", "Клики месяц"]
+        row = SheetRow(2, "39171-1", "986315608", "33230388", 0, 0, "", [])
+        worksheet = FakeWorksheet()
+        write_sheet_metrics(
+            worksheet,
+            headers,
+            [row],
+            {
+                PERIOD_DAY: {("33230388", "986315608"): Metric(spend=999, clicks=999)},
+                PERIOD_WEEK: {("33230388", "986315608"): Metric(spend=400, clicks=40)},
+                PERIOD_MONTH: {("33230388", "986315608"): Metric(spend=800, clicks=80)},
+            },
+            {},
+            periods_to_write=(PERIOD_WEEK, PERIOD_MONTH),
+        )
+        updates = dict(worksheet.updates)
+        self.assertEqual(set(updates), {"B2:B2", "C2:C2", "E2:E2", "F2:F2"})
+        self.assertNotIn("A2:A2", updates)
+        self.assertNotIn("D2:D2", updates)
+
         now = datetime.fromisoformat("2026-08-05T12:00:00+03:00")
         day_start, day_end = period_range(PERIOD_DAY, now)
         week_start, week_end = period_range(PERIOD_WEEK, now)

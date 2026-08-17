@@ -1339,6 +1339,7 @@ def run(args: argparse.Namespace) -> int:
                             write_buffer_metrics,
                             campaigns_by_id,
                             periods_to_write=(PERIOD_WEEK, PERIOD_MONTH),
+                        )
                     written_incremental.update(buffer_ids)
                     streamed_write_count += len(buffer_ids)
                     print(
