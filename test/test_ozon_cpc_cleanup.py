@@ -199,6 +199,24 @@ class OzonCpcCleanupTests(unittest.TestCase):
         self.assertEqual(metrics[("1", "101")].clicks, 1)
         self.assertEqual(metrics[("201", "301")].clicks, 3)
 
+    def test_fetch_daily_sku_metrics_retries_429_with_backoff(self):
+        session = FakeSession([
+            FakeResponse(429, {"error": "rate limit"}),
+            FakeResponse(200, {"rows": [{"campaignId": "1", "sku": "101", "clicks": "4"}]}),
+        ])
+        with patch("ozon_cpc_cleanup.time.sleep") as sleep:
+            metrics = fetch_daily_sku_metrics(
+                cast(Any, session),
+                "token",
+                ["1"],
+                "2026-08-17",
+                "2026-08-17",
+            )
+        self.assertEqual(len(session.calls), 2)
+        self.assertEqual(sleep.call_args_list[0].args, (1,))
+        self.assertEqual(metrics[("1", "101")].clicks, 4)
+
+    def test_daily_writer_updates_only_day_columns(self):
         class FakeWorksheet:
             def __init__(self):
                 self.updates = []
