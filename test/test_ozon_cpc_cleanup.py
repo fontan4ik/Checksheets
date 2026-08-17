@@ -175,7 +175,30 @@ class OzonCpcCleanupTests(unittest.TestCase):
             },
         )
 
-    def test_daily_writer_updates_only_day_columns(self):
+    def test_fetch_daily_sku_metrics_chunks_campaign_ids(self):
+        session = FakeSession([
+            FakeResponse(200, {"rows": [{"campaignId": "1", "sku": "101", "clicks": "1"}]}),
+            FakeResponse(200, {"rows": [{"campaignId": "101", "sku": "201", "clicks": "2"}]}),
+            FakeResponse(200, {"rows": [{"campaignId": "201", "sku": "301", "clicks": "3"}]}),
+        ])
+        campaign_ids = [str(index) for index in range(205)]
+        with patch("ozon_cpc_cleanup.time.sleep") as sleep:
+            metrics = fetch_daily_sku_metrics(
+                cast(Any, session),
+                "token",
+                campaign_ids,
+                "2026-08-17",
+                "2026-08-17",
+            )
+        self.assertEqual(len(session.calls), 3)
+        self.assertEqual(
+            [len(call[2]["json"]["campaignIds"]) for call in session.calls],
+            [100, 100, 5],
+        )
+        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual(metrics[("1", "101")].clicks, 1)
+        self.assertEqual(metrics[("201", "301")].clicks, 3)
+
         class FakeWorksheet:
             def __init__(self):
                 self.updates = []

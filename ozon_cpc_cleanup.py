@@ -150,6 +150,8 @@ PERIOD_WEEK = "week"
 PERIOD_MONTH = "month"
 PERIODS = (PERIOD_DAY, PERIOD_WEEK, PERIOD_MONTH)
 SHEET_WRITE_BATCH_SIZE = 20
+DAILY_SKU_BATCH_SIZE = 100
+DAILY_SKU_BATCH_DELAY_SECONDS = 0.25
 
 
 class SourceAddressAdapter(HTTPAdapter):
@@ -1019,51 +1021,76 @@ def fetch_daily_sku_metrics(
     """Fetch current-day SKU metrics without consuming Performance report quota."""
     if not campaign_ids:
         return {}
-    data = request_json(
-        session,
-        "POST",
-        "/api/client/statistics/products/sku",
-        token=token,
-        payload={
-            "campaignIds": campaign_ids,
-            "dateFrom": date_from,
-            "dateTo": date_to,
-        },
-        timeout=120,
-    )
-    rows = data.get("rows", []) if isinstance(data, dict) else []
     result: dict[tuple[str, str], Metric] = {}
-    for row in rows:
-        if not isinstance(row, dict):
-            continue
-        campaign_id = normalize_id(row.get("campaignId"))
-        sku = normalize_id(row.get("sku"))
-        if not campaign_id or not sku:
-            continue
-        metric = Metric(
-            clicks=parse_number(row.get("clicks")),
-            impressions=parse_number(row.get("views")),
-            ctr=parse_number(row.get("ctr")),
-            spend=parse_number(row.get("expense")),
-            average_cpc=parse_number(row.get("avgCpc")),
-            sold=parse_number(row.get("orders")),
-            revenue=parse_number(row.get("sales")),
-            drr=parse_number(row.get("drr")),
-            carts=parse_number(row.get("toCart")),
-        )
-        existing = result.setdefault((campaign_id, sku), Metric())
-        for field_name in vars(metric):
-            if field_name in {"ctr", "average_cpc", "drr"}:
-                setattr(existing, field_name, getattr(metric, field_name))
-            else:
-                setattr(
-                    existing,
-                    field_name,
-                    getattr(existing, field_name) + getattr(metric, field_name),
+    batches = [
+        campaign_ids[start : start + DAILY_SKU_BATCH_SIZE]
+        for start in range(0, len(campaign_ids), DAILY_SKU_BATCH_SIZE)
+    ]
+    for batch_index, batch in enumerate(batches):
+        last_exc: Exception | None = None
+        for attempt in range(1, 5):
+            try:
+                data = request_json(
+                    session,
+                    "POST",
+                    "/api/client/statistics/products/sku",
+                    token=token,
+                    payload={
+                        "campaignIds": batch,
+                        "dateFrom": date_from,
+                        "dateTo": date_to,
+                    },
+                    timeout=120,
                 )
+                break
+            except RuntimeError as exc:
+                last_exc = exc
+                if is_auth_error(exc) or "HTTP 429" not in str(exc):
+                    raise
+                delay = min(2 ** (attempt - 1), 8)
+                print(
+                    f"  Daily SKU batch получил 429 (попытка {attempt}/4); "
+                    f"повтор через {delay} сек."
+                )
+                time.sleep(delay)
+        else:
+            raise RuntimeError(f"Не удалось получить daily SKU batch после 4 попыток: {last_exc}")
+
+        rows = data.get("rows", []) if isinstance(data, dict) else []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            campaign_id = normalize_id(row.get("campaignId"))
+            sku = normalize_id(row.get("sku"))
+            if not campaign_id or not sku:
+                continue
+            metric = Metric(
+                clicks=parse_number(row.get("clicks")),
+                impressions=parse_number(row.get("views")),
+                ctr=parse_number(row.get("ctr")),
+                spend=parse_number(row.get("expense")),
+                average_cpc=parse_number(row.get("avgCpc")),
+                sold=parse_number(row.get("orders")),
+                revenue=parse_number(row.get("sales")),
+                drr=parse_number(row.get("drr")),
+                carts=parse_number(row.get("toCart")),
+            )
+            existing = result.setdefault((campaign_id, sku), Metric())
+            for field_name in vars(metric):
+                if field_name in {"ctr", "average_cpc", "drr"}:
+                    setattr(existing, field_name, getattr(metric, field_name))
+                else:
+                    setattr(
+                        existing,
+                        field_name,
+                        getattr(existing, field_name) + getattr(metric, field_name),
+                    )
+        if batch_index + 1 < len(batches):
+            time.sleep(DAILY_SKU_BATCH_DELAY_SECONDS)
     print(
         f"Ozon daily SKU endpoint: кампаний={len(campaign_ids)}; "
-        f"строк статистики={len(result)}; период={date_from}..{date_to}"
+        f"батчей={len(batches)}; строк статистики={len(result)}; "
+        f"период={date_from}..{date_to}"
     )
     return result
 
