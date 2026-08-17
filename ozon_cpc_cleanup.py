@@ -798,6 +798,50 @@ def campaign_budget(campaign: dict[str, Any] | None) -> float:
     return 0.0
 
 
+def campaign_status_label(state: Any) -> str:
+    return "Компания активна" if normalize(state) == "campaign_state_running" else "Компания выключена"
+
+
+def queue_campaign_status(
+    status_updates: dict[int, str],
+    sheet_rows: list[SheetRow],
+    campaign_id: str,
+    active: bool,
+) -> None:
+    label = "Компания активна" if active else "Компания выключена"
+    for row in sheet_rows:
+        if row.campaign_id == campaign_id:
+            status_updates[row.row_number] = label
+
+
+def flush_campaign_statuses(
+    worksheet: Any,
+    headers: list[str],
+    status_updates: dict[int, str],
+) -> None:
+    if not status_updates:
+        return
+    status_column = find_column(headers, ["статус"])
+    if status_column < 0:
+        print("Колонка 'Статус' не найдена — статусы кампаний не записаны")
+        return
+    column = column_letter(status_column + 1)
+    updates = [
+        {
+            "range": f"{column}{row_number}:{column}{row_number}",
+            "values": [[label]],
+        }
+        for row_number, label in sorted(status_updates.items())
+    ]
+    gsheets_utils._retry_gsheet_call(
+        "CPC campaign status batch update",
+        lambda: worksheet.batch_update(updates, raw=True),
+        max_attempts=6,
+        base_delay=5.0,
+    )
+    print(f"Статусы кампаний записаны: строк={len(updates)}")
+
+
 def write_sheet_metrics(
     worksheet: Any,
     headers: list[str],
@@ -861,7 +905,7 @@ def write_sheet_metrics(
 
     if status_col:
         values = [
-            [str(campaigns_by_id[row.campaign_id].get("state", "NOT_RUNNING")) if row.campaign_id in campaigns_by_id else "NOT_RUNNING"]
+            [campaign_status_label(campaigns_by_id[row.campaign_id].get("state")) if row.campaign_id in campaigns_by_id else "Компания выключена"]
             for row in rows
         ]
         queue_update(status_col, values)
@@ -1082,6 +1126,7 @@ def run(args: argparse.Namespace) -> int:
     written_incremental: set[str] = set()
     streamed_write_count = 0
     filter_deactivated: set[str] = set()
+    status_updates: dict[int, str] = {}
     flush_write_buffer: Callable[[], None] | None = None
     if report_campaign_ids:
         try:
@@ -1164,6 +1209,7 @@ def run(args: argparse.Namespace) -> int:
                         try:
                             deactivate_campaign(session, token, row.campaign_id)
                             filter_deactivated.add(row.campaign_id)
+                            queue_campaign_status(status_updates, sheet_rows, row.campaign_id, active=False)
                             print(
                                 f"Немедленно остановлена кампания {row.campaign_id}: "
                                 f"клики день={metric.clicks:g} >= фильтр={row.filter_clicks:g}"
@@ -1273,6 +1319,7 @@ def run(args: argparse.Namespace) -> int:
                     deactivate_campaign(session, token, candidate.campaign_id)
                     current_products[candidate.campaign_id] = set()
                     deactivated_by_filter.add(candidate.campaign_id)
+                    queue_campaign_status(status_updates, sheet_rows, candidate.campaign_id, active=False)
                     print(f"Остановлена кампания {candidate.campaign_id}")
                 except RuntimeError as deactivate_exc:
                     print(f"Не удалось остановить кампанию {candidate.campaign_id}: {deactivate_exc}")
