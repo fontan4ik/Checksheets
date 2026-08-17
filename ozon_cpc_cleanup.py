@@ -1325,7 +1325,12 @@ def run(args: argparse.Namespace) -> int:
                     print(f"Не удалось остановить кампанию {candidate.campaign_id}: {deactivate_exc}")
 
     if args.apply_toggle:
-        _apply_toggle(session, token, sheet_rows, campaigns_by_id, deactivated_by_filter)
+        _apply_toggle(session, token, sheet_rows, campaigns_by_id, deactivated_by_filter, status_updates)
+    if status_updates:
+        try:
+            flush_campaign_statuses(worksheet, headers, status_updates)
+        except Exception as exc:
+            print(f"Ошибка записи статусов кампаний: {exc}")
     return 0
 
 
@@ -1363,6 +1368,7 @@ def _apply_toggle(
     sheet_rows: list[SheetRow],
     campaigns_by_id: dict[str, dict[str, Any]],
     deactivated_by_filter: set[str],
+    status_updates: dict[int, str],
 ) -> None:
     """Применяет переключатель Z (Включение/отключение компании).
 
@@ -1392,6 +1398,7 @@ def _apply_toggle(
                 continue
             try:
                 toggle_set_campaign(token, session, cid, activate=True)
+                queue_campaign_status(status_updates, sheet_rows, cid, active=True)
                 on_count += 1
                 print(f"row={row.row_number} campaign={cid}: активирована (toggle=1)")
             except RuntimeError as exc:
@@ -1404,6 +1411,7 @@ def _apply_toggle(
                 continue
             try:
                 toggle_set_campaign(token, session, cid, activate=False)
+                queue_campaign_status(status_updates, sheet_rows, cid, active=False)
                 off_count += 1
                 print(f"row={row.row_number} campaign={cid}: деактивирована (toggle=0)")
             except RuntimeError as exc:

@@ -19,8 +19,10 @@ from ozon_cpc_cleanup import (
     build_candidates,
     build_statistics_payload,
     campaign_budget,
+    campaign_status_label,
     create_statistics_report,
     contiguous_row_groups,
+    flush_campaign_statuses,
     parse_report,
     parse_report_block,
     period_range,
@@ -255,8 +257,34 @@ class OzonCpcCleanupTests(unittest.TestCase):
         self.assertEqual(updates["T2:T2"], [[12]])
         self.assertEqual(updates["U2:U2"], [[1500]])
         self.assertEqual(updates["V2:V2"], [[20]])
-        self.assertEqual(updates["W2:W2"], [["CAMPAIGN_STATE_RUNNING"]])
+        self.assertEqual(updates["W2:W2"], [["Компания активна"]])
         self.assertNotIn("A2:Y2", updates)
+
+    def test_campaign_status_labels_are_written_in_one_batch(self):
+        class FakeWorksheet:
+            def __init__(self):
+                self.calls = []
+
+            def batch_update(self, data, **kwargs):
+                self.calls.append((data, kwargs))
+
+        worksheet = FakeWorksheet()
+        flush_campaign_statuses(
+            worksheet,
+            ["art", "Статус"],
+            {2: "Компания выключена", 3: "Компания активна"},
+        )
+
+        self.assertEqual(campaign_status_label("CAMPAIGN_STATE_RUNNING"), "Компания активна")
+        self.assertEqual(campaign_status_label("CAMPAIGN_STATE_INACTIVE"), "Компания выключена")
+        self.assertEqual(len(worksheet.calls), 1)
+        self.assertEqual(
+            worksheet.calls[0][0],
+            [
+                {"range": "B2:B2", "values": [["Компания выключена"]]},
+                {"range": "B3:B3", "values": [["Компания активна"]]},
+            ],
+        )
 
     def test_incremental_batch_keeps_rows_when_day_metrics_are_empty(self):
         rows = [
