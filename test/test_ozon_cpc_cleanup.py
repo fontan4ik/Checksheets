@@ -152,7 +152,7 @@ class OzonCpcCleanupTests(unittest.TestCase):
             })
         ])
         metrics = fetch_daily_sku_metrics(
-            session,
+            cast(Any, session),
             "token",
             ["33230388"],
             "2026-08-17",
