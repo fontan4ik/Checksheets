@@ -890,6 +890,7 @@ def write_sheet_metrics(
     rows: list[SheetRow],
     metrics_by_period: dict[str, dict[tuple[str, str], Metric]],
     campaigns_by_id: dict[str, dict[str, Any]],
+    periods_to_write: tuple[str, ...] | None = None,
 ) -> None:
     if not rows:
         return
@@ -909,6 +910,12 @@ def write_sheet_metrics(
         "продано месяц": (PERIOD_MONTH, "sold"),
         "дрр в продвижении месяц": (PERIOD_MONTH, "drr"),
         "корзины месяц": (PERIOD_MONTH, "carts"),
+    }
+    allowed_periods = set(periods_to_write or PERIODS)
+    metric_columns = {
+        header: (period, field_name)
+        for header, (period, field_name) in metric_columns.items()
+        if period in allowed_periods
     }
     name_col = header_map.get("campain name")
     budget_col = header_map.get("бюджет")
@@ -1331,7 +1338,7 @@ def run(args: argparse.Namespace) -> int:
                             row_group,
                             write_buffer_metrics,
                             campaigns_by_id,
-                        )
+                            periods_to_write=(PERIOD_WEEK, PERIOD_MONTH),
                     written_incremental.update(buffer_ids)
                     streamed_write_count += len(buffer_ids)
                     print(
@@ -1351,7 +1358,7 @@ def run(args: argparse.Namespace) -> int:
             ) -> None:
                 if args.write_sheet:
                     write_buffer_ids.extend(batch)
-                    for period in PERIODS:
+                    for period in (PERIOD_WEEK, PERIOD_MONTH):
                         for key, metric in batch_metrics.get(period, {}).items():
                             existing = write_buffer_metrics[period].setdefault(key, Metric())
                             for field_name in vars(metric):
@@ -1363,27 +1370,16 @@ def run(args: argparse.Namespace) -> int:
                     if len(write_buffer_ids) >= SHEET_WRITE_BATCH_SIZE:
                         _flush_write_buffer()
 
-                if args.stop_on_filter:
-                    for row in sheet_rows:
-                        if row.campaign_id not in running_cpc_ids or row.filter_clicks <= 0:
-                            continue
-                        metric = batch_metrics[PERIOD_DAY].get((row.campaign_id, row.sku))
-                        if metric is None or metric.clicks < row.filter_clicks:
-                            continue
-                        if row.campaign_id in filter_deactivated:
-                            continue
-                        try:
-                            deactivate_campaign(session, token, row.campaign_id)
-                            filter_deactivated.add(row.campaign_id)
-                            queue_campaign_status(status_updates, sheet_rows, row.campaign_id, active=False)
-                            print(
-                                f"Немедленно остановлена кампания {row.campaign_id}: "
-                                f"клики день={metric.clicks:g} >= фильтр={row.filter_clicks:g}"
-                            )
-                        except RuntimeError as exc:
-                            print(f"Не удалось немедленно остановить кампанию {row.campaign_id}: {exc}")
-
-            metrics_by_period = fetch_period_metrics(session, token, report_campaign_ids, batch_size, on_batch=_on_batch)
+            period_metrics = fetch_period_metrics(
+                session,
+                token,
+                report_campaign_ids,
+                batch_size,
+                on_batch=_on_batch,
+                include_day=False,
+            )
+            for period in (PERIOD_WEEK, PERIOD_MONTH):
+                metrics_by_period[period] = period_metrics[period]
             if args.write_sheet and flush_write_buffer is not None:
                 flush_write_buffer()
             for period in PERIODS:
