@@ -3,13 +3,13 @@
  *
  * Скрипт читает источники, агрегирует значения по базовому артикулу,
  * учитывает числовой суффикс после последнего дефиса и записывает готовые
- * значения в ОБОР!J/K/N/O/W/Y/Z.
+ * значения в ОБОР!J/N/O/W/Y/Z.
  *
  * Пример: 55222-10 и 55222-5 превращаются в 10 × значение и 5 × значение.
  *
  * Источники:
  * - J «Озон ост»            ← ТЕСТ!F, Остаток ФБО ОЗОН
- * - K «СДЭК Остаток»        ← Ozon FBS API, склад «КГТ СДЭК»
+ * - K «СДЭК Остаток»        ← ОТКЛЮЧЕНО (Ozon FBS API / склад «КГТ СДЭК»)
  * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
  * - W «ВБ ост»              ← ТЕСТ!O, остаток WB FBO с множителем упаковки
@@ -40,6 +40,8 @@ const OBOR_VALUE_CONFIG = [
     subtractValueColumns: [],
     note: "Остаток ФБО ОЗОН; отмены не участвуют"
   },
+  /*
+  // Временно отключено по запросу: K «СДЭК Остаток» не рассчитывается.
   {
     key: "cdekStock",
     targetHeader: "СДЭК Остаток",
@@ -48,6 +50,7 @@ const OBOR_VALUE_CONFIG = [
     sourceValueColumns: [],
     note: "Ozon FBS API / КГТ СДЭК"
   },
+  */
   {
     key: "ozonMonthWithdrawal",
     targetHeader: "Уход месяц",
@@ -96,7 +99,7 @@ const OBOR_VALUE_CONFIG = [
 ];
 
 /**
- * Полностью пересчитать и записать семь целевых показателей.
+ * Полностью пересчитать и записать шесть активных целевых показателей.
  * Запись начинается только после успешного чтения всех источников и API.
  */
 function calculateOborValues() {
@@ -115,7 +118,8 @@ function calculateOborValues() {
   });
 
   // API читается до первой записи, чтобы ошибка API не оставила полурасчёт.
-  sourceMaps.cdekStock = fetchOborCdekStockByArticle_(spreadsheet);
+  // Временно отключено по запросу: не вызывать Ozon FBS API для КГТ СДЭК.
+  // sourceMaps.cdekStock = fetchOborCdekStockByArticle_(spreadsheet);
 
   const targetLastRow = targetSheet.getLastRow();
   if (targetLastRow < 2) {
@@ -153,8 +157,7 @@ function calculateOborValues() {
   SpreadsheetApp.flush();
   Logger.log(
     "ОБОР: расчёт завершён; строк=" + (targetLastRow - 1) +
-    "; склад СДЭК=" + OBOR_CDEK_WAREHOUSE_NAME +
-    " (" + OBOR_CDEK_WAREHOUSE_ID + ")"
+    "; СДЭК Остаток отключён"
   );
   return { rows: targetLastRow - 1, nonZero: nonZero };
 }
