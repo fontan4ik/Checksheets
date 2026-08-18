@@ -22,14 +22,18 @@ const responseItems = [
   { offer_id: 'invalid-count', available_stock_count: 'not-a-number' },
 ];
 
-assert.deepEqual(
-  context.aggregateFBOAvailableStocksByOffer(responseItems),
-  {
+const stableObject = value => JSON.stringify(
+  Object.keys(value).sort().map(key => [key, value[key]]),
+);
+
+assert.equal(
+  stableObject(context.aggregateFBOAvailableStocksByOffer(responseItems)),
+  stableObject({
     '25487-10': 1,
     '29493': 10,
     '27999-1': 2,
     'invalid-count': 0,
-  },
+  }),
 );
 
 console.log('✅ Ozon FBO available-stock aggregation test passed');
