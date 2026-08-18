@@ -1,7 +1,7 @@
 /**
  * OZON BUYOUT → UNIT API
  *
- * Заполняет колонку "УПД" листа "UNIT API".
+ * Заполняет колонки "УПД" и "УПД ШТ" листа "UNIT API".
  *
  * Если в таблице остался legacy-заголовок "ЗАКАЗЫ BUYOUT",
  * скрипт переводит запись на колонку УПД, чтобы её могла читать
@@ -17,8 +17,10 @@
 
 const OZON_BUYOUT_UNIT_API_SHEET_NAME = 'UNIT API';
 const OZON_BUYOUT_UNIT_API_HEADER = 'УПД';
+const OZON_BUYOUT_UNIT_API_QUANTITY_HEADER = 'УПД ШТ';
 const OZON_BUYOUT_UNIT_API_LEGACY_HEADERS = ['ЗАКАЗЫ BUYOUT'];
 const OZON_BUYOUT_UNIT_API_FIXED_COLUMN = 11;
+const OZON_BUYOUT_UNIT_API_QUANTITY_FIXED_COLUMN = 36; // AJ
 const OZON_BUYOUT_UNIT_API_TRIGGER_HANDLER = 'updateOzonBuyoutOrdersUnitApi';
 const OZON_BUYOUT_UNIT_API_TRIGGER_HOUR = 6;
 const OZON_BUYOUT_UNIT_API_TRIGGER_NEAR_MINUTE = 40;
@@ -42,6 +44,7 @@ function updateOzonBuyoutOrdersUnitApiForDates(dateFrom, dateTo) {
     if (!skuCol) throw new Error('UNIT API: не найден заголовок "СКУ OZ"');
 
     const targetCol = ensureOzonBuyoutOrdersColumn_(sheet);
+    const quantityCol = ensureOzonBuyoutOrdersQuantityColumn_(sheet);
     const buyoutMap = fetchOzonBuyoutOrdersMap_(dateFrom, dateTo);
 
     const rowCount = lastRow - 1;
@@ -50,18 +53,28 @@ function updateOzonBuyoutOrdersUnitApiForDates(dateFrom, dateTo) {
       const sku = normalizeOzonBuyoutOrdersSku_(row[0]);
       return [sku && buyoutMap[sku] ? roundOzonBuyoutOrdersMoney_(buyoutMap[sku].amount) : 0];
     });
+    const quantityValues = skuValues.map(function(row) {
+      const sku = normalizeOzonBuyoutOrdersSku_(row[0]);
+      return [sku && buyoutMap[sku] ? Math.round(Number(buyoutMap[sku].quantity) || 0) : 0];
+    });
 
     sheet.getRange(2, targetCol, values.length, 1).setValues(values);
     sheet.getRange(2, targetCol, values.length, 1).setNumberFormat('#,##0.00');
+    sheet.getRange(2, quantityCol, quantityValues.length, 1).setValues(quantityValues);
+    sheet.getRange(2, quantityCol, quantityValues.length, 1).setNumberFormat('#,##0');
 
     const total = values.reduce(function(sum, row) { return sum + (Number(row[0]) || 0); }, 0);
     const nonZero = values.filter(function(row) { return Number(row[0]) !== 0; }).length;
+    const totalQuantity = quantityValues.reduce(function(sum, row) { return sum + (Number(row[0]) || 0); }, 0);
+    const nonZeroQuantity = quantityValues.filter(function(row) { return Number(row[0]) !== 0; }).length;
 
     Logger.log('OZON BUYOUT → UNIT API завершено');
     Logger.log('Период: ' + dateFrom + ' → ' + dateTo);
     Logger.log('SKU в отчёте: ' + Object.keys(buyoutMap).length);
     Logger.log('Ненулевых строк записано: ' + nonZero);
     Logger.log('Сумма записана: ' + roundOzonBuyoutOrdersMoney_(total));
+    Logger.log('Ненулевых строк с количеством записано: ' + nonZeroQuantity);
+    Logger.log('Количество записано в AJ («УПД ШТ»): ' + Math.round(totalQuantity));
   });
 }
 
@@ -76,12 +89,14 @@ function verifyOzonBuyoutOrdersUnitApiFirst3ForDates(dateFrom, dateTo) {
   const skuCol = headerMap[normalizeOzonBuyoutOrdersHeader_('СКУ OZ')];
   const articleCol = headerMap[normalizeOzonBuyoutOrdersHeader_('Артикул')];
   const buyoutCol = getOzonBuyoutOrdersColumn_(sheet);
+  const quantityCol = getOzonBuyoutOrdersQuantityColumn_(sheet);
 
   if (!skuCol) throw new Error('UNIT API: не найден заголовок "СКУ OZ"');
   if (!buyoutCol) throw new Error('UNIT API: не найден заголовок "' + OZON_BUYOUT_UNIT_API_HEADER + '"');
+  if (!quantityCol) throw new Error('UNIT API: не найден заголовок "' + OZON_BUYOUT_UNIT_API_QUANTITY_HEADER + '" в AJ');
 
   const lastRow = sheet.getLastRow();
-  const width = Math.max(skuCol, articleCol || 1, buyoutCol);
+  const width = Math.max(skuCol, articleCol || 1, buyoutCol, quantityCol);
   const rows = sheet.getRange(2, 1, Math.max(0, lastRow - 1), width).getDisplayValues();
   const buyoutMap = fetchOzonBuyoutOrdersMap_(dateFrom, dateTo);
 
@@ -93,13 +108,18 @@ function verifyOzonBuyoutOrdersUnitApiFirst3ForDates(dateFrom, dateTo) {
 
     const sku = normalizeOzonBuyoutOrdersSku_(row[skuCol - 1]);
     const reportValue = buyoutMap[sku] ? roundOzonBuyoutOrdersMoney_(buyoutMap[sku].amount) : 0;
+    const sheetQuantity = parseOzonBuyoutOrdersNumber_(row[quantityCol - 1]);
+    const reportQuantity = buyoutMap[sku] ? Math.round(Number(buyoutMap[sku].quantity) || 0) : 0;
     checks.push({
       row: index + 2,
       article: articleCol ? row[articleCol - 1] : '',
       sku: sku,
       sheetValue: roundOzonBuyoutOrdersMoney_(sheetValue),
       reportValue: reportValue,
-      ok: Math.abs(roundOzonBuyoutOrdersMoney_(sheetValue) - reportValue) < 0.01
+      sheetQuantity: Math.round(sheetQuantity),
+      reportQuantity: reportQuantity,
+      ok: Math.abs(roundOzonBuyoutOrdersMoney_(sheetValue) - reportValue) < 0.01 &&
+        Math.round(sheetQuantity) === reportQuantity
     });
   });
 
@@ -179,6 +199,36 @@ function ensureOzonBuyoutOrdersColumn_(sheet) {
   const targetCol = getOzonBuyoutOrdersColumn_(sheet, { createIfMissing: true, normalizeHeader: true });
   sheet.getRange(1, targetCol).setValue(OZON_BUYOUT_UNIT_API_HEADER);
   sheet.getRange(2, targetCol, Math.max(1, sheet.getMaxRows() - 1), 1).setNumberFormat('#,##0.00');
+  return targetCol;
+}
+
+function ensureOzonBuyoutOrdersQuantityColumn_(sheet) {
+  const targetCol = getOzonBuyoutOrdersQuantityColumn_(sheet, { createIfMissing: true });
+  sheet.getRange(1, targetCol).setValue(OZON_BUYOUT_UNIT_API_QUANTITY_HEADER);
+  sheet.getRange(2, targetCol, Math.max(1, sheet.getMaxRows() - 1), 1).setNumberFormat('#,##0');
+  return targetCol;
+}
+
+function getOzonBuyoutOrdersQuantityColumn_(sheet, options) {
+  options = options || {};
+  const targetCol = OZON_BUYOUT_UNIT_API_QUANTITY_FIXED_COLUMN;
+  const expectedHeader = normalizeOzonBuyoutOrdersHeader_(OZON_BUYOUT_UNIT_API_QUANTITY_HEADER);
+
+  if (sheet.getMaxColumns() < targetCol) {
+    if (!options.createIfMissing) return 0;
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), targetCol - sheet.getMaxColumns());
+  }
+
+  const headerCell = sheet.getRange(1, targetCol);
+  const currentHeader = normalizeOzonBuyoutOrdersHeader_(headerCell.getDisplayValue());
+  if (currentHeader && currentHeader !== expectedHeader) {
+    throw new Error(
+      'UNIT API: колонка AJ занята заголовком "' + headerCell.getDisplayValue() +
+      '", ожидался "' + OZON_BUYOUT_UNIT_API_QUANTITY_HEADER + '".'
+    );
+  }
+
+  if (!currentHeader && !options.createIfMissing) return 0;
   return targetCol;
 }
 
