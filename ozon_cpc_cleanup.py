@@ -910,6 +910,7 @@ def write_sheet_metrics(
         "ctr, % месяц": (PERIOD_MONTH, "ctr"),
         "средняя стоимость клика месяц": (PERIOD_MONTH, "average_cpc"),
         "продано месяц": (PERIOD_MONTH, "sold"),
+        "продажи в продвижении": (PERIOD_MONTH, "revenue"),
         "дрр в продвижении месяц": (PERIOD_MONTH, "drr"),
         "корзины месяц": (PERIOD_MONTH, "carts"),
     }

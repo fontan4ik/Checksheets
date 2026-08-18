@@ -296,9 +296,9 @@ class OzonCpcCleanupTests(unittest.TestCase):
     def test_parse_report_block_maps_clicks_and_metrics_by_header(self):
         csv_text = (
             ";Кампания 33230388\n"
-            "sku;Показы;Клики;CTR, %;Расход, ₽, с НДС;Средняя стоимость клика, ₽;Продано товаров;Добавления в корзину\n"
-            "986315608;100;12;12;123,45;10,29;2;4\n"
-            "986315608;50;3;6;30;10;1;2\n"
+            "sku;Показы;Клики;CTR, %;Расход, ₽, с НДС;Средняя стоимость клика, ₽;Продано товаров;Продажи в продвижении, ₽;Добавления в корзину\n"
+            "986315608;100;12;12;123,45;10,29;2;456,78;4\n"
+            "986315608;50;3;6;30;10;1;123,45;2\n"
         )
         block = parse_report_block("33230388_24.07.2026.csv", csv_text)
         self.assertEqual(block.campaign_id, "33230388")
@@ -306,6 +306,7 @@ class OzonCpcCleanupTests(unittest.TestCase):
         self.assertEqual(block.metrics["986315608"].impressions, 150)
         self.assertAlmostEqual(block.metrics["986315608"].spend, 153.45)
         self.assertEqual(block.metrics["986315608"].sold, 3)
+        self.assertAlmostEqual(block.metrics["986315608"].revenue, 580.23)
         self.assertEqual(block.metrics["986315608"].carts, 6)
 
     def test_parse_report_reads_zip_and_keeps_campaign_sku_key(self):
@@ -358,7 +359,8 @@ class OzonCpcCleanupTests(unittest.TestCase):
             "Клики день", "Клики неделя", "Клики месяц",
             "CTR, % месяц", "Средняя стоимость клика месяц", "Продано месяц",
             "ДРР в продвижении месяц", "Бюджет", "Корзины месяц", "Статус",
-            "Фильтр клики день", "Фильтр ДРР месяц",
+            "Фильтр клики день", "Фильтр ДРР месяц", "Включение/отключение компании",
+            "ФБО", "ПРОГРУЗ", "Продажи в продвижении",
         ]
         values = ["39171-1", "39171", "Stekker", "", "986315608", "33230388"] + [""] * 19
         row = SheetRow(2, "39171-1", "986315608", "33230388", 5, 0, "1", values)
@@ -367,7 +369,7 @@ class OzonCpcCleanupTests(unittest.TestCase):
             PERIOD_WEEK: {("33230388", "986315608"): Metric(clicks=40, impressions=350, spend=400)},
             PERIOD_MONTH: {
                 ("33230388", "986315608"): Metric(
-                    clicks=90, impressions=900, ctr=10, average_cpc=8.89, sold=5, drr=12, carts=20, spend=800
+                    clicks=90, impressions=900, ctr=10, average_cpc=8.89, sold=5, revenue=1234.56, drr=12, carts=20, spend=800
                 )
             },
         }
@@ -384,7 +386,7 @@ class OzonCpcCleanupTests(unittest.TestCase):
             {
                 "G2:G2", "H2:H2", "I2:I2", "J2:J2", "K2:K2", "L2:L2", "M2:M2",
                 "N2:N2", "O2:O2", "P2:P2", "Q2:Q2", "R2:R2", "S2:S2", "T2:T2",
-                "U2:U2", "V2:V2", "W2:W2",
+                "U2:U2", "V2:V2", "W2:W2", "AC2:AC2",
             },
         )
         self.assertEqual(updates["G2:G2"], [["Кампания"]])
@@ -397,6 +399,7 @@ class OzonCpcCleanupTests(unittest.TestCase):
         self.assertEqual(updates["U2:U2"], [[1500]])
         self.assertEqual(updates["V2:V2"], [[20]])
         self.assertEqual(updates["W2:W2"], [["Компания активна"]])
+        self.assertEqual(updates["AC2:AC2"], [[1234.56]])
         self.assertNotIn("A2:Y2", updates)
 
     def test_campaign_status_labels_are_written_in_one_batch(self):
