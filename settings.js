@@ -69,6 +69,7 @@ const ozonProductsApiURL = () => 'https://api-seller.ozon.ru/v3/product/list';
 const ozonProductsInfoApiURL = () => "https://api-seller.ozon.ru/v3/product/info/list";
 const ozonPicturesApiURL = () => 'https://api-seller.ozon.ru/v2/product/pictures/info';
 const ozonStocksApiURL = () => 'https://api-seller.ozon.ru/v4/product/info/stocks';
+const ozonFBOAvailableStocksApiURL = () => 'https://api-seller.ozon.ru/v1/analytics/stocks';
 const ozonPricesApiURL = () => "https://api-seller.ozon.ru/v5/product/info/prices";
 const ozonPricesDetailsURL = () => "https://api-seller.ozon.ru/v1/product/prices/details";
 const ozonAnalyticsData = () => "https://api-seller.ozon.ru/v1/analytics/data";
