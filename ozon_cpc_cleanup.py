@@ -9,6 +9,7 @@ The worksheet layout (already applied in Google Sheets):
     Клики день | Клики неделя | Клики месяц |
     CTR, % месяц | Средняя стоимость клика месяц | Продано месяц |
     ДРР в продвижении месяц | Бюджет | Корзины месяц | Статус |
+    Продажи в продвижении | (прочие пользовательские колонки) |
     Фильтр клики день | Фильтр ДРР месяц
 
 Only identity columns ``art/model/brand/pic/SKU OZON`` are static and are never
