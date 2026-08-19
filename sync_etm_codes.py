@@ -100,8 +100,10 @@ def load_csv_mapping(path: str | Path) -> tuple[dict[tuple[str, str], str], dict
             f"model+brand; примеры: {examples}"
         )
 
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        source_rows = max(sum(1 for _ in handle) - 1, 0)
     stats = {
-        "source_rows": sum(1 for _ in path.open("r", encoding="utf-8-sig", newline="")) - 1,
+        "source_rows": source_rows,
         "mapping_keys": len(mapping),
         "duplicate_rows": duplicate_rows,
         "empty_rows": empty_rows,
@@ -177,7 +179,10 @@ def update_sheet(ws, updates: list[Update], code_column: int) -> int:
 def run(csv_path: str | Path, write: bool = False, sample_size: int = 10) -> int:
     mapping, source_stats = load_csv_mapping(csv_path)
     ws = gsheets_utils.get_worksheet(SHEET_NAME)
-    sheet_rows = ws.get_all_values()
+    sheet_rows = gsheets_utils._retry_gsheet_call(
+        f"read all values from {SHEET_NAME}",
+        ws.get_all_values,
+    )
     if not sheet_rows:
         raise RuntimeError(f"Лист {SHEET_NAME!r} пустой")
     columns = gsheets_utils.resolve_header_columns(sheet_rows[0], SHEET_SCHEMA, SHEET_NAME)
