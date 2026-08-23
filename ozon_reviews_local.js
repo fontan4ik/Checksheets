@@ -258,6 +258,17 @@ async function processReviews(sheets, uniqueSkus, skuValues, lastRow) {
 async function main() {
   const sheets = await createSheetsClient();
   const { lastRow, skuValues, uniqueSkus } = await readSheetSkus(sheets);
+  if (process.argv.includes("--dry-run")) {
+    log(JSON.stringify({
+      status: "dry-run",
+      sheet: SHEET_NAME,
+      lastRow,
+      skuRows: skuValues.length,
+      uniqueSkus: uniqueSkus.length,
+      targetColumn: OUTPUT_COLUMN_LETTER,
+    }));
+    return;
+  }
   if (lastRow < 2) {
     log("Лист «ТЕСТ» не содержит строк для обработки");
     return;

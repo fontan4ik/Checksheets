@@ -9,4 +9,5 @@ sync-feron-stocks.js
 sync-cdek-stocks.js
 sync-cdek-ozon-stocks.js
 zero-etm-stocks.js
+ozon_reviews_local.js
 zero-wb-fbs-stocks.js
