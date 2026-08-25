@@ -76,8 +76,9 @@ These run on local servers or machines to update Google Sheets via the API:
 
 ### Python Stock Synchronization Workflow:
 1. Python dependencies should be maintained in a virtual environment (`.venv-etm-export`).
-2. Make sure you use the standard interface-binding helper (`SourceAddressAdapter` in `requests`) inside scripts to avoid routing conflicts when the developer's macOS VPN client is active.
-3. Test execution locally:
+2. Use `SourceAddressAdapter` from `network_bypass.py` inside local Python scripts. On macOS it binds sockets with `IP_BOUND_IF`; a source-address-only bind is incompatible with full-tunnel Network Extension clients such as Happ.
+3. The Node CDEK sync uses the macOS system route by default. `CHECKSHEETS_NODE_SOURCE_BIND=true` restores the legacy source-address mode for non-Network-Extension VPN setups.
+4. Test execution locally:
     ```bash
     python3 rs_sync_local.py
     python3 feron_sync_local.py

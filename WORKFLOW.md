@@ -26,8 +26,9 @@ Our source of truth is structured around:
    ```
 2. **Interface Binding / VPN Bypass:** When running sync scripts from local machines that have active corporate or private VPN clients (which block default API routes), the python scripts must resolve the active Wi-Fi/LAN interface and bind to it natively:
    - Interface resolver logic checks `en0` and `en1` adapters using `ifconfig`.
-   - A `SourceAddressAdapter` is mounted on the `requests` Session object to force the outbound requests through the local interface.
+   - `network_bypass.SourceAddressAdapter` is mounted on the `requests` Session object. On macOS it uses `IP_BOUND_IF`, matching `curl --interface`; binding only the source IP does not work with full-tunnel Network Extension clients such as Happ.
    - Bypass configuration is specified in `config.py` and via environment variables like `CHECKSHEETS_BYPASS_INTERFACE`.
+   - The Node CDEK sync follows the macOS system route by default; use `CHECKSHEETS_NODE_SOURCE_BIND=true` only for legacy VPN setups that support source-address binding.
 3. **Running the Syncs:** Python synchronization tasks can be executed manually or scheduled via system crons:
    ```bash
    python3 feron_sync_local.py
