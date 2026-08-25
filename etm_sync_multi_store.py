@@ -177,7 +177,13 @@ class SourceAddressAdapter(HTTPAdapter):
 
 
 def enumerate_local_ipv4s():
-    """Return non-loopback IPv4 candidates using stdlib resolution only."""
+    """Return usable local IPv4 candidates, preferring active LAN/Wi-Fi.
+
+    Hostname resolution is not a reliable way to discover local addresses on
+    macOS: with Network Extension VPN clients it may return no address at all
+    (or only a tunnel address).  The ETM bypass must bind to the physical
+    LAN/Wi-Fi source, just like the other local sync scripts.
+    """
     ips = []
     seen = set()
 
@@ -188,17 +194,39 @@ def enumerate_local_ipv4s():
             seen.add(value)
             ips.append(value)
 
-    host = socket.gethostname()
+    preferred_interface = os.getenv("CHECKSHEETS_BYPASS_INTERFACE", "").strip()
+    interfaces = [preferred_interface] if preferred_interface else ["en1", "en0"]
 
-    try:
-        add_many(socket.gethostbyname_ex(host)[2])
-    except OSError:
-        pass
+    for interface in interfaces:
+        if not interface:
+            continue
+        try:
+            result = subprocess.run(
+                ["/sbin/ifconfig", interface],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            continue
 
-    try:
-        add_many(addr[4][0] for addr in socket.getaddrinfo(host, None, socket.AF_INET))
-    except OSError:
-        pass
+        output = result.stdout or ""
+        if not preferred_interface and "status: active" not in output:
+            continue
+        add_many(re.findall("inet ([0-9]+[.][0-9]+[.][0-9]+[.][0-9]+)", output))
+
+    # Keep hostname resolution as a fallback for non-standard environments,
+    # but never let tunnel-only addresses replace an active LAN/Wi-Fi source.
+    if not ips:
+        host = socket.gethostname()
+        try:
+            add_many(socket.gethostbyname_ex(host)[2])
+        except OSError:
+            pass
+        try:
+            add_many(addr[4][0] for addr in socket.getaddrinfo(host, None, socket.AF_INET))
+        except OSError:
+            pass
 
     return ips
 
