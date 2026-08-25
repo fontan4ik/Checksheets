@@ -117,8 +117,14 @@ function getCdekBypassInterface(
 
 function createCdekHttpClient(networkInterfaces = os.networkInterfaces()) {
   const { interfaceName, sourceIp } = getCdekBypassInterface(networkInterfaces);
-  const httpsAgent = new https.Agent({ keepAlive: true, localAddress: sourceIp });
-  console.log(`CDEK bypass interface: ${interfaceName} (${sourceIp})`);
+  const forceSourceAddress = text(process.env.CHECKSHEETS_NODE_SOURCE_BIND).toLowerCase() === "true";
+  const useSourceAddress = process.platform !== "darwin" || forceSourceAddress;
+  const httpsAgent = new https.Agent({
+    keepAlive: true,
+    ...(useSourceAddress ? { localAddress: sourceIp } : {}),
+  });
+  const routeMode = useSourceAddress ? "source-address" : "macOS system route";
+  console.log(`CDEK route: ${routeMode}; LAN interface ${interfaceName} (${sourceIp})`);
   return { httpClient: axios, httpsAgent };
 }
 

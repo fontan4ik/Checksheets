@@ -15,26 +15,10 @@ import zipfile
 from datetime import date, timedelta
 
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.poolmanager import PoolManager
 
 import config
 import gsheets_utils
-
-
-class SourceAddressAdapter(HTTPAdapter):
-    def __init__(self, source_ip: str, **kwargs):
-        self._source_address = (source_ip, 0)
-        super().__init__(**kwargs)
-
-    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
-        pool_kwargs["source_address"] = self._source_address
-        self.poolmanager = PoolManager(
-            num_pools=connections,
-            maxsize=maxsize,
-            block=block,
-            **pool_kwargs,
-        )
+from network_bypass import SourceAddressAdapter
 
 
 def get_active_interface_ip() -> tuple[str, str]:
@@ -68,7 +52,7 @@ def create_perf_session() -> requests.Session:
 
     try:
         interface, source_ip = get_active_interface_ip()
-        adapter = SourceAddressAdapter(source_ip)
+        adapter = SourceAddressAdapter(source_ip, interface_name=interface)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
         print(f"Ozon Perf bypass interface: {interface} ({source_ip})")

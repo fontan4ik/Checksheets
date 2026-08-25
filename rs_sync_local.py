@@ -5,24 +5,7 @@ import os
 import re
 import config
 import gsheets_utils
-from requests.adapters import HTTPAdapter
-from urllib3.poolmanager import PoolManager
-# VPN guard removed - using V2Box split routing instead
-
-
-class SourceAddressAdapter(HTTPAdapter):
-    def __init__(self, source_ip, **kwargs):
-        self._source_address = (source_ip, 0)
-        super().__init__(**kwargs)
-
-    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
-        pool_kwargs["source_address"] = self._source_address
-        self.poolmanager = PoolManager(
-            num_pools=connections,
-            maxsize=maxsize,
-            block=block,
-            **pool_kwargs,
-        )
+from network_bypass import SourceAddressAdapter
 
 
 def get_active_interface_ip():
@@ -51,7 +34,7 @@ def get_active_interface_ip():
 def create_rs_session():
     interface, source_ip = get_active_interface_ip()
     session = requests.Session()
-    adapter = SourceAddressAdapter(source_ip)
+    adapter = SourceAddressAdapter(source_ip, interface_name=interface)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     print(f"RS bypass interface: {interface} ({source_ip})")

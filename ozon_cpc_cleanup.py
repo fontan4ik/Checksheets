@@ -53,11 +53,10 @@ from urllib.parse import urlencode
 from zoneinfo import ZoneInfo
 
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.poolmanager import PoolManager
 
 import config
 import gsheets_utils
+from network_bypass import SourceAddressAdapter
 
 
 LOCK_FILE = Path(__file__).resolve().parent / "logs" / "cpc-hourly.lock"
@@ -155,23 +154,6 @@ DAILY_SKU_BATCH_SIZE = 100
 DAILY_SKU_BATCH_DELAY_SECONDS = 0.25
 
 
-class SourceAddressAdapter(HTTPAdapter):
-    """Bind requests to the active LAN/Wi-Fi address when configured."""
-
-    def __init__(self, source_ip: str, **kwargs: Any) -> None:
-        self._source_address = (source_ip, 0)
-        super().__init__(**kwargs)
-
-    def init_poolmanager(self, connections: int, maxsize: int, block: bool = False, **pool_kwargs: Any) -> None:
-        pool_kwargs["source_address"] = self._source_address
-        self.poolmanager = PoolManager(
-            num_pools=connections,
-            maxsize=maxsize,
-            block=block,
-            **pool_kwargs,
-        )
-
-
 def get_active_interface_ip() -> tuple[str, str]:
     preferred = os.getenv("CHECKSHEETS_BYPASS_INTERFACE", "").strip()
     interfaces = [preferred] if preferred else ["en1", "en0"]
@@ -197,7 +179,7 @@ def create_session() -> requests.Session:
         return session
     try:
         interface, source_ip = get_active_interface_ip()
-        adapter = SourceAddressAdapter(source_ip)
+        adapter = SourceAddressAdapter(source_ip, interface_name=interface)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
         print(f"Ozon Performance route: {interface} ({source_ip})")

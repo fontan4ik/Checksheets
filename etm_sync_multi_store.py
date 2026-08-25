@@ -22,11 +22,10 @@ from xml.etree import ElementTree as ET
 
 import gspread
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.poolmanager import PoolManager
 
 import config
 import gsheets_utils
+from network_bypass import SourceAddressAdapter
 
 
 LOG_PATH = os.path.join(os.path.dirname(__file__), "logs", "etm_sync_multi.log")
@@ -159,23 +158,6 @@ logging.basicConfig(
 )
 
 
-class SourceAddressAdapter(HTTPAdapter):
-    """Compatibility helper used by etm_export_codes.py for the old ETM HTTP API."""
-
-    def __init__(self, source_ip, **kwargs):
-        self._source_address = (source_ip, 0)
-        super().__init__(**kwargs)
-
-    def init_poolmanager(self, connections, maxsize, block=False, **pool_kwargs):
-        pool_kwargs["source_address"] = self._source_address
-        self.poolmanager = PoolManager(
-            num_pools=connections,
-            maxsize=maxsize,
-            block=block,
-            **pool_kwargs,
-        )
-
-
 def enumerate_local_ipv4s():
     """Return usable local IPv4 candidates, preferring active LAN/Wi-Fi.
 
@@ -265,7 +247,19 @@ def create_etm_session():
     label, source_ip = choose_bypass_source()
     session = requests.Session()
     session.trust_env = False
-    adapter = SourceAddressAdapter(source_ip)
+    interface_name = label if label not in {"auto", "override"} else None
+    if interface_name is None:
+        for candidate in ("en1", "en0"):
+            output = subprocess.run(
+                ["/sbin/ifconfig", candidate],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout
+            if source_ip in output:
+                interface_name = candidate
+                break
+    adapter = SourceAddressAdapter(source_ip, interface_name=interface_name)
     session.mount("http://", adapter)
     session.mount("https://", adapter)
     logging.info("ETM HTTP bypass source: %s (%s)", label, source_ip)
