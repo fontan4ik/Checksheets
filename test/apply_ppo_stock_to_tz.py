@@ -14,11 +14,13 @@ SCOPES = [
 ]
 
 
-def article_key(value):
-    """Normalize PPO Q / ТЗ A while preserving alphanumeric article identity."""
+def article_key(value, strip_target_suffix=False):
+    """Normalize alphanumeric articles; strip the final package suffix only from ТЗ A."""
     text = str(value or "").strip().upper().replace("Ё", "Е")
     # ТЗ A contains a final marketplace/package suffix such as -1, -5, -10.
-    text = re.sub(r"-[0-9]+$", "", text)
+    # PPO Q must keep its own final numeric segments (e.g. E27-20).
+    if strip_target_suffix:
+        text = re.sub(r"-[0-9]+$", "", text)
     return re.sub(r"[^0-9A-ZА-Я]", "", text)
 
 
@@ -65,7 +67,7 @@ def main():
     target_rows_by_key = defaultdict(list)
     for row_number, row in enumerate(target_articles, start=2):
         article = row[0] if row else ""
-        key = article_key(article)
+        key = article_key(article, strip_target_suffix=True)
         if key:
             target_rows_by_key[key].append(row_number)
 
@@ -107,6 +109,10 @@ def main():
     print("target_article_rows", sum(len(v) for v in target_rows_by_key.values()))
     print("source_keys_covered_by_target", len(covered_keys))
     print("source_keys_missing_in_target", len(missing_keys))
+    print("source_total_stock", format_decimal(sum(source_totals.values(), Decimal("0"))))
+    print("covered_source_stock", format_decimal(sum(source_totals[key] for key in covered_keys)))
+    print("missing_source_stock", format_decimal(sum(source_totals[key] for key in missing_keys)))
+    print("missing_nonzero_keys", sum(1 for key in missing_keys if source_totals[key] != 0))
     print("missing_key_sample", sorted(missing_keys)[:20])
     print("formula_readback", formula_readback)
     print("aggregate_mismatches", mismatches)
