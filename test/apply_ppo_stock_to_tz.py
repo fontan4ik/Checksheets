@@ -74,35 +74,7 @@ def main():
     covered_keys = source_keys & target_keys
     missing_keys = source_keys - target_keys
 
-    formula = r'''={
-  "ОСТАТОК PPO";
-  ARRAYFORMULA(
-    IF(A2:A="";"";
-      IFERROR(
-        VLOOKUP(
-          REGEXREPLACE(
-            SUBSTITUTE(UPPER(REGEXREPLACE(TO_TEXT(A2:A);"-[0-9]+$";""));"Ё";"Е");
-            "[^0-9A-ZА-Я]";""
-          );
-          QUERY(
-            {
-              REGEXREPLACE(
-                SUBSTITUTE(UPPER(REGEXREPLACE(TO_TEXT(PPO!Q3:Q);"-[0-9]+$";""));"Ё";"Е");
-                "[^0-9A-ZА-Я]";""
-              )\
-              ARRAYFORMULA(IFERROR(NUMBERVALUE(TO_TEXT(PPO!P3:P);",";" ");0))
-            };
-            "select Col1, sum(Col2) where Col1 is not null group by Col1 label sum(Col2) ''";
-            0
-          );
-          2;
-          FALSE
-        );
-        0
-      )
-    )
-  )
-}'''
+    formula = r'''={"ОСТАТОК PPO";MAP(A2:A;LAMBDA(a;IF(a="";"";IFERROR(SUM(FILTER(ARRAYFORMULA(IFERROR(VALUE(SUBSTITUTE(PPO!P3:P;" ";""));0));REGEXREPLACE(SUBSTITUTE(UPPER(TO_TEXT(PPO!Q3:Q));"Ё";"Е");"[^0-9A-ZА-Я]";"")=REGEXREPLACE(SUBSTITUTE(UPPER(REGEXREPLACE(TO_TEXT(a);"-[0-9]+$";""));"Ё";"Е");"[^0-9A-ZА-Я]";"")));0))))}'''
 
     old_formula = target.get("AQ1", value_render_option="FORMULA")
     target.update("AQ1", [[formula]], raw=False)
