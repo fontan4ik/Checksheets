@@ -55,7 +55,6 @@ case "$SCRIPT_NAME" in
         ;;
     cdek_hourly_sync)
         echo "[$(date)] cdek_hourly_sync disabled by operator; no CDEK or Ozon stock translation" >> "$LOG_FILE"
-        exit 0
         ;;
     *)
         echo "[$(date)] Unknown script: $SCRIPT_NAME" >> "$LOG_FILE"
