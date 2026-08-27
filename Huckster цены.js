@@ -141,8 +141,11 @@ function hucksterCreateSession_() {
   }
 
   var hashResponse = hucksterFetchRaw_('/md5', { input: password }, null);
-  var hashPayload = hucksterParseJson_(hashResponse.getContentText(), 'md5');
-  var passwordHash = hucksterExtractPasswordHash_(hashPayload);
+  var hashCode = hashResponse.getResponseCode();
+  if (hashCode < 200 || hashCode >= 300) {
+    throw new Error('Huckster /md5 вернул HTTP ' + hashCode + '.');
+  }
+  var passwordHash = hucksterParseMd5Response_(hashResponse.getContentText());
   if (!passwordHash) {
     throw new Error('Huckster /md5 не вернул хэш пароля.');
   }
@@ -284,10 +287,28 @@ function hucksterFetchRaw_(path, payload, sessionId) {
 
 function hucksterParseJson_(text, label) {
   try {
-    return JSON.parse(text);
+    return JSON.parse(String(text).replace(/^\uFEFF/, '').trim());
   } catch (error) {
     throw new Error('Huckster вернул некорректный JSON (' + label + ').');
   }
+}
+
+function hucksterParseMd5Response_(text) {
+  var normalized = String(text === null || text === undefined ? '' : text)
+    .replace(/^\uFEFF/, '')
+    .trim();
+  if (!normalized) return '';
+
+  try {
+    var payload = JSON.parse(normalized);
+    var jsonHash = hucksterExtractPasswordHash_(payload);
+    if (jsonHash) return jsonHash;
+  } catch (error) {
+    // Некоторые ответы /md5 приходят как plain text вместо JSON-строки.
+  }
+
+  if (/^[a-f0-9]{32}$/i.test(normalized)) return normalized;
+  throw new Error('Huckster вернул некорректный JSON (md5).');
 }
 
 function hucksterExtractPasswordHash_(payload) {
