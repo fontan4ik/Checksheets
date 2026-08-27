@@ -20,6 +20,9 @@
 var HUCKSTER_API_BASE_URL = 'https://wbs.e-teleport.ru';
 var HUCKSTER_TARGET_SHEET_NAME = 'ТЕСТ';
 var HUCKSTER_MARKETPLACE = 'ozon';
+// Заполните эти два поля при необходимости. Реальные значения намеренно не хранятся в репозитории.
+var HUCKSTER_USER_NAME = '';
+var HUCKSTER_PASSWORD = '';
 var HUCKSTER_SKU_COLUMN = 22; // V: SKU Ozon
 var HUCKSTER_OFFER_ID_COLUMN = 1; // A: offer_id
 var HUCKSTER_CURRENT_PRICE_COLUMN = 66; // BN
@@ -180,8 +183,9 @@ function updateHucksterPrices() {
  */
 function hucksterCreateSession_() {
   var props = PropertiesService.getScriptProperties();
-  var userName = props.getProperty('HUCKSTER_USER_NAME');
-  var password = props.getProperty('HUCKSTER_PASSWORD');
+  // Незаполненные поля используют более безопасный резервный вариант — Script Properties.
+  var userName = HUCKSTER_USER_NAME || props.getProperty('HUCKSTER_USER_NAME');
+  var password = HUCKSTER_PASSWORD || props.getProperty('HUCKSTER_PASSWORD');
 
   if (!userName || !password) {
     throw new Error('Не заданы HUCKSTER_USER_NAME/HUCKSTER_PASSWORD в Script Properties.');
