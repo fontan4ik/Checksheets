@@ -37,7 +37,8 @@ These are uploaded to the Google Spreadsheet Script Editor environment:
 *   **`Ozon остатки FBO.js`** & **`Ozon склад Москва.js`** — Updates Ozon FBO & FBS inventory stocks.
 *   **`Ozon продажи FBO FBS.js`** — Analytical month/quarter sales reporting via Analytics API.
 *   **`Ozon цена.js`** — Updates active Ozon prices and discounts.
-*   **`Ozon заказы.js`** — Pulls orders and performance metrics from Seller API.
+*   **`Huckster цены.js`** — Read-only выгрузка текущей и рекомендуемой цены Huckster в BN:BO.
+*   **`Ozon заказы.js`** — Pulls orders and performance metrics from Ozon Seller API.
 *   **`Ozon реклама V3.js`** — Final optimized Ozon Performance Ads sync (Quantity, Revenue, Spend).
 *   **`Ozon Запись SKU.js`** — Maps product details to internal SKU lists.
 *   **`WB Артикулы.js`** — Fills Wildberries nmId columns based on catalog mapping.
@@ -120,6 +121,8 @@ These run on local servers or machines to update Google Sheets via the API:
 | **53** | **BA** | Реклама Количество | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |
 | **54** | **BB** | Реклама Стоимость | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |
 | **55** | **BC** | Реклама Расход | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |
+| **66** | **BN** | Текущая выставленная цена (Huckster `market_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
+| **67** | **BO** | Рекомендуемая цена (Huckster `upload_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
 
 ### FERON TR: source stock columns
 

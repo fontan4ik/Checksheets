@@ -48,7 +48,7 @@ context.hucksterAddRowKey_('SKU-1', 0, index);
 context.hucksterAddRowKey_(' sku-1 ', 1, index);
 context.hucksterAddRowKey_('', 2, index);
 context.hucksterAddRowKey_(null, 3, index);
-assert.deepStrictEqual(index['sku-1'], [0, 1]);
+assert.strictEqual(JSON.stringify(Array.from(index['sku-1'])), JSON.stringify([0, 1]));
 assert.strictEqual(index[''], undefined);
 
 console.log('test_huckster_prices: PASS');
