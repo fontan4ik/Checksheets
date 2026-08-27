@@ -191,8 +191,22 @@ async function readFeronStocksFromSheet(auth) {
   return stocks;
 }
 
-const wbToken =
-  "Bearer eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwOTA0djEiLCJ0eXAiOiJKV1QifQ.eyJhY2MiOjEsImVudCI6MSwiZXhwIjoxNzg2MDUyMTMxLCJpZCI6IjAxOWMyZDI4LTI0MzMtNzY2MC1iZDU4LTRlNjVhYzMwM2E0YiIsImlpZCI6MTk3ODU3MDksIm9pZCI6MTc3NTU3LCJzIjo3OTM0LCJzaWQiOiI2OGI4Mjg0Ni0wZDk0LTRiNDEtODQ1NC1kYzM1MzM0ODJjOWEiLCJ0IjpmYWxzZSwidWlkIjoxOTc4NTcwOX0.fZu3j3YZBrIIEAZ6KtuWjTZ7HfPS3sR8Z6vOdmfT5L8hpQmjvVq3zf9Io-2wXTifmda46JEKhCZafyUlTUfpdA";
+const WB_TOKEN_FILE =
+  process.env.WB_API_TOKEN_FILE ||
+  path.join(
+    process.env.HOME || "/Users/vladimirgrebennikov",
+    "AI agents",
+    "secrets",
+    "wb_api_token",
+  );
+
+const wbToken = (() => {
+  const rawToken = fs.readFileSync(WB_TOKEN_FILE, "utf8").trim();
+  if (!rawToken) throw new Error(`WB token file is empty: ${WB_TOKEN_FILE}`);
+  return rawToken.toLowerCase().startsWith("bearer ")
+    ? rawToken
+    : `Bearer ${rawToken}`;
+})();
 
 const wbHeaders = () => ({
   Authorization: wbToken,
