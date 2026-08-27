@@ -4,8 +4,8 @@
  * Заполняет лист "ТЕСТ":
  * - BN (66): текущая выставленная цена (upload_price)
  * - BO (67): рекомендуемая цена / РЦ для удержания (market_card_price)
- * - колонка с заголовком "СПП": скидка по карте (market_card_discount)
- * - колонка с заголовком "Мин. цена продажи": минимальная цена (min_price)
+ * - колонка с заголовком "СПП X": скидка по карте (market_card_discount)
+ * - колонка с заголовком "Мин цена продажи Х": минимальная цена (min_price)
  *
  * Источник: POST /markets/integrations/repricer/items/list
  * База API: https://wbs.e-teleport.ru
@@ -31,8 +31,8 @@ var HUCKSTER_SKU_COLUMN = 22; // V: SKU Ozon
 var HUCKSTER_OFFER_ID_COLUMN = 1; // A: offer_id
 var HUCKSTER_CURRENT_PRICE_COLUMN = 66; // BN
 var HUCKSTER_RECOMMENDED_PRICE_COLUMN = 67; // BO
-var HUCKSTER_SPP_HEADER = 'СПП';
-var HUCKSTER_MIN_PRICE_HEADERS = ['Мин. цена продажи', 'Минимальная цена продажи'];
+var HUCKSTER_SPP_HEADER = 'СПП X';
+var HUCKSTER_MIN_PRICE_HEADERS = 'Мин цена продажи Х';
 var HUCKSTER_PAGE_SIZE = 1000;
 
 /**
@@ -237,11 +237,11 @@ function hucksterResolveShopId_(session) {
  */
 function hucksterResolveTargetColumns_(sheet) {
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
-  var spp = hucksterFindHeaderColumn_(headers, [HUCKSTER_SPP_HEADER], 'СПП');
-  var minPrice = hucksterFindHeaderColumn_(headers, HUCKSTER_MIN_PRICE_HEADERS, 'Мин. цена продажи');
+  var spp = hucksterFindHeaderColumn_(headers, HUCKSTER_SPP_HEADER, 'СПП X');
+  var minPrice = hucksterFindHeaderColumn_(headers, HUCKSTER_MIN_PRICE_HEADERS, 'Мин цена продажи Х');
 
   if (spp === minPrice) {
-    throw new Error('Колонки СПП и Мин. цена продажи не должны совпадать.');
+    throw new Error('Колонки СПП X и Мин цена продажи Х не должны совпадать.');
   }
 
   return {
@@ -253,7 +253,8 @@ function hucksterResolveTargetColumns_(sheet) {
 }
 
 function hucksterFindHeaderColumn_(headers, aliases, label) {
-  var normalizedAliases = aliases.map(hucksterNormalizeHeader_);
+  var aliasList = Array.isArray(aliases) ? aliases : [aliases];
+  var normalizedAliases = aliasList.map(hucksterNormalizeHeader_);
   var matches = [];
 
   headers.forEach(function(header, index) {

@@ -64,11 +64,11 @@ assert.strictEqual(
 assert.strictEqual(context.hucksterColumnToLetter_(68), 'BP');
 assert.strictEqual(context.hucksterColumnToLetter_(69), 'BQ');
 assert.strictEqual(
-  context.hucksterFindHeaderColumn_(['Артикул', ' СПП ', 'Мин. цена продажи'], ['СПП'], 'СПП'),
+  context.hucksterFindHeaderColumn_(['Артикул', ' СПП X ', 'Мин цена продажи Х'], 'СПП X', 'СПП X'),
   2
 );
 assert.strictEqual(
-  context.hucksterFindHeaderColumn_(['Артикул', 'СПП', 'Минимальная цена продажи'], ['Мин. цена продажи', 'Минимальная цена продажи'], 'Мин. цена продажи'),
+  context.hucksterFindHeaderColumn_(['Артикул', 'СПП X', 'Мин цена продажи Х'], 'Мин цена продажи Х', 'Мин цена продажи Х'),
   3
 );
 
