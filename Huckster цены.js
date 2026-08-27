@@ -265,8 +265,8 @@ function hucksterFetchRaw_(path, payload, sessionId) {
     }
   };
   if (sessionId) {
-    // Huckster документирует исходящий заголовок именно как set-cookie.
-    options.headers['set-cookie'] = 'ss-id=' + String(sessionId);
+    // Фактический API принимает сессию в обычном request-заголовке Cookie.
+    options.headers.Cookie = 'ss-id=' + String(sessionId);
   }
 
   var maxAttempts = 4;

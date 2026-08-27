@@ -27,7 +27,9 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(source, context, { filename: sourcePath });
-context.hucksterFetchRaw_('/auth/credentials', {}, null);
+context.hucksterFetchRaw_('/auth/credentials', {}, 'test-session');
 
 assert.strictEqual(capturedOptions.headers.Accept, 'application/json');
+assert.strictEqual(capturedOptions.headers.Cookie, 'ss-id=test-session');
+assert.strictEqual(capturedOptions.headers['set-cookie'], undefined);
 console.log('test_huckster_api_headers: PASS');
