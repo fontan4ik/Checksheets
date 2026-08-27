@@ -260,7 +260,9 @@ function hucksterFetchRaw_(path, payload, sessionId) {
     contentType: 'application/json',
     muteHttpExceptions: true,
     payload: JSON.stringify(payload || {}),
-    headers: {}
+    headers: {
+      Accept: 'application/json'
+    }
   };
   if (sessionId) {
     // Huckster документирует исходящий заголовок именно как set-cookie.
