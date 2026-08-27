@@ -29,6 +29,17 @@ assert.strictEqual(context.hucksterToPrice_('1234,50'), 1234.5);
 assert.strictEqual(context.hucksterToPrice_(0), 0);
 assert.strictEqual(context.hucksterToPrice_(''), '');
 
+const sampleItem = {
+  uid: '039022(1)-1',
+  market_price: 4006,
+  upload_price: 5742,
+  market_card_price: 3606.03
+};
+assert.strictEqual(
+  JSON.stringify(context.hucksterMapPrices_(sampleItem)),
+  JSON.stringify({ displayedPrice: 5742, recommendedPrice: 3606.03 })
+);
+
 assert.strictEqual(
   context.hucksterExtractPasswordHash_('hashed-password'),
   'hashed-password'

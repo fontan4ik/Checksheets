@@ -14,14 +14,14 @@ API base URL: `https://wbs.e-teleport.ru`.
 3. `POST /markets/integrations/accounts/list` — определяет кабинеты и `shop_id`.
 4. `POST /markets/integrations/repricer/items/list` — получает товары стратегии «Удержание РРЦ».
 
-Документация указывает передачу сессии в исходящем заголовке `set-cookie: ss-id=<SessionId>`. В коде используется именно этот формат.
+Документация указывает `set-cookie: ss-id=<SessionId>`, но фактический API принимает авторизованный запрос через обычный request-заголовок `Cookie: ss-id=<SessionId>`.
 
 ## Маппинг в таблицу
 
 | Колонка | Поле Huckster | Смысл |
 |---|---|---|
-| BN (66) | `market_price` | текущая цена на маркетплейсе |
-| BO (67) | `upload_price` | цена, подготовленная/загруженная Huckster; используется как рекомендуемая |
+| BN (66) | `upload_price` | текущая выставленная/загруженная цена |
+| BO (67) | `market_card_price` | рекомендуемая цена / РЦ для удержания |
 
 Сопоставление товаров: сначала колонка V (`SKU Ozon`), затем колонка A (`offer_id`) как fallback. Обновляются только BN и BO листа `ТЕСТ`.
 

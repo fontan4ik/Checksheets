@@ -2,8 +2,8 @@
  * HUCKSTER REPRAISER: текущая и рекомендуемая цена Ozon
  *
  * Заполняет лист "ТЕСТ":
- * - BN (66): текущая цена на маркетплейсе (market_price)
- * - BO (67): рекомендуемая/подготовленная Huckster цена (upload_price)
+ * - BN (66): текущая выставленная цена (upload_price)
+ * - BO (67): рекомендуемая цена / РЦ для удержания (market_card_price)
  *
  * Источник: POST /markets/integrations/repricer/items/list
  * База API: https://wbs.e-teleport.ru
@@ -21,8 +21,8 @@ var HUCKSTER_API_BASE_URL = 'https://wbs.e-teleport.ru';
 var HUCKSTER_TARGET_SHEET_NAME = 'ТЕСТ';
 var HUCKSTER_MARKETPLACE = 'ozon';
 // Заполните эти два поля при необходимости. Реальные значения намеренно не хранятся в репозитории.
-var HUCKSTER_USER_NAME = 'ntc-es@yandex.ru';
-var HUCKSTER_PASSWORD = 'NTC-es-2023';
+var HUCKSTER_USER_NAME = '';
+var HUCKSTER_PASSWORD = '';
 var HUCKSTER_SHOP_ID = '142355_FBO';
 var HUCKSTER_SKU_COLUMN = 22; // V: SKU Ozon
 var HUCKSTER_OFFER_ID_COLUMN = 1; // A: offer_id
@@ -88,19 +88,20 @@ function updateHucksterPrices() {
       }
 
       matchedItems++;
-      var marketPrice = hucksterToPrice_(item.market_price);
-      var uploadPrice = hucksterToPrice_(item.upload_price);
+      var mappedPrices = hucksterMapPrices_(item);
+      var displayedPrice = mappedPrices.displayedPrice;
+      var recommendedPrice = mappedPrices.recommendedPrice;
 
       rows.forEach(function(index) {
         var changed = false;
         // Не затираем старое значение, если Huckster не вернул цену.
-        if (marketPrice !== '') {
-          if (currentValues[index][0] !== marketPrice) changed = true;
-          currentValues[index][0] = marketPrice;
+        if (displayedPrice !== '') {
+          if (currentValues[index][0] !== displayedPrice) changed = true;
+          currentValues[index][0] = displayedPrice;
         }
-        if (uploadPrice !== '') {
-          if (recommendedValues[index][0] !== uploadPrice) changed = true;
-          recommendedValues[index][0] = uploadPrice;
+        if (recommendedPrice !== '') {
+          if (recommendedValues[index][0] !== recommendedPrice) changed = true;
+          recommendedValues[index][0] = recommendedPrice;
         }
         if (changed) updatedRows++;
       });
@@ -340,6 +341,13 @@ function hucksterToPrice_(value) {
   var normalized = String(value).replace(',', '.').trim();
   var number = Number(normalized);
   return isFinite(number) && number >= 0 ? number : '';
+}
+
+function hucksterMapPrices_(item) {
+  return {
+    displayedPrice: hucksterToPrice_(item && item.upload_price),
+    recommendedPrice: hucksterToPrice_(item && item.market_card_price)
+  };
 }
 
 function hucksterSafeText_(value) {
