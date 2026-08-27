@@ -37,7 +37,39 @@ const sampleItem = {
 };
 assert.strictEqual(
   JSON.stringify(context.hucksterMapPrices_(sampleItem)),
-  JSON.stringify({ displayedPrice: 5742, recommendedPrice: 3606.03 })
+  JSON.stringify({
+    displayedPrice: 5742,
+    recommendedPrice: 3606.03,
+    spp: '',
+    minPrice: ''
+  })
+);
+
+const referenceItem = {
+  upload_price: 6573,
+  market_card_price: 4141.2,
+  market_card_discount: 5.08,
+  min_price: 5398
+};
+assert.strictEqual(
+  JSON.stringify(context.hucksterMapPrices_(referenceItem)),
+  JSON.stringify({
+    displayedPrice: 6573,
+    recommendedPrice: 4141.2,
+    spp: 5.08,
+    minPrice: 5398
+  })
+);
+
+assert.strictEqual(context.hucksterColumnToLetter_(68), 'BP');
+assert.strictEqual(context.hucksterColumnToLetter_(69), 'BQ');
+assert.strictEqual(
+  context.hucksterFindHeaderColumn_(['Артикул', ' СПП ', 'Мин. цена продажи'], ['СПП'], 'СПП'),
+  2
+);
+assert.strictEqual(
+  context.hucksterFindHeaderColumn_(['Артикул', 'СПП', 'Минимальная цена продажи'], ['Мин. цена продажи', 'Минимальная цена продажи'], 'Мин. цена продажи'),
+  3
 );
 
 assert.strictEqual(

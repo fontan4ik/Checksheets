@@ -121,8 +121,10 @@ These run on local servers or machines to update Google Sheets via the API:
 | **53** | **BA** | Реклама Количество | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |
 | **54** | **BB** | Реклама Стоимость | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |
 | **55** | **BC** | Реклама Расход | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |
-| **66** | **BN** | Текущая выставленная цена (Huckster `market_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
-| **67** | **BO** | Рекомендуемая цена (Huckster `upload_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
+| **66** | **BN** | Текущая выставленная цена (Huckster `upload_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
+| **67** | **BO** | Цена по карте / РЦ для удержания (Huckster `market_card_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
+| **по заголовку** | — | СПП (Huckster `market_card_discount`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
+| **по заголовку** | — | Мин. цена продажи (Huckster `min_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
 
 ### FERON TR: source stock columns
 
