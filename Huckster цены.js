@@ -23,63 +23,12 @@ var HUCKSTER_MARKETPLACE = 'ozon';
 // Заполните эти два поля при необходимости. Реальные значения намеренно не хранятся в репозитории.
 var HUCKSTER_USER_NAME = '';
 var HUCKSTER_PASSWORD = '';
+var HUCKSTER_SHOP_ID = '';
 var HUCKSTER_SKU_COLUMN = 22; // V: SKU Ozon
 var HUCKSTER_OFFER_ID_COLUMN = 1; // A: offer_id
 var HUCKSTER_CURRENT_PRICE_COLUMN = 66; // BN
 var HUCKSTER_RECOMMENDED_PRICE_COLUMN = 67; // BO
 var HUCKSTER_PAGE_SIZE = 1000;
-
-/**
- * Сохранить credentials в Script Properties.
- * Вызывать вручную в редакторе Apps Script после загрузки файла.
- * Значения и пароль намеренно не логируются.
- */
-function setHucksterCredentials(userName, password) {
-  if (!userName || !password) {
-    throw new Error('Нужно передать userName и password.');
-  }
-
-  PropertiesService.getScriptProperties().setProperties({
-    HUCKSTER_USER_NAME: String(userName).trim(),
-    HUCKSTER_PASSWORD: String(password)
-  }, false);
-
-  Logger.log('Credentials Huckster сохранены в Script Properties.');
-}
-
-/**
- * Необязательно: зафиксировать конкретный Ozon shop_id.
- * Если не задан, при одном кабинете Ozon он определяется автоматически.
- */
-function setHucksterShopId(shopId) {
-  if (!shopId || !String(shopId).trim()) {
-    throw new Error('Передайте непустой shop_id.');
-  }
-  PropertiesService.getScriptProperties().setProperty('HUCKSTER_SHOP_ID', String(shopId).trim());
-  Logger.log('HUCKSTER_SHOP_ID сохранён в Script Properties.');
-}
-
-/**
- * Read-only проверка авторизации и списка кабинетов.
- * Таблица не изменяется.
- */
-function checkHucksterConnection() {
-  var session = hucksterCreateSession_();
-  var accounts = hucksterAuthorizedJson_(session, '/markets/integrations/accounts/list', {});
-  var result = Array.isArray(accounts.result) ? accounts.result : [];
-
-  Logger.log('Huckster: авторизация успешна, кабинетов получено: ' + result.length);
-  result.forEach(function(account) {
-    Logger.log([
-      'Кабинет: marketplace=' + hucksterSafeText_(account.marketplace),
-      'shop=' + hucksterSafeText_(account.shop),
-      'shop_id=' + hucksterSafeText_(account.shop_id),
-      'delivery_method=' + hucksterSafeText_(account.delivery_method)
-    ].join(', '));
-  });
-
-  return result.length;
-}
 
 /**
  * Основной read/write запуск: получает данные Huckster и записывает BN:BO.
@@ -230,7 +179,7 @@ function hucksterAuthorizedJson_(session, path, payload) {
 }
 
 function hucksterResolveShopId_(session) {
-  var configuredShopId = PropertiesService.getScriptProperties().getProperty('HUCKSTER_SHOP_ID');
+  var configuredShopId = HUCKSTER_SHOP_ID || PropertiesService.getScriptProperties().getProperty('HUCKSTER_SHOP_ID');
   if (configuredShopId && String(configuredShopId).trim()) {
     return String(configuredShopId).trim();
   }
