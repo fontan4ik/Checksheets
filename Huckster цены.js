@@ -1,0 +1,372 @@
+/**
+ * HUCKSTER REPRAISER: текущая и рекомендуемая цена Ozon
+ *
+ * Заполняет лист "ТЕСТ":
+ * - BN (66): текущая цена на маркетплейсе (market_price)
+ * - BO (67): рекомендуемая/подготовленная Huckster цена (upload_price)
+ *
+ * Источник: POST /markets/integrations/repricer/items/list
+ * База API: https://wbs.e-teleport.ru
+ *
+ * ВАЖНО:
+ * - Методы только read-only; записи в Huckster/Ozon здесь нет.
+ * - Логин/пароль хранятся только в Script Properties Apps Script.
+ * - Для сопоставления используется V (22) — SKU Ozon; A (1) — fallback для
+ *   случаев, когда Huckster вернул артикул в формате offer_id.
+ * - Если в Huckster несколько кабинетов Ozon и HUCKSTER_SHOP_ID не задан,
+ *   функция остановится без записи и попросит выбрать кабинет.
+ */
+
+var HUCKSTER_API_BASE_URL = 'https://wbs.e-teleport.ru';
+var HUCKSTER_TARGET_SHEET_NAME = 'ТЕСТ';
+var HUCKSTER_MARKETPLACE = 'ozon';
+var HUCKSTER_SKU_COLUMN = 22; // V: SKU Ozon
+var HUCKSTER_OFFER_ID_COLUMN = 1; // A: offer_id
+var HUCKSTER_CURRENT_PRICE_COLUMN = 66; // BN
+var HUCKSTER_RECOMMENDED_PRICE_COLUMN = 67; // BO
+var HUCKSTER_PAGE_SIZE = 1000;
+
+/**
+ * Сохранить credentials в Script Properties.
+ * Вызывать вручную в редакторе Apps Script после загрузки файла.
+ * Значения и пароль намеренно не логируются.
+ */
+function setHucksterCredentials(userName, password) {
+  if (!userName || !password) {
+    throw new Error('Нужно передать userName и password.');
+  }
+
+  PropertiesService.getScriptProperties().setProperties({
+    HUCKSTER_USER_NAME: String(userName).trim(),
+    HUCKSTER_PASSWORD: String(password)
+  }, false);
+
+  Logger.log('Credentials Huckster сохранены в Script Properties.');
+}
+
+/**
+ * Необязательно: зафиксировать конкретный Ozon shop_id.
+ * Если не задан, при одном кабинете Ozon он определяется автоматически.
+ */
+function setHucksterShopId(shopId) {
+  if (!shopId || !String(shopId).trim()) {
+    throw new Error('Передайте непустой shop_id.');
+  }
+  PropertiesService.getScriptProperties().setProperty('HUCKSTER_SHOP_ID', String(shopId).trim());
+  Logger.log('HUCKSTER_SHOP_ID сохранён в Script Properties.');
+}
+
+/**
+ * Read-only проверка авторизации и списка кабинетов.
+ * Таблица не изменяется.
+ */
+function checkHucksterConnection() {
+  var session = hucksterCreateSession_();
+  var accounts = hucksterAuthorizedJson_(session, '/markets/integrations/accounts/list', {});
+  var result = Array.isArray(accounts.result) ? accounts.result : [];
+
+  Logger.log('Huckster: авторизация успешна, кабинетов получено: ' + result.length);
+  result.forEach(function(account) {
+    Logger.log([
+      'Кабинет: marketplace=' + hucksterSafeText_(account.marketplace),
+      'shop=' + hucksterSafeText_(account.shop),
+      'shop_id=' + hucksterSafeText_(account.shop_id),
+      'delivery_method=' + hucksterSafeText_(account.delivery_method)
+    ].join(', '));
+  });
+
+  return result.length;
+}
+
+/**
+ * Основной read/write запуск: получает данные Huckster и записывает BN:BO.
+ * Запись выполняется только в лист "ТЕСТ" и только в колонки BN/BO.
+ */
+function updateHucksterPrices() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error('Другой запуск updateHucksterPrices уже выполняется.');
+  }
+
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HUCKSTER_TARGET_SHEET_NAME);
+    if (!sheet) {
+      throw new Error('Не найден лист "' + HUCKSTER_TARGET_SHEET_NAME + '".');
+    }
+
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) {
+      Logger.log('Huckster: в листе нет строк товаров.');
+      return { rows: 0, matchedItems: 0, updatedRows: 0 };
+    }
+
+    var session = hucksterCreateSession_();
+    var shopId = hucksterResolveShopId_(session);
+    var items = hucksterLoadRepricerItems_(session, shopId);
+
+    var skuValues = sheet.getRange(2, HUCKSTER_SKU_COLUMN, lastRow - 1, 1).getDisplayValues();
+    var offerIdValues = sheet.getRange(2, HUCKSTER_OFFER_ID_COLUMN, lastRow - 1, 1).getDisplayValues();
+    var currentValues = sheet.getRange(2, HUCKSTER_CURRENT_PRICE_COLUMN, lastRow - 1, 1).getValues();
+    var recommendedValues = sheet.getRange(2, HUCKSTER_RECOMMENDED_PRICE_COLUMN, lastRow - 1, 1).getValues();
+
+    var skuRowIndex = {};
+    var offerIdRowIndex = {};
+    skuValues.forEach(function(row, index) {
+      hucksterAddRowKey_(row[0], index, skuRowIndex);
+    });
+    offerIdValues.forEach(function(row, index) {
+      hucksterAddRowKey_(row[0], index, offerIdRowIndex);
+    });
+
+    var matchedItems = 0;
+    var updatedRows = 0;
+    var unmatchedItems = 0;
+
+    items.forEach(function(item) {
+      var key = hucksterNormalizeKey_(item.sku);
+      // Основной ключ — V/SKU Ozon. A/offer_id используется только как fallback.
+      var rows = key && skuRowIndex[key] ? skuRowIndex[key] : [];
+      if (!rows.length && key && offerIdRowIndex[key]) {
+        rows = offerIdRowIndex[key];
+      }
+
+      if (!rows.length) {
+        unmatchedItems++;
+        return;
+      }
+
+      matchedItems++;
+      var marketPrice = hucksterToPrice_(item.market_price);
+      var uploadPrice = hucksterToPrice_(item.upload_price);
+
+      rows.forEach(function(index) {
+        var changed = false;
+        // Не затираем старое значение, если Huckster не вернул цену.
+        if (marketPrice !== '') {
+          if (currentValues[index][0] !== marketPrice) changed = true;
+          currentValues[index][0] = marketPrice;
+        }
+        if (uploadPrice !== '') {
+          if (recommendedValues[index][0] !== uploadPrice) changed = true;
+          recommendedValues[index][0] = uploadPrice;
+        }
+        if (changed) updatedRows++;
+      });
+    });
+
+    // Единственная запись в таблицу: только BN и BO, без изменения остальных колонок.
+    sheet.getRange(2, HUCKSTER_CURRENT_PRICE_COLUMN, lastRow - 1, 1).setValues(currentValues);
+    sheet.getRange(2, HUCKSTER_RECOMMENDED_PRICE_COLUMN, lastRow - 1, 1).setValues(recommendedValues);
+
+    var report = {
+      rows: lastRow - 1,
+      shopId: shopId,
+      hucksterItems: items.length,
+      matchedItems: matchedItems,
+      unmatchedItems: unmatchedItems,
+      updatedRows: updatedRows,
+      columns: 'BN:BO'
+    };
+    Logger.log('Huckster цены обновлены: ' + JSON.stringify(report));
+    return report;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Создаёт короткоживущую сессию Huckster.
+ * SessionId не сохраняется в Properties и не выводится в лог.
+ */
+function hucksterCreateSession_() {
+  var props = PropertiesService.getScriptProperties();
+  var userName = props.getProperty('HUCKSTER_USER_NAME');
+  var password = props.getProperty('HUCKSTER_PASSWORD');
+
+  if (!userName || !password) {
+    throw new Error('Не заданы HUCKSTER_USER_NAME/HUCKSTER_PASSWORD в Script Properties.');
+  }
+
+  var hashResponse = hucksterFetchRaw_('/md5', { input: password }, null);
+  var hashPayload = hucksterParseJson_(hashResponse.getContentText(), 'md5');
+  var passwordHash = hucksterExtractPasswordHash_(hashPayload);
+  if (!passwordHash) {
+    throw new Error('Huckster /md5 не вернул хэш пароля.');
+  }
+
+  var authResponse = hucksterFetchRaw_('/auth/credentials', {
+    userName: userName,
+    password: passwordHash
+  }, null);
+  var authPayload = hucksterParseJson_(authResponse.getContentText(), 'auth');
+  var sessionId = authPayload && authPayload.SessionId;
+  if (!sessionId) {
+    throw new Error('Huckster авторизация не вернула SessionId.');
+  }
+
+  return { id: String(sessionId) };
+}
+
+/**
+ * Выполнить авторизованный POST. При HTTP 401 повторно получает сессию один раз.
+ */
+function hucksterAuthorizedJson_(session, path, payload) {
+  var response = hucksterFetchRaw_(path, payload, session.id);
+  if (response.getResponseCode() === 401) {
+    var freshSession = hucksterCreateSession_();
+    session.id = freshSession.id;
+    response = hucksterFetchRaw_(path, payload, session.id);
+  }
+
+  var code = response.getResponseCode();
+  if (code < 200 || code >= 300) {
+    throw new Error('Huckster API ' + path + ' вернул HTTP ' + code + '.');
+  }
+  return hucksterParseJson_(response.getContentText(), path);
+}
+
+function hucksterResolveShopId_(session) {
+  var configuredShopId = PropertiesService.getScriptProperties().getProperty('HUCKSTER_SHOP_ID');
+  if (configuredShopId && String(configuredShopId).trim()) {
+    return String(configuredShopId).trim();
+  }
+
+  var accounts = hucksterAuthorizedJson_(session, '/markets/integrations/accounts/list', {});
+  var ozonAccounts = (Array.isArray(accounts.result) ? accounts.result : []).filter(function(account) {
+    return hucksterNormalizeKey_(account.marketplace) === HUCKSTER_MARKETPLACE;
+  });
+
+  var unique = {};
+  ozonAccounts.forEach(function(account) {
+    var id = account.shop_id === null || account.shop_id === undefined ? '' : String(account.shop_id).trim();
+    if (id) unique[id] = account;
+  });
+  var shopIds = Object.keys(unique);
+
+  if (shopIds.length === 1) return shopIds[0];
+  if (!shopIds.length) {
+    throw new Error('В Huckster не найден кабинет Ozon.');
+  }
+
+  throw new Error(
+    'В Huckster найдено несколько кабинетов Ozon. Задайте Script Property HUCKSTER_SHOP_ID. Доступные shop_id: ' +
+    shopIds.join(', ')
+  );
+}
+
+function hucksterLoadRepricerItems_(session, shopId) {
+  var items = [];
+  var offset = 0;
+  var total = null;
+  var maxPages = 100;
+
+  for (var page = 0; page < maxPages; page++) {
+    var payload = {
+      marketplace: HUCKSTER_MARKETPLACE,
+      shop_id: shopId,
+      limit: HUCKSTER_PAGE_SIZE,
+      offset: offset
+    };
+    var response = hucksterAuthorizedJson_(session, '/markets/integrations/repricer/items/list', payload);
+    var pageItems = Array.isArray(response.result) ? response.result : [];
+    var cursor = response.cursor || {};
+
+    if (total === null && cursor.total !== undefined && cursor.total !== null) {
+      total = Number(cursor.total);
+      if (!isFinite(total)) total = null;
+    }
+
+    items = items.concat(pageItems);
+    if (!pageItems.length) break;
+    if (total !== null && items.length >= total) break;
+    if (pageItems.length < HUCKSTER_PAGE_SIZE) break;
+
+    var nextOffset = offset + HUCKSTER_PAGE_SIZE;
+    if (cursor.offset !== undefined && Number(cursor.offset) === offset) {
+      nextOffset = offset + HUCKSTER_PAGE_SIZE;
+    }
+    if (nextOffset <= offset) {
+      throw new Error('Huckster pagination не продвигается.');
+    }
+    offset = nextOffset;
+  }
+
+  if (items.length >= HUCKSTER_PAGE_SIZE * maxPages) {
+    throw new Error('Huckster pagination превысила безопасный предел страниц.');
+  }
+  return items;
+}
+
+function hucksterFetchRaw_(path, payload, sessionId) {
+  var url = HUCKSTER_API_BASE_URL + path;
+  var options = {
+    method: 'post',
+    contentType: 'application/json',
+    muteHttpExceptions: true,
+    payload: JSON.stringify(payload || {}),
+    headers: {}
+  };
+  if (sessionId) {
+    // Huckster документирует исходящий заголовок именно как set-cookie.
+    options.headers['set-cookie'] = 'ss-id=' + String(sessionId);
+  }
+
+  var maxAttempts = 4;
+  for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      var response = UrlFetchApp.fetch(url, options);
+      var code = response.getResponseCode();
+      if (code !== 429 && code < 500) return response;
+      if (attempt === maxAttempts) return response;
+    } catch (error) {
+      if (attempt === maxAttempts) {
+        throw new Error('Не удалось выполнить запрос Huckster ' + path + '.');
+      }
+    }
+    Utilities.sleep(Math.pow(2, attempt - 1) * 1000);
+  }
+
+  throw new Error('Не удалось выполнить запрос Huckster ' + path + '.');
+}
+
+function hucksterParseJson_(text, label) {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw new Error('Huckster вернул некорректный JSON (' + label + ').');
+  }
+}
+
+function hucksterExtractPasswordHash_(payload) {
+  if (typeof payload === 'string') return payload.trim();
+  if (!payload || typeof payload !== 'object') return '';
+  var candidates = [payload.hash, payload.password, payload.result, payload.value];
+  for (var i = 0; i < candidates.length; i++) {
+    if (typeof candidates[i] === 'string' && candidates[i].trim()) return candidates[i].trim();
+  }
+  return '';
+}
+
+function hucksterNormalizeKey_(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).trim().toLowerCase();
+}
+
+function hucksterAddRowKey_(value, index, rowIndex) {
+  var key = hucksterNormalizeKey_(value);
+  if (!key) return;
+  if (!rowIndex[key]) rowIndex[key] = [];
+  if (rowIndex[key].indexOf(index) === -1) rowIndex[key].push(index);
+}
+
+function hucksterToPrice_(value) {
+  if (value === null || value === undefined || value === '') return '';
+  var normalized = String(value).replace(',', '.').trim();
+  var number = Number(normalized);
+  return isFinite(number) && number >= 0 ? number : '';
+}
+
+function hucksterSafeText_(value) {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/[\r\n]/g, ' ').substring(0, 200);
+}
