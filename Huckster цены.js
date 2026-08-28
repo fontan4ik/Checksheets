@@ -36,8 +36,8 @@ var HUCKSTER_MIN_PRICE_HEADERS = 'Мин цена продажи Х';
 var HUCKSTER_PAGE_SIZE = 1000;
 
 /**
- * Основной read/write запуск: получает данные Huckster и записывает BN:BO.
- * Запись выполняется только в лист "ТЕСТ" и только в колонки BN/BO.
+ * Основной read/write запуск: получает данные Huckster и записывает четыре
+ * согласованные колонки на листе "ТЕСТ".
  */
 function updateHucksterPrices() {
   var lock = LockService.getScriptLock();

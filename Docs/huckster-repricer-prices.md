@@ -30,7 +30,7 @@ API base URL: `https://wbs.e-teleport.ru`.
 ## Безопасность и запуск
 
 - Логин и пароль не находятся в репозитории и не выводятся в лог.
-- В начале `Huckster цены.js` есть пустые поля `HUCKSTER_USER_NAME`, `HUCKSTER_PASSWORD` и `HUCKSTER_SHOP_ID`; их можно заполнить вручную. Для логина/пароля при пустых inline-полях используются Script Properties с такими же ключами.
+- В начале `Huckster цены.js` поля `HUCKSTER_USER_NAME`, `HUCKSTER_PASSWORD` и `HUCKSTER_SHOP_ID` намеренно пустые. Все три значения задаются в Script Properties Apps Script с такими же ключами; секреты не записываются в исходный файл.
 - Если `HUCKSTER_SHOP_ID` пустой и кабинетов Ozon несколько, скрипт остановится без записи и попросит задать идентификатор.
 - Скрипт не вызывает методы `set`, `update` или `add` Huckster и не меняет цены на маркетплейсе.
 - Единственная функция верхнего уровня для ручного запуска: `updateHucksterPrices()`.
