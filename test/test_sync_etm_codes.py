@@ -69,10 +69,10 @@ class SyncEtmCodesTests(unittest.TestCase):
         )
 
         self.assertEqual([(u.row, u.code) for u in updates], [(2, "0007")])
-        self.assertEqual(stats["matched"], 2)
+        self.assertEqual(stats["matched"], 1)
         self.assertEqual(stats["changed"], 1)
-        self.assertEqual(stats["unchanged"], 1)
-        self.assertEqual(stats["unmatched"], 2)
+        self.assertEqual(stats["existing"], 3)
+        self.assertEqual(stats["unmatched"], 0)
 
     def test_a1_ranges_group_adjacent_rows(self):
         updates = [
@@ -111,7 +111,7 @@ class SyncEtmCodesTests(unittest.TestCase):
         rows = [
             ["art", "model", "brand", "Коды ЭТМ"],
             ["art-1", "unknown-model", "Brand", ""],
-            ["art-2", "model-2", "Brand", "old"],
+            ["art-2", "model-2", "Brand", ""],
         ]
         mapping = {
             ("art-1", "brand"): "100",
@@ -127,6 +127,24 @@ class SyncEtmCodesTests(unittest.TestCase):
 
         self.assertEqual([(item.row, item.code, item.matched_by) for item in updates], [(2, "100", "article")])
         self.assertEqual(stats["ambiguous"], 1)
+
+    def test_second_warehouse_only_sees_cells_left_blank_by_first(self):
+        rows = [
+            ["art", "model", "brand", "Коды ЭТМ"],
+            ["a", "m", "Brand", ""],
+        ]
+        columns = {"article": 1, "model": 2, "brand": 3, "etm_code": 4}
+        updates_13, stats_13 = module.plan_updates(
+            rows, columns, {("m", "brand"): "13-code"}
+        )
+        module._apply_updates_to_memory(rows, updates_13, 4)
+        updates_14, stats_14 = module.plan_updates(
+            rows, columns, {("m", "brand"): "14-code"}
+        )
+
+        self.assertEqual([(item.row, item.code) for item in updates_13], [(2, "13-code")])
+        self.assertEqual(updates_14, [])
+        self.assertEqual(stats_14["existing"], 1)
 
 
 if __name__ == "__main__":

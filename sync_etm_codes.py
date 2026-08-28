@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Актуализация кодов ЭТМ в листе ``ETM TR`` из FTP-выгрузки склада 13.
+"""Ежедневное заполнение пустых кодов ЭТМ в листе ``ETM TR``.
 
-По умолчанию скрипт читает последнюю актуальную ``price.csv`` из
-``/from_etm/13``.  Строки листа сопоставляются по ``бренд + модель`` и, если
-модель не нашлась, по ``бренд + артикул``.  В Google Sheets изменяются только
-совпавшие строки, где код действительно отличается; остальные значения не
-трогаются.
+Production-путь читает актуальные ``price.csv`` сначала из ``/from_etm/13``,
+затем из ``/from_etm/14``. На каждом проходе учитываются только пустые ячейки
+колонки ``W`` (заголовок ``Коды ЭТМ``); любое уже непустое значение не меняется.
+Строки сопоставляются по ``бренд + модель`` и, если модель не нашлась, по
+``бренд + артикул``.
 
-Без ``--write`` скрипт работает в dry-run.  Для локальной проверки можно
+Без ``--write`` скрипт работает в dry-run. Для локальной проверки можно
 передать ``--csv`` с CSV-файлом, имеющим колонки ``Код ЭТМ;Артикул;
 Производитель``.
 """
@@ -52,7 +52,10 @@ FTP_USER = os.getenv("ETM_FTP_USER", getattr(config, "ETM_FTP_USER", "u_energose
 FTP_PASSWORD = os.getenv("ETM_FTP_PASSWORD", getattr(config, "ETM_FTP_PASSWORD", ""))
 FTP_TLS_MODE = os.getenv("ETM_FTP_TLS", getattr(config, "ETM_FTP_TLS", "disable")).strip().lower()
 FTP_TIMEOUT = int(os.getenv("ETM_FTP_TIMEOUT", "60"))
-FTP_REMOTE_DIR = os.getenv("ETM_FTP_CODES_DIR", "/from_etm/13")
+FTP_REMOTE_DIRS = (
+    os.getenv("ETM_FTP_CODES_DIR_13", "/from_etm/13"),
+    os.getenv("ETM_FTP_CODES_DIR_14", "/from_etm/14"),
+)
 FTP_LOCAL_ROOT = Path(
     os.getenv(
         "ETM_FTP_LOCAL_ROOT",
@@ -217,13 +220,14 @@ def plan_updates(
     columns: dict[str, int],
     mapping: dict[tuple[str, str], str],
 ) -> tuple[list[Update], dict[str, int]]:
-    """Планировать только безопасные изменения в колонке кода ЭТМ."""
+    """Планировать заполнение только пустых ячеек кода ЭТМ."""
     updates: list[Update] = []
     stats = {
         "sheet_rows": max(len(sheet_rows) - 1, 0),
         "matched": 0,
         "changed": 0,
         "unchanged": 0,
+        "existing": 0,
         "unmatched": 0,
         "ambiguous": 0,
         "missing_keys": 0,
@@ -233,6 +237,12 @@ def plan_updates(
         def value(logical_name: str) -> str:
             column = columns[logical_name]
             return str(row[column - 1]).strip() if len(row) >= column else ""
+
+        # Критическое правило: любое непустое значение в W считается уже
+        # заполненным. Не пытаемся нормализовать или перезаписывать его.
+        if value("etm_code"):
+            stats["existing"] += 1
+            continue
 
         article = value("article")
         model = value("model")
@@ -268,10 +278,6 @@ def plan_updates(
 
         matched_by, code = found[0]
         stats["matched"] += 1
-        current = normalize_code(value("etm_code"))
-        if current == code:
-            stats["unchanged"] += 1
-            continue
         stats["changed"] += 1
         updates.append(Update(row_number, code, model, article, brand, matched_by))
 
@@ -461,19 +467,21 @@ def _save_state(state: dict) -> None:
     temporary.replace(FTP_STATE_PATH)
 
 
-def fetch_ftp_source(force: bool = False) -> tuple[bytes, FtpFile] | None:
+def fetch_ftp_source(remote_dir: str, force: bool = False) -> tuple[bytes, FtpFile] | None:
+    # ``force`` оставлен для совместимости с ручными командами. В режиме
+    # заполнения только пустых ячеек файл читается каждый день даже если его
+    # fingerprint уже встречался: в таблице могли появиться новые пустые W.
+    del force
     ftp = None
     try:
         ftp = connect_ftp()
-        ftp_file = select_ftp_file(list_ftp_files(ftp, FTP_REMOTE_DIR))
+        ftp_file = select_ftp_file(list_ftp_files(ftp, remote_dir))
         if ftp_file is None:
-            return None
-        state = _load_state()
-        if not force and state.get("file") == _fingerprint(ftp_file):
-            logging.info("FTP-файл уже обработан: %s", ftp_file.remote_path)
+            logging.warning("Для FTP-каталога %s нет подходящего файла", remote_dir)
             return None
         logging.info(
-            "Загрузка FTP-файла склада 13: %s, size=%s, modified=%s",
+            "Загрузка FTP-файла склада %s: %s, size=%s, modified=%s",
+            remote_dir.rstrip("/").split("/")[-1],
             ftp_file.remote_path,
             ftp_file.size,
             ftp_file.modified,
@@ -487,6 +495,15 @@ def fetch_ftp_source(force: bool = False) -> tuple[bytes, FtpFile] | None:
                 ftp.close()
 
 
+def _apply_updates_to_memory(sheet_rows: list[list[str]], updates: Iterable[Update], code_column: int) -> None:
+    """Отметить в памяти коды из склада 13 перед проходом склада 14."""
+    for item in updates:
+        row = sheet_rows[item.row - 1]
+        if len(row) < code_column:
+            row.extend([""] * (code_column - len(row)))
+        row[code_column - 1] = item.code
+
+
 def run(
     csv_path: str | Path | None = None,
     *,
@@ -494,16 +511,32 @@ def run(
     force: bool = False,
     sample_size: int = 10,
 ) -> int:
-    if csv_path is None:
-        source = fetch_ftp_source(force=force)
-        if source is None:
-            logging.info("Новых FTP-данных нет; Google Sheets не изменялись")
-            return 0
-        content, ftp_file = source
-        mapping, source_stats = load_mapping_from_bytes(content, ftp_file.remote_path)
-    else:
-        ftp_file = None
+    # Для ручного --csv оставляем один источник. Production-путь всегда
+    # проходит источники в порядке 13 -> 14.
+    sources: list[tuple[str, bytes, FtpFile | None]] = []
+    failures: list[str] = []
+    if csv_path is not None:
         mapping, source_stats = load_csv_mapping(csv_path)
+        sources.append((f"CSV {resolve_csv_path(csv_path).name}", b"", None))
+        csv_source = (mapping, source_stats)
+    else:
+        csv_source = None
+        for remote_dir in FTP_REMOTE_DIRS:
+            warehouse = remote_dir.rstrip("/").split("/")[-1]
+            try:
+                source = fetch_ftp_source(remote_dir, force=force)
+            except Exception as exc:
+                failures.append(f"склад {warehouse}: {exc}")
+                logging.exception("Ошибка загрузки FTP склада %s", warehouse)
+                continue
+            if source is None:
+                failures.append(f"склад {warehouse}: подходящий файл не найден")
+                continue
+            content, ftp_file = source
+            sources.append((f"склад {warehouse}", content, ftp_file))
+
+    if not sources:
+        raise RuntimeError("Не удалось получить ни одного источника ETM: " + "; ".join(failures))
 
     ws = gsheets_utils.get_worksheet(SHEET_NAME)
     sheet_rows = gsheets_utils._retry_gsheet_call(
@@ -513,50 +546,72 @@ def run(
     if not sheet_rows:
         raise RuntimeError(f"Лист {SHEET_NAME!r} пустой")
     columns = gsheets_utils.resolve_header_columns(sheet_rows[0], SHEET_SCHEMA, SHEET_NAME)
-    updates, sheet_stats = plan_updates(sheet_rows, columns, mapping)
 
-    logging.info(
-        "Источник: строк=%s, уникальных пар=%s, дубликатов=%s, пустых строк=%s, конфликтных пар=%s",
-        source_stats["source_rows"],
-        source_stats["mapping_keys"],
-        source_stats["duplicate_rows"],
-        source_stats["empty_rows"],
-        source_stats["conflict_keys"],
-    )
-    logging.info(
-        "ETM TR: строк=%s, совпало=%s, изменится=%s, без изменений=%s, "
-        "без совпадения=%s, неоднозначных=%s, без ключа=%s",
-        sheet_stats["sheet_rows"],
-        sheet_stats["matched"],
-        sheet_stats["changed"],
-        sheet_stats["unchanged"],
-        sheet_stats["unmatched"],
-        sheet_stats["ambiguous"],
-        sheet_stats["missing_keys"],
-    )
-    for item in updates[:max(sample_size, 0)]:
+    all_updates: list[Update] = []
+    processed_files: dict[str, dict[str, object]] = {}
+    for source_label, content, ftp_file in sources:
+        if csv_source is not None:
+            mapping, source_stats = csv_source
+        else:
+            assert ftp_file is not None
+            mapping, source_stats = load_mapping_from_bytes(content, ftp_file.remote_path)
+        updates, source_sheet_stats = plan_updates(sheet_rows, columns, mapping)
         logging.info(
-            "Пример изменения: строка %s, matched_by=%s, model=%r, article=%r, brand=%r -> код=%s",
-            item.row,
-            item.matched_by,
-            item.model,
-            item.article,
-            item.brand,
-            item.code,
+            "%s: источник строк=%s, уникальных пар=%s, дубликатов=%s, пустых строк=%s, конфликтных пар=%s",
+            source_label,
+            source_stats["source_rows"],
+            source_stats["mapping_keys"],
+            source_stats["duplicate_rows"],
+            source_stats["empty_rows"],
+            source_stats["conflict_keys"],
         )
+        logging.info(
+            "%s: ETM TR строк=%s, совпало=%s, будет заполнено=%s, уже заполнено=%s, "
+            "без совпадения=%s, неоднозначных=%s, без ключа=%s",
+            source_label,
+            source_sheet_stats["sheet_rows"],
+            source_sheet_stats["matched"],
+            source_sheet_stats["changed"],
+            source_sheet_stats["existing"],
+            source_sheet_stats["unmatched"],
+            source_sheet_stats["ambiguous"],
+            source_sheet_stats["missing_keys"],
+        )
+        for item in updates[:max(sample_size, 0)]:
+            logging.info(
+                "Пример заполнения: %s, строка %s, matched_by=%s, model=%r, article=%r, brand=%r -> код=%s",
+                source_label,
+                item.row,
+                item.matched_by,
+                item.model,
+                item.article,
+                item.brand,
+                item.code,
+            )
+        all_updates.extend(updates)
+        if ftp_file is not None:
+            processed_files[source_label] = _fingerprint(ftp_file)
+        # После склада 13 эти ячейки становятся непустыми в памяти и не могут
+        # быть повторно выбраны складом 14.
+        _apply_updates_to_memory(sheet_rows, updates, columns["etm_code"])
 
     if not write:
         logging.info("Dry-run: Google Sheets не изменялись. Для записи используйте --write.")
-        return 0
+        return 1 if failures else 0
 
-    range_count = update_sheet(ws, updates, columns["etm_code"])
-    if ftp_file is not None:
+    range_count = update_sheet(ws, all_updates, columns["etm_code"])
+    if processed_files:
         state = _load_state()
-        state["file"] = _fingerprint(ftp_file)
+        state["files"] = processed_files
         state["processed_at"] = datetime.now(timezone.utc).isoformat()
         _save_state(state)
-    logging.info("Запись завершена: изменено строк=%s, диапазонов=%s", len(updates), range_count)
-    return 0
+    logging.info(
+        "Запись завершена: заполнено пустых кодов=%s, диапазонов=%s, ошибок источников=%s",
+        len(all_updates),
+        range_count,
+        len(failures),
+    )
+    return 1 if failures else 0
 
 
 def parse_args() -> argparse.Namespace:
