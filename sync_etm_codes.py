@@ -301,16 +301,32 @@ def a1_ranges(updates: Iterable[Update], column: int) -> list[tuple[str, list[li
 
 def update_sheet(ws, updates: list[Update], code_column: int) -> int:
     ranges = a1_ranges(updates, code_column)
-    for range_name, values in ranges:
-        logging.info("Запись %s строк в диапазон %s", len(values), range_name)
-        gsheets_utils._retry_gsheet_call(
-            f"update ETM codes {range_name}",
-            lambda range_name=range_name, values=values: ws.update(
-                range_name=range_name,
-                values=values,
-                value_input_option="USER_ENTERED",
-            ),
+    if not ranges:
+        return 0
+
+    total_rows = sum(len(values) for _, values in ranges)
+    logging.info(
+        "Пакетная запись %s строк в %s диапазонах одним запросом Google Sheets",
+        total_rows,
+        len(ranges),
+    )
+
+    # Worksheet.batch_update использует один values.batchUpdate request. Важно
+    # создавать payload внутри lambda: gspread дописывает имя листа в range,
+    # и повторная попытка не должна получить двойной префикс листа.
+    def send_batch():
+        return ws.batch_update(
+            [{"range": range_name, "values": values} for range_name, values in ranges],
+            raw=False,
+            value_input_option="USER_ENTERED",
         )
+
+    gsheets_utils._retry_gsheet_call(
+        "batch update ETM codes",
+        send_batch,
+        max_attempts=6,
+        base_delay=5.0,
+    )
     return len(ranges)
 
 
