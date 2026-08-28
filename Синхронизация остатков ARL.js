@@ -32,8 +32,6 @@ const COL_CHRT_ID = 10;       // J - chrtId для WB API
 const COL_STOCK = 9;         // I - Остаток для выгрузки
 const COL_PRICE = 16;        // P - Выставляемая цена для выгрузки
 
-const ARL_MIN_STOCK_THRESHOLD = 5; // Минимальный остаток для выгрузки (> 4)
-
 // Задержки пост-проверки Ozon (из sync-etm-stocks.js)
 const ARL_OZON_POSTCHECK_DELAY_MS = 30000;       // 30 сек перед первой пост-проверкой
 const ARL_OZON_POSTCHECK_RETRY_DELAY_MS = 60000;  // 60 сек перед повторной проверкой
@@ -130,13 +128,10 @@ function readARLStocksFromSheet() {
       continue;
     }
 
-    let stock = parseInt(stockForUpload) || 0;
-
-    // Применяем порог: если остаток < ARL_MIN_STOCK_THRESHOLD, выгружаем 0
+    // Передаём фактический остаток без минимального порога.
+    // Значения 1–4 больше не обнуляются перед выгрузкой на маркетплейсы.
+    const stock = parseInt(stockForUpload) || 0;
     const originalStock = stock;
-    if (stock < ARL_MIN_STOCK_THRESHOLD) {
-      stock = 0;
-    }
 
     // Очистка цен от пробелов и валют
     const priceOzon = Math.floor(parseFloat(String(priceOzonVal).replace(/[^0-9.,]/g, '').replace(',', '.'))) || 0;
@@ -153,12 +148,12 @@ function readARLStocksFromSheet() {
     });
   }
 
-  const aboveThreshold = stocks.filter(s => s.original_stock >= ARL_MIN_STOCK_THRESHOLD).length;
-  const belowThreshold = stocks.filter(s => s.original_stock > 0 && s.original_stock < ARL_MIN_STOCK_THRESHOLD).length;
+  const withStock = stocks.filter(s => s.original_stock > 0).length;
+  const withoutStock = stocks.filter(s => s.original_stock <= 0).length;
 
   Logger.log(`📊 Прочитано ${stocks.length} товаров из листа "${ARL_SHEET_NAME}"`);
-  Logger.log(`   С остатком >= ${ARL_MIN_STOCK_THRESHOLD}: ${aboveThreshold}`);
-  Logger.log(`   С остатком < ${ARL_MIN_STOCK_THRESHOLD} (будет 0): ${belowThreshold}`);
+  Logger.log(`   С остатком > 0: ${withStock}`);
+  Logger.log(`   С остатком = 0: ${withoutStock}`);
   Logger.log(`   С chrtId: ${stocks.filter(s => s.chrt_id).length}`);
   Logger.log(`   С ценой Ozon > 0: ${stocks.filter(s => s.price_ozon > 0).length}`);
   Logger.log(`   С ценой WB > 0: ${stocks.filter(s => s.price_wb > 0).length}`);
