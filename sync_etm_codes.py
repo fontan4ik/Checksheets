@@ -52,10 +52,15 @@ FTP_USER = os.getenv("ETM_FTP_USER", getattr(config, "ETM_FTP_USER", "u_energose
 FTP_PASSWORD = os.getenv("ETM_FTP_PASSWORD", getattr(config, "ETM_FTP_PASSWORD", ""))
 FTP_TLS_MODE = os.getenv("ETM_FTP_TLS", getattr(config, "ETM_FTP_TLS", "disable")).strip().lower()
 FTP_TIMEOUT = int(os.getenv("ETM_FTP_TIMEOUT", "60"))
-FTP_REMOTE_DIRS = (
-    os.getenv("ETM_FTP_CODES_DIR_13", "/from_etm/13"),
-    os.getenv("ETM_FTP_CODES_DIR_14", "/from_etm/14"),
-)
+_legacy_ftp_dir = os.getenv("ETM_FTP_CODES_DIR")
+if _legacy_ftp_dir:
+    # Обратная совместимость для ручных диагностических запусков -- один каталог.
+    FTP_REMOTE_DIRS = (_legacy_ftp_dir,)
+else:
+    FTP_REMOTE_DIRS = (
+        os.getenv("ETM_FTP_CODES_DIR_13", "/from_etm/13"),
+        os.getenv("ETM_FTP_CODES_DIR_14", "/from_etm/14"),
+    )
 FTP_LOCAL_ROOT = Path(
     os.getenv(
         "ETM_FTP_LOCAL_ROOT",
