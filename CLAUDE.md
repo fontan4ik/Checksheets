@@ -37,7 +37,7 @@ These are uploaded to the Google Spreadsheet Script Editor environment:
 *   **`Ozon остатки FBO.js`** & **`Ozon склад Москва.js`** — Updates Ozon FBO & FBS inventory stocks.
 *   **`Ozon продажи FBO FBS.js`** — Analytical month/quarter sales reporting via Analytics API.
 *   **`Ozon цена.js`** — Updates active Ozon prices and discounts.
-*   **`Huckster цены.js`** — Read-only выгрузка текущей и рекомендуемой цены Huckster в BN:BO.
+*   **`Huckster цены.js`** — Read-only выгрузка текущей и рекомендуемой цены Huckster в BN:BO и ручная запись цен из `ARL TR` в Huckster.
 *   **`Ozon заказы.js`** — Pulls orders and performance metrics from Ozon Seller API.
 *   **`Ozon реклама V3.js`** — Final optimized Ozon Performance Ads sync (Quantity, Revenue, Spend).
 *   **`Ozon Запись SKU.js`** — Maps product details to internal SKU lists.
@@ -122,6 +122,14 @@ These run on local servers or machines to update Google Sheets via the API:
 | **67** | **BO** | Цена по карте / РЦ для удержания (Huckster `market_card_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
 | **по заголовку** | — | Цена на витрине с картой Х (Huckster `market_card_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
 | **по заголовку** | — | Мин цена продажи Х (Huckster `min_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
+
+### ARL TR: Huckster price source columns
+
+| Column | Header | Huckster target | Function |
+|---|---|---|---|
+| U (21) | `МИНИМАЛЬНАЯ ХАКСТЕР` | `min_price` via `repricer/items/set` | `syncHucksterPricesFromArlTr()` |
+| W (23) | `ВЫСТАВЛЯЕМАЯ ХАКСТЕР` | `retail_price` via `catalog_updatePrice` | `syncHucksterPricesFromArlTr()` |
+| X (24) | `РЦ ХАКСТЕР` | additional type `РЦ Озон` via `markets/items/prices/update` | `syncHucksterPricesFromArlTr()` |
 
 ### FERON TR: source stock columns
 
