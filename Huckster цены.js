@@ -1,5 +1,5 @@
 /**
- * HUCKSTER REPRAISER: цены на витрине и минимальная цена Ozon
+ * HUCKSTER REPRAISER: чтение цен и запись цен из листа ARL TR
  *
  * Заполняет лист "ТЕСТ":
  * - BN (66): текущая выставленная цена (upload_price)
@@ -11,7 +11,8 @@
  * База API: https://wbs.e-teleport.ru
  *
  * ВАЖНО:
- * - Методы только read-only; записи в Huckster/Ozon здесь нет.
+ * - updateHucksterPrices() — read-only выгрузка цен Huckster в лист "ТЕСТ".
+ * - syncHucksterPricesFromArlTr() — запись цен из "ARL TR" в Huckster.
  * - Логин/пароль хранятся только в Script Properties Apps Script.
  * - Для сопоставления используется V (22) — SKU Ozon; A (1) — fallback для
  *   случаев, когда Huckster вернул артикул в формате offer_id.
@@ -24,9 +25,9 @@ var HUCKSTER_API_BASE_URL = 'https://wbs.e-teleport.ru';
 var HUCKSTER_TARGET_SHEET_NAME = 'ТЕСТ';
 var HUCKSTER_MARKETPLACE = 'ozon';
 // Секреты и shop_id задаются только через Script Properties Apps Script.
-var HUCKSTER_USER_NAME = 'ntc-es@yandex.ru';
-var HUCKSTER_PASSWORD = 'NTC-es-2023';
-var HUCKSTER_SHOP_ID = '142355_FBO';
+var HUCKSTER_USER_NAME = '';
+var HUCKSTER_PASSWORD = '';
+var HUCKSTER_SHOP_ID = '';
 var HUCKSTER_SKU_COLUMN = 22; // V: SKU Ozon
 var HUCKSTER_OFFER_ID_COLUMN = 1; // A: offer_id
 var HUCKSTER_CURRENT_PRICE_COLUMN = 66; // BN
@@ -34,6 +35,13 @@ var HUCKSTER_RECOMMENDED_PRICE_COLUMN = 67; // BO
 var HUCKSTER_MARKET_CARD_PRICE_HEADER = 'Цена на витрине с картой Х';
 var HUCKSTER_MIN_PRICE_HEADERS = 'Мин цена продажи Х';
 var HUCKSTER_PAGE_SIZE = 1000;
+var HUCKSTER_WRITE_BATCH_SIZE = 100;
+var HUCKSTER_ARL_SHEET_NAME = 'ARL TR';
+var HUCKSTER_ARL_VENDOR_CODE_COLUMN = 1; // A: Артикул продавца / offer_id
+var HUCKSTER_ARL_MIN_PRICE_COLUMN = 21; // U: МИНИМАЛЬНАЯ ХАКСТЕР
+var HUCKSTER_ARL_LISTED_PRICE_COLUMN = 23; // W: ВЫСТАВЛЯЕМАЯ ХАКСТЕР
+var HUCKSTER_ARL_RRC_PRICE_COLUMN = 24; // X: РЦ ХАКСТЕР
+var HUCKSTER_RRC_PRICE_TYPE_NAME = 'РЦ Озон';
 
 /**
  * Основной read/write запуск: получает данные Huckster и записывает четыре
@@ -148,6 +156,240 @@ function updateHucksterPrices() {
 }
 
 /**
+ * Записывает цены из листа "ARL TR" в Huckster.
+ *
+ * Маппинг по документации Huckster:
+ * - U / МИНИМАЛЬНАЯ ХАКСТЕР -> min_price в repricer/items/set;
+ * - W / ВЫСТАВЛЯЕМАЯ ХАКСТЕР -> retail_price в catalog_updatePrice;
+ * - X / РЦ ХАКСТЕР -> retail_price дополнительного типа "РЦ Озон"
+ *   через markets/items/prices/update.
+ *
+ * Функция отдельная от read-only updateHucksterPrices() и не вызывается
+ * автоматически: запись в Huckster выполняется только ручным запуском.
+ */
+function syncHucksterPricesFromArlTr() {
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error('Другой запуск Huckster уже выполняется.');
+  }
+
+  try {
+    var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = spreadsheet.getSheetByName(HUCKSTER_ARL_SHEET_NAME);
+    if (!sheet) {
+      throw new Error('Не найден лист "' + HUCKSTER_ARL_SHEET_NAME + '".');
+    }
+
+    var sourceRows = hucksterReadArlPriceRows_(sheet);
+    if (!sourceRows.length) {
+      Logger.log('Huckster: в ARL TR нет строк с ценами для записи.');
+      return { sourceRows: 0, matchedItems: 0, unmatchedRows: 0, written: 0 };
+    }
+
+    var session = hucksterCreateSession_();
+    var shopId = hucksterResolveShopId_(session);
+    var repricerItems = hucksterLoadRepricerItems_(session, shopId);
+    var itemIndex = hucksterIndexItemsByKey_(repricerItems);
+    var matched = [];
+    var unmatchedRows = 0;
+
+    sourceRows.forEach(function(source) {
+      var candidates = itemIndex[source.key] || [];
+      if (candidates.length !== 1) {
+        unmatchedRows++;
+        return;
+      }
+      matched.push({ source: source, item: candidates[0] });
+    });
+
+    if (!matched.length) {
+      throw new Error('Ни одна строка ARL TR не сопоставлена с товаром Huckster.');
+    }
+
+    var minUpdates = [];
+    var catalogUpdates = [];
+    var rrcUpdates = [];
+    matched.forEach(function(pair) {
+      var source = pair.source;
+      var item = pair.item;
+      if (source.minPrice !== '' && source.minPrice !== hucksterToPrice_(item.min_price)) {
+        minUpdates.push(hucksterBuildRepricerUpdate_(item, source.minPrice));
+      }
+      if (source.listedPrice !== '') {
+        catalogUpdates.push({ uid: String(item.uid), retail_price: source.listedPrice });
+      }
+      if (source.rrcPrice !== '') {
+        rrcUpdates.push({ uid: String(item.uid), retail_price: source.rrcPrice });
+      }
+    });
+
+    // catalog_updatePrice требует также текущую закупочную цену.
+    if (catalogUpdates.length) {
+      var catalogItems = hucksterLoadCatalogItems_(session, hucksterGetUserName_());
+      var catalogByUid = {};
+      catalogItems.forEach(function(catalogItem) {
+        if (catalogItem && catalogItem.uid !== undefined && catalogItem.uid !== null) {
+          catalogByUid[String(catalogItem.uid)] = catalogItem;
+        }
+      });
+      catalogUpdates = catalogUpdates.map(function(update) {
+        var catalogItem = catalogByUid[update.uid];
+        if (!catalogItem || hucksterToPrice_(catalogItem.price) === '') {
+          throw new Error('Не найдена закупочная цена товара Huckster uid=' + update.uid + '.');
+        }
+        return {
+          uid: update.uid,
+          price: hucksterToPrice_(catalogItem.price),
+          retail_price: update.retail_price
+        };
+      });
+    }
+
+    var rrcPriceTypeId = '';
+    if (rrcUpdates.length) {
+      rrcPriceTypeId = hucksterResolveRrcPriceTypeId_(session);
+      rrcUpdates = rrcUpdates.map(function(update) {
+        return {
+          uid: update.uid,
+          price_type_id: rrcPriceTypeId,
+          retail_price: update.retail_price
+        };
+      });
+    }
+
+    var written = 0;
+    written += hucksterWriteBatches_(session, '/markets/integrations/repricer/items/set', function(batch) {
+      return { marketplace: HUCKSTER_MARKETPLACE, shop_id: shopId, item_list: batch };
+    }, minUpdates);
+    written += hucksterWriteBatches_(session, '/catalog_updatePrice', function(batch) {
+      return { items: batch };
+    }, catalogUpdates);
+    written += hucksterWriteBatches_(session, '/markets/items/prices/update', function(batch) {
+      return { items: batch };
+    }, rrcUpdates);
+
+    var report = {
+      sourceRows: sourceRows.length,
+      matchedItems: matched.length,
+      unmatchedRows: unmatchedRows,
+      minPriceItems: minUpdates.length,
+      listedPriceItems: catalogUpdates.length,
+      rrcPriceItems: rrcUpdates.length,
+      rrcPriceTypeId: rrcPriceTypeId || null,
+      written: written
+    };
+    Logger.log('Huckster цены из ARL TR записаны: ' + JSON.stringify(report));
+    return report;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function hucksterReadArlPriceRows_(sheet) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  var lastColumn = Math.max(
+    HUCKSTER_ARL_VENDOR_CODE_COLUMN,
+    HUCKSTER_ARL_MIN_PRICE_COLUMN,
+    HUCKSTER_ARL_LISTED_PRICE_COLUMN,
+    HUCKSTER_ARL_RRC_PRICE_COLUMN
+  );
+  var values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+  return values.map(function(row, index) {
+    return {
+      rowNumber: index + 2,
+      key: hucksterNormalizeKey_(row[HUCKSTER_ARL_VENDOR_CODE_COLUMN - 1]),
+      minPrice: hucksterToPrice_(row[HUCKSTER_ARL_MIN_PRICE_COLUMN - 1]),
+      listedPrice: hucksterToPrice_(row[HUCKSTER_ARL_LISTED_PRICE_COLUMN - 1]),
+      rrcPrice: hucksterToPrice_(row[HUCKSTER_ARL_RRC_PRICE_COLUMN - 1])
+    };
+  }).filter(function(source) {
+    return source.key && (source.minPrice !== '' || source.listedPrice !== '' || source.rrcPrice !== '');
+  });
+}
+
+function hucksterIndexItemsByKey_(items) {
+  var index = {};
+  (items || []).forEach(function(item) {
+    [item && item.sku, item && item.uid].forEach(function(value) {
+      var key = hucksterNormalizeKey_(value);
+      if (!key) return;
+      if (!index[key]) index[key] = [];
+      if (index[key].indexOf(item) === -1) index[key].push(item);
+    });
+  });
+  return index;
+}
+
+function hucksterBuildRepricerUpdate_(item, minPrice) {
+  var update = {
+    uid: String(item.uid),
+    enabled: item.enabled === undefined ? null : item.enabled,
+    card_control: item.card_control === undefined ? null : item.card_control,
+    max_discount: hucksterToPrice_(item.max_discount),
+    min_price: minPrice
+  };
+  if (item.sku !== undefined && item.sku !== null && String(item.sku).trim()) {
+    update.sku = String(item.sku);
+  }
+  return update;
+}
+
+function hucksterGetUserName_() {
+  var props = PropertiesService.getScriptProperties();
+  var userName = HUCKSTER_USER_NAME || props.getProperty('HUCKSTER_USER_NAME');
+  if (!userName) throw new Error('Не задан HUCKSTER_USER_NAME в Script Properties.');
+  return String(userName).trim();
+}
+
+function hucksterLoadCatalogItems_(session, userName) {
+  var items = [];
+  var limit = 300;
+  for (var nom = 1; nom <= 100; nom++) {
+    var response = hucksterAuthorizedJson_(session, '/catalog_get', {
+      contact: userName,
+      limit: limit,
+      nom: nom,
+      fields: ['uid', 'price', 'retail_price']
+    });
+    var page = response && response.retval && Array.isArray(response.retval.catalog)
+      ? response.retval.catalog
+      : [];
+    items = items.concat(page);
+    if (page.length < limit) break;
+  }
+  if (items.length >= limit * 100) {
+    throw new Error('Huckster catalog_get превысил безопасный предел страниц.');
+  }
+  return items;
+}
+
+function hucksterResolveRrcPriceTypeId_(session) {
+  var props = PropertiesService.getScriptProperties();
+  var desiredName = props.getProperty('HUCKSTER_RRC_PRICE_TYPE_NAME') || HUCKSTER_RRC_PRICE_TYPE_NAME;
+  var response = hucksterAuthorizedJson_(session, '/markets/price_types/list', {});
+  var types = response && Array.isArray(response.result) ? response.result : [];
+  var matches = types.filter(function(type) {
+    return hucksterNormalizeHeader_(type && type.price_type) === hucksterNormalizeHeader_(desiredName);
+  });
+  if (matches.length !== 1 || !matches[0].price_type_id) {
+    throw new Error('В Huckster не найден ровно один тип дополнительной цены "' + desiredName + '".');
+  }
+  return String(matches[0].price_type_id);
+}
+
+function hucksterWriteBatches_(session, path, payloadFactory, items) {
+  var written = 0;
+  for (var offset = 0; offset < items.length; offset += HUCKSTER_WRITE_BATCH_SIZE) {
+    var batch = items.slice(offset, offset + HUCKSTER_WRITE_BATCH_SIZE);
+    var response = hucksterAuthorizedResponse_(session, path, payloadFactory(batch));
+    hucksterAssertWriteResponse_(response, path);
+    written += batch.length;
+  }
+  return written;
+}
+
+/**
  * Создаёт короткоживущую сессию Huckster.
  * SessionId не сохраняется в Properties и не выводится в лог.
  */
@@ -185,9 +427,9 @@ function hucksterCreateSession_() {
 }
 
 /**
- * Выполнить авторизованный POST. При HTTP 401 повторно получает сессию один раз.
+ * Выполнить авторизованный запрос. При HTTP 401 повторно получает сессию один раз.
  */
-function hucksterAuthorizedJson_(session, path, payload) {
+function hucksterAuthorizedResponse_(session, path, payload) {
   var response = hucksterFetchRaw_(path, payload, session.id);
   if (response.getResponseCode() === 401) {
     var freshSession = hucksterCreateSession_();
@@ -199,7 +441,25 @@ function hucksterAuthorizedJson_(session, path, payload) {
   if (code < 200 || code >= 300) {
     throw new Error('Huckster API ' + path + ' вернул HTTP ' + code + '.');
   }
+  return response;
+}
+
+function hucksterAuthorizedJson_(session, path, payload) {
+  var response = hucksterAuthorizedResponse_(session, path, payload);
   return hucksterParseJson_(response.getContentText(), path);
+}
+
+function hucksterAssertWriteResponse_(response, path) {
+  var text = String(response.getContentText() || '').replace(/^\uFEFF/, '').trim();
+  if (!text) return;
+  var payload = hucksterParseJson_(text, path);
+  var results = Array.isArray(payload && payload.result) ? payload.result : [payload];
+  var errors = results.filter(function(result) {
+    return hucksterNormalizeKey_(result && result.result) === 'error';
+  });
+  if (errors.length) {
+    throw new Error('Huckster API ' + path + ' сообщил об ошибке для ' + errors.length + ' товара(ов).');
+  }
 }
 
 function hucksterResolveShopId_(session) {
