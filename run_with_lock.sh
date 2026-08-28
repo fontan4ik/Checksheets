@@ -47,6 +47,9 @@ case "$SCRIPT_NAME" in
         EXIT_CODE=$?
         echo "[$(date)] etm_sync finished with exit code $EXIT_CODE. sync_etm_stocks remains on its own hourly launchd schedule." >> "$LOG_FILE"
         ;;
+    sync_etm_codes)
+        /Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/.venv-etm-export/bin/python sync_etm_codes.py --write >> "$LOG_FILE" 2>&1
+        ;;
     sync_feron_stocks)
         /opt/homebrew/bin/node sync-feron-stocks.js >> "$LOG_FILE" 2>&1
         ;;
