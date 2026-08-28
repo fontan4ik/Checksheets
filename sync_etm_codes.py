@@ -1,20 +1,34 @@
 #!/usr/bin/env python3
-"""Fill ETM codes in the ETM TR sheet from result.csv.
+"""Актуализация кодов ЭТМ в листе ``ETM TR`` из FTP-выгрузки склада 13.
 
-The source file has columns ``Код ЭТМ;Артикул;Производитель``.  Rows in the
-``ETM TR`` worksheet are matched by the pair ``model + brand``.  The script is
-read-only by default; pass ``--write`` to update only rows whose code changed.
-Unmatched rows and existing values are preserved.
+По умолчанию скрипт читает последнюю актуальную ``price.csv`` из
+``/from_etm/13``.  Строки листа сопоставляются по ``бренд + модель`` и, если
+модель не нашлась, по ``бренд + артикул``.  В Google Sheets изменяются только
+совпавшие строки, где код действительно отличается; остальные значения не
+трогаются.
+
+Без ``--write`` скрипт работает в dry-run.  Для локальной проверки можно
+передать ``--csv`` с CSV-файлом, имеющим колонки ``Код ЭТМ;Артикул;
+Производитель``.
 """
 
 from __future__ import annotations
 
 import argparse
 import csv
+import io
+import json
 import logging
+import os
+import posixpath
+import re
+
+import subprocess
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from ftplib import FTP, FTP_TLS, error_perm
 from pathlib import Path
 from typing import Iterable
 
@@ -25,14 +39,40 @@ import gsheets_utils
 
 
 SHEET_NAME = "ETM TR"
-CSV_FIELDS = ("Код ЭТМ", "Артикул", "Производитель")
 SHEET_SCHEMA = {
+    "article": "art",
     "model": "model",
     "brand": "brand",
     "etm_code": "Коды ЭТМ",
 }
-LOG_PATH = Path(__file__).resolve().parent / "logs" / "sync_etm_codes.log"
 
+FTP_HOST = os.getenv("ETM_FTP_HOST", getattr(config, "ETM_FTP_HOST", "edi.etm.ru"))
+FTP_PORT = int(os.getenv("ETM_FTP_PORT", getattr(config, "ETM_FTP_PORT", "21")))
+FTP_USER = os.getenv("ETM_FTP_USER", getattr(config, "ETM_FTP_USER", "u_energoservis"))
+FTP_PASSWORD = os.getenv("ETM_FTP_PASSWORD", getattr(config, "ETM_FTP_PASSWORD", ""))
+FTP_TLS_MODE = os.getenv("ETM_FTP_TLS", getattr(config, "ETM_FTP_TLS", "disable")).strip().lower()
+FTP_TIMEOUT = int(os.getenv("ETM_FTP_TIMEOUT", "60"))
+FTP_REMOTE_DIR = os.getenv("ETM_FTP_CODES_DIR", "/from_etm/13")
+FTP_LOCAL_ROOT = Path(
+    os.getenv(
+        "ETM_FTP_LOCAL_ROOT",
+        str(Path(__file__).resolve().parent / "test" / "tmp" / "etm_ftp_downloads"),
+    )
+)
+FTP_STATE_PATH = Path(
+    os.getenv(
+        "ETM_CODES_FTP_STATE_PATH",
+        str(Path(__file__).resolve().parent / "test" / "tmp" / "etm_codes_ftp_state.json"),
+    )
+)
+FTP_REQUIRE_TODAY = os.getenv("ETM_CODES_FTP_REQUIRE_TODAY", "1").strip().lower() not in {
+    "0",
+    "false",
+    "no",
+}
+
+LOG_PATH = Path(__file__).resolve().parent / "logs" / "sync_etm_codes.log"
+LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -45,12 +85,35 @@ class Update:
     row: int
     code: str
     model: str
+    article: str
     brand: str
+    matched_by: str
+
+
+@dataclass(frozen=True)
+class FtpFile:
+    remote_path: str
+    size: int | None = None
+    modified: str | None = None
 
 
 def normalize(value: object) -> str:
-    """Normalize comparison values without changing article punctuation/zeros."""
-    return " ".join(str(value or "").replace("\ufeff", "").replace("\xa0", " ").strip().casefold().split())
+    """Нормализация ключа без удаления значимых нулей в артикулах."""
+    return " ".join(
+        str(value or "")
+        .replace("\ufeff", "")
+        .replace("\xa0", " ")
+        .strip()
+        .casefold()
+        .split()
+    )
+
+
+def normalize_code(value: object) -> str:
+    raw = str(value or "").replace("\ufeff", "").strip()
+    raw = re.sub(r"\.0+$", "", raw)
+    raw = re.sub(r"^ETM", "", raw, flags=re.IGNORECASE).strip()
+    return re.sub(r"\D", "", raw)
 
 
 def resolve_csv_path(value: str | Path) -> Path:
@@ -58,57 +121,95 @@ def resolve_csv_path(value: str | Path) -> Path:
     return path if path.is_absolute() else Path(__file__).resolve().parent / path
 
 
-def load_csv_mapping(path: str | Path) -> tuple[dict[tuple[str, str], str], dict[str, int]]:
-    """Load a unique (article, manufacturer) -> ETM code mapping.
+def decode_text(content: bytes) -> str:
+    for encoding in ("utf-8-sig", "utf-8", "cp1251", "windows-1251", "koi8-r"):
+        try:
+            return content.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return content.decode("utf-8", errors="replace")
 
-    Duplicate source rows with the same code are accepted.  Conflicting codes
-    for the same pair are rejected because choosing one silently is unsafe.
-    """
-    path = resolve_csv_path(path)
+
+def _source_columns(fieldnames: list[str] | None) -> dict[str, int]:
+    headers = [normalize(header) for header in (fieldnames or [])]
+    aliases = {
+        "code": {normalize("Код ЭТМ"), "etm code", "etmcode"},
+        "article": {normalize("Артикул"), "article", "art"},
+        "brand": {normalize("Производитель"), "manufacturer", "brand"},
+    }
+    result = {}
+    for logical_name, candidates in aliases.items():
+        matches = [index for index, header in enumerate(headers) if header in candidates]
+        if len(matches) != 1:
+            raise ValueError(
+                f"В FTP-файле не найдена единственная колонка для {logical_name}: "
+                f"ожидались {sorted(candidates)}, заголовки={fieldnames!r}"
+            )
+        result[logical_name] = matches[0]
+    return result
+
+
+def load_mapping_from_bytes(content: bytes, source_name: str = "FTP") -> tuple[dict[tuple[str, str], str], dict[str, int]]:
+    """Загрузить уникальное отображение (артикул, бренд) -> код ЭТМ."""
+    text = decode_text(content)
+    try:
+        dialect = csv.Sniffer().sniff(text[:4096], delimiters=";\t,|")
+    except csv.Error:
+        dialect = csv.excel
+        dialect.delimiter = ";"
+
+    reader = csv.reader(io.StringIO(text), dialect=dialect)
+    fieldnames = next(reader, None)
+    columns = _source_columns(fieldnames)
     mapping: dict[tuple[str, str], str] = {}
+    conflicts: dict[tuple[str, str], set[str]] = defaultdict(set)
     duplicate_rows = 0
     empty_rows = 0
-    conflicts: dict[tuple[str, str], set[str]] = defaultdict(set)
+    source_rows = 0
 
-    with path.open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle, delimiter=";")
-        if tuple(reader.fieldnames or ()) != CSV_FIELDS:
-            raise ValueError(
-                f"Ожидались колонки {CSV_FIELDS}, получено: {reader.fieldnames!r}"
-            )
-        for line_number, row in enumerate(reader, start=2):
-            article = normalize(row.get("Артикул"))
-            manufacturer = normalize(row.get("Производитель"))
-            code = str(row.get("Код ЭТМ") or "").strip()
-            if not article or not manufacturer or not code:
-                empty_rows += 1
-                continue
-            key = (article, manufacturer)
-            previous = mapping.get(key)
-            if previous is not None:
-                if previous != code:
-                    conflicts[key].update((previous, code))
-                else:
-                    duplicate_rows += 1
-                continue
+    for row in reader:
+        source_rows += 1
+        values = list(row)
+        article = normalize(values[columns["article"]] if len(values) > columns["article"] else "")
+        brand = normalize(values[columns["brand"]] if len(values) > columns["brand"] else "")
+        code = normalize_code(values[columns["code"]] if len(values) > columns["code"] else "")
+        if not article or not brand or not code:
+            empty_rows += 1
+            continue
+
+        key = (article, brand)
+        previous = mapping.get(key)
+        if previous is None:
             mapping[key] = code
+        elif previous == code:
+            duplicate_rows += 1
+        else:
+            conflicts[key].update((previous, code))
 
     if conflicts:
-        examples = list(conflicts.items())[:5]
-        raise ValueError(
-            f"В {path.name} найдены конфликтующие коды для {len(conflicts)} пар "
-            f"model+brand; примеры: {examples}"
+        # Не останавливаем весь дневной sync из-за части плохих строк. Такие
+        # ключи исключаются из mapping и безопасно попадут в unmatched.
+        for key in conflicts:
+            mapping.pop(key, None)
+        logging.warning(
+            "%s: пропущено конфликтных пар Артикул+Производитель: %s; примеры=%s",
+            source_name,
+            len(conflicts),
+            list(conflicts.items())[:5],
         )
 
-    with path.open("r", encoding="utf-8-sig", newline="") as handle:
-        source_rows = max(sum(1 for _ in handle) - 1, 0)
-    stats = {
+    return mapping, {
         "source_rows": source_rows,
         "mapping_keys": len(mapping),
         "duplicate_rows": duplicate_rows,
         "empty_rows": empty_rows,
+        "conflict_keys": len(conflicts),
     }
-    return mapping, stats
+
+
+def load_csv_mapping(path: str | Path) -> tuple[dict[tuple[str, str], str], dict[str, int]]:
+    path = resolve_csv_path(path)
+    return load_mapping_from_bytes(path.read_bytes(), path.name)
 
 
 def plan_updates(
@@ -116,37 +217,69 @@ def plan_updates(
     columns: dict[str, int],
     mapping: dict[tuple[str, str], str],
 ) -> tuple[list[Update], dict[str, int]]:
-    """Plan only changed matched rows; never plan writes for unmatched rows."""
+    """Планировать только безопасные изменения в колонке кода ЭТМ."""
     updates: list[Update] = []
-    stats = {"sheet_rows": max(len(sheet_rows) - 1, 0), "matched": 0, "changed": 0, "unchanged": 0, "unmatched": 0, "missing_keys": 0}
-    model_col = columns["model"]
-    brand_col = columns["brand"]
-    code_col = columns["etm_code"]
+    stats = {
+        "sheet_rows": max(len(sheet_rows) - 1, 0),
+        "matched": 0,
+        "changed": 0,
+        "unchanged": 0,
+        "unmatched": 0,
+        "ambiguous": 0,
+        "missing_keys": 0,
+    }
 
     for row_number, row in enumerate(sheet_rows[1:], start=2):
-        model = str(row[model_col - 1]).strip() if len(row) >= model_col else ""
-        brand = str(row[brand_col - 1]).strip() if len(row) >= brand_col else ""
-        key = (normalize(model), normalize(brand))
-        if not key[0] or not key[1]:
+        def value(logical_name: str) -> str:
+            column = columns[logical_name]
+            return str(row[column - 1]).strip() if len(row) >= column else ""
+
+        article = value("article")
+        model = value("model")
+        brand = value("brand")
+        brand_key = normalize(brand)
+        if not brand_key or (not normalize(model) and not normalize(article)):
             stats["missing_keys"] += 1
             continue
-        code = mapping.get(key)
-        if code is None:
+
+        candidates = []
+        if normalize(model):
+            candidates.append(("model", normalize(model)))
+        if normalize(article):
+            candidates.append(("article", normalize(article)))
+        found = [
+            (matched_by, mapping[(candidate, brand_key)])
+            for matched_by, candidate in candidates
+            if (candidate, brand_key) in mapping
+        ]
+
+        unique_codes = {code for _, code in found}
+        if len(unique_codes) > 1:
+            stats["ambiguous"] += 1
+            logging.warning(
+                "Пропуск строки %s: модель и артикул дают разные коды ЭТМ (%s)",
+                row_number,
+                sorted(unique_codes),
+            )
+            continue
+        if not found:
             stats["unmatched"] += 1
             continue
+
+        matched_by, code = found[0]
         stats["matched"] += 1
-        current = str(row[code_col - 1]).strip() if len(row) >= code_col else ""
+        current = normalize_code(value("etm_code"))
         if current == code:
             stats["unchanged"] += 1
             continue
         stats["changed"] += 1
-        updates.append(Update(row_number, code, model, brand))
+        updates.append(Update(row_number, code, model, article, brand, matched_by))
 
     return updates, stats
 
 
 def a1_ranges(updates: Iterable[Update], column: int) -> list[tuple[str, list[list[str]]]]:
-    """Group adjacent changed rows into minimal single-column update ranges."""
+    """Сгруппировать соседние изменения в минимальные диапазоны."""
     ordered = sorted(updates, key=lambda item: item.row)
     if not ordered:
         return []
@@ -156,13 +289,14 @@ def a1_ranges(updates: Iterable[Update], column: int) -> list[tuple[str, list[li
             groups[-1].append(update)
         else:
             groups.append([update])
-    result = []
-    for group in groups:
-        start = group[0].row
-        end = group[-1].row
-        range_name = f"{gspread.utils.rowcol_to_a1(start, column)}:{gspread.utils.rowcol_to_a1(end, column)}"
-        result.append((range_name, [[item.code] for item in group]))
-    return result
+    return [
+        (
+            f"{gspread.utils.rowcol_to_a1(group[0].row, column)}:"
+            f"{gspread.utils.rowcol_to_a1(group[-1].row, column)}",
+            [[item.code] for item in group],
+        )
+        for group in groups
+    ]
 
 
 def update_sheet(ws, updates: list[Update], code_column: int) -> int:
@@ -171,13 +305,190 @@ def update_sheet(ws, updates: list[Update], code_column: int) -> int:
         logging.info("Запись %s строк в диапазон %s", len(values), range_name)
         gsheets_utils._retry_gsheet_call(
             f"update ETM codes {range_name}",
-            lambda range_name=range_name, values=values: ws.update(range_name=range_name, values=values),
+            lambda range_name=range_name, values=values: ws.update(
+                range_name=range_name,
+                values=values,
+                value_input_option="USER_ENTERED",
+            ),
         )
     return len(ranges)
 
 
-def run(csv_path: str | Path, write: bool = False, sample_size: int = 10) -> int:
-    mapping, source_stats = load_csv_mapping(csv_path)
+def _ftp_password() -> str:
+    if FTP_PASSWORD:
+        return FTP_PASSWORD
+    result = subprocess.run(
+        ["security", "find-generic-password", "-a", FTP_USER, "-s", "checksheets_etm_ftp", "-w"],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=10,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def connect_ftp():
+    password = _ftp_password()
+    if not FTP_USER or not password:
+        raise RuntimeError(
+            "Не задан пароль ETM FTP: используйте ETM_FTP_PASSWORD или Keychain "
+            "service=checksheets_etm_ftp"
+        )
+    if FTP_TLS_MODE not in {"auto", "require", "disable"}:
+        raise ValueError("ETM_FTP_TLS должен быть auto, require или disable")
+    if FTP_TLS_MODE != "disable":
+        try:
+            ftp_tls = FTP_TLS()
+            ftp_tls.connect(FTP_HOST, FTP_PORT, timeout=FTP_TIMEOUT)
+            ftp_tls.login(FTP_USER, password)
+            ftp_tls.prot_p()
+            ftp_tls.set_pasv(True)
+            return ftp_tls
+        except Exception:
+            if FTP_TLS_MODE == "require":
+                raise
+            logging.warning("FTPS недоступен, используем plain FTP")
+    ftp = FTP()
+    ftp.connect(FTP_HOST, FTP_PORT, timeout=FTP_TIMEOUT)
+    ftp.login(FTP_USER, password)
+    ftp.set_pasv(True)
+    return ftp
+
+
+def _mdtm(ftp, remote_path: str) -> str | None:
+    try:
+        response = ftp.sendcmd(f"MDTM {remote_path}")
+    except Exception:
+        return None
+    match = re.search(r"(\d{14})", response)
+    return match.group(1) if match else None
+
+
+def list_ftp_files(ftp, remote_dir: str) -> list[FtpFile]:
+    remote_dir = "/" + remote_dir.strip("/")
+    try:
+        files = []
+        for name, facts in ftp.mlsd(remote_dir):
+            if name in {".", ".."} or facts.get("type") != "file":
+                continue
+            path = posixpath.join(remote_dir, name)
+            size = int(facts["size"]) if str(facts.get("size", "")).isdigit() else None
+            files.append(FtpFile(path, size, facts.get("modify") or _mdtm(ftp, path)))
+        return files
+    except Exception:
+        pass
+
+    try:
+        entries = ftp.nlst(remote_dir)
+    except error_perm as exc:
+        logging.warning("Не удалось прочитать FTP-каталог %s: %s", remote_dir, exc)
+        return []
+    result = []
+    for entry in entries:
+        path = entry if entry.startswith("/") else posixpath.join(remote_dir, entry)
+        result.append(FtpFile(path, None, _mdtm(ftp, path)))
+    return result
+
+
+def _ftp_date(modified: str | None) -> str | None:
+    return str(modified)[:8] if modified and re.fullmatch(r"\d{14}", modified) else None
+
+
+def select_ftp_file(files: list[FtpFile]) -> FtpFile | None:
+    if not files:
+        return None
+    if FTP_REQUIRE_TODAY:
+        today = datetime.now(timezone.utc).strftime("%Y%m%d")
+        today_files = [item for item in files if _ftp_date(item.modified) == today]
+        if today_files:
+            files = today_files
+        else:
+            yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y%m%d")
+            yesterday_files = [item for item in files if _ftp_date(item.modified) == yesterday]
+            if not yesterday_files:
+                logging.warning("Нет FTP-файла за сегодня или вчера; обновление отменено")
+                return None
+            logging.warning("Нет файла за сегодня; используем FTP-файл за вчера")
+            files = yesterday_files
+    return max(files, key=lambda item: (item.modified or "", item.remote_path))
+
+
+def download_ftp_file(ftp, ftp_file: FtpFile) -> bytes:
+    chunks: list[bytes] = []
+    ftp.retrbinary(f"RETR {ftp_file.remote_path}", chunks.append)
+    content = b"".join(chunks)
+    local_path = FTP_LOCAL_ROOT / ftp_file.remote_path.lstrip("/")
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    local_path.write_bytes(content)
+    return content
+
+
+def _fingerprint(ftp_file: FtpFile) -> dict[str, object]:
+    return {
+        "remote_path": ftp_file.remote_path,
+        "size": ftp_file.size,
+        "modified": ftp_file.modified,
+    }
+
+
+def _load_state() -> dict:
+    try:
+        return json.loads(FTP_STATE_PATH.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_state(state: dict) -> None:
+    FTP_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    temporary = FTP_STATE_PATH.with_suffix(".tmp")
+    temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(FTP_STATE_PATH)
+
+
+def fetch_ftp_source(force: bool = False) -> tuple[bytes, FtpFile] | None:
+    ftp = None
+    try:
+        ftp = connect_ftp()
+        ftp_file = select_ftp_file(list_ftp_files(ftp, FTP_REMOTE_DIR))
+        if ftp_file is None:
+            return None
+        state = _load_state()
+        if not force and state.get("file") == _fingerprint(ftp_file):
+            logging.info("FTP-файл уже обработан: %s", ftp_file.remote_path)
+            return None
+        logging.info(
+            "Загрузка FTP-файла склада 13: %s, size=%s, modified=%s",
+            ftp_file.remote_path,
+            ftp_file.size,
+            ftp_file.modified,
+        )
+        return download_ftp_file(ftp, ftp_file), ftp_file
+    finally:
+        if ftp is not None:
+            try:
+                ftp.quit()
+            except Exception:
+                ftp.close()
+
+
+def run(
+    csv_path: str | Path | None = None,
+    *,
+    write: bool = False,
+    force: bool = False,
+    sample_size: int = 10,
+) -> int:
+    if csv_path is None:
+        source = fetch_ftp_source(force=force)
+        if source is None:
+            logging.info("Новых FTP-данных нет; Google Sheets не изменялись")
+            return 0
+        content, ftp_file = source
+        mapping, source_stats = load_mapping_from_bytes(content, ftp_file.remote_path)
+    else:
+        ftp_file = None
+        mapping, source_stats = load_csv_mapping(csv_path)
+
     ws = gsheets_utils.get_worksheet(SHEET_NAME)
     sheet_rows = gsheets_utils._retry_gsheet_call(
         f"read all values from {SHEET_NAME}",
@@ -189,37 +500,62 @@ def run(csv_path: str | Path, write: bool = False, sample_size: int = 10) -> int
     updates, sheet_stats = plan_updates(sheet_rows, columns, mapping)
 
     logging.info(
-        "Источник: строк=%s, уникальных пар=%s, дубликатов=%s, пустых строк=%s",
-        source_stats["source_rows"], source_stats["mapping_keys"], source_stats["duplicate_rows"], source_stats["empty_rows"],
+        "Источник: строк=%s, уникальных пар=%s, дубликатов=%s, пустых строк=%s, конфликтных пар=%s",
+        source_stats["source_rows"],
+        source_stats["mapping_keys"],
+        source_stats["duplicate_rows"],
+        source_stats["empty_rows"],
+        source_stats["conflict_keys"],
     )
     logging.info(
-        "ETM TR: строк=%s, совпало=%s, изменится=%s, уже заполнено=%s, без совпадения=%s, без model/brand=%s",
-        sheet_stats["sheet_rows"], sheet_stats["matched"], sheet_stats["changed"], sheet_stats["unchanged"], sheet_stats["unmatched"], sheet_stats["missing_keys"],
+        "ETM TR: строк=%s, совпало=%s, изменится=%s, без изменений=%s, "
+        "без совпадения=%s, неоднозначных=%s, без ключа=%s",
+        sheet_stats["sheet_rows"],
+        sheet_stats["matched"],
+        sheet_stats["changed"],
+        sheet_stats["unchanged"],
+        sheet_stats["unmatched"],
+        sheet_stats["ambiguous"],
+        sheet_stats["missing_keys"],
     )
-    for item in updates[:sample_size]:
-        logging.info("Пример изменения: строка %s, model=%r, brand=%r -> код=%s", item.row, item.model, item.brand, item.code)
+    for item in updates[:max(sample_size, 0)]:
+        logging.info(
+            "Пример изменения: строка %s, matched_by=%s, model=%r, article=%r, brand=%r -> код=%s",
+            item.row,
+            item.matched_by,
+            item.model,
+            item.article,
+            item.brand,
+            item.code,
+        )
 
     if not write:
         logging.info("Dry-run: Google Sheets не изменялись. Для записи используйте --write.")
         return 0
 
     range_count = update_sheet(ws, updates, columns["etm_code"])
+    if ftp_file is not None:
+        state = _load_state()
+        state["file"] = _fingerprint(ftp_file)
+        state["processed_at"] = datetime.now(timezone.utc).isoformat()
+        _save_state(state)
     logging.info("Запись завершена: изменено строк=%s, диапазонов=%s", len(updates), range_count)
     return 0
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Сопоставить result.csv с ETM TR по model + brand")
-    parser.add_argument("--csv", default="result.csv", help="Путь к result.csv")
+    parser = argparse.ArgumentParser(description="Актуализировать коды ЭТМ в ETM TR из FTP склада 13")
+    parser.add_argument("--csv", help="Локальный CSV вместо FTP; для тестов и ручной проверки")
     parser.add_argument("--write", action="store_true", help="Записать изменившиеся коды в Google Sheets")
-    parser.add_argument("--sample-size", type=int, default=10, help="Сколько примеров изменений вывести")
+    parser.add_argument("--force", action="store_true", help="Обработать FTP-файл повторно, даже если он уже отмечен в state")
+    parser.add_argument("--sample-size", type=int, default=10, help="Количество примеров изменений в логе")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     try:
-        raise SystemExit(run(args.csv, write=args.write, sample_size=max(args.sample_size, 0)))
+        raise SystemExit(run(args.csv, write=args.write, force=args.force, sample_size=args.sample_size))
     except Exception as exc:
         logging.exception("CRITICAL ERROR: %s", exc)
         raise SystemExit(1)
