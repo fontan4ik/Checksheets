@@ -213,6 +213,24 @@ class Metric:
     carts: float = 0.0
 
 
+ADDITIVE_METRIC_FIELDS = ("clicks", "impressions", "spend", "sold", "revenue", "carts")
+
+
+def recompute_derived_metrics(metric: Metric) -> Metric:
+    """Recalculate aggregate ratios from additive Performance metrics."""
+    metric.ctr = metric.clicks / metric.impressions * 100 if metric.impressions else 0.0
+    metric.average_cpc = metric.spend / metric.clicks if metric.clicks else 0.0
+    metric.drr = metric.spend / metric.revenue * 100 if metric.revenue else 0.0
+    return metric
+
+
+def add_metric_totals(target: Metric, source: Metric) -> Metric:
+    """Add only additive fields and keep derived fields mathematically correct."""
+    for field_name in ADDITIVE_METRIC_FIELDS:
+        setattr(target, field_name, getattr(target, field_name) + getattr(source, field_name))
+    return recompute_derived_metrics(target)
+
+
 @dataclass
 class ReportBlock:
     campaign_id: str | None
@@ -616,11 +634,12 @@ def parse_report_block(
             continue
         metric = Metric(clicks=parse_number(row[clicks_index]))
         for key, index in metric_indexes.items():
+            if key in {"ctr", "average_cpc", "drr"}:
+                continue
             if index >= 0 and index < len(row):
                 setattr(metric, key, parse_number(row[index]))
         previous = metrics.setdefault(sku, Metric())
-        for key in vars(metric):
-            setattr(previous, key, getattr(previous, key) + getattr(metric, key))
+        add_metric_totals(previous, metric)
     return ReportBlock(campaign_id=campaign_id, metrics=metrics)
 
 
@@ -650,8 +669,7 @@ def parse_report(
         for sku, metric in block.metrics.items():
             key = (block.campaign_id, sku)
             existing = result.setdefault(key, Metric())
-            for field_name in vars(metric):
-                setattr(existing, field_name, getattr(existing, field_name) + getattr(metric, field_name))
+            add_metric_totals(existing, metric)
     return result
 
 
@@ -1060,15 +1078,7 @@ def fetch_daily_sku_metrics(
                 carts=parse_number(row.get("toCart")),
             )
             existing = result.setdefault((campaign_id, sku), Metric())
-            for field_name in vars(metric):
-                if field_name in {"ctr", "average_cpc", "drr"}:
-                    setattr(existing, field_name, getattr(metric, field_name))
-                else:
-                    setattr(
-                        existing,
-                        field_name,
-                        getattr(existing, field_name) + getattr(metric, field_name),
-                    )
+            add_metric_totals(existing, metric)
         if batch_index + 1 < len(batches):
             time.sleep(DAILY_SKU_BATCH_DELAY_SECONDS)
     print(
@@ -1123,8 +1133,7 @@ def fetch_period_metrics(
             metrics = parse_report(raw, batch, day_from=day_from, day_to=day_to)
             for key, metric in metrics.items():
                 existing = result[period].setdefault(key, Metric())
-                for field_name in vars(metric):
-                    setattr(existing, field_name, getattr(existing, field_name) + getattr(metric, field_name))
+                add_metric_totals(existing, metric)
                 batch_metrics[period][key] = metric
         if on_batch is not None:
             on_batch(batch, batch_metrics)
@@ -1373,12 +1382,7 @@ def run(args: argparse.Namespace) -> int:
                     for period in (PERIOD_WEEK, PERIOD_MONTH):
                         for key, metric in batch_metrics.get(period, {}).items():
                             existing = write_buffer_metrics[period].setdefault(key, Metric())
-                            for field_name in vars(metric):
-                                setattr(
-                                    existing,
-                                    field_name,
-                                    getattr(existing, field_name) + getattr(metric, field_name),
-                                )
+                            add_metric_totals(existing, metric)
                     if len(write_buffer_ids) >= SHEET_WRITE_BATCH_SIZE:
                         _flush_write_buffer()
 
