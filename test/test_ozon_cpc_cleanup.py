@@ -309,6 +309,19 @@ class OzonCpcCleanupTests(unittest.TestCase):
         self.assertAlmostEqual(block.metrics["986315608"].revenue, 580.23)
         self.assertEqual(block.metrics["986315608"].carts, 6)
 
+    def test_parse_report_recomputes_aggregated_derived_metrics(self):
+        csv_text = (
+            ";Кампания 33230388\n"
+            "sku;Показы;Клики;CTR, %;Расход, ₽, с НДС;Средняя стоимость клика, ₽;Продано товаров;Продажи в продвижении, ₽;ДРР в продвижении, %;Добавления в корзину\n"
+            "986315608;100;12;12;123,45;10,29;2;456,78;27;4\n"
+            "986315608;50;3;6;30;10;1;123,45;24;2\n"
+        )
+        block = parse_report_block("33230388.csv", csv_text)
+        metric = block.metrics["986315608"]
+        self.assertAlmostEqual(metric.ctr, 15 / 150 * 100)
+        self.assertAlmostEqual(metric.average_cpc, 153.45 / 15)
+        self.assertAlmostEqual(metric.drr, 153.45 / 580.23 * 100)
+
     def test_parse_report_reads_zip_and_keeps_campaign_sku_key(self):
         content = io.BytesIO()
         with zipfile.ZipFile(content, "w") as archive:
