@@ -1,10 +1,10 @@
 /**
- * HUCKSTER REPRAISER: цены, СПП и минимальная цена Ozon
+ * HUCKSTER REPRAISER: цены на витрине и минимальная цена Ozon
  *
  * Заполняет лист "ТЕСТ":
  * - BN (66): текущая выставленная цена (upload_price)
  * - BO (67): рекомендуемая цена / РЦ для удержания (market_card_price)
- * - колонка с заголовком "СПП X": скидка по карте (market_card_discount)
+ * - колонка с заголовком "Цена на витрине с картой Х": цена по карте (market_card_price)
  * - колонка с заголовком "Мин цена продажи Х": минимальная цена (min_price)
  *
  * Источник: POST /markets/integrations/repricer/items/list
@@ -23,15 +23,15 @@
 var HUCKSTER_API_BASE_URL = 'https://wbs.e-teleport.ru';
 var HUCKSTER_TARGET_SHEET_NAME = 'ТЕСТ';
 var HUCKSTER_MARKETPLACE = 'ozon';
-// Заполните эти два поля при необходимости. Реальные значения намеренно не хранятся в репозитории.
-var HUCKSTER_USER_NAME = 'ntc-es@yandex.ru';
-var HUCKSTER_PASSWORD = 'NTC-es-2023';
-var HUCKSTER_SHOP_ID = '142355_FBO';
+// Секреты и shop_id задаются только через Script Properties Apps Script.
+var HUCKSTER_USER_NAME = '';
+var HUCKSTER_PASSWORD = '';
+var HUCKSTER_SHOP_ID = '';
 var HUCKSTER_SKU_COLUMN = 22; // V: SKU Ozon
 var HUCKSTER_OFFER_ID_COLUMN = 1; // A: offer_id
 var HUCKSTER_CURRENT_PRICE_COLUMN = 66; // BN
 var HUCKSTER_RECOMMENDED_PRICE_COLUMN = 67; // BO
-var HUCKSTER_SPP_HEADER = 'СПП X';
+var HUCKSTER_MARKET_CARD_PRICE_HEADER = 'Цена на витрине с картой Х';
 var HUCKSTER_MIN_PRICE_HEADERS = 'Мин цена продажи Х';
 var HUCKSTER_PAGE_SIZE = 1000;
 
@@ -66,7 +66,7 @@ function updateHucksterPrices() {
     var offerIdValues = sheet.getRange(2, HUCKSTER_OFFER_ID_COLUMN, lastRow - 1, 1).getDisplayValues();
     var currentValues = sheet.getRange(2, HUCKSTER_CURRENT_PRICE_COLUMN, lastRow - 1, 1).getValues();
     var recommendedValues = sheet.getRange(2, HUCKSTER_RECOMMENDED_PRICE_COLUMN, lastRow - 1, 1).getValues();
-    var sppValues = sheet.getRange(2, targetColumns.spp, lastRow - 1, 1).getValues();
+    var marketCardPriceValues = sheet.getRange(2, targetColumns.marketCardPrice, lastRow - 1, 1).getValues();
     var minPriceValues = sheet.getRange(2, targetColumns.minPrice, lastRow - 1, 1).getValues();
 
     var skuRowIndex = {};
@@ -99,7 +99,7 @@ function updateHucksterPrices() {
       var mappedPrices = hucksterMapPrices_(item);
       var displayedPrice = mappedPrices.displayedPrice;
       var recommendedPrice = mappedPrices.recommendedPrice;
-      var spp = mappedPrices.spp;
+      var marketCardPrice = mappedPrices.marketCardPrice;
       var minPrice = mappedPrices.minPrice;
 
       rows.forEach(function(index) {
@@ -113,9 +113,9 @@ function updateHucksterPrices() {
           if (recommendedValues[index][0] !== recommendedPrice) changed = true;
           recommendedValues[index][0] = recommendedPrice;
         }
-        if (spp !== '') {
-          if (sppValues[index][0] !== spp) changed = true;
-          sppValues[index][0] = spp;
+        if (marketCardPrice !== '') {
+          if (marketCardPriceValues[index][0] !== marketCardPrice) changed = true;
+          marketCardPriceValues[index][0] = marketCardPrice;
         }
         if (minPrice !== '') {
           if (minPriceValues[index][0] !== minPrice) changed = true;
@@ -128,7 +128,7 @@ function updateHucksterPrices() {
     // Записываем только четыре согласованные целевые колонки.
     sheet.getRange(2, HUCKSTER_CURRENT_PRICE_COLUMN, lastRow - 1, 1).setValues(currentValues);
     sheet.getRange(2, HUCKSTER_RECOMMENDED_PRICE_COLUMN, lastRow - 1, 1).setValues(recommendedValues);
-    sheet.getRange(2, targetColumns.spp, lastRow - 1, 1).setValues(sppValues);
+    sheet.getRange(2, targetColumns.marketCardPrice, lastRow - 1, 1).setValues(marketCardPriceValues);
     sheet.getRange(2, targetColumns.minPrice, lastRow - 1, 1).setValues(minPriceValues);
 
     var report = {
@@ -138,7 +138,7 @@ function updateHucksterPrices() {
       matchedItems: matchedItems,
       unmatchedItems: unmatchedItems,
       updatedRows: updatedRows,
-      columns: 'BN:BO,' + targetColumns.sppLetter + ',' + targetColumns.minPriceLetter
+      columns: 'BN:BO,' + targetColumns.marketCardPriceLetter + ',' + targetColumns.minPriceLetter
     };
     Logger.log('Huckster цены обновлены: ' + JSON.stringify(report));
     return report;
@@ -237,16 +237,16 @@ function hucksterResolveShopId_(session) {
  */
 function hucksterResolveTargetColumns_(sheet) {
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
-  var spp = hucksterFindHeaderColumn_(headers, HUCKSTER_SPP_HEADER, 'СПП X');
+  var marketCardPrice = hucksterFindHeaderColumn_(headers, HUCKSTER_MARKET_CARD_PRICE_HEADER, 'Цена на витрине с картой Х');
   var minPrice = hucksterFindHeaderColumn_(headers, HUCKSTER_MIN_PRICE_HEADERS, 'Мин цена продажи Х');
 
-  if (spp === minPrice) {
-    throw new Error('Колонки СПП X и Мин цена продажи Х не должны совпадать.');
+  if (marketCardPrice === minPrice) {
+    throw new Error('Колонки цены на витрине с картой Х и Мин цена продажи Х не должны совпадать.');
   }
 
   return {
-    spp: spp,
-    sppLetter: hucksterColumnToLetter_(spp),
+    marketCardPrice: marketCardPrice,
+    marketCardPriceLetter: hucksterColumnToLetter_(marketCardPrice),
     minPrice: minPrice,
     minPriceLetter: hucksterColumnToLetter_(minPrice)
   };
@@ -424,7 +424,7 @@ function hucksterMapPrices_(item) {
   return {
     displayedPrice: hucksterToPrice_(item && item.upload_price),
     recommendedPrice: hucksterToPrice_(item && item.market_card_price),
-    spp: hucksterToNonNegativeNumber_(item && item.market_card_discount),
+    marketCardPrice: hucksterToPrice_(item && item.market_card_price),
     minPrice: hucksterToPrice_(item && item.min_price)
   };
 }
