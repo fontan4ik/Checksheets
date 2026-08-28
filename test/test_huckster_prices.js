@@ -40,7 +40,7 @@ assert.strictEqual(
   JSON.stringify({
     displayedPrice: 5742,
     recommendedPrice: 3606.03,
-    spp: '',
+    marketCardPrice: 3606.03,
     minPrice: ''
   })
 );
@@ -48,7 +48,6 @@ assert.strictEqual(
 const referenceItem = {
   upload_price: 6573,
   market_card_price: 4141.2,
-  market_card_discount: 5.08,
   min_price: 5398
 };
 assert.strictEqual(
@@ -56,7 +55,7 @@ assert.strictEqual(
   JSON.stringify({
     displayedPrice: 6573,
     recommendedPrice: 4141.2,
-    spp: 5.08,
+    marketCardPrice: 4141.2,
     minPrice: 5398
   })
 );
@@ -64,11 +63,11 @@ assert.strictEqual(
 assert.strictEqual(context.hucksterColumnToLetter_(68), 'BP');
 assert.strictEqual(context.hucksterColumnToLetter_(69), 'BQ');
 assert.strictEqual(
-  context.hucksterFindHeaderColumn_(['Артикул', ' СПП X ', 'Мин цена продажи Х'], 'СПП X', 'СПП X'),
+  context.hucksterFindHeaderColumn_(['Артикул', ' Цена на витрине с картой Х ', 'Мин цена продажи Х'], 'Цена на витрине с картой Х', 'Цена на витрине с картой Х'),
   2
 );
 assert.strictEqual(
-  context.hucksterFindHeaderColumn_(['Артикул', 'СПП X', 'Мин цена продажи Х'], 'Мин цена продажи Х', 'Мин цена продажи Х'),
+  context.hucksterFindHeaderColumn_(['Артикул', 'Цена на витрине с картой Х', 'Мин цена продажи Х'], 'Мин цена продажи Х', 'Мин цена продажи Х'),
   3
 );
 
