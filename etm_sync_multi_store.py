@@ -50,9 +50,9 @@ FTP_HOST = os.getenv("ETM_FTP_HOST", getattr(config, "ETM_FTP_HOST", "edi.etm.ru
 FTP_PORT = int(os.getenv("ETM_FTP_PORT", getattr(config, "ETM_FTP_PORT", "21")))
 FTP_USER = os.getenv("ETM_FTP_USER", getattr(config, "ETM_FTP_USER", "u_energoservis"))
 FTP_PASSWORD = os.getenv("ETM_FTP_PASSWORD", getattr(config, "ETM_FTP_PASSWORD", ""))
-FTP_TIMEOUT = int(os.getenv("ETM_FTP_TIMEOUT", "60"))
-FTP_WAREHOUSE_RETRIES = int(os.getenv("ETM_FTP_WAREHOUSE_RETRIES", "3"))
-FTP_WAREHOUSE_RETRY_DELAY = float(os.getenv("ETM_FTP_WAREHOUSE_RETRY_DELAY", "2"))
+FTP_TIMEOUT = int(os.getenv("ETM_FTP_TIMEOUT", "300"))
+FTP_WAREHOUSE_RETRIES = max(1, int(os.getenv("ETM_FTP_WAREHOUSE_RETRIES", "3")))
+FTP_WAREHOUSE_RETRY_DELAY = max(0.0, float(os.getenv("ETM_FTP_WAREHOUSE_RETRY_DELAY", "2")))
 FTP_TLS_MODE = os.getenv("ETM_FTP_TLS", getattr(config, "ETM_FTP_TLS", "disable")).strip().lower()
 FTP_LOCAL_ROOT = Path(
     os.getenv(
@@ -1002,14 +1002,82 @@ def local_path_for(remote_path):
 
 
 def download_ftp_file(ftp, remote_path) -> bytes:
+    started_at = time.monotonic()
     chunks = []
-    ftp.retrbinary(f"RETR {remote_path}", chunks.append)
-    content = b"".join(chunks)
+    bytes_received = 0
 
+    def collect(chunk):
+        nonlocal bytes_received
+        bytes_received += len(chunk)
+        chunks.append(chunk)
+
+    try:
+        ftp.retrbinary(f"RETR {remote_path}", collect)
+    except Exception as exc:
+        logging.warning(
+            "FTP download failed: path=%s bytes=%s duration=%.2fs error=%s(%s)",
+            remote_path,
+            bytes_received,
+            time.monotonic() - started_at,
+            type(exc).__name__,
+            str(exc) or "<empty>",
+        )
+        raise
+
+    content = b"".join(chunks)
+    logging.info(
+        "FTP download complete: path=%s bytes=%s duration=%.2fs",
+        remote_path,
+        len(content),
+        time.monotonic() - started_at,
+    )
+    return content
+
+
+def validate_ftp_csv(content: bytes, source: str) -> Dict[str, object]:
+    """Проверить весь CSV до сохранения и обработки источника."""
+    text = decode_text(content)
+    if not text.strip():
+        raise ValueError(f"{source}: empty CSV")
+
+    sample = text[:4096]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=";\t,|")
+    except csv.Error:
+        dialect = csv.excel
+        dialect.delimiter = ";"
+
+    reader = csv.reader(io.StringIO(text), dialect=dialect, strict=True)
+    fieldnames = next(reader, None)
+    if not fieldnames:
+        raise ValueError(f"{source}: missing CSV header")
+
+    normalized_headers = {normalize_field_name(name) for name in fieldnames if name is not None}
+    if not normalized_headers.intersection(CODE_FIELD_NAMES):
+        raise ValueError(f"{source}: missing ETM code column")
+    if not normalized_headers.intersection(STOCK_FIELD_NAMES):
+        raise ValueError(f"{source}: missing stock quantity column")
+
+    data_rows = 0
+    for _row in reader:
+        data_rows += 1
+    if data_rows == 0:
+        raise ValueError(f"{source}: CSV has no data rows")
+
+    return {
+        "header_columns": len(fieldnames),
+        "data_rows": data_rows,
+        "has_data": True,
+    }
+
+
+def save_ftp_cache(remote_path: str, content: bytes) -> None:
+    """Атомарно сохранить только полный и проверенный FTP-файл."""
     local_path = local_path_for(remote_path)
     local_path.parent.mkdir(parents=True, exist_ok=True)
-    local_path.write_bytes(content)
-    return content
+    temporary = local_path.with_name(f".{local_path.name}.tmp")
+    temporary.write_bytes(content)
+    temporary.replace(local_path)
 
 
 def build_lookup_from_records(records: Iterable[StockRecord]):
@@ -1109,8 +1177,24 @@ def fetch_warehouse_stock_lookup(ftp, remote_dir, label, process_mode, state_key
             ftp_file.modified,
         )
         content = download_ftp_file(ftp, ftp_file.remote_path)
+        suffix = Path(ftp_file.remote_path).suffix.lower()
+        if suffix in {".csv", ".txt", ".tsv", ".dat"}:
+            validation = validate_ftp_csv(content, ftp_file.remote_path)
+            logging.info(
+                "%s CSV validated: path=%s header_columns=%s data_rows=%s has_data=%s",
+                label,
+                ftp_file.remote_path,
+                validation["header_columns"],
+                validation["data_rows"],
+                validation["has_data"],
+            )
+        elif not content.strip():
+            raise ValueError(f"{ftp_file.remote_path}: empty FTP payload")
         parsed = parse_stock_payload(content, ftp_file.remote_path)
         records.extend(parsed)
+        # Не заменяем локальный файл до успешного полного скачивания,
+        # структурной проверки CSV и завершения парсинга.
+        save_ftp_cache(ftp_file.remote_path, content)
         logging.info("%s parsed %s stock records from %s", label, len(parsed), ftp_file.remote_path)
 
     summarize_stock_records(records, label)
