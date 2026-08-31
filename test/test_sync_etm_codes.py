@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "sync_etm_codes.py"
@@ -145,6 +146,68 @@ class SyncEtmCodesTests(unittest.TestCase):
         self.assertEqual([(item.row, item.code) for item in updates_13], [(2, "13-code")])
         self.assertEqual(updates_14, [])
         self.assertEqual(stats_14["existing"], 1)
+
+    def test_ftp_download_logs_bytes_and_duration(self):
+        class FakeFTP:
+            def retrbinary(self, command, callback):
+                self.command = command
+                callback(b"abc")
+                callback(b"de")
+
+        ftp_file = module.FtpFile("/from_etm/13/price.csv")
+        with patch.object(module.time, "monotonic", side_effect=[10.0, 12.5]):
+            with self.assertLogs(module.logging.getLogger(), level="INFO") as captured:
+                content = module.download_ftp_file(FakeFTP(), ftp_file)
+
+        self.assertEqual(content, b"abcde")
+        self.assertTrue(any("bytes=5" in line and "duration=2.50s" in line for line in captured.output))
+
+    def test_fetch_ftp_source_retries_with_reconnect_and_backoff(self):
+        class FakeFTP:
+            def quit(self):
+                pass
+
+        ftp_file = module.FtpFile("/from_etm/13/price.csv", modified="20260831031122")
+        first = FakeFTP()
+        second = FakeFTP()
+        with patch.object(module, "FTP_DOWNLOAD_ATTEMPTS", 3), patch.object(
+            module, "FTP_DOWNLOAD_BASE_DELAY", 2.0
+        ), patch.object(module, "connect_ftp", side_effect=[first, second]) as connect, patch.object(
+            module, "list_ftp_files", return_value=[ftp_file]
+        ), patch.object(
+            module, "download_ftp_file", side_effect=[OSError("EOF"), b"valid csv"]
+        ), patch.object(
+            module, "validate_ftp_csv", return_value={"source_rows": 1}
+        ), patch.object(module, "save_ftp_cache") as save_cache, patch.object(
+            module.time, "sleep"
+        ) as sleep:
+            content, selected = module.fetch_ftp_source("/from_etm/13")
+
+        self.assertEqual(content, b"valid csv")
+        self.assertEqual(selected, ftp_file)
+        self.assertEqual(connect.call_count, 2)
+        sleep.assert_called_once_with(2.0)
+        save_cache.assert_called_once_with(ftp_file, b"valid csv")
+
+    def test_invalid_csv_is_never_cached_after_all_download_attempts(self):
+        class FakeFTP:
+            def quit(self):
+                pass
+
+        ftp_file = module.FtpFile("/from_etm/13/price.csv", modified="20260831031122")
+        with patch.object(module, "FTP_DOWNLOAD_ATTEMPTS", 3), patch.object(
+            module, "FTP_DOWNLOAD_BASE_DELAY", 0
+        ), patch.object(module, "connect_ftp", side_effect=[FakeFTP(), FakeFTP(), FakeFTP()]), patch.object(
+            module, "list_ftp_files", return_value=[ftp_file]
+        ), patch.object(module, "download_ftp_file", return_value=b"broken"), patch.object(
+            module, "validate_ftp_csv", side_effect=ValueError("invalid CSV")
+        ), patch.object(module, "save_ftp_cache") as save_cache, patch.object(
+            module.time, "sleep"
+        ):
+            with self.assertRaises(RuntimeError):
+                module.fetch_ftp_source("/from_etm/13")
+
+        save_cache.assert_not_called()
 
 
 if __name__ == "__main__":
