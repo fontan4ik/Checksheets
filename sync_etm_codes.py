@@ -22,6 +22,7 @@ import logging
 import os
 import posixpath
 import re
+import time
 
 import subprocess
 import sys
@@ -51,7 +52,9 @@ FTP_PORT = int(os.getenv("ETM_FTP_PORT", getattr(config, "ETM_FTP_PORT", "21")))
 FTP_USER = os.getenv("ETM_FTP_USER", getattr(config, "ETM_FTP_USER", "u_energoservis"))
 FTP_PASSWORD = os.getenv("ETM_FTP_PASSWORD", getattr(config, "ETM_FTP_PASSWORD", ""))
 FTP_TLS_MODE = os.getenv("ETM_FTP_TLS", getattr(config, "ETM_FTP_TLS", "disable")).strip().lower()
-FTP_TIMEOUT = int(os.getenv("ETM_FTP_TIMEOUT", "60"))
+FTP_TIMEOUT = int(os.getenv("ETM_FTP_TIMEOUT", "300"))
+FTP_DOWNLOAD_ATTEMPTS = max(1, int(os.getenv("ETM_FTP_DOWNLOAD_ATTEMPTS", "3")))
+FTP_DOWNLOAD_BASE_DELAY = max(0.0, float(os.getenv("ETM_FTP_DOWNLOAD_BASE_DELAY", "2")))
 _legacy_ftp_dir = os.getenv("ETM_FTP_CODES_DIR")
 if _legacy_ftp_dir:
     # Обратная совместимость для ручных диагностических запусков -- один каталог.
@@ -441,13 +444,70 @@ def select_ftp_file(files: list[FtpFile]) -> FtpFile | None:
 
 
 def download_ftp_file(ftp, ftp_file: FtpFile) -> bytes:
+    started_at = time.monotonic()
     chunks: list[bytes] = []
-    ftp.retrbinary(f"RETR {ftp_file.remote_path}", chunks.append)
+    bytes_received = 0
+
+    def collect(chunk: bytes) -> None:
+        nonlocal bytes_received
+        bytes_received += len(chunk)
+        chunks.append(chunk)
+
+    try:
+        ftp.retrbinary(f"RETR {ftp_file.remote_path}", collect)
+    except Exception as exc:
+        logging.warning(
+            "FTP download failed: path=%s bytes=%s duration=%.2fs error=%s(%s)",
+            ftp_file.remote_path,
+            bytes_received,
+            time.monotonic() - started_at,
+            type(exc).__name__,
+            str(exc) or "<empty>",
+        )
+        raise
+
     content = b"".join(chunks)
+    logging.info(
+        "FTP download complete: path=%s bytes=%s duration=%.2fs",
+        ftp_file.remote_path,
+        len(content),
+        time.monotonic() - started_at,
+    )
+    return content
+
+
+def validate_ftp_csv(content: bytes, source_name: str) -> dict[str, object]:
+    """Проверить кодировку, заголовок и наличие строк до кеширования источника."""
+    text = decode_text(content)
+    if not text.strip():
+        raise ValueError(f"{source_name}: пустой CSV")
+
+    try:
+        dialect = csv.Sniffer().sniff(text[:4096], delimiters=";\t,|")
+    except csv.Error:
+        dialect = csv.excel
+        dialect.delimiter = ";"
+
+    reader = csv.reader(io.StringIO(text), dialect=dialect)
+    fieldnames = next(reader, None)
+    _source_columns(fieldnames)
+    first_data_row = next(reader, None)
+    if first_data_row is None or not any(str(value).strip() for value in first_data_row):
+        raise ValueError(f"{source_name}: CSV не содержит строк данных")
+
+    return {
+        "header_columns": len(fieldnames or []),
+        "has_data": True,
+    }
+
+
+def save_ftp_cache(ftp_file: FtpFile, content: bytes) -> None:
+    """Сохранить только полностью скачанный и проверенный файл атомарно."""
     local_path = FTP_LOCAL_ROOT / ftp_file.remote_path.lstrip("/")
     local_path.parent.mkdir(parents=True, exist_ok=True)
-    local_path.write_bytes(content)
-    return content
+    temporary = local_path.with_name(f".{local_path.name}.tmp")
+    temporary.write_bytes(content)
+    temporary.replace(local_path)
 
 
 def _fingerprint(ftp_file: FtpFile) -> dict[str, object]:
@@ -477,27 +537,69 @@ def fetch_ftp_source(remote_dir: str, force: bool = False) -> tuple[bytes, FtpFi
     # заполнения только пустых ячеек файл читается каждый день даже если его
     # fingerprint уже встречался: в таблице могли появиться новые пустые W.
     del force
-    ftp = None
-    try:
-        ftp = connect_ftp()
-        ftp_file = select_ftp_file(list_ftp_files(ftp, remote_dir))
-        if ftp_file is None:
-            logging.warning("Для FTP-каталога %s нет подходящего файла", remote_dir)
-            return None
-        logging.info(
-            "Загрузка FTP-файла склада %s: %s, size=%s, modified=%s",
-            remote_dir.rstrip("/").split("/")[-1],
-            ftp_file.remote_path,
-            ftp_file.size,
-            ftp_file.modified,
-        )
-        return download_ftp_file(ftp, ftp_file), ftp_file
-    finally:
-        if ftp is not None:
-            try:
-                ftp.quit()
-            except Exception:
-                ftp.close()
+    warehouse = remote_dir.rstrip("/").split("/")[-1]
+    last_error: Exception | None = None
+
+    for attempt in range(1, FTP_DOWNLOAD_ATTEMPTS + 1):
+        ftp = None
+        try:
+            # Новое соединение создаётся для каждой попытки, чтобы EOF/обрыв
+            # control connection не переносился в следующий retry.
+            ftp = connect_ftp()
+            ftp_file = select_ftp_file(list_ftp_files(ftp, remote_dir))
+            if ftp_file is None:
+                logging.warning("Для FTP-каталога %s нет подходящего файла", remote_dir)
+                return None
+            logging.info(
+                "Загрузка FTP-файла склада %s: %s, size=%s, modified=%s, attempt=%s/%s",
+                warehouse,
+                ftp_file.remote_path,
+                ftp_file.size,
+                ftp_file.modified,
+                attempt,
+                FTP_DOWNLOAD_ATTEMPTS,
+            )
+            content = download_ftp_file(ftp, ftp_file)
+            validation = validate_ftp_csv(content, ftp_file.remote_path)
+            logging.info(
+                "FTP CSV validated: path=%s header_columns=%s has_data=%s",
+                ftp_file.remote_path,
+                validation["header_columns"],
+                validation["has_data"],
+            )
+            # Кеш и последующий state обновляются только после полной передачи
+            # и успешной проверки CSV.
+            save_ftp_cache(ftp_file, content)
+            return content, ftp_file
+        except Exception as exc:
+            last_error = exc
+            logging.warning(
+                "Ошибка загрузки FTP склада %s, попытка %s/%s: %s(%s)",
+                warehouse,
+                attempt,
+                FTP_DOWNLOAD_ATTEMPTS,
+                type(exc).__name__,
+                str(exc) or "<empty>",
+            )
+            if attempt < FTP_DOWNLOAD_ATTEMPTS:
+                delay = FTP_DOWNLOAD_BASE_DELAY * (2 ** (attempt - 1))
+                logging.info(
+                    "Повторное подключение к FTP складу %s через %.1f сек",
+                    warehouse,
+                    delay,
+                )
+                time.sleep(delay)
+        finally:
+            if ftp is not None:
+                try:
+                    ftp.quit()
+                except Exception:
+                    ftp.close()
+
+    raise RuntimeError(
+        f"Не удалось скачать и проверить FTP-файл склада {warehouse} "
+        f"за {FTP_DOWNLOAD_ATTEMPTS} попытки"
+    ) from last_error
 
 
 def _apply_updates_to_memory(sheet_rows: list[list[str]], updates: Iterable[Update], code_column: int) -> None:
