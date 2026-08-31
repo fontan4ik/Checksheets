@@ -12,7 +12,7 @@
  * - K «СДЭК Остаток»        ← ОТКЛЮЧЕНО (Ozon FBS API / склад «КГТ СДЭК»)
  * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
- * - W «ВБ ост»              ← ТЕСТ!O, остаток WB FBO с множителем упаковки
+ * - W «ВБ ост»              ← прямой WB supplier/stocks, «Склад WB РФ»
  * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
@@ -29,6 +29,7 @@ const OBOR_CDEK_WAREHOUSE_ID = 1020002321437000;
 const OBOR_CDEK_STOCKS_URL = "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs";
 const OBOR_CDEK_BATCH_SIZE = 1000;
 const OBOR_CDEK_REQUEST_INTERVAL_MS = 1000;
+const OBOR_WB_STOCKS_DATE_FROM = "2019-06-20";
 
 const OBOR_VALUE_CONFIG = [
   {
@@ -72,11 +73,12 @@ const OBOR_VALUE_CONFIG = [
   {
     key: "wbStock",
     targetHeader: "ВБ ост",
-    sourceSheet: "ТЕСТ",
-    sourceArticleColumn: "A",
-    sourceValueColumns: ["O"],
+    sourceType: "wbSupplierStocks",
+    sourceSheet: null,
+    sourceArticleColumn: null,
+    sourceValueColumns: [],
     subtractValueColumns: [],
-    note: "Остаток ФБО ВБ с множителем упаковки"
+    note: "Прямой WB supplier/stocks; поле quantity = «Склад WB РФ»"
   },
   {
     key: "wbMonthWithdrawal",
@@ -113,6 +115,10 @@ function calculateOborValues() {
 
   const sourceMaps = {};
   OBOR_VALUE_CONFIG.forEach(item => {
+    if (item.sourceType === "wbSupplierStocks") {
+      sourceMaps[item.key] = fetchOborWbStockByArticle_();
+      return;
+    }
     if (!item.sourceSheet) return;
     sourceMaps[item.key] = buildOborValueMap_(spreadsheet, item);
   });
@@ -176,9 +182,12 @@ function installOborArrayFormulas() {
 /** Проверка конфигурации без записи и без вызова API. */
 function previewOborValues() {
   OBOR_VALUE_CONFIG.forEach(item => {
+    const source = item.sourceType === "wbSupplierStocks"
+      ? "прямой WB supplier/stocks / quantity («Склад WB РФ»)"
+      : (item.sourceSheet || "Ozon FBS API");
     Logger.log(
       item.targetHeader +
-      ": " + (item.sourceSheet || "Ozon FBS API") +
+      ": " + source +
       " / " + (item.sourceValueColumns.join("+") || OBOR_CDEK_WAREHOUSE_NAME) +
       "; " + item.note
     );
@@ -227,6 +236,73 @@ function buildOborValueMap_(spreadsheet, item) {
   });
 
   return result;
+}
+
+/**
+ * Получить остаток WB напрямую и подготовить источник для колонки «ВБ ост».
+ *
+ * В выгрузке supplier/stocks каждая строка — остаток одного артикула продавца
+ * на одном складе WB. Сумма quantity по supplierArticle соответствует полю
+ * «Склад WB РФ» в выгрузке WB. Запись в ТЕСТ не выполняется.
+ */
+function fetchOborWbStockByArticle_() {
+  const url = wbStocksApiURL() +
+    "?dateFrom=" + encodeURIComponent(OBOR_WB_STOCKS_DATE_FROM);
+  const response = retryFetch(url, {
+    method: "get",
+    headers: wbHeaders(),
+    muteHttpExceptions: true
+  }, 3);
+
+  if (!response) {
+    throw new Error("WB supplier/stocks: пустой ответ API");
+  }
+
+  const responseCode = response.getResponseCode();
+  const responseText = response.getContentText() || "";
+  if (responseCode < 200 || responseCode >= 300) {
+    throw new Error(
+      "WB supplier/stocks: HTTP " + responseCode + ": " +
+      responseText.substring(0, 300)
+    );
+  }
+
+  let stocks;
+  try {
+    stocks = JSON.parse(responseText);
+  } catch (error) {
+    throw new Error("WB supplier/stocks: ответ не является JSON: " + error.message);
+  }
+
+  if (!Array.isArray(stocks)) {
+    throw new Error("WB supplier/stocks: ожидался массив записей");
+  }
+
+  const aggregated = aggregateOborWbStockRows_(stocks);
+  Logger.log(
+    "WB supplier/stocks: записей=" + stocks.length +
+    "; валидных артикулов=" + aggregated.validRows +
+    "; агрегированных артикулов=" + Object.keys(aggregated.values).length
+  );
+  return aggregated.values;
+}
+
+/** Чистая агрегация WB-строк, вынесенная для локальной проверки без API. */
+function aggregateOborWbStockRows_(rows) {
+  const values = {};
+  let validRows = 0;
+
+  (Array.isArray(rows) ? rows : []).forEach(item => {
+    const article = normalizeOborArticle_(item && item.supplierArticle);
+    if (!article) return;
+
+    const parsed = parseOborArticle_(article);
+    const quantity = Math.max(0, parseOborNumber_(item.quantity));
+    values[parsed.base] = (values[parsed.base] || 0) + quantity * parsed.multiplier;
+    validRows++;
+  });
+
+  return { values: values, validRows: validRows };
 }
 
 /**

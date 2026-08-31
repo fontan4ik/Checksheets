@@ -1,0 +1,42 @@
+#!/usr/bin/env node
+'use strict';
+
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+const sourcePath = path.join(__dirname, '..', 'ОБОР формулы.js');
+const source = fs.readFileSync(sourcePath, 'utf8');
+const context = {
+  encodeURIComponent,
+  console,
+  SpreadsheetApp: {},
+  Logger: { log() {} },
+};
+vm.createContext(context);
+vm.runInContext(source, context, { filename: sourcePath });
+
+const aggregate = context.aggregateOborWbStockRows_;
+assert.strictEqual(typeof aggregate, 'function');
+
+const result = aggregate([
+  { supplierArticle: '55222', quantity: 2 },
+  { supplierArticle: '55222', quantity: 3 },
+  { supplierArticle: '55222-10', quantity: 7 },
+  { supplierArticle: '55222-5', quantity: 1 },
+  { supplierArticle: '55222-foo', quantity: 99 },
+  { supplierArticle: '', quantity: 100 },
+  { supplierArticle: '99999-2', quantity: -4 },
+]);
+
+assert.deepStrictEqual(JSON.parse(JSON.stringify(result.values)), {
+  '55222': 5 + 7 * 10 + 1 * 5,
+  '55222-foo': 99,
+  '99999': 0,
+});
+assert.strictEqual(result.validRows, 6);
+
+console.log('OK: WB quantity агрегируется по supplierArticle');
+console.log('OK: суффиксы упаковки учитываются при прямой загрузке в ОБОР');
+console.log('OK: отрицательный остаток обнуляется, пустой артикул пропускается');
