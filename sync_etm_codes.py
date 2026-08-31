@@ -488,15 +488,21 @@ def validate_ftp_csv(content: bytes, source_name: str) -> dict[str, object]:
         dialect = csv.excel
         dialect.delimiter = ";"
 
-    reader = csv.reader(io.StringIO(text), dialect=dialect)
+    reader = csv.reader(io.StringIO(text), dialect=dialect, strict=True)
     fieldnames = next(reader, None)
     _source_columns(fieldnames)
-    first_data_row = next(reader, None)
-    if first_data_row is None or not any(str(value).strip() for value in first_data_row):
+    data_rows = 0
+    nonempty_data_rows = 0
+    for row in reader:
+        data_rows += 1
+        if any(str(value).strip() for value in row):
+            nonempty_data_rows += 1
+    if data_rows == 0 or nonempty_data_rows == 0:
         raise ValueError(f"{source_name}: CSV не содержит строк данных")
 
     return {
         "header_columns": len(fieldnames or []),
+        "data_rows": data_rows,
         "has_data": True,
     }
 
@@ -562,9 +568,10 @@ def fetch_ftp_source(remote_dir: str, force: bool = False) -> tuple[bytes, FtpFi
             content = download_ftp_file(ftp, ftp_file)
             validation = validate_ftp_csv(content, ftp_file.remote_path)
             logging.info(
-                "FTP CSV validated: path=%s header_columns=%s has_data=%s",
+                "FTP CSV validated: path=%s header_columns=%s data_rows=%s has_data=%s",
                 ftp_file.remote_path,
                 validation["header_columns"],
+                validation["data_rows"],
                 validation["has_data"],
             )
             # Кеш и последующий state обновляются только после полной передачи

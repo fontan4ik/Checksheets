@@ -55,6 +55,32 @@ class SyncEtmCodesTests(unittest.TestCase):
         self.assertEqual(mapping, {})
         self.assertEqual(stats["conflict_keys"], 1)
 
+    def test_validate_ftp_csv_reads_all_rows_and_requires_expected_header(self):
+        content = (
+            "Код ЭТМ;Артикул;Производитель\n"
+            "0007;00123;Arlight\n"
+            "0008;00124;Arlight\n"
+        ).encode("cp1251")
+
+        stats = module.validate_ftp_csv(content, "price.csv")
+
+        self.assertEqual(stats["header_columns"], 3)
+        self.assertEqual(stats["data_rows"], 2)
+        self.assertTrue(stats["has_data"])
+
+    def test_validate_ftp_csv_rejects_malformed_content(self):
+        content = (
+            "Код ЭТМ;Артикул;Производитель\n"
+            '"0007;00123;Arlight\n'
+        ).encode("cp1251")
+
+        with self.assertRaises(csv.Error):
+            module.validate_ftp_csv(content, "price.csv")
+
+    def test_ftp_timeout_defaults_to_300_seconds(self):
+        self.assertEqual(module.FTP_TIMEOUT, 300)
+        self.assertEqual(module.FTP_DOWNLOAD_ATTEMPTS, 3)
+
     def test_plan_updates_matches_model_and_brand_and_preserves_unmatched(self):
         rows = [
             ["art", "model", "brand", "Коды ЭТМ"],
@@ -177,7 +203,7 @@ class SyncEtmCodesTests(unittest.TestCase):
         ), patch.object(
             module, "download_ftp_file", side_effect=[OSError("EOF"), b"valid csv"]
         ), patch.object(
-            module, "validate_ftp_csv", return_value={"source_rows": 1}
+            module, "validate_ftp_csv", return_value={"source_rows": 1, "header_columns": 3, "data_rows": 1, "has_data": True}
         ), patch.object(module, "save_ftp_cache") as save_cache, patch.object(
             module.time, "sleep"
         ) as sleep:
