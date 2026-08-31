@@ -172,6 +172,43 @@ function calculateOborValues() {
   return { rows: targetLastRow - 1, nonZero: nonZero };
 }
 
+/**
+ * Обновить только колонку «ВБ ост» прямой выгрузкой WB.
+ * Остальные колонки листа «ОБОР» не изменяются.
+ */
+function updateOborWbStockDirect() {
+  const spreadsheet = SpreadsheetApp.openById(OBOR_VALUES_SPREADSHEET_ID);
+  const targetSheet = spreadsheet.getSheetByName(OBOR_VALUES_TARGET_SHEET);
+  if (!targetSheet) throw new Error("Не найден лист: " + OBOR_VALUES_TARGET_SHEET);
+
+  const targetHeaderMap = getOborHeaderMap_(targetSheet);
+  const targetColumn = targetHeaderMap[normalizeOborHeader_("ВБ ост")];
+  if (!targetColumn) throw new Error("В ОБОР не найден заголовок: ВБ ост");
+
+  const valueMap = fetchOborWbStockByArticle_();
+  const targetLastRow = targetSheet.getLastRow();
+  if (targetLastRow < 2) return { rows: 0, nonZero: 0 };
+
+  const targetArticles = targetSheet
+    .getRange(2, 1, targetLastRow - 1, 1)
+    .getValues();
+  const values = targetArticles.map(row => {
+    const article = normalizeOborArticle_(row[0]);
+    return [article ? roundOborValue_(valueMap[article] || 0) : ""];
+  });
+
+  targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);
+  SpreadsheetApp.flush();
+
+  const nonZero = values.filter(row => Number(row[0]) !== 0).length;
+  Logger.log(
+    "ОБОР: только «ВБ ост» обновлён напрямую из WB supplier/stocks" +
+    "; строк=" + values.length +
+    "; ненулевых=" + nonZero
+  );
+  return { rows: values.length, nonZero: nonZero };
+}
+
 /** Совместимый короткий запуск. Также считает только значения, не формулы. */
 function updateOborSummary() {
   return calculateOborValues();
