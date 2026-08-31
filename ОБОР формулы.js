@@ -13,7 +13,7 @@
  * - K «СДЭК Остаток»        ← ОТКЛЮЧЕНО (Ozon FBS API / склад «КГТ СДЭК»)
  * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
- * - «ВБ ост»                ← прямой WB supplier/stocks, «Склад WB РФ»
+ * - «ВБ ост»                ← прямой WB Analytics stocks-report, stockCount
  * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
@@ -30,7 +30,8 @@ const OBOR_CDEK_WAREHOUSE_ID = 1020002321437000;
 const OBOR_CDEK_STOCKS_URL = "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs";
 const OBOR_CDEK_BATCH_SIZE = 1000;
 const OBOR_CDEK_REQUEST_INTERVAL_MS = 1000;
-const OBOR_WB_STOCKS_DATE_FROM = "2019-06-20";
+const OBOR_WB_ANALYTICS_PAGE_LIMIT = 1000;
+const OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS = 12000;
 
 const OBOR_VALUE_CONFIG = [
   {
@@ -74,7 +75,7 @@ const OBOR_VALUE_CONFIG = [
   {
     key: "wbStock",
     targetHeader: "ВБ ост",
-    sourceType: "wbSupplierStocks",
+    sourceType: "wbAnalyticsStocks",
     sourceSheet: null,
     sourceArticleColumn: null,
     sourceValueColumns: [],
@@ -116,7 +117,7 @@ function calculateOborValues() {
 
   const sourceMaps = {};
   OBOR_VALUE_CONFIG.forEach(item => {
-    if (item.sourceType === "wbSupplierStocks") {
+    if (item.sourceType === "wbAnalyticsStocks") {
       sourceMaps[item.key] = fetchOborWbStockByArticle_();
       return;
     }
@@ -153,8 +154,8 @@ function calculateOborValues() {
     targetSheet.getRange(1, targetColumn).setValue(item.targetHeader);
     targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);
 
-    const source = item.sourceType === "wbSupplierStocks"
-      ? "WB supplier/stocks / quantity («Склад WB РФ»)"
+    const source = item.sourceType === "wbAnalyticsStocks"
+      ? "WB Analytics stocks / metrics.stockCount («Склад WB РФ»)"
       : (item.sourceSheet || "Ozon FBS API");
     Logger.log(
       "Записано: " + item.targetHeader +
@@ -202,7 +203,7 @@ function updateOborWbStockDirect() {
 
   const nonZero = values.filter(row => Number(row[0]) !== 0).length;
   Logger.log(
-    "ОБОР: только «ВБ ост» обновлён напрямую из WB supplier/stocks" +
+    "ОБОР: только «ВБ ост» обновлён напрямую из WB Analytics stocks" +
     "; строк=" + values.length +
     "; ненулевых=" + nonZero
   );
@@ -223,7 +224,7 @@ function installOborArrayFormulas() {
 /** Проверка конфигурации без записи и без вызова API. */
 function previewOborValues() {
   OBOR_VALUE_CONFIG.forEach(item => {
-    const source = item.sourceType === "wbSupplierStocks"
+    const source = item.sourceType === "wbAnalyticsStocks"
       ? "прямой WB supplier/stocks / quantity («Склад WB РФ»)"
       : (item.sourceSheet || "Ozon FBS API");
     Logger.log(
@@ -280,52 +281,98 @@ function buildOborValueMap_(spreadsheet, item) {
 }
 
 /**
- * Получить остаток WB напрямую и подготовить источник для колонки «ВБ ост».
+ * Получить остаток WB через Analytics API и подготовить источник для «ВБ ост».
  *
- * В выгрузке supplier/stocks каждая строка — остаток одного артикула продавца
- * на одном складе WB. Сумма quantity по supplierArticle соответствует полю
- * «Склад WB РФ» в выгрузке WB. Запись в ТЕСТ не выполняется.
+ * В актуальном ответе WB: vendorCode = «Артикул продавца»,
+ * metrics.stockCount = остаток на складах WB при stockType="wb".
  */
 function fetchOborWbStockByArticle_() {
-  const url = wbStocksApiURL() +
-    "?dateFrom=" + encodeURIComponent(OBOR_WB_STOCKS_DATE_FROM);
-  const response = retryFetch(url, {
-    method: "get",
-    headers: wbHeaders(),
-    muteHttpExceptions: true
-  }, 3);
+  const dateRange = getOborWbAnalyticsDateRange_();
+  const allItems = [];
+  let offset = 0;
 
-  if (!response) {
-    throw new Error("WB supplier/stocks: пустой ответ API");
-  }
-
-  const responseCode = response.getResponseCode();
-  const responseText = response.getContentText() || "";
-  if (responseCode < 200 || responseCode >= 300) {
-    throw new Error(
-      "WB supplier/stocks: HTTP " + responseCode + ": " +
-      responseText.substring(0, 300)
+  while (true) {
+    const response = retryFetch(
+      wbAnalyticsStocksURL(),
+      {
+        method: "post",
+        headers: wbAnalyticsHeaders(),
+        contentType: "application/json",
+        payload: JSON.stringify({
+          nmIDs: [],
+          currentPeriod: {
+            start: dateRange.dateFrom,
+            end: dateRange.dateTo
+          },
+          stockType: "wb",
+          skipDeletedNm: false,
+          availabilityFilters: [],
+          orderBy: {
+            field: "ordersCount",
+            mode: "desc"
+          },
+          limit: OBOR_WB_ANALYTICS_PAGE_LIMIT,
+          offset: offset
+        }),
+        muteHttpExceptions: true
+      },
+      3
     );
+
+    if (!response) {
+      throw new Error("WB Analytics stocks: пустой ответ API");
+    }
+
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText() || "";
+    if (responseCode < 200 || responseCode >= 300) {
+      throw new Error(
+        "WB Analytics stocks: HTTP " + responseCode + ": " +
+        responseText.substring(0, 300)
+      );
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(responseText);
+    } catch (error) {
+      throw new Error("WB Analytics stocks: ответ не является JSON: " + error.message);
+    }
+
+    const items = payload && payload.data && Array.isArray(payload.data.items)
+      ? payload.data.items
+      : null;
+    if (!items) {
+      throw new Error("WB Analytics stocks: в data.items ожидался массив");
+    }
+
+    allItems.push.apply(allItems, items);
+    if (items.length < OBOR_WB_ANALYTICS_PAGE_LIMIT) break;
+
+    offset += items.length;
+    Utilities.sleep(OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS);
   }
 
-  let stocks;
-  try {
-    stocks = JSON.parse(responseText);
-  } catch (error) {
-    throw new Error("WB supplier/stocks: ответ не является JSON: " + error.message);
-  }
-
-  if (!Array.isArray(stocks)) {
-    throw new Error("WB supplier/stocks: ожидался массив записей");
-  }
-
-  const aggregated = aggregateOborWbStockRows_(stocks);
+  const aggregated = aggregateOborWbStockRows_(allItems);
   Logger.log(
-    "WB supplier/stocks: записей=" + stocks.length +
+    "WB Analytics stocks: товаров=" + allItems.length +
     "; валидных артикулов=" + aggregated.validRows +
     "; агрегированных артикулов=" + Object.keys(aggregated.values).length
   );
   return aggregated.values;
+}
+
+function getOborWbAnalyticsDateRange_() {
+  const dateTo = new Date();
+  dateTo.setDate(dateTo.getDate() - 1);
+  const dateFrom = new Date(dateTo);
+  dateFrom.setDate(dateFrom.getDate() - 30);
+  const timeZone = Session.getScriptTimeZone() || "Europe/Moscow";
+
+  return {
+    dateFrom: Utilities.formatDate(dateFrom, timeZone, "yyyy-MM-dd"),
+    dateTo: Utilities.formatDate(dateTo, timeZone, "yyyy-MM-dd")
+  };
 }
 
 /** Чистая агрегация WB-строк, вынесенная для локальной проверки без API. */
@@ -334,12 +381,18 @@ function aggregateOborWbStockRows_(rows) {
   let validRows = 0;
 
   (Array.isArray(rows) ? rows : []).forEach(item => {
-    const article = normalizeOborArticle_(item && item.supplierArticle);
+    const article = normalizeOborArticle_(
+      item && (item.vendorCode || item.supplierArticle)
+    );
     if (!article) return;
 
     const parsed = parseOborArticle_(article);
-    const quantity = Math.max(0, parseOborNumber_(item.quantity));
-    values[parsed.base] = (values[parsed.base] || 0) + quantity * parsed.multiplier;
+    const quantity = item && item.metrics &&
+      Object.prototype.hasOwnProperty.call(item.metrics, "stockCount")
+      ? item.metrics.stockCount
+      : item && item.quantity;
+    const stock = Math.max(0, parseOborNumber_(quantity));
+    values[parsed.base] = (values[parsed.base] || 0) + stock * parsed.multiplier;
     validRows++;
   });
 

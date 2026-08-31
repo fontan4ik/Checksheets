@@ -38,6 +38,16 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(result.values)), {
 });
 assert.strictEqual(result.validRows, 6);
 
-console.log('OK: WB quantity агрегируется по supplierArticle');
+const analyticsResult = aggregate([
+  { vendorCode: '77001', metrics: { stockCount: 4 }, quantity: 999 },
+  { vendorCode: '77001-2', metrics: { stockCount: 3 } },
+  { vendorCode: '77001', metrics: { stockCount: 1 } },
+]);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(analyticsResult.values)), {
+  '77001': 11,
+});
+assert.strictEqual(analyticsResult.validRows, 3);
+
+console.log('OK: актуальная Analytics-схема vendorCode/metrics.stockCount поддержана');
 console.log('OK: суффиксы упаковки учитываются при прямой загрузке в ОБОР');
 console.log('OK: отрицательный остаток обнуляется, пустой артикул пропускается');
