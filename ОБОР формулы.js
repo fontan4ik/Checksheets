@@ -152,9 +152,12 @@ function calculateOborValues() {
     targetSheet.getRange(1, targetColumn).setValue(item.targetHeader);
     targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);
 
+    const source = item.sourceType === "wbSupplierStocks"
+      ? "WB supplier/stocks / quantity («Склад WB РФ»)"
+      : (item.sourceSheet || "Ozon FBS API");
     Logger.log(
       "Записано: " + item.targetHeader +
-      "; источник: " + (item.sourceSheet || "Ozon FBS API") +
+      "; источник: " + source +
       "; ненулевых строк: " + (nonZero[item.key] || 0) +
       "; " + item.note
     );
