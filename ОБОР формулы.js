@@ -197,7 +197,11 @@ function updateOborWbStockDirect() {
     .getValues();
   const values = targetArticles.map(row => {
     const article = normalizeOborArticle_(row[0]);
-    return [article ? roundOborValue_(valueMap[article] || 0) : ""];
+    if (!article) return [""];
+    // WB-ответ агрегируется по базовому артикулу, поэтому 23348-1
+    // должен читать значение по ключу 23348, а не искать ключ 23348-1.
+    const parsed = parseOborArticle_(article);
+    return [roundOborValue_(valueMap[parsed.base] || 0)];
   });
 
   targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);

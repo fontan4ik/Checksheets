@@ -13,6 +13,8 @@ const context = {
   console,
   SpreadsheetApp: {},
   Logger: { log() {} },
+  Session: { getScriptTimeZone: () => 'Europe/Moscow' },
+  Utilities: { formatDate: () => '2026-08-31', sleep() {} },
 };
 vm.createContext(context);
 vm.runInContext(source, context, { filename: sourcePath });
@@ -74,9 +76,18 @@ context.SpreadsheetApp = {
   },
   flush() {},
 };
-vm.runInContext('fetchOborWbStockByArticle_ = () => ({ "23348": 32 });', context);
+context.wbAnalyticsStocksURL = () => 'https://example.test/stocks';
+context.wbAnalyticsHeaders = () => ({ Authorization: 'redacted' });
+context.retryFetch = () => ({
+  getResponseCode: () => 200,
+  getContentText: () => JSON.stringify({
+    data: {
+      items: [{ vendorCode: '23348-1', metrics: { stockCount: 32 } }],
+    },
+  }),
+});
 context.updateOborWbStockDirect();
-assert.deepStrictEqual(writes, [{
+assert.deepStrictEqual(JSON.parse(JSON.stringify(writes)), [{
   row: 2,
   column: 23,
   values: [[32], [0]],
