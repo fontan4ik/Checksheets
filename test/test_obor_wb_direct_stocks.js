@@ -48,6 +48,41 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(analyticsResult.values)), {
 });
 assert.strictEqual(analyticsResult.validRows, 3);
 
+const writes = [];
+const targetSheet = {
+  getLastRow() {
+    return 3;
+  },
+  getRange(row, column, numRows) {
+    if (row === 2 && column === 1 && numRows === 2) {
+      return { getValues: () => [['23348-1'], ['99999']] };
+    }
+    if (row === 2 && column === 23 && numRows === 2) {
+      return {
+        setValues(values) {
+          writes.push({ row, column, values });
+        },
+      };
+    }
+    throw new Error(`Unexpected range: row=${row}, column=${column}, numRows=${numRows}`);
+  },
+};
+
+context.SpreadsheetApp = {
+  openById() {
+    return { getSheetByName: () => targetSheet };
+  },
+  flush() {},
+};
+vm.runInContext('fetchOborWbStockByArticle_ = () => ({ "23348": 32 });', context);
+context.updateOborWbStockDirect();
+assert.deepStrictEqual(writes, [{
+  row: 2,
+  column: 23,
+  values: [[32], [0]],
+}]);
+
 console.log('OK: актуальная Analytics-схема vendorCode/metrics.stockCount поддержана');
 console.log('OK: суффиксы упаковки учитываются при прямой загрузке в ОБОР');
 console.log('OK: отрицательный остаток обнуляется, пустой артикул пропускается');
+console.log('OK: updateOborWbStockDirect записывает только колонку W');

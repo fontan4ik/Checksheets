@@ -32,6 +32,8 @@ const OBOR_CDEK_BATCH_SIZE = 1000;
 const OBOR_CDEK_REQUEST_INTERVAL_MS = 1000;
 const OBOR_WB_ANALYTICS_PAGE_LIMIT = 1000;
 const OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS = 12000;
+// Для ручного WB-запуска обновляется только колонка W листа «ОБОР».
+const OBOR_WB_STOCK_TARGET_COLUMN = "W";
 
 const OBOR_VALUE_CONFIG = [
   {
@@ -182,9 +184,9 @@ function updateOborWbStockDirect() {
   const targetSheet = spreadsheet.getSheetByName(OBOR_VALUES_TARGET_SHEET);
   if (!targetSheet) throw new Error("Не найден лист: " + OBOR_VALUES_TARGET_SHEET);
 
-  const targetHeaderMap = getOborHeaderMap_(targetSheet);
-  const targetColumn = targetHeaderMap[normalizeOborHeader_("ВБ ост")];
-  if (!targetColumn) throw new Error("В ОБОР не найден заголовок: ВБ ост");
+  // Не ищем заголовок по всему листу: это могло выбрать не тот дубликат.
+  // Целевой столбец для этого ручного запуска зафиксирован явно: W (23).
+  const targetColumn = columnToNumberObor_(OBOR_WB_STOCK_TARGET_COLUMN);
 
   const valueMap = fetchOborWbStockByArticle_();
   const targetLastRow = targetSheet.getLastRow();
