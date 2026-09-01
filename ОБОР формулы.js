@@ -32,8 +32,8 @@ const OBOR_CDEK_BATCH_SIZE = 1000;
 const OBOR_CDEK_REQUEST_INTERVAL_MS = 1000;
 const OBOR_WB_ANALYTICS_PAGE_LIMIT = 1000;
 const OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS = 12000;
-// Для ручного WB-запуска обновляется только колонка W листа «ОБОР».
-const OBOR_WB_STOCK_TARGET_COLUMN = "W";
+// Для ручного WB-запуска обновляется только колонка AV листа «ОБОР».
+const OBOR_WB_STOCK_TARGET_COLUMN = "AV";
 
 const OBOR_VALUE_CONFIG = [
   {
@@ -185,7 +185,7 @@ function updateOborWbStockDirect() {
   if (!targetSheet) throw new Error("Не найден лист: " + OBOR_VALUES_TARGET_SHEET);
 
   // Не ищем заголовок по всему листу: это могло выбрать не тот дубликат.
-  // Целевой столбец для этого ручного запуска зафиксирован явно: W (23).
+  // Целевой столбец для этого ручного запуска зафиксирован явно: AV (48).
   const targetColumn = columnToNumberObor_(OBOR_WB_STOCK_TARGET_COLUMN);
 
   const valueMap = fetchOborWbStockByArticle_();

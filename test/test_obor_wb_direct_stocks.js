@@ -59,7 +59,7 @@ const targetSheet = {
     if (row === 2 && column === 1 && numRows === 2) {
       return { getValues: () => [['23348-1'], ['99999']] };
     }
-    if (row === 2 && column === 23 && numRows === 2) {
+    if (row === 2 && column === 48 && numRows === 2) {
       return {
         setValues(values) {
           writes.push({ row, column, values });
@@ -89,11 +89,11 @@ context.retryFetch = () => ({
 context.updateOborWbStockDirect();
 assert.deepStrictEqual(JSON.parse(JSON.stringify(writes)), [{
   row: 2,
-  column: 23,
+  column: 48,
   values: [[32], [0]],
 }]);
 
 console.log('OK: актуальная Analytics-схема vendorCode/metrics.stockCount поддержана');
 console.log('OK: суффиксы упаковки учитываются при прямой загрузке в ОБОР');
 console.log('OK: отрицательный остаток обнуляется, пустой артикул пропускается');
-console.log('OK: updateOborWbStockDirect записывает только колонку W');
+console.log('OK: updateOborWbStockDirect записывает только колонку AV');
