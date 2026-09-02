@@ -124,7 +124,7 @@ These run on local servers or machines to update Google Sheets via the API:
 | **66** | **BN** | Текущая выставленная цена (Huckster `upload_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
 | **67** | **BO** | Цена по карте / РЦ для удержания (Huckster `market_card_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
 | **по заголовку** | — | Цена на витрине с картой Х (Huckster `market_card_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
-| **по заголовку** | — | Мин цена продажи Х (Huckster `min_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
+| **по заголовку** | — | Мин. цена продажи (или исторический заголовок Мин цена продажи Х) (Huckster `min_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
 
 ### ARL TR: Huckster price source columns
 

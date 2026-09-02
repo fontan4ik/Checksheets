@@ -70,6 +70,10 @@ assert.strictEqual(
   context.hucksterFindHeaderColumn_(['Артикул', 'Цена на витрине с картой Х', 'Мин цена продажи Х'], 'Мин цена продажи Х', 'Мин цена продажи Х'),
   3
 );
+assert.strictEqual(
+  context.hucksterFindHeaderColumn_(['Артикул', 'Мин. цена продажи'], context.HUCKSTER_MIN_PRICE_HEADERS, 'Мин цена продажи Х'),
+  2
+);
 
 assert.strictEqual(
   context.hucksterExtractPasswordHash_('hashed-password'),

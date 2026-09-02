@@ -5,7 +5,8 @@
  * - BN (66): текущая выставленная цена (upload_price)
  * - BO (67): рекомендуемая цена / РЦ для удержания (market_card_price)
  * - колонка с заголовком "Цена на витрине с картой Х": цена по карте (market_card_price)
- * - колонка с заголовком "Мин цена продажи Х": минимальная цена (min_price)
+ * - колонка с заголовком "Мин. цена продажи" (также поддерживается
+ *   исторический вариант "Мин цена продажи Х"): минимальная цена (min_price)
  *
  * Источник: POST /markets/integrations/repricer/items/list
  * База API: https://wbs.e-teleport.ru
@@ -34,7 +35,11 @@ var HUCKSTER_OFFER_ID_COLUMN = 1; // A: offer_id
 var HUCKSTER_CURRENT_PRICE_COLUMN = 66; // BN
 var HUCKSTER_RECOMMENDED_PRICE_COLUMN = 67; // BO
 var HUCKSTER_MARKET_CARD_PRICE_HEADER = 'Цена на витрине с картой Х';
-var HUCKSTER_MIN_PRICE_HEADERS = 'Мин цена продажи Х';
+var HUCKSTER_MIN_PRICE_HEADERS = [
+  'Мин цена продажи Х',
+  'Мин. цена продажи',
+  'Мин цена продажи'
+];
 var HUCKSTER_PAGE_SIZE = 1000;
 var HUCKSTER_WRITE_BATCH_SIZE = 100;
 var HUCKSTER_ARL_SHEET_NAME = 'ARL TR';
