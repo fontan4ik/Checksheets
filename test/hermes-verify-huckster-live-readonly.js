@@ -1,6 +1,6 @@
 const assert = require('assert');
 const fs = require('fs');
-const https = require('https');
+const { spawnSync } = require('child_process');
 const path = require('path');
 const readline = require('readline');
 const vm = require('vm');
@@ -50,31 +50,29 @@ async function askHidden(question) {
 }
 
 function httpJson(apiPath, payload, cookie) {
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify(payload || {});
-    const request = https.request({
-      hostname: 'wbs.e-teleport.ru',
-      path: apiPath,
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-        ...(cookie ? { Cookie: `ss-id=${cookie}` } : {})
-      }
-    }, (response) => {
-      let text = '';
-      response.setEncoding('utf8');
-      response.on('data', (chunk) => { text += chunk; });
-      response.on('end', () => resolve({
-        getResponseCode: () => response.statusCode,
-        getContentText: () => text
-      }));
-    });
-    request.on('error', reject);
-    request.write(body);
-    request.end();
-  });
+  const body = JSON.stringify(payload || {});
+  const args = [
+    '-sS', '--max-time', '30', '-X', 'POST',
+    `https://wbs.e-teleport.ru${apiPath}`,
+    '-H', 'Accept: application/json',
+    '-H', 'Content-Type: application/json',
+    '--data-binary', body,
+    '-w', '\n__HUCKSTER_STATUS__%{http_code}'
+  ];
+  if (cookie) args.splice(8, 0, '-H', `Cookie: ss-id=${cookie}`);
+  const result = spawnSync('curl', args, { encoding: 'utf8' });
+  if (result.error || result.status !== 0) {
+    throw new Error('Huckster transport failed');
+  }
+  const marker = '\n__HUCKSTER_STATUS__';
+  const markerIndex = result.stdout.lastIndexOf(marker);
+  if (markerIndex < 0) throw new Error('Huckster status missing');
+  const text = result.stdout.slice(0, markerIndex);
+  const code = Number(result.stdout.slice(markerIndex + marker.length));
+  return {
+    getResponseCode: () => code,
+    getContentText: () => text
+  };
 }
 
 async function readSheetRows() {
