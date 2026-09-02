@@ -51,7 +51,7 @@ API base URL: `https://wbs.e-teleport.ru`.
 - В начале `Huckster цены.js` поля `HUCKSTER_USER_NAME`, `HUCKSTER_PASSWORD` и `HUCKSTER_SHOP_ID` пустые. Все три значения задаются в Script Properties Apps Script с такими же ключами; секреты не записываются в исходный файл.
 - Если `HUCKSTER_SHOP_ID` пустой и кабинетов Ozon несколько, скрипт остановится без записи и попросит задать идентификатор.
 - `updateHucksterPrices()` выполняет только read-only выгрузку в «ТЕСТ».
-- `syncHucksterPricesFromArlTr()` выполняет запись только `min_price` из U при ручном запуске и обрабатывает товары пачками до 100; W и X не записываются.
+- `syncHucksterPricesFromArlTr()` выполняет запись только `min_price` из U при ручном запуске и обрабатывает товары пачками до 100; W и X не записываются. После записи выполняется read-back по `uid`; отчёт содержит `verified` либо запуск завершается явной ошибкой при несовпадении.
 - `testSyncHucksterPricesFromArlTr_032431_1()` — ручной тестовый запуск той же записи только для точного артикула `032431-1` из колонки A листа «ARL TR»; это не read-only функция.
 - Перед live-запуском необходимо проверить сформированный payload и получить отдельное подтверждение на запись минимальной цены в Huckster.
 - Единственная функция для read-only запуска: `updateHucksterPrices()`; функции записи: `syncHucksterPricesFromArlTr()` и точечная `testSyncHucksterPricesFromArlTr_032431_1()`.
