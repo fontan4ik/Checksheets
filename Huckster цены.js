@@ -397,16 +397,48 @@ function hucksterLoadCatalogItems_(session, userName) {
 
 function hucksterResolveRrcPriceTypeId_(session) {
   var props = PropertiesService.getScriptProperties();
-  var desiredName = props.getProperty('HUCKSTER_RRC_PRICE_TYPE_NAME') || HUCKSTER_RRC_PRICE_TYPE_NAME;
+  var configuredName = props.getProperty('HUCKSTER_RRC_PRICE_TYPE_NAME');
+  var desiredName = configuredName || HUCKSTER_RRC_PRICE_TYPE_NAME;
   var response = hucksterAuthorizedJson_(session, '/markets/price_types/list', {});
   var types = response && Array.isArray(response.result) ? response.result : [];
   var matches = types.filter(function(type) {
     return hucksterNormalizeHeader_(type && type.price_type) === hucksterNormalizeHeader_(desiredName);
   });
-  if (matches.length !== 1 || !matches[0].price_type_id) {
-    throw new Error('В Huckster не найден ровно один тип дополнительной цены "' + desiredName + '".');
+
+  if (matches.length === 1 && matches[0].price_type_id) {
+    return String(matches[0].price_type_id);
   }
-  return String(matches[0].price_type_id);
+
+  // В Huckster название дополнительного типа цены задаётся пользователем и
+  // может отличаться от "РЦ Озон". Если тип в кабинете ровно один, выбор
+  // однозначен — используем его ID, полученный из API.
+  var usableTypes = types.filter(function(type) {
+    return type && type.price_type_id !== undefined && type.price_type_id !== null &&
+      String(type.price_type_id).trim();
+  });
+  if (!configuredName && usableTypes.length === 1) {
+    return String(usableTypes[0].price_type_id).trim();
+  }
+
+  var availableNames = usableTypes.map(function(type) {
+    return hucksterSafeText_(type.price_type || '(без названия)');
+  });
+  if (!availableNames.length) {
+    throw new Error(
+      'Huckster не вернул доступных дополнительных типов цен. Создайте дополнительный тип цены в Huckster ' +
+      'или проверьте подключение кабинета.'
+    );
+  }
+  if (!configuredName && usableTypes.length > 1) {
+    throw new Error(
+      'В Huckster найдено несколько дополнительных типов цен: ' + availableNames.join(', ') +
+      '. Задайте Script Property HUCKSTER_RRC_PRICE_TYPE_NAME.'
+    );
+  }
+  throw new Error(
+    'В Huckster не найден дополнительный тип цены "' + desiredName + '". Доступные типы: ' +
+    availableNames.join(', ') + '. Проверьте HUCKSTER_RRC_PRICE_TYPE_NAME.'
+  );
 }
 
 function hucksterWriteBatches_(session, path, payloadFactory, items) {

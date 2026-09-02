@@ -20,8 +20,10 @@ API base URL: `https://wbs.e-teleport.ru`.
 
 1. `POST /markets/integrations/repricer/items/set` — записывает `min_price`.
 2. `POST /catalog_updatePrice` — записывает базовую розничную (`retail_price`) цену.
-3. `POST /markets/price_types/list` — получает `price_type_id` дополнительного типа «РЦ Озон».
-4. `POST /markets/items/prices/update` — записывает цену дополнительного типа «РЦ Озон».
+3. `POST /markets/price_types/list` — получает `price_type_id` дополнительного типа цены.
+4. `POST /markets/items/prices/update` — записывает цену дополнительного типа.
+
+Название дополнительного типа в Huckster задаётся пользователем произвольно. Если в Script Properties не задан `HUCKSTER_RRC_PRICE_TYPE_NAME` и API возвращает ровно один тип, скрипт использует его автоматически. При нескольких типах нужно явно указать название в `HUCKSTER_RRC_PRICE_TYPE_NAME`; при отсутствии типов сначала создайте дополнительный вид цены в Huckster.
 
 Документация Huckster указывает заголовок `set-cookie: ss-id=<SessionId>`. В текущей рабочей интеграции авторизованный запрос отправляется через обычный request-заголовок `Cookie: ss-id=<SessionId>`.
 

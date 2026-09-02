@@ -93,7 +93,7 @@ const context = {
       }
       if (url.endsWith('/markets/price_types/list')) {
         return response(200, JSON.stringify({ result: [
-          { price_type_id: 'rrc-id', price_type: 'РЦ Озон' }
+          { price_type_id: 'rrc-id', price_type: 'Мой дополнительный прайс' }
         ] }));
       }
       if (url.endsWith('/markets/integrations/repricer/items/set')) {
