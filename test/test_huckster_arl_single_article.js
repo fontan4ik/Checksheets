@@ -83,19 +83,6 @@ const context = {
           cursor: { total: 2, offset: 0 }
         }));
       }
-      if (url.endsWith('/catalog_get')) {
-        const payload = JSON.parse(options.payload);
-        assert.strictEqual(payload.contact, 'mock-user');
-        return response(200, JSON.stringify({ retval: { catalog: [
-          { uid: 'uid-target', price: 500, retail_price: 1400 },
-          { uid: 'uid-other', price: 600, retail_price: 2400 }
-        ] } }));
-      }
-      if (url.endsWith('/markets/price_types/list')) {
-        return response(200, JSON.stringify({ result: [
-          { price_type_id: 'rrc-id', price_type: 'Мой дополнительный прайс' }
-        ] }));
-      }
       if (url.endsWith('/markets/integrations/repricer/items/set')) {
         writes.push({ path: 'repricer', payload: JSON.parse(options.payload) });
         return response(200, JSON.stringify({ result: [{ result: 'OK' }] }));
@@ -122,22 +109,12 @@ assert.strictEqual(report.sourceRows, 1);
 assert.strictEqual(report.matchedItems, 1);
 assert.strictEqual(report.unmatchedRows, 0);
 assert.strictEqual(report.minPriceItems, 1);
-assert.strictEqual(report.listedPriceItems, 1);
-assert.strictEqual(report.rrcPriceItems, 1);
-assert.strictEqual(report.written, 3);
+assert.strictEqual(report.written, 1);
 
 const repricer = writes.find((write) => write.path === 'repricer');
 assert.deepStrictEqual(repricer.payload.item_list.map((item) => item.uid), ['uid-target']);
 assert.strictEqual(repricer.payload.item_list[0].min_price, 1000);
 
-const catalog = writes.find((write) => write.path === 'catalog');
-assert.deepStrictEqual(catalog.payload.items, [
-  { uid: 'uid-target', price: 500, retail_price: 1500 }
-]);
-
-const rrc = writes.find((write) => write.path === 'rrc');
-assert.deepStrictEqual(rrc.payload.items, [
-  { uid: 'uid-target', price_type_id: 'rrc-id', retail_price: 1200 }
-]);
+assert.strictEqual(writes.length, 1);
 
 console.log('test_huckster_arl_single_article: PASS');

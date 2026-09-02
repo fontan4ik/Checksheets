@@ -83,21 +83,6 @@ const context = {
           cursor: { total: 2, offset: 0 }
         }));
       }
-      if (url.endsWith('/catalog_get')) {
-        assert.strictEqual(options.headers.Cookie, 'ss-id=mock-session');
-        const payload = JSON.parse(options.payload);
-        assert.strictEqual(payload.contact, 'mock-user');
-        assert.deepStrictEqual(payload.fields, ['uid', 'price', 'retail_price']);
-        return response(200, JSON.stringify({ retval: { catalog: [
-          { uid: 'uid-1', price: 500, retail_price: 1400 },
-          { uid: 'uid-2', price: 600, retail_price: 1900 }
-        ] } }));
-      }
-      if (url.endsWith('/markets/price_types/list')) {
-        return response(200, JSON.stringify({ result: [
-          { price_type_id: 'rrc-id', price_type: 'РЦ Озон' }
-        ] }));
-      }
       if (url.endsWith('/markets/integrations/repricer/items/set')) {
         writes.push({ path: 'repricer', payload: JSON.parse(options.payload) });
         return response(200, JSON.stringify({ result: [{ result: 'OK' }] }));
@@ -119,13 +104,11 @@ vm.createContext(context);
 vm.runInContext(source, context, { filename: sourcePath });
 const report = context.syncHucksterPricesFromArlTr();
 
-assert.strictEqual(report.sourceRows, 2);
-assert.strictEqual(report.matchedItems, 2);
+assert.strictEqual(report.sourceRows, 1);
+assert.strictEqual(report.matchedItems, 1);
 assert.strictEqual(report.unmatchedRows, 0);
 assert.strictEqual(report.minPriceItems, 1);
-assert.strictEqual(report.listedPriceItems, 2);
-assert.strictEqual(report.rrcPriceItems, 1);
-assert.strictEqual(report.written, 4);
+assert.strictEqual(report.written, 1);
 
 const repricer = writes.find((write) => write.path === 'repricer');
 assert.deepStrictEqual(repricer.payload, {
@@ -141,17 +124,6 @@ assert.deepStrictEqual(repricer.payload, {
   }]
 });
 
-const catalog = writes.find((write) => write.path === 'catalog');
-assert.deepStrictEqual(catalog.payload, {
-  items: [
-    { uid: 'uid-1', price: 500, retail_price: 1500 },
-    { uid: 'uid-2', price: 600, retail_price: 2000 }
-  ]
-});
-
-const rrc = writes.find((write) => write.path === 'rrc');
-assert.deepStrictEqual(rrc.payload, {
-  items: [{ uid: 'uid-1', price_type_id: 'rrc-id', retail_price: 1200 }]
-});
+assert.strictEqual(writes.length, 1);
 
 console.log('test_huckster_arl_write_payloads: PASS');

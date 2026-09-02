@@ -156,16 +156,14 @@ function updateHucksterPrices() {
 }
 
 /**
- * Записывает цены из листа "ARL TR" в Huckster.
+ * Записывает минимальную цену продажи из колонки U листа "ARL TR"
+ * в поле `min_price` Huckster через `/markets/integrations/repricer/items/set`.
  *
- * Маппинг по документации Huckster:
- * - U / МИНИМАЛЬНАЯ ХАКСТЕР -> min_price в repricer/items/set;
- * - W / ВЫСТАВЛЯЕМАЯ ХАКСТЕР -> retail_price в catalog_updatePrice;
- * - X / РЦ ХАКСТЕР -> retail_price дополнительного типа "РЦ Озон"
- *   через markets/items/prices/update.
+ * Колонки W / ВЫСТАВЛЯЕМАЯ ХАКСТЕР и X / РЦ ХАКСТЕР намеренно не
+ * обрабатываются: они не должны менять выставляемую цену или РЦ Huckster.
  *
  * Функция отдельная от read-only updateHucksterPrices() и не вызывается
- * автоматически: запись в Huckster выполняется только ручным запуском.
+ * автоматически: запись минимальной цены выполняется только ручным запуском.
  */
 /**
  * Полная синхронизация цен из ARL TR в Huckster.
@@ -234,66 +232,17 @@ function hucksterSyncPricesFromArlTr_(articleFilter) {
     }
 
     var minUpdates = [];
-    var catalogUpdates = [];
-    var rrcUpdates = [];
     matched.forEach(function(pair) {
       var source = pair.source;
       var item = pair.item;
       if (source.minPrice !== '' && source.minPrice !== hucksterToPrice_(item.min_price)) {
         minUpdates.push(hucksterBuildRepricerUpdate_(item, source.minPrice));
       }
-      if (source.listedPrice !== '') {
-        catalogUpdates.push({ uid: String(item.uid), retail_price: source.listedPrice });
-      }
-      if (source.rrcPrice !== '') {
-        rrcUpdates.push({ uid: String(item.uid), retail_price: source.rrcPrice });
-      }
     });
 
-    // catalog_updatePrice требует также текущую закупочную цену.
-    if (catalogUpdates.length) {
-      var catalogItems = hucksterLoadCatalogItems_(session, hucksterGetUserName_());
-      var catalogByUid = {};
-      catalogItems.forEach(function(catalogItem) {
-        if (catalogItem && catalogItem.uid !== undefined && catalogItem.uid !== null) {
-          catalogByUid[String(catalogItem.uid)] = catalogItem;
-        }
-      });
-      catalogUpdates = catalogUpdates.map(function(update) {
-        var catalogItem = catalogByUid[update.uid];
-        if (!catalogItem || hucksterToPrice_(catalogItem.price) === '') {
-          throw new Error('Не найдена закупочная цена товара Huckster uid=' + update.uid + '.');
-        }
-        return {
-          uid: update.uid,
-          price: hucksterToPrice_(catalogItem.price),
-          retail_price: update.retail_price
-        };
-      });
-    }
-
-    var rrcPriceTypeId = '';
-    if (rrcUpdates.length) {
-      rrcPriceTypeId = hucksterResolveRrcPriceTypeId_(session);
-      rrcUpdates = rrcUpdates.map(function(update) {
-        return {
-          uid: update.uid,
-          price_type_id: rrcPriceTypeId,
-          retail_price: update.retail_price
-        };
-      });
-    }
-
-    var written = 0;
-    written += hucksterWriteBatches_(session, '/markets/integrations/repricer/items/set', function(batch) {
+    var written = hucksterWriteBatches_(session, '/markets/integrations/repricer/items/set', function(batch) {
       return { marketplace: HUCKSTER_MARKETPLACE, shop_id: shopId, item_list: batch };
     }, minUpdates);
-    written += hucksterWriteBatches_(session, '/catalog_updatePrice', function(batch) {
-      return { items: batch };
-    }, catalogUpdates);
-    written += hucksterWriteBatches_(session, '/markets/items/prices/update', function(batch) {
-      return { items: batch };
-    }, rrcUpdates);
 
     var report = {
       sourceRows: sourceRows.length,
@@ -301,9 +250,6 @@ function hucksterSyncPricesFromArlTr_(articleFilter) {
       matchedItems: matched.length,
       unmatchedRows: unmatchedRows,
       minPriceItems: minUpdates.length,
-      listedPriceItems: catalogUpdates.length,
-      rrcPriceItems: rrcUpdates.length,
-      rrcPriceTypeId: rrcPriceTypeId || null,
       written: written
     };
     Logger.log('Huckster цены из ARL TR записаны: ' + JSON.stringify(report));
@@ -335,7 +281,7 @@ function hucksterReadArlPriceRows_(sheet, articleFilter) {
   }).filter(function(source) {
     return source.key &&
       (!normalizedArticleFilter || source.key === normalizedArticleFilter) &&
-      (source.minPrice !== '' || source.listedPrice !== '' || source.rrcPrice !== '');
+      source.minPrice !== '';
   });
 }
 
