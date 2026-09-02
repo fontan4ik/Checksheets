@@ -20,6 +20,7 @@ rows[1][0] = 'ART-2';
 rows[1][22] = 2000;
 rows[2][0] = 'ART-EMPTY';
 const writes = [];
+let currentMinPrice = 900;
 
 const sheet = {
   getLastRow: () => 4,
@@ -77,14 +78,16 @@ const context = {
         assert.strictEqual(options.headers.Cookie, 'ss-id=mock-session');
         return response(200, JSON.stringify({
           result: [
-            { uid: 'uid-1', sku: 'ART-1', enabled: true, card_control: true, max_discount: 5, min_price: 900 },
+            { uid: 'uid-1', sku: 'ART-1', enabled: true, card_control: true, max_discount: 5, min_price: currentMinPrice },
             { uid: 'uid-2', sku: 'ART-2', enabled: false, card_control: false, max_discount: 0, min_price: 0 }
           ],
           cursor: { total: 2, offset: 0 }
         }));
       }
       if (url.endsWith('/markets/integrations/repricer/items/set')) {
-        writes.push({ path: 'repricer', payload: JSON.parse(options.payload) });
+        const payload = JSON.parse(options.payload);
+        currentMinPrice = payload.item_list[0].min_price;
+        writes.push({ path: 'repricer', payload });
         return response(200, JSON.stringify({ result: [{ result: 'OK' }] }));
       }
       throw new Error(`Unexpected URL: ${url}`);
@@ -101,6 +104,7 @@ assert.strictEqual(report.matchedItems, 1);
 assert.strictEqual(report.unmatchedRows, 0);
 assert.strictEqual(report.minPriceItems, 1);
 assert.strictEqual(report.written, 1);
+assert.strictEqual(report.verified, 1);
 
 const repricer = writes.find((write) => write.path === 'repricer');
 assert.deepStrictEqual(repricer.payload, {

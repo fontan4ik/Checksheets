@@ -102,6 +102,7 @@ assert.strictEqual(report.matchedItems, 1);
 assert.strictEqual(report.unmatchedRows, 0);
 assert.strictEqual(report.minPriceItems, 1);
 assert.strictEqual(report.written, 1);
+assert.strictEqual(report.verified, 1);
 
 const repricer = writes.find((write) => write.path === 'repricer');
 assert.deepStrictEqual(repricer.payload.item_list.map((item) => item.uid), ['uid-target']);

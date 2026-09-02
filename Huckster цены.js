@@ -246,6 +246,7 @@ function hucksterSyncPricesFromArlTr_(articleFilter) {
     var written = hucksterWriteBatches_(session, '/markets/integrations/repricer/items/set', function(batch) {
       return { marketplace: HUCKSTER_MARKETPLACE, shop_id: shopId, item_list: batch };
     }, minUpdates);
+    var verified = hucksterVerifyMinPriceUpdates_(session, shopId, minUpdates);
 
     var report = {
       sourceRows: sourceRows.length,
@@ -253,7 +254,8 @@ function hucksterSyncPricesFromArlTr_(articleFilter) {
       matchedItems: matched.length,
       unmatchedRows: unmatchedRows,
       minPriceItems: minUpdates.length,
-      written: written
+      written: written,
+      verified: verified
     };
     Logger.log('Huckster цены из ARL TR записаны: ' + JSON.stringify(report));
     return report;
@@ -320,6 +322,37 @@ function hucksterWriteBatches_(session, path, payloadFactory, items) {
     written += batch.length;
   }
   return written;
+}
+
+function hucksterVerifyMinPriceUpdates_(session, shopId, updates) {
+  if (!updates.length) return 0;
+
+  var expectedByUid = {};
+  updates.forEach(function(update) {
+    expectedByUid[hucksterNormalizeKey_(update.uid)] = hucksterToPrice_(update.min_price);
+  });
+
+  var lastMismatches = [];
+  for (var attempt = 1; attempt <= 3; attempt++) {
+    var items = hucksterLoadRepricerItems_(session, shopId);
+    var actualByUid = {};
+    items.forEach(function(item) {
+      var uid = hucksterNormalizeKey_(item && item.uid);
+      if (uid) actualByUid[uid] = hucksterToPrice_(item.min_price);
+    });
+
+    lastMismatches = Object.keys(expectedByUid).filter(function(uid) {
+      return actualByUid[uid] !== expectedByUid[uid];
+    }).map(function(uid) {
+      return uid + ': ожидалось ' + expectedByUid[uid] + ', получено ' +
+        (actualByUid[uid] === undefined ? 'не найдено' : actualByUid[uid]);
+    });
+
+    if (!lastMismatches.length) return updates.length;
+    if (attempt < 3) Utilities.sleep(1000);
+  }
+
+  throw new Error('Huckster read-back не подтвердил min_price: ' + lastMismatches.join('; '));
 }
 
 /**
