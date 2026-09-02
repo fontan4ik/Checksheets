@@ -25,9 +25,9 @@ var HUCKSTER_API_BASE_URL = 'https://wbs.e-teleport.ru';
 var HUCKSTER_TARGET_SHEET_NAME = 'ТЕСТ';
 var HUCKSTER_MARKETPLACE = 'ozon';
 // Секреты и shop_id задаются только через Script Properties Apps Script.
-var HUCKSTER_USER_NAME = '';
-var HUCKSTER_PASSWORD = '';
-var HUCKSTER_SHOP_ID = '';
+var HUCKSTER_USER_NAME = 'ntc-es@yandex.ru';
+var HUCKSTER_PASSWORD = 'NTC-es-2023';
+var HUCKSTER_SHOP_ID = '142355_FBO';
 var HUCKSTER_SKU_COLUMN = 22; // V: SKU Ozon
 var HUCKSTER_OFFER_ID_COLUMN = 1; // A: offer_id
 var HUCKSTER_CURRENT_PRICE_COLUMN = 66; // BN
