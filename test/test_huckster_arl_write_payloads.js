@@ -26,7 +26,7 @@ const sheet = {
   getLastColumn: () => 24,
   getRange: (startRow, startColumn, numRows, numColumns) => {
     assert.strictEqual(startColumn, 1);
-    assert.strictEqual(numColumns, 24);
+    assert.strictEqual(numColumns, 21);
     assert.strictEqual(numRows, startRow === 1 ? 1 : 3);
     return {
       getValues: () => startRow === 1 ? [headers] : rows

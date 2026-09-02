@@ -12,7 +12,8 @@
  *
  * ВАЖНО:
  * - updateHucksterPrices() — read-only выгрузка цен Huckster в лист "ТЕСТ".
- * - syncHucksterPricesFromArlTr() — запись цен из "ARL TR" в Huckster.
+ * - syncHucksterPricesFromArlTr() — запись только минимальной цены из U
+ *   листа "ARL TR" в `min_price` Huckster.
  * - Логин/пароль хранятся только в Script Properties Apps Script.
  * - Для сопоставления используется V (22) — SKU Ozon; A (1) — fallback для
  *   случаев, когда Huckster вернул артикул в формате offer_id.
@@ -39,9 +40,6 @@ var HUCKSTER_WRITE_BATCH_SIZE = 100;
 var HUCKSTER_ARL_SHEET_NAME = 'ARL TR';
 var HUCKSTER_ARL_VENDOR_CODE_COLUMN = 1; // A: Артикул продавца / offer_id
 var HUCKSTER_ARL_MIN_PRICE_COLUMN = 21; // U: МИНИМАЛЬНАЯ ХАКСТЕР
-var HUCKSTER_ARL_LISTED_PRICE_COLUMN = 23; // W: ВЫСТАВЛЯЕМАЯ ХАКСТЕР
-var HUCKSTER_ARL_RRC_PRICE_COLUMN = 24; // X: РЦ ХАКСТЕР
-var HUCKSTER_RRC_PRICE_TYPE_NAME = 'РЦ Озон';
 
 /**
  * Основной read/write запуск: получает данные Huckster и записывает четыре
@@ -265,18 +263,14 @@ function hucksterReadArlPriceRows_(sheet, articleFilter) {
   var normalizedArticleFilter = hucksterNormalizeKey_(articleFilter);
   var lastColumn = Math.max(
     HUCKSTER_ARL_VENDOR_CODE_COLUMN,
-    HUCKSTER_ARL_MIN_PRICE_COLUMN,
-    HUCKSTER_ARL_LISTED_PRICE_COLUMN,
-    HUCKSTER_ARL_RRC_PRICE_COLUMN
+    HUCKSTER_ARL_MIN_PRICE_COLUMN
   );
   var values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
   return values.map(function(row, index) {
     return {
       rowNumber: index + 2,
       key: hucksterNormalizeKey_(row[HUCKSTER_ARL_VENDOR_CODE_COLUMN - 1]),
-      minPrice: hucksterToPrice_(row[HUCKSTER_ARL_MIN_PRICE_COLUMN - 1]),
-      listedPrice: hucksterToPrice_(row[HUCKSTER_ARL_LISTED_PRICE_COLUMN - 1]),
-      rrcPrice: hucksterToPrice_(row[HUCKSTER_ARL_RRC_PRICE_COLUMN - 1])
+      minPrice: hucksterToPrice_(row[HUCKSTER_ARL_MIN_PRICE_COLUMN - 1])
     };
   }).filter(function(source) {
     return source.key &&
@@ -310,81 +304,6 @@ function hucksterBuildRepricerUpdate_(item, minPrice) {
     update.sku = String(item.sku);
   }
   return update;
-}
-
-function hucksterGetUserName_() {
-  var props = PropertiesService.getScriptProperties();
-  var userName = HUCKSTER_USER_NAME || props.getProperty('HUCKSTER_USER_NAME');
-  if (!userName) throw new Error('Не задан HUCKSTER_USER_NAME в Script Properties.');
-  return String(userName).trim();
-}
-
-function hucksterLoadCatalogItems_(session, userName) {
-  var items = [];
-  var limit = 300;
-  for (var nom = 1; nom <= 100; nom++) {
-    var response = hucksterAuthorizedJson_(session, '/catalog_get', {
-      contact: userName,
-      limit: limit,
-      nom: nom,
-      fields: ['uid', 'price', 'retail_price']
-    });
-    var page = response && response.retval && Array.isArray(response.retval.catalog)
-      ? response.retval.catalog
-      : [];
-    items = items.concat(page);
-    if (page.length < limit) break;
-  }
-  if (items.length >= limit * 100) {
-    throw new Error('Huckster catalog_get превысил безопасный предел страниц.');
-  }
-  return items;
-}
-
-function hucksterResolveRrcPriceTypeId_(session) {
-  var props = PropertiesService.getScriptProperties();
-  var configuredName = props.getProperty('HUCKSTER_RRC_PRICE_TYPE_NAME');
-  var desiredName = configuredName || HUCKSTER_RRC_PRICE_TYPE_NAME;
-  var response = hucksterAuthorizedJson_(session, '/markets/price_types/list', {});
-  var types = response && Array.isArray(response.result) ? response.result : [];
-  var matches = types.filter(function(type) {
-    return hucksterNormalizeHeader_(type && type.price_type) === hucksterNormalizeHeader_(desiredName);
-  });
-
-  if (matches.length === 1 && matches[0].price_type_id) {
-    return String(matches[0].price_type_id);
-  }
-
-  // В Huckster название дополнительного типа цены задаётся пользователем и
-  // может отличаться от "РЦ Озон". Если тип в кабинете ровно один, выбор
-  // однозначен — используем его ID, полученный из API.
-  var usableTypes = types.filter(function(type) {
-    return type && type.price_type_id !== undefined && type.price_type_id !== null &&
-      String(type.price_type_id).trim();
-  });
-  if (!configuredName && usableTypes.length === 1) {
-    return String(usableTypes[0].price_type_id).trim();
-  }
-
-  var availableNames = usableTypes.map(function(type) {
-    return hucksterSafeText_(type.price_type || '(без названия)');
-  });
-  if (!availableNames.length) {
-    throw new Error(
-      'Huckster не вернул доступных дополнительных типов цен. Создайте дополнительный тип цены в Huckster ' +
-      'или проверьте подключение кабинета.'
-    );
-  }
-  if (!configuredName && usableTypes.length > 1) {
-    throw new Error(
-      'В Huckster найдено несколько дополнительных типов цен: ' + availableNames.join(', ') +
-      '. Задайте Script Property HUCKSTER_RRC_PRICE_TYPE_NAME.'
-    );
-  }
-  throw new Error(
-    'В Huckster не найден дополнительный тип цены "' + desiredName + '". Доступные типы: ' +
-    availableNames.join(', ') + '. Проверьте HUCKSTER_RRC_PRICE_TYPE_NAME.'
-  );
 }
 
 function hucksterWriteBatches_(session, path, payloadFactory, items) {

@@ -16,14 +16,11 @@ API base URL: `https://wbs.e-teleport.ru`.
 3. `POST /markets/integrations/accounts/list` — определяет кабинеты и `shop_id`.
 4. `POST /markets/integrations/repricer/items/list` — получает товары стратегии «Удержание РРЦ».
 
-### Запись цен из листа «ARL TR»
+### Запись минимальной цены из листа «ARL TR»
 
-1. `POST /markets/integrations/repricer/items/set` — записывает `min_price`.
-2. `POST /catalog_updatePrice` — записывает базовую розничную (`retail_price`) цену.
-3. `POST /markets/price_types/list` — получает `price_type_id` дополнительного типа цены.
-4. `POST /markets/items/prices/update` — записывает цену дополнительного типа.
+1. `POST /markets/integrations/repricer/items/set` — записывает только `min_price`.
 
-Название дополнительного типа в Huckster задаётся пользователем произвольно. Если в Script Properties не задан `HUCKSTER_RRC_PRICE_TYPE_NAME` и API возвращает ровно один тип, скрипт использует его автоматически. При нескольких типах нужно явно указать название в `HUCKSTER_RRC_PRICE_TYPE_NAME`; при отсутствии типов сначала создайте дополнительный вид цены в Huckster.
+Колонки W (`ВЫСТАВЛЯЕМАЯ ХАКСТЕР`) и X (`РЦ ХАКСТЕР`) намеренно не отправляются в Huckster: ни выставляемая цена, ни РЦ, которую Huckster рассчитывает с учётом скидки Ozon, не изменяются.
 
 Документация Huckster указывает заголовок `set-cookie: ss-id=<SessionId>`. В текущей рабочей интеграции авторизованный запрос отправляется через обычный request-заголовок `Cookie: ss-id=<SessionId>`.
 
@@ -42,11 +39,11 @@ API base URL: `https://wbs.e-teleport.ru`.
 
 | Колонка | Поле/метод Huckster | Смысл |
 |---|---|---|
-| U (21), `МИНИМАЛЬНАЯ ХАКСТЕР` | `min_price` → `repricer/items/set` | минимальная цена продажи |
-| W (23), `ВЫСТАВЛЯЕМАЯ ХАКСТЕР` | `retail_price` → `catalog_updatePrice` | базовая выставляемая/розничная цена |
-| X (24), `РЦ ХАКСТЕР` | `retail_price` + тип `РЦ Озон` → `markets/items/prices/update` | дополнительная цена РЦ |
+| U (21), `МИНИМАЛЬНАЯ ХАКСТЕР` | `min_price` → `repricer/items/set` | единственное поле, которое записывает sync-функция |
+| W (23), `ВЫСТАВЛЯЕМАЯ ХАКСТЕР` | не записывается | справочное поле, не изменяется |
+| X (24), `РЦ ХАКСТЕР` | не записывается | РЦ Huckster, не изменяется |
 
-Сопоставление товаров для записи выполняется по артикулу из колонки A (`offer_id`) с полем `sku` или `uid` из ответа Huckster. Пустые значения U/W/X не отправляются; значения `0` считаются явным числом. Для `catalog_updatePrice` скрипт предварительно получает текущую закупочную цену через `catalog_get`, чтобы не затирать её.
+Сопоставление товаров для записи выполняется по артикулу из колонки A (`offer_id`) с полем `sku` или `uid` из ответа Huckster. В запись попадают только непустые значения U; значение `0` считается явным числом. Строки, где U пустая, пропускаются.
 
 ## Безопасность и запуск
 
@@ -54,7 +51,7 @@ API base URL: `https://wbs.e-teleport.ru`.
 - В начале `Huckster цены.js` поля `HUCKSTER_USER_NAME`, `HUCKSTER_PASSWORD` и `HUCKSTER_SHOP_ID` пустые. Все три значения задаются в Script Properties Apps Script с такими же ключами; секреты не записываются в исходный файл.
 - Если `HUCKSTER_SHOP_ID` пустой и кабинетов Ozon несколько, скрипт остановится без записи и попросит задать идентификатор.
 - `updateHucksterPrices()` выполняет только read-only выгрузку в «ТЕСТ».
-- `syncHucksterPricesFromArlTr()` выполняет запись в Huckster только при ручном запуске и обрабатывает товары пачками до 100.
+- `syncHucksterPricesFromArlTr()` выполняет запись только `min_price` из U при ручном запуске и обрабатывает товары пачками до 100; W и X не записываются.
 - `testSyncHucksterPricesFromArlTr_032431_1()` — ручной тестовый запуск той же записи только для точного артикула `032431-1` из колонки A листа «ARL TR»; это не read-only функция.
-- Перед первым live-запуском необходимо проверить сформированные payload и получить отдельное подтверждение на запись цен в Huckster.
+- Перед live-запуском необходимо проверить сформированный payload и получить отдельное подтверждение на запись минимальной цены в Huckster.
 - Единственная функция для read-only запуска: `updateHucksterPrices()`; функции записи: `syncHucksterPricesFromArlTr()` и точечная `testSyncHucksterPricesFromArlTr_032431_1()`.

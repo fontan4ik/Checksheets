@@ -130,9 +130,9 @@ These run on local servers or machines to update Google Sheets via the API:
 
 | Column | Header | Huckster target | Function |
 |---|---|---|---|
-| U (21) | `МИНИМАЛЬНАЯ ХАКСТЕР` | `min_price` via `repricer/items/set` | `syncHucksterPricesFromArlTr()` |
-| W (23) | `ВЫСТАВЛЯЕМАЯ ХАКСТЕР` | `retail_price` via `catalog_updatePrice` | `syncHucksterPricesFromArlTr()` |
-| X (24) | `РЦ ХАКСТЕР` | additional type `РЦ Озон` via `markets/items/prices/update` | `syncHucksterPricesFromArlTr()` |
+| U (21) | `МИНИМАЛЬНАЯ ХАКСТЕР` | `min_price` via `repricer/items/set` — единственная запись | `syncHucksterPricesFromArlTr()` |
+| W (23) | `ВЫСТАВЛЯЕМАЯ ХАКСТЕР` | не записывается | — |
+| X (24) | `РЦ ХАКСТЕР` | не записывается | — |
 
 ### FERON TR: source stock columns
 
