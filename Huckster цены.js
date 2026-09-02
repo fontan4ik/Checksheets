@@ -167,7 +167,23 @@ function updateHucksterPrices() {
  * Функция отдельная от read-only updateHucksterPrices() и не вызывается
  * автоматически: запись в Huckster выполняется только ручным запуском.
  */
+/**
+ * Полная синхронизация цен из ARL TR в Huckster.
+ */
 function syncHucksterPricesFromArlTr() {
+  return hucksterSyncPricesFromArlTr_('');
+}
+
+/**
+ * Тестовая синхронизация только для артикула 032431-1.
+ * ВАЖНО: функция выполняет реальную запись в Huckster, но только по одной
+ * строке ARL TR с точным артикулом 032431-1.
+ */
+function testSyncHucksterPricesFromArlTr_032431_1() {
+  return hucksterSyncPricesFromArlTr_('032431-1');
+}
+
+function hucksterSyncPricesFromArlTr_(articleFilter) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) {
     throw new Error('Другой запуск Huckster уже выполняется.');
@@ -180,10 +196,21 @@ function syncHucksterPricesFromArlTr() {
       throw new Error('Не найден лист "' + HUCKSTER_ARL_SHEET_NAME + '".');
     }
 
-    var sourceRows = hucksterReadArlPriceRows_(sheet);
+    var sourceRows = hucksterReadArlPriceRows_(sheet, articleFilter);
     if (!sourceRows.length) {
-      Logger.log('Huckster: в ARL TR нет строк с ценами для записи.');
-      return { sourceRows: 0, matchedItems: 0, unmatchedRows: 0, written: 0 };
+      var filterLabel = hucksterNormalizeKey_(articleFilter);
+      Logger.log(
+        filterLabel
+          ? 'Huckster: в ARL TR нет строк с ценами для артикула ' + filterLabel + '.'
+          : 'Huckster: в ARL TR нет строк с ценами для записи.'
+      );
+      return {
+        sourceRows: 0,
+        matchedItems: 0,
+        unmatchedRows: 0,
+        written: 0,
+        articleFilter: filterLabel || null
+      };
     }
 
     var session = hucksterCreateSession_();
@@ -270,6 +297,7 @@ function syncHucksterPricesFromArlTr() {
 
     var report = {
       sourceRows: sourceRows.length,
+      articleFilter: hucksterNormalizeKey_(articleFilter) || null,
       matchedItems: matched.length,
       unmatchedRows: unmatchedRows,
       minPriceItems: minUpdates.length,
@@ -285,9 +313,10 @@ function syncHucksterPricesFromArlTr() {
   }
 }
 
-function hucksterReadArlPriceRows_(sheet) {
+function hucksterReadArlPriceRows_(sheet, articleFilter) {
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
+  var normalizedArticleFilter = hucksterNormalizeKey_(articleFilter);
   var lastColumn = Math.max(
     HUCKSTER_ARL_VENDOR_CODE_COLUMN,
     HUCKSTER_ARL_MIN_PRICE_COLUMN,
@@ -304,7 +333,9 @@ function hucksterReadArlPriceRows_(sheet) {
       rrcPrice: hucksterToPrice_(row[HUCKSTER_ARL_RRC_PRICE_COLUMN - 1])
     };
   }).filter(function(source) {
-    return source.key && (source.minPrice !== '' || source.listedPrice !== '' || source.rrcPrice !== '');
+    return source.key &&
+      (!normalizedArticleFilter || source.key === normalizedArticleFilter) &&
+      (source.minPrice !== '' || source.listedPrice !== '' || source.rrcPrice !== '');
   });
 }
 
