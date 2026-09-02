@@ -53,5 +53,6 @@ API base URL: `https://wbs.e-teleport.ru`.
 - Если `HUCKSTER_SHOP_ID` пустой и кабинетов Ozon несколько, скрипт остановится без записи и попросит задать идентификатор.
 - `updateHucksterPrices()` выполняет только read-only выгрузку в «ТЕСТ».
 - `syncHucksterPricesFromArlTr()` выполняет запись в Huckster только при ручном запуске и обрабатывает товары пачками до 100.
+- `testSyncHucksterPricesFromArlTr_032431_1()` — ручной тестовый запуск той же записи только для точного артикула `032431-1` из колонки A листа «ARL TR»; это не read-only функция.
 - Перед первым live-запуском необходимо проверить сформированные payload и получить отдельное подтверждение на запись цен в Huckster.
-- Единственная функция для read-only запуска: `updateHucksterPrices()`; функция записи: `syncHucksterPricesFromArlTr()`.
+- Единственная функция для read-only запуска: `updateHucksterPrices()`; функции записи: `syncHucksterPricesFromArlTr()` и точечная `testSyncHucksterPricesFromArlTr_032431_1()`.
