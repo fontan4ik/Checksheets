@@ -233,7 +233,7 @@ function hucksterSyncPricesFromArlTr_(articleFilter) {
     matched.forEach(function(pair) {
       var source = pair.source;
       var item = pair.item;
-      if (source.minPrice !== '' && source.minPrice !== hucksterToPrice_(item.min_price)) {
+      if (source.minPrice !== '') {
         minUpdates.push(hucksterBuildRepricerUpdate_(item, source.minPrice));
       }
     });

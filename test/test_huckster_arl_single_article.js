@@ -77,7 +77,7 @@ const context = {
         assert.strictEqual(options.headers.Cookie, 'ss-id=mock-session');
         return response(200, JSON.stringify({
           result: [
-            { uid: 'uid-target', sku: '032431-1', enabled: true, card_control: true, max_discount: 5, min_price: 900 },
+            { uid: 'uid-target', sku: '032431-1', enabled: true, card_control: true, max_discount: 5, min_price: 1000 },
             { uid: 'uid-other', sku: 'OTHER-ARTICLE', enabled: true, card_control: true, max_discount: 5, min_price: 1900 }
           ],
           cursor: { total: 2, offset: 0 }
