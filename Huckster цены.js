@@ -15,7 +15,8 @@
  * - updateHucksterPrices() — read-only выгрузка цен Huckster в лист "ТЕСТ".
  * - syncHucksterPricesFromArlTr() — запись только минимальной цены из U
  *   листа "ARL TR" в `min_price` Huckster.
- * - Логин/пароль хранятся только в Script Properties Apps Script.
+ * - Для этого проекта логин/пароль и shop_id заданы в конфигурации файла;
+ *   при пустых значениях используется резервный вариант Script Properties.
  * - Для сопоставления используется V (22) — SKU Ozon; A (1) — fallback для
  *   случаев, когда Huckster вернул артикул в формате offer_id.
  * - Если в Huckster несколько кабинетов Ozon и HUCKSTER_SHOP_ID не задан,

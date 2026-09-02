@@ -109,7 +109,7 @@ assert.strictEqual(report.verified, 1);
 const repricer = writes.find((write) => write.path === 'repricer');
 assert.deepStrictEqual(repricer.payload, {
   marketplace: 'ozon',
-  shop_id: 'mock-shop',
+  shop_id: '142355_FBO',
   item_list: [{
     uid: 'uid-1',
     enabled: true,
