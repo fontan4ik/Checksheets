@@ -87,14 +87,6 @@ const context = {
         writes.push({ path: 'repricer', payload: JSON.parse(options.payload) });
         return response(200, JSON.stringify({ result: [{ result: 'OK' }] }));
       }
-      if (url.endsWith('/catalog_updatePrice')) {
-        writes.push({ path: 'catalog', payload: JSON.parse(options.payload) });
-        return response(200, '');
-      }
-      if (url.endsWith('/markets/items/prices/update')) {
-        writes.push({ path: 'rrc', payload: JSON.parse(options.payload) });
-        return response(200, '');
-      }
       throw new Error(`Unexpected URL: ${url}`);
     }
   }
