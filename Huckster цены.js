@@ -184,6 +184,31 @@ function testSyncHucksterPricesFromArlTr_032431_1() {
   return hucksterSyncPricesFromArlTr_('032431-1');
 }
 
+/**
+ * Read-only проверка фактического min_price в Huckster для артикула 032431-1.
+ */
+function testReadHucksterMinPrice_032431_1() {
+  var session = hucksterCreateSession_();
+  var shopId = hucksterResolveShopId_(session);
+  var items = hucksterLoadRepricerItems_(session, shopId);
+  var matches = items.filter(function(item) {
+    return hucksterNormalizeKey_(item && item.sku) === '032431-1' ||
+      hucksterNormalizeKey_(item && item.uid) === '032431-1';
+  }).map(function(item) {
+    return {
+      uid: item.uid,
+      sku: item.sku,
+      min_price: hucksterToPrice_(item.min_price)
+    };
+  });
+  var report = {
+    articleFilter: '032431-1',
+    matches: matches
+  };
+  Logger.log('Huckster read-only min_price: ' + JSON.stringify(report));
+  return report;
+}
+
 function hucksterSyncPricesFromArlTr_(articleFilter) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) {
