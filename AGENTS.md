@@ -66,7 +66,7 @@ These run on local servers or machines to update Google Sheets via the API:
 ### Google Apps Script Workflow:
 1. **Never edit Apps Script directly** in the browser. Always modify the local `.js` file in your repository first.
 2. The autonomous LaunchAgent `com.voltmir.checksheets-github-sync` polls GitHub `main` every 120 seconds, synchronizes the local checkout, commits stable local changes, pushes GitHub, and runs `clasp push` when an Apps Script file changed.
-3. `.claspignore` is the upload boundary: local Python, Node helpers, tests/runtime files, logs, and credentials must not be uploaded to Apps Script.
+3. `.claspignore` is the upload boundary: local Python, Node helpers, tests/runtime files, logs, service-account files, and unrelated credentials must not be uploaded to Apps Script. Keys used by this Google Sheets/Apps Script project may be part of the agreed Apps Script source/configuration and may be passed or tested there.
 4. The watcher verifies every Apps Script push by pulling into a temporary directory and comparing hashes; it does not overwrite the working tree during read-back.
 5. Provide upload instructions following this format when delivering changes:
     ```text
