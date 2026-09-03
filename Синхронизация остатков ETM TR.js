@@ -13,7 +13,7 @@ const ETM_SHEET_NAME = "StreamSupps";
 
 // Фиксированные ID складов для Ozon и WB
 const ETM_OZON_WAREHOUSE_ID = 1020005000689690;  // ЭТМ САМАРА
-const ETM_WB_WAREHOUSE_ID = 1698545;           // Новосемейкино
+const ETM_WB_WAREHOUSE_ID = 798761;            // ВольтМир
 
 // Колонки (1-based индекс)
 // A = 1 - Артикул (offer_id Ozon)
@@ -462,7 +462,7 @@ function syncETMTableToMarketplaces() {
   const etmWbId = ETM_WB_WAREHOUSE_ID;
 
   Logger.log(`   - ЭТМ САМАРА (Ozon): ✅ ID: ${etmOzonId}`);
-  Logger.log(`   - Новосемейкино (WB): ✅ ID: ${etmWbId}`);
+  Logger.log(`   - ВольтМир (WB): ✅ ID: ${etmWbId}`);
 
   // Шаг 3: Обновляем остатки Ozon
   Logger.log("");
@@ -471,7 +471,7 @@ function syncETMTableToMarketplaces() {
 
   // Шаг 4: Обновляем остатки WB
   Logger.log("");
-  Logger.log("🟣 Шаг 4: Обновление остатков WB FBS (Новосемейкино)...");
+  Logger.log("🟣 Шаг 4: Обновление остатков WB FBS (ВольтМир)...");
   updateETMStocksWB(stocks, etmWbId);
 
   Logger.log("✅ Синхронизация с маркетплейсами завершена.");
@@ -510,7 +510,7 @@ function syncETMStocks() {
   const etmWbId = ETM_WB_WAREHOUSE_ID;
 
   Logger.log(`   - ЭТМ САМАРА (Ozon): ✅ ID: ${etmOzonId}`);
-  Logger.log(`   - Новосемейкино (WB): ✅ ID: ${etmWbId}`);
+  Logger.log(`   - ВольтМир (WB): ✅ ID: ${etmWbId}`);
 
   // Шаг 3: Обновляем остатки Ozon
   Logger.log("");
@@ -519,7 +519,7 @@ function syncETMStocks() {
 
   // Шаг 4: Обновляем остатки WB
   Logger.log("");
-  Logger.log("🟣 Шаг 4: Обновление остатков WB FBS (Новосемейкино)...");
+  Logger.log("🟣 Шаг 4: Обновление остатков WB FBS (ВольтМир)...");
   updateETMStocksWB(stocks, etmWbId);
 
   const endTime = new Date();

@@ -787,7 +787,7 @@ async function processETMConflictIndividually(
 
 async function updateETMStocksWB(stocks) {
   log(
-    `🟣 Обновление остатков WB FBS (склад: Новосемейкино, ID: ${ETM_TR_WB_WAREHOUSE})...`,
+    `🟣 Обновление остатков WB FBS (склад: ВольтМир, ID: ${ETM_TR_WB_WAREHOUSE})...`,
   );
 
   const validStocks = stocks.filter((s) => s.chrlid);
@@ -957,13 +957,13 @@ async function verifyETMWBStocks(stocks) {
 
   const excludedText = excludedCount > 0 ? `, исключено из сравнения=${excludedCount}` : "";
   log(
-    `📊 WB non-zero check (склад Новосемейкино ${ETM_TR_WB_WAREHOUSE}): Google S>0=${sheetPositiveCount}, marketplace amount>0=${marketplacePositiveCount}, delta=${marketplacePositiveCount - sheetPositiveCount}${excludedText}`,
+    `📊 WB non-zero check (склад ВольтМир ${ETM_TR_WB_WAREHOUSE}): Google S>0=${sheetPositiveCount}, marketplace amount>0=${marketplacePositiveCount}, delta=${marketplacePositiveCount - sheetPositiveCount}${excludedText}`,
   );
   
   if (mismatches.length === 0) {
-    log("✅ WB post-check: расхождений по складу Новосемейкино не найдено");
+    log("✅ WB post-check: расхождений по складу ВольтМир не найдено");
   } else {
-    log(`⚠️ WB post-check: найдено ${mismatches.length} расхождений по складу Новосемейкино`);
+    log(`⚠️ WB post-check: найдено ${mismatches.length} расхождений по складу ВольтМир`);
     samples.forEach((line) => log(`   - ${line}`));
     if (mismatches.length > 10) {
       log(`   ... и ещё ${mismatches.length - 10} расхождений`);
@@ -997,7 +997,7 @@ async function repairETMWBMismatches(stocks, initialMismatches) {
     }
 
     log(
-      `🛠️ WB repair ${attempt}/${attempts}: повторно пишем ${validBatch.length} расхождений на склад Новосемейкино`,
+      `🛠️ WB repair ${attempt}/${attempts}: повторно пишем ${validBatch.length} расхождений на склад ВольтМир`,
     );
 
     const batchSize = 200;
@@ -1092,7 +1092,7 @@ async function main() {
   const ozonPendingMismatches = await updateETMStocksOzon(stocks);
 
   log("");
-  log("🟣 Шаг 3: Обновление остатков WB (Новосемейкино)...");
+  log("🟣 Шаг 3: Обновление остатков WB (ВольтМир)...");
   await updateETMStocksWB(stocks);
 
   log("");
