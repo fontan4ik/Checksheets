@@ -46,7 +46,7 @@ import time
 import zipfile
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
 from urllib.parse import urlencode
@@ -582,6 +582,17 @@ def campaign_id_from_filename(filename: str) -> str | None:
     return match.group(1) if match else None
 
 
+def parse_report_date(value: Any) -> date | None:
+    """Parse Ozon report dates without relying on lexicographic ordering."""
+    raw = normalize(value)
+    for fmt in ("%d.%m.%Y", "%Y-%m-%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
 def parse_report_block(
     filename: str,
     text: str,
@@ -614,6 +625,12 @@ def parse_report_block(
         "drr": find_column(headers, ["дрр в продвижении, %", "ддр в продвижении, %"]),
         "carts": find_column(headers, ["добавления в корзину", "корзины", "carts"]),
     }
+    parsed_day_from = parse_report_date(day_from) if day_from else None
+    parsed_day_to = parse_report_date(day_to) if day_to else None
+    if day_from and parsed_day_from is None:
+        raise ValueError(f"Не удалось распознать начальную дату отчёта: {day_from!r}")
+    if day_to and parsed_day_to is None:
+        raise ValueError(f"Не удалось распознать конечную дату отчёта: {day_to!r}")
     campaign_id = campaign_id_from_filename(filename) or fallback_campaign_id
     if campaign_index >= 0:
         for row in rows[header_index + 1 :]:
@@ -625,13 +642,17 @@ def parse_report_block(
     for row in rows[header_index + 1 :]:
         if len(row) <= max(sku_index, clicks_index):
             continue
-        if day_index >= 0 and day_index < len(row) and (day_from or day_to):
-            day_raw = normalize(row[day_index])
-            if day_from and day_raw < day_from or day_to and day_raw > day_to:
-                continue
         sku = normalize_id(row[sku_index])
         if not sku or normalize(sku) in {"sku", "всего", "total"}:
             continue
+        if day_index >= 0 and day_index < len(row) and (parsed_day_from or parsed_day_to):
+            parsed_day = parse_report_date(row[day_index])
+            if parsed_day is None:
+                continue
+            if parsed_day_from and parsed_day < parsed_day_from:
+                continue
+            if parsed_day_to and parsed_day > parsed_day_to:
+                continue
         metric = Metric(clicks=parse_number(row[clicks_index]))
         for key, index in metric_indexes.items():
             if key in {"ctr", "average_cpc", "drr"}:
@@ -836,12 +857,7 @@ def flush_campaign_statuses(
         }
         for row_number, label in sorted(status_updates.items())
     ]
-    gsheets_utils._retry_gsheet_call(
-        "CPC campaign status batch update",
-        lambda: worksheet.batch_update(updates, raw=True),
-        max_attempts=6,
-        base_delay=5.0,
-    )
+    batch_update_with_retry(worksheet, updates, "CPC campaign status batch update")
     print(f"Статусы кампаний записаны: строк={len(updates)}")
 
 
@@ -878,12 +894,7 @@ def write_sheet_daily_metrics(
             }
         )
     if updates:
-        gsheets_utils._retry_gsheet_call(
-            "CPC daily SKU metrics update",
-            lambda: worksheet.batch_update(updates, raw=True),
-            max_attempts=6,
-            base_delay=5.0,
-        )
+        batch_update_with_retry(worksheet, updates, "CPC daily SKU metrics update")
     print(f"Дневная SKU-аналитика записана: строк={len(rows)}")
 
 
@@ -964,12 +975,7 @@ def write_sheet_metrics(
         queue_update(status_col, values)
 
     if updates:
-        gsheets_utils._retry_gsheet_call(
-            "CPC batch metrics update",
-            lambda: worksheet.batch_update(updates, raw=True),
-            max_attempts=6,
-            base_delay=5.0,
-        )
+        batch_update_with_retry(worksheet, updates, "CPC batch metrics update")
 
 
 def column_letter(number: int) -> str:
