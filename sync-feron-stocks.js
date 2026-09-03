@@ -24,16 +24,11 @@ const FERON_TR_WB_WAREHOUSE = {
 const FERON_TR_SCHEMA = {
   vendor_code: "Артикул продавца",
   ozon_sku: "SKU OZON",
+  marketplace_stock_msk: "ПОДОРОЖНИК ФБС",
+  marketplace_stock_smr: "ФЕРОН ФБС",
+  marketplace_stock_nsb: "НОВОСИБИРСК ФЕРОН",
+  marketplace_stock_ekb: "ЕКБ Ферон",
   chrt_id: "chrlid",
-};
-
-// После добавления StreamSupps!H весь блок поставщиков сдвинут на +1.
-// M:P — формульные остатки, которые транслируются на склады маркетплейсов.
-const FERON_STREAM_SUPPS_STOCK_COLUMNS = {
-  marketplace_stock_msk: 13, // M — ПОДОРОЖНИК ФБС
-  marketplace_stock_smr: 14, // N — ФЕРОН ФБС
-  marketplace_stock_nsb: 15, // O — НОВОСИБИРСК ФЕРОН
-  marketplace_stock_ekb: 16, // P — ЕКБ Ферон
 };
 
 const MIN_STOCK_THRESHOLD = 0;
@@ -127,10 +122,10 @@ async function readFeronStocksFromSheet(auth) {
 
   const colVendor = columns.vendor_code;
   const colOzonSku = columns.ozon_sku;
-  const colStockMsk = FERON_STREAM_SUPPS_STOCK_COLUMNS.marketplace_stock_msk;
-  const colStockSmr = FERON_STREAM_SUPPS_STOCK_COLUMNS.marketplace_stock_smr;
-  const colStockNsb = FERON_STREAM_SUPPS_STOCK_COLUMNS.marketplace_stock_nsb;
-  const colStockEkb = FERON_STREAM_SUPPS_STOCK_COLUMNS.marketplace_stock_ekb;
+  const colStockMsk = columns.marketplace_stock_msk;
+  const colStockSmr = columns.marketplace_stock_smr;
+  const colStockNsb = columns.marketplace_stock_nsb;
+  const colStockEkb = columns.marketplace_stock_ekb;
   const colChrtId = columns.chrt_id;
 
   log(

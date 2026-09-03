@@ -30,7 +30,6 @@ OZON_PERF_BASE_URL = "https://api-performance.ozon.ru"
 GSHEETS_CREDS_FILE = "nomadic-bedrock-485314-b0-d7624dedd83c.json"
 # IMPORTANT: Provide your Spreadsheet ID here
 SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI"
-ETM_CODES_SHEET_NAME = "Коды ETM"
 ETM_SGGDS_JOB_ID = "40029846"
 # Sheet Names
 ETM_SHEET_NAME = "ТЕСТ"

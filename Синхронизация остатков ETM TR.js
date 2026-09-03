@@ -30,7 +30,7 @@ const ETM_MIN_STOCK_THRESHOLD = 5; // Минимальный остаток дл
 // ============================================
 
 /**
- * Читает данные из листа "ETM TR"
+ * Читает данные из листа "StreamSupps"
  * @returns {Array} Массив объектов с данными товаров
  */
 function readETMStocksFromSheet() {
@@ -61,7 +61,7 @@ function readETMStocksFromSheet() {
 
   const dynamicColOfferId = findCol("артикул продавца", ETM_COL_ARTICUL);
   const dynamicColChrtId = findCol("chrlid", ETM_COL_CHRT_ID);
-  const dynamicColStock = ETM_COL_STOCK;
+  const dynamicColStock = findCol("этм самара", ETM_COL_STOCK);
 
   Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, chrlid=${dynamicColChrtId}, ЭТМ САМАРА=${dynamicColStock}`);
 
@@ -478,11 +478,11 @@ function syncETMTableToMarketplaces() {
 }
 
 /**
- * Главная функция синхронизации остатков ETM TR
+ * Главная функция синхронизации остатков ETM из StreamSupps
  */
 function syncETMStocks() {
   Logger.log("============================================");
-  Logger.log("🔄 СИНХРОНИЗАЦИЯ ОСТАТКОВ ETM TR");
+  Logger.log("🔄 СИНХРОНИЗАЦИЯ ОСТАТКОВ ETM ИЗ StreamSupps");
   Logger.log("============================================");
 
   const startTime = new Date();

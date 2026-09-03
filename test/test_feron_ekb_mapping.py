@@ -57,10 +57,10 @@ def test_etm_writer_no_longer_targets_legacy_feron_column():
 def test_wb_ekb_target_is_configured_for_feron_translation():
     source = SYNC_FERON_JS.read_text(encoding="utf-8")
     assert 'const SHEET_NAME = "StreamSupps"' in source
-    assert "marketplace_stock_msk: 13" in source
-    assert "marketplace_stock_smr: 14" in source
-    assert "marketplace_stock_nsb: 15" in source
-    assert "marketplace_stock_ekb: 16" in source
+    assert 'marketplace_stock_msk: "ПОДОРОЖНИК ФБС"' in source
+    assert 'marketplace_stock_smr: "ФЕРОН ФБС"' in source
+    assert 'marketplace_stock_nsb: "НОВОСИБИРСК ФЕРОН"' in source
+    assert 'marketplace_stock_ekb: "ЕКБ Ферон"' in source
     assert "EKB: 1860503" in source
     assert 'name: "Екатеринбург"' in source
     assert 'col: "stock_ekb"' in source

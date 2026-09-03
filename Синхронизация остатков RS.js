@@ -63,9 +63,15 @@ function updateRSStocksInSheet() {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return;
 
-  // Динамический поиск колонок
-  const colModel = RS_API_COL_MODEL;
-  const colStockApi = RS_API_COL_STOCK;
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn())
+    .getValues()[0]
+    .map(value => String(value || "").trim().toLowerCase());
+  const findApiCol = (name, fallback) => {
+    const index = headers.indexOf(name.toLowerCase());
+    return index >= 0 ? index + 1 : fallback;
+  };
+  const colModel = findApiCol("артикул производителя", RS_API_COL_MODEL);
+  const colStockApi = findApiCol("rs smr", RS_API_COL_STOCK);
 
   const models = sheet.getRange(2, colModel, lastRow - 1, 1).getValues().flat();
 
@@ -170,7 +176,7 @@ function readRSStocksFromSheet() {
 
   const dynamicColOfferId = findCol("артикул продавца", RS_COL_ARTICUL);
   const dynamicColChrtId = findCol("chrtid", RS_COL_CHRT_ID) || findCol("chrlid", RS_COL_CHRT_ID);
-  const dynamicColStock = RS_COL_ROUNDED;
+  const dynamicColStock = findCol("резерв", RS_COL_ROUNDED);
 
   Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, chrtId=${dynamicColChrtId}, Остаток=${dynamicColStock}`);
 

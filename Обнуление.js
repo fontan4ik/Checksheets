@@ -8,7 +8,7 @@
 // КОНФИГУРАЦИЯ
 // ============================================
 
-const ZERO_OUT_SHEET_NAME = "РуСВ TR";  // Используем тот же лист что и в синхронизации
+const ZERO_OUT_SHEET_NAME = "StreamSupps";
 const ZERO_OUT_OZON_WH_NAME = "ФЕРОН ФБС"; // Целевой склад Ozon для обнуления
 
 // Фоллбек колонки (если заголовки не найдены)
@@ -40,7 +40,7 @@ function zeroOutOzonStocks() {
 
   // Динамический поиск колонки Артикул
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h).trim().toLowerCase());
-  const colOfferId = headers.indexOf("артикул") + 1 || ZERO_OUT_COL_OFFER_ID;
+  const colOfferId = headers.indexOf("артикул продавца") + 1 || ZERO_OUT_COL_OFFER_ID;
 
   const offerIds = sheet.getRange(2, colOfferId, lastRow - 1, 1).getValues().flat();
 

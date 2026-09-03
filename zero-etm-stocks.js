@@ -2,7 +2,7 @@ const { google } = require("googleapis");
 const axios = require("axios");
 const path = require("path");
 
-const SHEET_NAME = "ETM TR";
+const SHEET_NAME = "StreamSupps";
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 
 const ETM_TR_OZON_WAREHOUSE = 1020005000689690;
@@ -10,7 +10,7 @@ const ETM_TR_WB_WAREHOUSE = 798761;
 
 const ETM_TR_COLS = {
   ARTICUL: 1,
-  CHRLID: 17,
+  CHRLID: 7,
 };
 
 const RPS = 10;
@@ -83,7 +83,7 @@ async function readETMItemsFromSheet(auth) {
     return idx >= 0 ? idx + 1 : fallback;
   };
 
-  const colArticul = findCol("артикул", ETM_TR_COLS.ARTICUL);
+  const colArticul = findCol("артикул продавца", ETM_TR_COLS.ARTICUL);
   const colChrlid = findCol("chrlid", ETM_TR_COLS.CHRLID);
   const maxCol = Math.max(colArticul, colChrlid);
 
@@ -423,7 +423,7 @@ async function updateETMStocksWB(items) {
 
 async function main() {
   console.log("============================================");
-  console.log("🔄 ЗАНУЛЕНИЕ ОСТАТКОВ ETM TR");
+  console.log("🔄 ЗАНУЛЕНИЕ ОСТАТКОВ ETM ИЗ StreamSupps");
   console.log("============================================");
 
   const auth = new google.auth.GoogleAuth({

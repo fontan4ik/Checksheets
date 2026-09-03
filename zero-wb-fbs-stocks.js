@@ -10,9 +10,9 @@ let nextRequestAt = 0;
 
 // Охватывает все активные выгрузки FBS: ETM, Feron и Arlight.
 const SOURCES = [
-  { sheet: "ETM TR", chrtHeader: "chrlid", warehouses: [798761] },
+  { sheet: "StreamSupps", chrtHeader: "chrlid", warehouses: [798761] },
   {
-    sheet: "FERON TR",
+    sheet: "StreamSupps",
     chrtHeader: "chrlid",
     warehouses: [1449484, 798761, 1724900, 1860503],
   },

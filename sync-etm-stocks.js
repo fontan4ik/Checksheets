@@ -117,7 +117,16 @@ async function readETMTRPUStabilitySnapshot(auth) {
     valueRenderOption: "UNFORMATTED_VALUE",
   });
 
-  const rows = (response.data.values || []).slice(1);
+  const allRows = response.data.values || [];
+  const headers = (allRows[0] || []).map((value) => String(value || "").trim().toLowerCase());
+  const findCol = (name, fallback) => {
+    const index = headers.indexOf(name.toLowerCase());
+    return index >= 0 ? index + 1 : fallback;
+  };
+  const colArticul = findCol("артикул продавца", ETM_TR_COLS.ARTICUL);
+  const colChrlid = findCol("chrlid", ETM_TR_COLS.CHRLID);
+  const colStock = findCol("этм самара", ETM_TR_COLS.STOCK);
+  const rows = allRows.slice(1);
   const hash = crypto.createHash("sha256");
   let rowCount = 0;
   let withChrlid = 0;
@@ -129,12 +138,12 @@ async function readETMTRPUStabilitySnapshot(auth) {
   let wbNoChrlidPositiveTotal = 0;
 
   rows.forEach((row) => {
-    const offerId = String(row[ETM_TR_COLS.ARTICUL - 1] || "").trim();
+    const offerId = String(row[colArticul - 1] || "").trim();
     if (!offerId) return;
 
-    const chrlid = String(row[ETM_TR_COLS.CHRLID - 1] || "").trim();
-    const ozonStock = numericCell(row[ETM_TR_COLS.STOCK - 1]);
-    const wbStock = numericCell(row[ETM_TR_COLS.WB_STOCK - 1]);
+    const chrlid = String(row[colChrlid - 1] || "").trim();
+    const ozonStock = numericCell(row[colStock - 1]);
+    const wbStock = numericCell(row[colStock - 1]);
 
     rowCount++;
     if (chrlid) {
@@ -252,8 +261,8 @@ async function readETMStocksFromSheet(auth) {
   const colArticul = findCol("артикул продавца", ETM_TR_COLS.ARTICUL);
   const colChrlid = findCol("chrlid", ETM_TR_COLS.CHRLID);
   // После вставки StreamSupps!H трансляция «ЭТМ САМАРА» находится в S.
-  const colStock = ETM_TR_COLS.STOCK;
-  const colWbStock = ETM_TR_COLS.WB_STOCK;
+  const colStock = findCol("этм самара", ETM_TR_COLS.STOCK);
+  const colWbStock = colStock;
 
   log(
     `🔍 Колонки: Артикул=${columnLetter(colArticul)}(${colArticul}), chrlid=${columnLetter(colChrlid)}(${colChrlid}), ЭТМ САМАРА=${columnLetter(colStock)}(${colStock})`,
