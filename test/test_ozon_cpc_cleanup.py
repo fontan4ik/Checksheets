@@ -1,6 +1,7 @@
 import io
 import pathlib
 import sys
+import requests
 from datetime import datetime
 from typing import Any, cast
 from unittest.mock import patch
@@ -18,6 +19,7 @@ from ozon_cpc_cleanup import (
     SheetRow,
     build_candidates,
     build_statistics_payload,
+    batch_update_with_retry,
     campaign_budget,
     campaign_status_label,
     create_statistics_report,
@@ -351,6 +353,44 @@ class OzonCpcCleanupTests(unittest.TestCase):
             "33230388.csv", csv_text, day_from="06.08.2026", day_to="07.08.2026"
         )
         self.assertEqual(week_from.metrics["986315608"].clicks, 10)
+
+    def test_parse_report_filters_dates_across_month_boundary(self):
+        csv_text = (
+            "День;sku;Показы;Клики;Расход, ₽, с НДС\n"
+            "01.09.2026;986315608;10;1;5\n"
+            "02.09.2026;986315608;20;4;10\n"
+            "03.09.2026;986315608;30;6;15\n"
+        )
+        metrics = parse_report(
+            csv_text.encode("utf-8"),
+            ["33230388"],
+            day_from="28.08.2026",
+            day_to="03.09.2026",
+        )
+        self.assertEqual(metrics[("33230388", "986315608")].clicks, 11)
+
+    def test_batch_update_retry_does_not_reuse_gspread_mutated_ranges(self):
+        class MutatingWorksheet:
+            def __init__(self):
+                self.calls = []
+
+            def batch_update(self, data, **kwargs):
+                self.calls.append([item["range"] for item in data])
+                for item in data:
+                    item["range"] = "'СРС'!" + item["range"]
+                if len(self.calls) == 1:
+                    raise requests.exceptions.ConnectionError("Connection aborted")
+                return {"ok": True}
+
+        worksheet = MutatingWorksheet()
+        with patch("ozon_cpc_cleanup.time.sleep"):
+            result = batch_update_with_retry(
+                worksheet,
+                [{"range": "G2:G2", "values": [[1]]}],
+                "test batch update",
+            )
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(worksheet.calls, [["G2:G2"], ["G2:G2"]])
 
     def test_campaign_budget_uses_explicit_budget_not_weekly_cap(self):
         self.assertEqual(campaign_budget({"budget": "1500", "dailyBudget": "0", "weeklyBudget": "2000000000"}), 1500)

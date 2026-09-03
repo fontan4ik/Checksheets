@@ -986,6 +986,25 @@ def column_letter(number: int) -> str:
     return result
 
 
+def batch_update_with_retry(worksheet: Any, updates: list[dict[str, Any]], label: str) -> Any:
+    """Retry Sheets batch updates with a fresh payload on every attempt.
+
+    gspread mutates each input range in-place by adding the worksheet title.
+    Reusing ``updates`` after a transient failure therefore creates malformed
+    ranges such as ``'СРС'!'СРС'!G2:G2`` on the next attempt.
+    """
+    def submit() -> Any:
+        payload = [dict(item) for item in updates]
+        return worksheet.batch_update(payload, raw=True)
+
+    return gsheets_utils._retry_gsheet_call(
+        label,
+        submit,
+        max_attempts=6,
+        base_delay=5.0,
+    )
+
+
 def fetch_report_bytes(
     session: requests.Session,
     token: str | TokenManager,
