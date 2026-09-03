@@ -7,9 +7,8 @@ Production-путь читает актуальные ``price.csv`` сначал
 Строки сопоставляются по ``бренд + модель`` и, если модель не нашлась, по
 ``бренд + артикул``.
 
-Без ``--write`` скрипт работает в dry-run. Для локальной проверки можно
-передать ``--csv`` с CSV-файлом, имеющим колонки ``Код ЭТМ;Артикул;
-Производитель``.
+Скрипт оставлен только как read-only диагностический анализ FTP-выгрузок.
+Запись кодов в Google Sheets отключена.
 """
 
 from __future__ import annotations
@@ -32,8 +31,6 @@ from datetime import datetime, timedelta, timezone
 from ftplib import FTP, FTP_TLS, error_perm
 from pathlib import Path
 from typing import Iterable
-
-import gspread
 
 import config
 import gsheets_utils
@@ -292,58 +289,6 @@ def plan_updates(
     return updates, stats
 
 
-def a1_ranges(updates: Iterable[Update], column: int) -> list[tuple[str, list[list[str]]]]:
-    """Сгруппировать соседние изменения в минимальные диапазоны."""
-    ordered = sorted(updates, key=lambda item: item.row)
-    if not ordered:
-        return []
-    groups: list[list[Update]] = [[ordered[0]]]
-    for update in ordered[1:]:
-        if update.row == groups[-1][-1].row + 1:
-            groups[-1].append(update)
-        else:
-            groups.append([update])
-    return [
-        (
-            f"{gspread.utils.rowcol_to_a1(group[0].row, column)}:"
-            f"{gspread.utils.rowcol_to_a1(group[-1].row, column)}",
-            [[item.code] for item in group],
-        )
-        for group in groups
-    ]
-
-
-def update_sheet(ws, updates: list[Update], code_column: int) -> int:
-    ranges = a1_ranges(updates, code_column)
-    if not ranges:
-        return 0
-
-    total_rows = sum(len(values) for _, values in ranges)
-    logging.info(
-        "Пакетная запись %s строк в %s диапазонах одним запросом Google Sheets",
-        total_rows,
-        len(ranges),
-    )
-
-    # Worksheet.batch_update использует один values.batchUpdate request. Важно
-    # создавать payload внутри lambda: gspread дописывает имя листа в range,
-    # и повторная попытка не должна получить двойной префикс листа.
-    def send_batch():
-        return ws.batch_update(
-            [{"range": range_name, "values": values} for range_name, values in ranges],
-            raw=False,
-            value_input_option="USER_ENTERED",
-        )
-
-    gsheets_utils._retry_gsheet_call(
-        "batch update ETM codes",
-        send_batch,
-        max_attempts=6,
-        base_delay=5.0,
-    )
-    return len(ranges)
-
-
 def _ftp_password() -> str:
     if FTP_PASSWORD:
         return FTP_PASSWORD
@@ -516,28 +461,6 @@ def save_ftp_cache(ftp_file: FtpFile, content: bytes) -> None:
     temporary.replace(local_path)
 
 
-def _fingerprint(ftp_file: FtpFile) -> dict[str, object]:
-    return {
-        "remote_path": ftp_file.remote_path,
-        "size": ftp_file.size,
-        "modified": ftp_file.modified,
-    }
-
-
-def _load_state() -> dict:
-    try:
-        return json.loads(FTP_STATE_PATH.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-
-
-def _save_state(state: dict) -> None:
-    FTP_STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    temporary = FTP_STATE_PATH.with_suffix(".tmp")
-    temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    temporary.replace(FTP_STATE_PATH)
-
-
 def fetch_ftp_source(remote_dir: str, force: bool = False) -> tuple[bytes, FtpFile] | None:
     # ``force`` оставлен для совместимости с ручными командами. В режиме
     # заполнения только пустых ячеек файл читается каждый день даже если его
@@ -621,7 +544,6 @@ def _apply_updates_to_memory(sheet_rows: list[list[str]], updates: Iterable[Upda
 def run(
     csv_path: str | Path | None = None,
     *,
-    write: bool = False,
     force: bool = False,
     sample_size: int = 10,
 ) -> int:
@@ -662,7 +584,6 @@ def run(
     columns = gsheets_utils.resolve_header_columns(sheet_rows[0], SHEET_SCHEMA, SHEET_NAME)
 
     all_updates: list[Update] = []
-    processed_files: dict[str, dict[str, object]] = {}
     for source_label, content, ftp_file in sources:
         if csv_source is not None:
             mapping, source_stats = csv_source
@@ -703,26 +624,13 @@ def run(
                 item.code,
             )
         all_updates.extend(updates)
-        if ftp_file is not None:
-            processed_files[source_label] = _fingerprint(ftp_file)
         # После склада 13 эти ячейки становятся непустыми в памяти и не могут
-        # быть повторно выбраны складом 14.
+        # быть повторно выбраны складом 14 в диагностическом плане.
         _apply_updates_to_memory(sheet_rows, updates, columns["etm_code"])
 
-    if not write:
-        logging.info("Dry-run: Google Sheets не изменялись. Для записи используйте --write.")
-        return 1 if failures else 0
-
-    range_count = update_sheet(ws, all_updates, columns["etm_code"])
-    if processed_files:
-        state = _load_state()
-        state["files"] = processed_files
-        state["processed_at"] = datetime.now(timezone.utc).isoformat()
-        _save_state(state)
     logging.info(
-        "Запись завершена: заполнено пустых кодов=%s, диапазонов=%s, ошибок источников=%s",
+        "Read-only режим: найдено кандидатов кодов=%s, ошибок источников=%s; Google Sheets не изменялись",
         len(all_updates),
-        range_count,
         len(failures),
     )
     return 1 if failures else 0
@@ -731,7 +639,6 @@ def run(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Актуализировать коды ЭТМ в StreamSupps из FTP склада 13")
     parser.add_argument("--csv", help="Локальный CSV вместо FTP; для тестов и ручной проверки")
-    parser.add_argument("--write", action="store_true", help="Записать изменившиеся коды в Google Sheets")
     parser.add_argument("--force", action="store_true", help="Обработать FTP-файл повторно, даже если он уже отмечен в state")
     parser.add_argument("--sample-size", type=int, default=10, help="Количество примеров изменений в логе")
     return parser.parse_args()
@@ -740,7 +647,7 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = parse_args()
     try:
-        raise SystemExit(run(args.csv, write=args.write, force=args.force, sample_size=args.sample_size))
+        raise SystemExit(run(args.csv, force=args.force, sample_size=args.sample_size))
     except Exception as exc:
         logging.exception("CRITICAL ERROR: %s", exc)
         raise SystemExit(1)

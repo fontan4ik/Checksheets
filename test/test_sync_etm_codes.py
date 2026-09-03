@@ -101,39 +101,6 @@ class SyncEtmCodesTests(unittest.TestCase):
         self.assertEqual(stats["existing"], 3)
         self.assertEqual(stats["unmatched"], 0)
 
-    def test_a1_ranges_group_adjacent_rows(self):
-        updates = [
-            module.Update(2, "10", "a", "b", "brand", "model"),
-            module.Update(3, "11", "a", "b", "brand", "model"),
-            module.Update(7, "12", "a", "b", "brand", "model"),
-        ]
-        self.assertEqual(
-            module.a1_ranges(updates, 23),
-            [("W2:W3", [["10"], ["11"]]), ("W7:W7", [["12"]])],
-        )
-
-    def test_update_sheet_uses_one_batch_request(self):
-        class FakeWorksheet:
-            def __init__(self):
-                self.calls = []
-
-            def batch_update(self, data, **kwargs):
-                self.calls.append((data, kwargs))
-
-        worksheet = FakeWorksheet()
-        updates = [
-            module.Update(2, "10", "m1", "a1", "b", "model"),
-            module.Update(4, "20", "m2", "a2", "b", "article"),
-        ]
-
-        range_count = module.update_sheet(worksheet, updates, 23)
-
-        self.assertEqual(range_count, 2)
-        self.assertEqual(len(worksheet.calls), 1)
-        payload, kwargs = worksheet.calls[0]
-        self.assertEqual([item["range"] for item in payload], ["W2:W2", "W4:W4"])
-        self.assertEqual(kwargs["value_input_option"], "USER_ENTERED")
-
     def test_plan_updates_falls_back_to_article_and_rejects_ambiguous_match(self):
         rows = [
             ["art", "model", "brand", "Коды ЭТМ"],

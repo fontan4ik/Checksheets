@@ -2,7 +2,7 @@
 
 ## Назначение
 
-`sync_etm_codes.py` ежедневно читает выгрузки `price.csv` сначала из FTP-каталога `/from_etm/13`, затем `/from_etm/14`, и заполняет только пустые ячейки колонки **W** (`Коды ЭТМ`) листа **ETM TR**.
+`sync_etm_codes.py` больше не записывает коды в Google Sheets. Скрипт оставлен только для read-only диагностики FTP-выгрузок `price.csv` из `/from_etm/13` и `/from_etm/14`.
 
 ## Сопоставление и приоритет
 
@@ -27,14 +27,11 @@
 - `FTP_STATE_PATH` обновляется только после успешной обработки и записи в Google Sheets.
 - Если склад недоступен, его источник не считается обработанным; существующие значения в W не очищаются и не перезаписываются.
 
-## Запуск
+## Запуск диагностики
 
 ```bash
 # Только расчёт по складам 13 -> 14, без записи
 ./.venv-etm-export/bin/python sync_etm_codes.py
-
-# Повторная обработка выгрузок и запись только в пустые W
-./.venv-etm-export/bin/python sync_etm_codes.py --force --write
 
 # Проверка на локальном файле (один источник)
 ./.venv-etm-export/bin/python sync_etm_codes.py --csv test/tmp/etm_ftp_downloads/from_etm/13/price.csv
@@ -44,4 +41,4 @@
 
 ## Расписание
 
-LaunchAgent `com.voltmir.checksheets-etm-codes` запускается ежедневно в **08:30 по локальному времени Mac**. Конфигурация хранится в `Docs/com.voltmir.checksheets-etm-codes.plist`, а запуск идёт через `run_with_lock.sh sync_etm_codes`.
+Автоматическая запись кодов отключена. Старый LaunchAgent `com.voltmir.checksheets-etm-codes` через `run_with_lock.sh` только фиксирует, что `CODES` отключён, и не запускает запись.
