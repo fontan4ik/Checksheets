@@ -21,22 +21,22 @@ def test_ekb_warehouse_and_source_column_mapping():
     assert FERON_TR_STOCK_HEADERS["Екатеринбург"] == "FER EKB"
 
 
-def test_stream_supps_feron_source_columns_are_h_to_k():
+def test_stream_supps_feron_source_columns_are_i_to_l_after_inserted_h():
     headers = [
         "Артикул продавца", "Артикул производителя", "PIC", "brand",
-        "SKU OZON", "Х", "chrlid", "FER MSK", "FER SMR", "FER NSB", "FER EKB",
+        "SKU OZON", "Х", "chrlid", "СМР САМ", "FER MSK", "FER SMR", "FER NSB", "FER EKB",
     ]
     columns = resolve_header_columns(headers, FERON_TR_SCHEMA, "StreamSupps")
     assert columns["model"] == 2
-    assert columns["stock_vnukovo"] == 8
-    assert columns["stock_samara"] == 9
-    assert columns["stock_ekaterinburg"] == 11
+    assert columns["stock_vnukovo"] == 9
+    assert columns["stock_samara"] == 10
+    assert columns["stock_ekaterinburg"] == 12
 
 
 def test_missing_stream_supps_feron_source_header_is_rejected():
     headers = [
         "Артикул продавца", "Артикул производителя", "PIC", "brand",
-        "SKU OZON", "Х", "chrlid", "FER MSK", "FER SMR", "WRONG", "FER EKB",
+        "SKU OZON", "Х", "chrlid", "СМР САМ", "FER MSK", "FER SMR", "WRONG", "FER EKB",
     ]
     try:
         resolve_header_columns(headers, FERON_TR_SCHEMA, "StreamSupps")
@@ -56,6 +56,11 @@ def test_etm_writer_no_longer_targets_legacy_feron_column():
 
 def test_wb_ekb_target_is_configured_for_feron_translation():
     source = SYNC_FERON_JS.read_text(encoding="utf-8")
+    assert 'const SHEET_NAME = "StreamSupps"' in source
+    assert "marketplace_stock_msk: 13" in source
+    assert "marketplace_stock_smr: 14" in source
+    assert "marketplace_stock_nsb: 15" in source
+    assert "marketplace_stock_ekb: 16" in source
     assert "EKB: 1860503" in source
     assert 'name: "Екатеринбург"' in source
     assert 'col: "stock_ekb"' in source

@@ -2,9 +2,9 @@
  * Самарские остатки поставщиков → UNIT YNX → Яндекс Маркет «ВольтМир FBS».
  *
  * Источники:
- * - FERON TR: art + SMR;
- * - ETM TR: art + SMR;
- * - РуСВ TR: Артикул + Округлённое (остаток после охлаждения/округления).
+ * - StreamSupps!N: ФЕРОН ФБС;
+ * - StreamSupps!S: ЭТМ САМАРА;
+ * - StreamSupps!W: РЕЗЕРВ.
  *
  * Результат:
  * - UNIT YNX: новый контрольный столбец «TR YA FBS»;
@@ -29,9 +29,9 @@ const SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGNS_URL = 'https://api.partner.market.yan
 const SAMARA_SUPPLIER_YNX_YANDEX_BATCH_SIZE = 2000;
 
 const SAMARA_SUPPLIER_YNX_SOURCES = [
-  { sheetName: 'FERON TR', keyHeader: 'art', stockHeader: 'SMR' },
-  { sheetName: 'ETM TR', keyHeader: 'art', stockHeader: 'SMR' },
-  { sheetName: 'РуСВ TR', keyHeader: 'Артикул', stockHeader: 'Округлённое' }
+  { sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 14 }, // N — ФЕРОН ФБС
+  { sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 19 }, // S — ЭТМ САМАРА
+  { sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 23 }  // W — РЕЗЕРВ
 ];
 
 function verifyYandexSamaraSupplierConfiguration() {
@@ -173,7 +173,7 @@ function readSamaraSupplierYnxFormulaSummary_(sheet) {
   if (sheet.getLastRow() < 2) throw new Error('UNIT YNX: нет строк для формульного остатка.');
 
   const formula = String(sheet.getRange(2, stockColumn).getFormula() || '');
-  const formulaMarkers = ['ARRAYFORMULA', 'SUMIF', 'FERON TR', 'ETM TR', 'РуСВ TR'];
+  const formulaMarkers = ['ARRAYFORMULA', 'SUMIF', 'StreamSupps', '$N$2:$N', '$S$2:$S', '$W$2:$W'];
   if (!formula || formulaMarkers.some(function(marker) { return formula.indexOf(marker) === -1; })) {
     throw new Error('UNIT YNX!«' + SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER +
       '»: в первой строке данных нет ожидаемой формулы поставщиков.');

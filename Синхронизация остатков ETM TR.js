@@ -1,5 +1,5 @@
 /**
- * РАБОТА С ЛИСТОМ "ETM TR"
+ * РАБОТА С ЛИСТОМ "StreamSupps"
  *
  * 1. updateETMStocksInSheet() - подтягивает остатки из API (если нужно)
  * 2. syncETMTableToMarketplaces() - выгружает данные из таблицы на маркетплейсы
@@ -9,7 +9,7 @@
 // КОНФИГУРАЦИЯ
 // ============================================
 
-const ETM_SHEET_NAME = "ETM TR";
+const ETM_SHEET_NAME = "StreamSupps";
 
 // Фиксированные ID складов для Ozon и WB
 const ETM_OZON_WAREHOUSE_ID = 1020005000689690;  // ЭТМ САМАРА
@@ -17,11 +17,11 @@ const ETM_WB_WAREHOUSE_ID = 1698545;           // Новосемейкино
 
 // Колонки (1-based индекс)
 // A = 1 - Артикул (offer_id Ozon)
-// Q = 17 - chrlid (WB character ID)
-// P = 16 - SMR (остаток для выгрузки)
+// G = 7 - chrlid (WB character ID)
+// S = 19 - ЭТМ САМАРА (остаток для выгрузки после вставки H)
 const ETM_COL_ARTICUL = 1;   // A - Артикул (offer_id Ozon)
-const ETM_COL_CHRT_ID = 17;  // Q - chrlid (WB)
-const ETM_COL_STOCK = 16;   // P - SMR (остаток для выгрузки)
+const ETM_COL_CHRT_ID = 7;   // G - chrlid (WB)
+const ETM_COL_STOCK = 19;    // S - ЭТМ САМАРА
 
 const ETM_MIN_STOCK_THRESHOLD = 5; // Минимальный остаток для выгрузки (> 4)
 
@@ -59,11 +59,11 @@ function readETMStocksFromSheet() {
     return idx >= 0 ? idx + 1 : fallback;
   };
 
-  const dynamicColOfferId = findCol("артикул", ETM_COL_ARTICUL);
+  const dynamicColOfferId = findCol("артикул продавца", ETM_COL_ARTICUL);
   const dynamicColChrtId = findCol("chrlid", ETM_COL_CHRT_ID);
-  const dynamicColStock = findCol("smr", ETM_COL_STOCK);
+  const dynamicColStock = ETM_COL_STOCK;
 
-  Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, chrlid=${dynamicColChrtId}, stocks smr=${dynamicColStock}`);
+  Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, chrlid=${dynamicColChrtId}, ЭТМ САМАРА=${dynamicColStock}`);
 
   // Читаем нужные колонки
   const maxCol = Math.max(dynamicColOfferId, dynamicColChrtId, dynamicColStock);

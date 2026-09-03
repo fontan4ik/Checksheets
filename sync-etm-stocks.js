@@ -3,7 +3,7 @@ const axios = require("axios");
 const path = require("path");
 const crypto = require("crypto");
 
-const SHEET_NAME = "ETM TR";
+const SHEET_NAME = "StreamSupps";
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 
 const ETM_TR_OZON_WAREHOUSE = 1020005000689690;
@@ -11,9 +11,9 @@ const ETM_TR_WB_WAREHOUSE = 798761; // Updated to correct WB warehouse ID
 
 const ETM_TR_COLS = {
   ARTICUL: 1,
-  CHRLID: 20,
-  STOCK: 19, // Ozon stock column
-  WB_STOCK: 22, // Wildberries stock column U
+  CHRLID: 7,
+  STOCK: 19, // S — ЭТМ САМАРА после добавления StreamSupps!H
+  WB_STOCK: 19, // Та же трансляция используется для WB
 };
 
 const MIN_STOCK_THRESHOLD = 0;
@@ -112,7 +112,7 @@ async function readETMTRPUStabilitySnapshot(auth) {
   const sheets = google.sheets({ version: "v4", auth });
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A:U`,
+    range: `${SHEET_NAME}!A:S`,
     majorDimension: "ROWS",
     valueRenderOption: "UNFORMATTED_VALUE",
   });
@@ -134,7 +134,7 @@ async function readETMTRPUStabilitySnapshot(auth) {
 
     const chrlid = String(row[ETM_TR_COLS.CHRLID - 1] || "").trim();
     const ozonStock = numericCell(row[ETM_TR_COLS.STOCK - 1]);
-    const wbStock = numericCell(row[20]);
+    const wbStock = numericCell(row[ETM_TR_COLS.WB_STOCK - 1]);
 
     rowCount++;
     if (chrlid) {
@@ -173,7 +173,7 @@ async function waitForETMTRPUStability(auth) {
   let attempt = 0;
 
   log(
-    `⏳ Ждём стабильности ETM TR P/U: ${requiredReads} одинаковых снимка, интервал ${Math.round(intervalMs / 1000)} сек, максимум ${Math.round(maxWaitMs / 60000)} мин`,
+    `⏳ Ждём стабильности StreamSupps!S: ${requiredReads} одинаковых снимка, интервал ${Math.round(intervalMs / 1000)} сек, максимум ${Math.round(maxWaitMs / 60000)} мин`,
   );
 
   while (Date.now() <= deadline) {
@@ -199,7 +199,7 @@ async function waitForETMTRPUStability(auth) {
     );
 
     if (stableReads >= requiredReads) {
-      log("✅ ETM TR P/U стабильны, начинаем синхронизацию маркетплейсов");
+      log("✅ StreamSupps!S стабилен, начинаем синхронизацию маркетплейсов");
       return snapshot;
     }
 
@@ -207,7 +207,7 @@ async function waitForETMTRPUStability(auth) {
   }
 
   throw new Error(
-    `ETM TR P/U не стабилизировались за ${Math.round(maxWaitMs / 60000)} мин; marketplace sync остановлен`,
+    `StreamSupps!S не стабилизировался за ${Math.round(maxWaitMs / 60000)} мин; marketplace sync остановлен`,
   );
 }
 
@@ -249,14 +249,14 @@ async function readETMStocksFromSheet(auth) {
     return idx >= 0 ? idx + 1 : fallback;
   };
 
-  const colArticul = findCol("артикул", ETM_TR_COLS.ARTICUL);
+  const colArticul = findCol("артикул продавца", ETM_TR_COLS.ARTICUL);
   const colChrlid = findCol("chrlid", ETM_TR_COLS.CHRLID);
-  // Marketplace sync for ETM TR must always read SMR from column P.
+  // После вставки StreamSupps!H трансляция «ЭТМ САМАРА» находится в S.
   const colStock = ETM_TR_COLS.STOCK;
-  const colWbStock = findCol("вб остатки", ETM_TR_COLS.WB_STOCK);
+  const colWbStock = ETM_TR_COLS.WB_STOCK;
 
   log(
-    `🔍 Колонки: Артикул=${columnLetter(colArticul)}(${colArticul}), chrlid=${columnLetter(colChrlid)}(${colChrlid}), SMR(P)=${colStock}, WB_STOCK(${columnLetter(colWbStock)})=${colWbStock}`,
+    `🔍 Колонки: Артикул=${columnLetter(colArticul)}(${colArticul}), chrlid=${columnLetter(colChrlid)}(${colChrlid}), ЭТМ САМАРА=${columnLetter(colStock)}(${colStock})`,
   );
 
   const maxCol = Math.max(colArticul, colChrlid, colStock, colWbStock);
@@ -395,7 +395,7 @@ async function verifyETMOzonStocks(stocks) {
   });
 
   log(
-    `📊 Ozon non-zero check (склад ЭТМ САМАРА ${ETM_TR_OZON_WAREHOUSE}): Google P>0=${sheetPositiveCount}, marketplace free_stock>0=${marketplacePositiveCount}, delta=${marketplacePositiveCount - sheetPositiveCount}`,
+    `📊 Ozon non-zero check (склад ЭТМ САМАРА ${ETM_TR_OZON_WAREHOUSE}): Google S>0=${sheetPositiveCount}, marketplace free_stock>0=${marketplacePositiveCount}, delta=${marketplacePositiveCount - sheetPositiveCount}`,
   );
 
   if (mismatches.length === 0) {
@@ -948,7 +948,7 @@ async function verifyETMWBStocks(stocks) {
 
   const excludedText = excludedCount > 0 ? `, исключено из сравнения=${excludedCount}` : "";
   log(
-    `📊 WB non-zero check (склад Новосемейкино ${ETM_TR_WB_WAREHOUSE}): Google U>0=${sheetPositiveCount}, marketplace amount>0=${marketplacePositiveCount}, delta=${marketplacePositiveCount - sheetPositiveCount}${excludedText}`,
+    `📊 WB non-zero check (склад Новосемейкино ${ETM_TR_WB_WAREHOUSE}): Google S>0=${sheetPositiveCount}, marketplace amount>0=${marketplacePositiveCount}, delta=${marketplacePositiveCount - sheetPositiveCount}${excludedText}`,
   );
   
   if (mismatches.length === 0) {
@@ -1032,7 +1032,7 @@ async function repairETMWBMismatches(stocks, initialMismatches) {
 
 async function main() {
   console.log("============================================");
-  console.log("🔄 СИНХРОНИЗАЦИЯ ОСТАТКОВ ETM TR (LOCAL)");
+  console.log("🔄 СИНХРОНИЗАЦИЯ ОСТАТКОВ ETM ИЗ StreamSupps (LOCAL)");
   console.log("============================================");
 
   const startTime = new Date();

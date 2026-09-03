@@ -1,6 +1,5 @@
 /**
- * API-остатки RS записываются в "StreamSupps"; marketplace stage пока
- * читает legacy-лист "РуСВ TR".
+ * API-остатки и marketplace-трансляция RS работают через "StreamSupps".
  *
  * 1. updateRSStocksInSheet() - подтягивает остатки из RS API в таблицу.
  * 2. syncRSTableToMarketplaces() - выгружает данные из таблицы на маркетплейсы.
@@ -10,10 +9,7 @@
 // КОНФИГУРАЦИЯ
 // ============================================
 
-const RS_SHEET_NAME = "РуСВ TR";
-// API-to-table stage is migrated to the unified supplier stream. The legacy
-// RS_SHEET_NAME remains here for the marketplace-read stage until that stage
-// is migrated separately.
+const RS_SHEET_NAME = "StreamSupps";
 const RS_API_SHEET_NAME = "StreamSupps";
 const RS_WAREHOUSE_ID = 96; // По умолчанию (Самара)
 
@@ -28,12 +24,12 @@ const RS_WB_WAREHOUSE_ID = 798761;              // ВольтМир
 // Фоллбек колонки (если заголовки не найдены)
 const RS_COL_VENDOR_CODE = 2; // B - Модель
 const RS_COL_ARTICUL = 1;     // A - Артикул (offer_id Ozon)
-const RS_COL_CHRT_ID = 9;     // I - chrlid (WB) - ИСПРАВЛЕНО с 10 на 9
+const RS_COL_CHRT_ID = 7;     // G - chrlid (WB)
 const RS_API_COL_MODEL = 2;   // B - Артикул производителя (formula)
-const RS_API_COL_STOCK = 21;  // U - RS SMR (raw supplier stock)
+const RS_API_COL_STOCK = 22;  // V - RS SMR после добавления StreamSupps!H
 const RS_COL_STOCK_API = 6;   // F - legacy Остаток АПИ
 const RS_COL_COOLING = 7;     // G - Охлад
-const RS_COL_ROUNDED = 8;     // H - Округление (Stock для выгрузки)
+const RS_COL_ROUNDED = 23;    // W - РЕЗЕРВ (Stock для выгрузки)
 
 const RS_MIN_STOCK_THRESHOLD = 5; // Минимальный остаток для выгрузки (> 4)
 
@@ -51,7 +47,7 @@ const RS_WB_MAX_RETRIES = 3;
 
 /**
  * Подтягивает актуальные остатки из RS API и записывает сырой остаток в
- * StreamSupps!U ("RS SMR"). Производная трансляция находится в V.
+ * StreamSupps!V ("RS SMR"). Производная трансляция находится в W.
  */
 function updateRSStocksInSheet() {
   Logger.log("=== ШАГ 1: ПОЛУЧЕНИЕ ОСТАТКОВ ИЗ RS API В ТАБЛИЦУ ===");
@@ -134,7 +130,7 @@ function updateRSStocksInSheet() {
   // Запись в таблицу
   sheet.getRange(2, colStockApi, resultsStockApi.length, 1).setValues(resultsStockApi);
 
-  Logger.log(`✅ Лист "${RS_API_SHEET_NAME}" успешно обновлён: сырой остаток записан в колонку U (RS SMR).`);
+  Logger.log(`✅ Лист "${RS_API_SHEET_NAME}" успешно обновлён: сырой остаток записан в колонку V (RS SMR).`);
   Logger.log("============================================");
 }
 
@@ -143,7 +139,7 @@ function updateRSStocksInSheet() {
 // ============================================
 
 /**
- * Читает данные из листа "РуСВ TR"
+ * Читает данные из листа "StreamSupps"
  * @returns {Array} Массив объектов с данными товаров
  */
 function readRSStocksFromSheet() {
@@ -172,9 +168,9 @@ function readRSStocksFromSheet() {
     return idx >= 0 ? idx + 1 : fallback;
   };
 
-  const dynamicColOfferId = findCol("артикул", RS_COL_ARTICUL);
+  const dynamicColOfferId = findCol("артикул продавца", RS_COL_ARTICUL);
   const dynamicColChrtId = findCol("chrtid", RS_COL_CHRT_ID) || findCol("chrlid", RS_COL_CHRT_ID);
-  const dynamicColStock = findCol("округление", RS_COL_ROUNDED);
+  const dynamicColStock = RS_COL_ROUNDED;
 
   Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, chrtId=${dynamicColChrtId}, Остаток=${dynamicColStock}`);
 

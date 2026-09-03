@@ -37,9 +37,9 @@ assert.strictEqual(sandbox.parseSamaraSupplierYnxStock_('1 000', 'TEST', 'A'), 1
 assert.throws(() => sandbox.parseSamaraSupplierYnxStock_('-1', 'TEST', 'A'));
 assert.throws(() => sandbox.parseSamaraSupplierYnxStock_('1.5', 'TEST', 'A'));
 
-assert(source.includes("{ sheetName: 'FERON TR', keyHeader: 'art', stockHeader: 'SMR' }"));
-assert(source.includes("{ sheetName: 'ETM TR', keyHeader: 'art', stockHeader: 'SMR' }"));
-assert(source.includes("{ sheetName: 'РуСВ TR', keyHeader: 'Артикул', stockHeader: 'Округлённое' }"));
+assert(source.includes("{ sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 14 }"));
+assert(source.includes("{ sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 19 }"));
+assert(source.includes("{ sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 23 }"));
 assert(source.includes('SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGN_NAME'));
 assert(!source.includes('SAMARA_SUPPLIER_YNX_CAMPAIGN_NAME_FOR_LOG_'));
 assert(source.includes('58480133'));
