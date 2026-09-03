@@ -8,7 +8,7 @@ from network_bypass import SourceAddressAdapter
 
 
 # Live Feron warehouse mapping confirmed from /offers/products/search and
-# /quantities/search.  FERON TR keeps the supplier-source quantities in J:M.
+# /quantities/search.  StreamSupps keeps raw supplier quantities in H:K.
 FERON_WAREHOUSE_IDS = {
     "Самара": "67e4fb8a-6e27-11ef-96b6-a4bf0186f0c7",
     "Внуково": "de099cee-372a-11ef-96b6-a4bf0186f0c7",
@@ -17,15 +17,15 @@ FERON_WAREHOUSE_IDS = {
 }
 
 FERON_TR_STOCK_HEADERS = {
-    "Самара": "stocks SMR",
-    "Внуково": "stocks MSK",
-    "Новосибирск": "stocks NSB",
-    "Екатеринбург": "stocks EKB",
+    "Самара": "FER SMR",
+    "Внуково": "FER MSK",
+    "Новосибирск": "FER NSB",
+    "Екатеринбург": "FER EKB",
 }
 
 
 FERON_TR_SCHEMA = {
-    "model": "model",
+    "model": "Артикул производителя",
     "stock_samara": FERON_TR_STOCK_HEADERS["Самара"],
     "stock_vnukovo": FERON_TR_STOCK_HEADERS["Внуково"],
     "stock_novosibirsk": FERON_TR_STOCK_HEADERS["Новосибирск"],
@@ -312,10 +312,10 @@ def sync_feron():
         )
         return
 
-    # Phase 2: FERON TR is the only stock target.  The former ТЕСТ write was
-    # intentionally removed to prevent two independent stock sources.
+    # Phase 2: StreamSupps is the only stock target.  The former FERON TR and
+    # ТЕСТ writes are intentionally not used.
     try:
-        sheet_name = getattr(config, 'FERON_SHEET_NAME_FBS', 'FERON TR')
+        sheet_name = getattr(config, 'FERON_SHEET_NAME_FBS', 'StreamSupps')
         print(f"\nAccessing Google Sheet: '{sheet_name}'...")
         ws = gsheets_utils.get_worksheet(sheet_name)
     except Exception as e:
@@ -325,7 +325,7 @@ def sync_feron():
     try:
         columns = gsheets_utils.get_header_columns(ws, FERON_TR_SCHEMA, sheet_name)
     except Exception as e:
-        print(f"ERROR: FERON TR schema validation failed: {e}")
+        print(f"ERROR: StreamSupps schema validation failed: {e}")
         return
 
     try:

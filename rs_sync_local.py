@@ -285,9 +285,8 @@ def sync_rs():
         columns = gsheets_utils.get_header_columns(
             ws,
             {
-                "model": "Модель",
-                "stock_api": "Остаток АПИ",
-                "purchase_price": "Цена закуп",
+                "model": "Артикул производителя",
+                "stock_api": "RS SMR",
             },
             config.RS_SHEET_NAME,
         )
@@ -305,38 +304,8 @@ def sync_rs():
     code_map = fetch_rs_code_map(config.RS_WAREHOUSE_ID)
     all_stocks = fetch_all_rs_stocks(config.RS_WAREHOUSE_ID)
 
-    # Соберем RS-коды для всех моделей в таблице для массового запроса цен
-    model_rs_codes = []
-    for model in models:
-        model = str(model).strip()
-        if not model:
-            continue
-        rs_code = None
-        search_variants = [
-            model,
-            model.upper(),
-            model.lower(),
-            model.strip().upper(),
-            ''.join(c for c in model if c.isalnum() or c in '-_').upper(),
-            ''.join(c for c in model if c.isalnum()).upper(),
-        ]
-        for variant in search_variants:
-            if variant in code_map:
-                rs_code = code_map[variant]
-                break
-        if not rs_code and model in ['61950', '71650']:
-            similar_keys = [k for k in code_map.keys() if model in k or k.startswith(model)]
-            if similar_keys:
-                rs_code = code_map[similar_keys[0]]
-        if rs_code:
-            model_rs_codes.append(rs_code)
-
-    # Получаем цены массово
-    all_prices = fetch_rs_prices(model_rs_codes)
-
     # Подготовим результаты
     results_stock = []
-    results_price = []
 
     # Счетчики для отладки
     total_processed = 0
@@ -349,7 +318,6 @@ def sync_rs():
 
         if not model:
             results_stock.append([0])
-            results_price.append([""])
             continue
 
         stock = 0
@@ -373,10 +341,9 @@ def sync_rs():
 
         if rs_code:
             stock = all_stocks.get(rs_code, 0)
-            price = all_prices.get(str(rs_code), "")
 
             if model in ['61950', '71650']:
-                print(f"DEBUG: Model '{model}' found RS code '{rs_code}', stock: {stock}, price: {price}")
+                print(f"DEBUG: Model '{model}' found RS code '{rs_code}', stock: {stock}")
 
             if stock > 0:
                 found_with_stock += 1
@@ -393,11 +360,9 @@ def sync_rs():
                     first_similar = similar_keys[0]
                     rs_code = code_map[first_similar]
                     stock = all_stocks.get(rs_code, 0)
-                    price = all_prices.get(str(rs_code), "")
-                    print(f"DEBUG: Using similar key '{first_similar}' -> RS code '{rs_code}', stock: {stock}, price: {price}")
+                    print(f"DEBUG: Using similar key '{first_similar}' -> RS code '{rs_code}', stock: {stock}")
 
         results_stock.append([stock])
-        results_price.append([price])
         total_processed += 1
 
     print(f"\nSync Statistics:")
@@ -410,7 +375,8 @@ def sync_rs():
 
     update_errors = []
 
-    # Обновляем остатки
+    # Обновляем сырой остаток RS. Производные колонки StreamSupps!V и
+    # маркетплейсные трансляции заполняются отдельным контуром.
     try:
         gsheets_utils.clear_column_at_index(ws, columns["stock_api"])
         gsheets_utils.update_column(ws, columns["stock_api"], results_stock)
@@ -418,15 +384,6 @@ def sync_rs():
     except Exception as e:
         update_errors.append(f"stock column: {e}")
         print(f"Error updating stock column after retries: {e}")
-
-    # Обновляем цены по заголовку "Цена закуп".
-    try:
-        gsheets_utils.clear_column_at_index(ws, columns["purchase_price"])
-        gsheets_utils.update_column(ws, columns["purchase_price"], results_price)
-        print("Purchase prices updated successfully by header 'Цена закуп'!")
-    except Exception as e:
-        update_errors.append(f"price column: {e}")
-        print(f"Error updating price column after retries: {e}")
 
     if update_errors:
         raise RuntimeError("Google Sheet update failed: " + "; ".join(update_errors))

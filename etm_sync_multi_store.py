@@ -32,17 +32,12 @@ LOG_PATH = os.path.join(os.path.dirname(__file__), "logs", "etm_sync_multi.log")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 
 ETM_TR_SCHEMA = {
-    "etm_code": "Коды ЭТМ",
-    "stock_nsb": "stocks nsb",
-    "stock_smr": "stocks smr",
-}
-FERON_TR_SHEET_NAME = "FERON TR"
-FERON_TR_SCHEMA = {
-    "model": "model",
-    "brand": "brand",
-    "stock_etm": "ЭТМ",
+    "etm_code": "CODES",
+    "stock_nsb": "ETM NSB",
+    "stock_smr": "ETM SMR",
 }
 FERON_ETM_MAPPING_PATH = Path(__file__).resolve().parent / "СОПОСТАВЛЕННОЕ ЭТМ .xlsx"
+STREAM_SUPPS_SHEET_NAME = getattr(config, "STREAM_SUPPS_SHEET_NAME", "StreamSupps")
 SHEETS_UPDATE_RETRIES = 5
 SHEETS_UPDATE_RETRY_DELAY = 2.0
 
@@ -1087,7 +1082,6 @@ def build_lookup_from_records(records: Iterable[StockRecord]):
     article_to_gds = {}
     tail_to_gds = {}
     loose_entries = []
-    model_brand_lookup = {}
 
     count = 0
     for record in records:
@@ -1105,12 +1099,6 @@ def build_lookup_from_records(records: Iterable[StockRecord]):
                 "RemInfo": record.stock,
             },
         )
-        model_key = normalize(record.article)
-        brand_key = normalize(record.manufacturer)
-        if model_key and brand_key:
-            key = (model_key, brand_key)
-            model_brand_lookup[key] = model_brand_lookup.get(key, 0) + record.stock
-
     return {
         "records": count,
         "lookup": lookup,
@@ -1119,7 +1107,6 @@ def build_lookup_from_records(records: Iterable[StockRecord]):
         "article_to_gds": article_to_gds,
         "tail_to_gds": tail_to_gds,
         "loose_entries": loose_entries,
-        "model_brand_lookup": model_brand_lookup,
     }
 
 
@@ -1408,10 +1395,7 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
         force,
     )
     logging.info(
-        "ETM TR matching: header 'Коды ЭТМ' -> FTP columns A 'Код ЭТМ' and D 'Количество'",
-    )
-    logging.info(
-        "FERON TR ETM stock: warehouse 13, headers model + brand -> FTP columns E article + F manufacturer; target header 'ЭТМ'",
+        "StreamSupps matching: header 'CODES' -> FTP columns A 'Код ЭТМ' and D 'Количество'",
     )
     logging.info(
         "Warehouse mapping: %s => %s, %s => %s",
@@ -1452,31 +1436,19 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
         logging.info("No parsed ETM stock records; Google Sheets values were not written")
         return 0
 
-    ws = gsheets_utils.get_worksheet("ETM TR")
+    ws = gsheets_utils.get_worksheet(STREAM_SUPPS_SHEET_NAME)
     all_data = ws.get_all_values()
     if not all_data:
-        raise RuntimeError("ETM TR sheet is empty")
+        raise RuntimeError(f"{STREAM_SUPPS_SHEET_NAME} sheet is empty")
 
     etm_columns = gsheets_utils.resolve_header_columns(
-        all_data[0], ETM_TR_SCHEMA, "ETM TR"
+        all_data[0], ETM_TR_SCHEMA, STREAM_SUPPS_SHEET_NAME
     )
     col_stock_nsb = etm_columns["stock_nsb"]
     col_stock_smr = etm_columns["stock_smr"]
 
     computed = compute_sheet_values(
         all_data, etm_columns["etm_code"], nsb_bundle, smr_bundle
-    )
-
-    feron_ws = gsheets_utils.get_worksheet(FERON_TR_SHEET_NAME)
-    feron_data = feron_ws.get_all_values()
-    if not feron_data:
-        raise RuntimeError(f"{FERON_TR_SHEET_NAME} sheet is empty")
-    feron_columns = gsheets_utils.resolve_header_columns(
-        feron_data[0], FERON_TR_SCHEMA, FERON_TR_SHEET_NAME
-    )
-    feron_computed = compute_feron_stock_by_model_brand(
-        feron_data, smr_bundle["model_brand_lookup"],
-        feron_columns["model"], feron_columns["brand"],
     )
 
     logging.info(
@@ -1489,22 +1461,13 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
         computed["matched_smr"],
         len(computed["smr_results"]),
     )
-    logging.info("ETM TR rows without 'Коды ЭТМ': %s", computed["missing_etm_codes"])
-    logging.info(
-        "MATCHED FERON TR WAREHOUSE 13 STOCKS BY MODEL+BRAND: %s / %s",
-        feron_computed["matched"],
-        len(feron_computed["results"]),
-    )
-    logging.info(
-        "FERON TR rows without model or brand: %s",
-        feron_computed["missing_keys"],
-    )
+    logging.info("StreamSupps rows without 'CODES': %s", computed["missing_etm_codes"])
 
     if dry_run:
         logging.info("Dry run enabled; Google Sheets values were not written")
         return 0
 
-    logging.info("Writing ETM TR values to Google Sheets...")
+    logging.info("Writing StreamSupps ETM values to Google Sheets...")
 
     wrote_any = False
     if nsb_bundle["records"] > 0:
@@ -1527,19 +1490,6 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
             f"{gspread.utils.rowcol_to_a1(1 + len(computed['smr_results']), col_stock_smr)}"
         )
         update_sheet_range_with_retry(ws, smr_range, computed["smr_results"])
-        feron_etm_range = (
-            f"{gspread.utils.rowcol_to_a1(2, feron_columns['stock_etm'])}:"
-            f"{gspread.utils.rowcol_to_a1(1 + len(feron_computed['results']), feron_columns['stock_etm'])}"
-        )
-        update_sheet_range_with_retry(
-            feron_ws,
-            feron_etm_range,
-            feron_computed["results"],
-        )
-        logging.info(
-            "FERON TR ETM warehouse 13 values written successfully to %s",
-            feron_etm_range,
-        )
         state["smr"] = {
             "files": smr_files,
             "processed_at": datetime.now(timezone.utc).isoformat(),
@@ -1549,11 +1499,11 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
         logging.info("Samara values were not written because no records were parsed")
 
     if not wrote_any:
-        logging.info("No ETM TR ranges were written")
+        logging.info("No StreamSupps ETM ranges were written")
         return 0
 
     save_ftp_state(state)
-    logging.info("ETM TR values written successfully")
+    logging.info("StreamSupps ETM values written successfully")
     logging.info("SUCCESS! Time: %.1fs", time.time() - start_time)
     return 0
 

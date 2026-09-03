@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Ежедневное заполнение пустых кодов ЭТМ в листе ``ETM TR``.
+"""Ежедневное заполнение пустых кодов ЭТМ в листе ``StreamSupps``.
 
 Production-путь читает актуальные ``price.csv`` сначала из ``/from_etm/13``,
 затем из ``/from_etm/14``. На каждом проходе учитываются только пустые ячейки
-колонки ``W`` (заголовок ``Коды ЭТМ``); любое уже непустое значение не меняется.
+колонки ``CODES``; любое уже непустое значение не меняется.
 Строки сопоставляются по ``бренд + модель`` и, если модель не нашлась, по
 ``бренд + артикул``.
 
@@ -39,12 +39,12 @@ import config
 import gsheets_utils
 
 
-SHEET_NAME = "ETM TR"
+SHEET_NAME = getattr(config, "STREAM_SUPPS_SHEET_NAME", "StreamSupps")
 SHEET_SCHEMA = {
-    "article": "art",
-    "model": "model",
+    "article": "Артикул продавца",
+    "model": "Артикул производителя",
     "brand": "brand",
-    "etm_code": "Коды ЭТМ",
+    "etm_code": "CODES",
 }
 
 FTP_HOST = os.getenv("ETM_FTP_HOST", getattr(config, "ETM_FTP_HOST", "edi.etm.ru"))
@@ -680,7 +680,7 @@ def run(
             source_stats["conflict_keys"],
         )
         logging.info(
-            "%s: ETM TR строк=%s, совпало=%s, будет заполнено=%s, уже заполнено=%s, "
+            "%s: StreamSupps строк=%s, совпало=%s, будет заполнено=%s, уже заполнено=%s, "
             "без совпадения=%s, неоднозначных=%s, без ключа=%s",
             source_label,
             source_sheet_stats["sheet_rows"],
@@ -729,7 +729,7 @@ def run(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Актуализировать коды ЭТМ в ETM TR из FTP склада 13")
+    parser = argparse.ArgumentParser(description="Актуализировать коды ЭТМ в StreamSupps из FTP склада 13")
     parser.add_argument("--csv", help="Локальный CSV вместо FTP; для тестов и ручной проверки")
     parser.add_argument("--write", action="store_true", help="Записать изменившиеся коды в Google Sheets")
     parser.add_argument("--force", action="store_true", help="Обработать FTP-файл повторно, даже если он уже отмечен в state")

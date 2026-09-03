@@ -10,6 +10,10 @@
 // ============================================
 
 const RS_SHEET_NAME = "РуСВ TR";
+// API-to-table stage is migrated to the unified supplier stream. The legacy
+// RS_SHEET_NAME remains here for the marketplace-read stage until that stage
+// is migrated separately.
+const RS_API_SHEET_NAME = "StreamSupps";
 const RS_WAREHOUSE_ID = 96; // По умолчанию (Самара)
 
 
@@ -24,7 +28,9 @@ const RS_WB_WAREHOUSE_ID = 798761;              // ВольтМир
 const RS_COL_VENDOR_CODE = 2; // B - Модель
 const RS_COL_ARTICUL = 1;     // A - Артикул (offer_id Ozon)
 const RS_COL_CHRT_ID = 9;     // I - chrlid (WB) - ИСПРАВЛЕНО с 10 на 9
-const RS_COL_STOCK_API = 6;   // F - Остаток АПИ
+const RS_API_COL_MODEL = 2;   // B - Артикул производителя (formula)
+const RS_API_COL_STOCK = 21;  // U - RS SMR (raw supplier stock)
+const RS_COL_STOCK_API = 6;   // F - legacy Остаток АПИ
 const RS_COL_COOLING = 7;     // G - Охлад
 const RS_COL_ROUNDED = 8;     // H - Округление (Stock для выгрузки)
 
@@ -49,10 +55,10 @@ function updateRSStocksInSheet() {
   Logger.log("=== ШАГ 1: ПОЛУЧЕНИЕ ОСТАТКОВ ИЗ RS API В ТАБЛИЦУ ===");
 
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = spreadsheet.getSheetByName(RS_SHEET_NAME);
+  const sheet = spreadsheet.getSheetByName(RS_API_SHEET_NAME);
 
   if (!sheet) {
-    Logger.log(`❌ Лист "${RS_SHEET_NAME}" не найден!`);
+    Logger.log(`❌ Лист "${RS_API_SHEET_NAME}" не найден!`);
     return;
   }
 
@@ -60,11 +66,8 @@ function updateRSStocksInSheet() {
   if (lastRow < 2) return;
 
   // Динамический поиск колонок
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h).trim().toLowerCase());
-  const colModel = headers.indexOf("модель") + 1 || RS_COL_VENDOR_CODE;
-  const colStockApi = headers.indexOf("остаток апи") + 1 || RS_COL_STOCK_API;
-  const colCooling = headers.indexOf("охлад") + 1 || RS_COL_COOLING;
-  const colRounded = headers.indexOf("округление") + 1 || RS_COL_ROUNDED;
+  const colModel = RS_API_COL_MODEL;
+  const colStockApi = RS_API_COL_STOCK;
 
   const models = sheet.getRange(2, colModel, lastRow - 1, 1).getValues().flat();
 
@@ -72,8 +75,6 @@ function updateRSStocksInSheet() {
   const codeMap = fetchRSCodeMap(RS_WAREHOUSE_ID);
 
   const resultsStockApi = [];
-  const resultsCooling = [];
-  const resultsRounded = [];
 
   // Используем PropertiesService для возможности продолжения после таймаута
   const props = PropertiesService.getScriptProperties();
@@ -87,7 +88,7 @@ function updateRSStocksInSheet() {
 
   // Мы будем читать существующие данные из таблицы чтобы не затирать то, что уже обработано
   // если произошел перезапуск после таймаута.
-  const existingStockData = sheet.getRange(2, colStockApi, lastRow - 1, 3).getValues();
+  const existingStockData = sheet.getRange(2, colStockApi, lastRow - 1, 1).getValues();
 
   for (let i = 0; i < models.length; i++) {
     const currentRow = i + 2;
@@ -95,8 +96,6 @@ function updateRSStocksInSheet() {
     // Если этот ряд уже обработан в предыдущем запуске (таймаут), пропускаем
     if (currentRow < startRow) {
       resultsStockApi.push([existingStockData[i][0]]);
-      resultsCooling.push([existingStockData[i][1]]);
-      resultsRounded.push([existingStockData[i][2]]);
       continue;
     }
 
@@ -118,12 +117,7 @@ function updateRSStocksInSheet() {
       }
     }
 
-    const cooling = stock / 4;
-    const rounded = Math.ceil(cooling);
-
     resultsStockApi.push([stock]);
-    resultsCooling.push([cooling]);
-    resultsRounded.push([rounded]);
 
     // Каждые 20 строк сохраняем прогресс и проверяем время
     if (currentRow % 20 === 0) {
@@ -137,10 +131,8 @@ function updateRSStocksInSheet() {
 
   // Запись в таблицу
   sheet.getRange(2, colStockApi, resultsStockApi.length, 1).setValues(resultsStockApi);
-  sheet.getRange(2, colCooling, resultsCooling.length, 1).setValues(resultsCooling);
-  sheet.getRange(2, colRounded, resultsRounded.length, 1).setValues(resultsRounded);
 
-  Logger.log("✅ Таблица успешно обновлена данными из RS API.");
+  Logger.log(`✅ Лист "${RS_API_SHEET_NAME}" успешно обновлён: сырой остаток записан в колонку U (RS SMR).`);
   Logger.log("============================================");
 }
 
