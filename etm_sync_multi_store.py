@@ -1509,7 +1509,7 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Sync ETM TR stocks from ETM FTPS export")
+    parser = argparse.ArgumentParser(description="Sync StreamSupps ETM stocks from ETM FTPS export")
     parser.add_argument(
         "--mode",
         choices=("latest", "all"),

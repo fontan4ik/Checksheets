@@ -272,7 +272,7 @@ def sync_rs():
     """
     Основная функция синхронизации
     """
-    print("Starting RS Local Sync (Improved with Prices)...")
+    print("Starting RS Local Sync (StreamSupps raw stock)...")
 
     try:
         ws = gsheets_utils.get_worksheet(config.RS_SHEET_NAME)
