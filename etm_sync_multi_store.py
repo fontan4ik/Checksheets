@@ -33,7 +33,7 @@ os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 
 ETM_TR_SCHEMA = {
     "etm_code": "Коды ЭТМ",
-    "stock_msk": "stocks msk",
+    "stock_nsb": "stocks nsb",
     "stock_smr": "stocks smr",
 }
 FERON_TR_SHEET_NAME = "FERON TR"
@@ -79,10 +79,10 @@ WAREHOUSE_DIRS = {
         "header": os.getenv("ETM_FTP_SMR_HEADER", "stocks smr"),
         "label": "Samara",
     },
-    "msk": {
-        "remote_dir": os.getenv("ETM_FTP_MSK_DIR", "/from_etm/14"),
-        "header": os.getenv("ETM_FTP_MSK_HEADER", "stocks msk"),
-        "label": "Moscow",
+    "nsb": {
+        "remote_dir": os.getenv("ETM_FTP_NSB_DIR", "/from_etm/16"),
+        "header": os.getenv("ETM_FTP_NSB_HEADER", "stocks nsb"),
+        "label": "Novosibirsk",
     },
 }
 
@@ -1285,10 +1285,10 @@ def update_sheet_range_with_retry(ws, range_name, values):
     raise last_exc
 
 
-def compute_sheet_values(all_data, etm_code_col, msk_bundle, smr_bundle):
-    msk_results = []
+def compute_sheet_values(all_data, etm_code_col, nsb_bundle, smr_bundle):
+    nsb_results = []
     smr_results = []
-    matched_msk = 0
+    matched_nsb = 0
     matched_smr = 0
     missing_etm_codes = 0
 
@@ -1297,21 +1297,21 @@ def compute_sheet_values(all_data, etm_code_col, msk_bundle, smr_bundle):
         if not etm_code:
             missing_etm_codes += 1
 
-        stock_msk = resolve_stock_by_etm_code(etm_code, msk_bundle["gds_lookup"])
+        stock_nsb = resolve_stock_by_etm_code(etm_code, nsb_bundle["gds_lookup"])
         stock_smr = resolve_stock_by_etm_code(etm_code, smr_bundle["gds_lookup"])
 
-        if stock_msk > 0:
-            matched_msk += 1
+        if stock_nsb > 0:
+            matched_nsb += 1
         if stock_smr > 0:
             matched_smr += 1
 
-        msk_results.append([stock_msk])
+        nsb_results.append([stock_nsb])
         smr_results.append([stock_smr])
 
     return {
-        "msk_results": msk_results,
+        "nsb_results": nsb_results,
         "smr_results": smr_results,
-        "matched_msk": matched_msk,
+        "matched_nsb": matched_nsb,
         "matched_smr": matched_smr,
         "missing_etm_codes": missing_etm_codes,
     }
@@ -1417,8 +1417,8 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
         "Warehouse mapping: %s => %s, %s => %s",
         WAREHOUSE_DIRS["smr"]["remote_dir"],
         WAREHOUSE_DIRS["smr"]["header"],
-        WAREHOUSE_DIRS["msk"]["remote_dir"],
-        WAREHOUSE_DIRS["msk"]["header"],
+        WAREHOUSE_DIRS["nsb"]["remote_dir"],
+        WAREHOUSE_DIRS["nsb"]["header"],
     )
 
     state = load_ftp_state()
@@ -1430,25 +1430,25 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
         state,
         force,
     )
-    msk_bundle, msk_files, msk_has_new_files = fetch_warehouse_stock_lookup_with_retry(
-        WAREHOUSE_DIRS["msk"]["remote_dir"],
-        WAREHOUSE_DIRS["msk"]["label"],
+    nsb_bundle, nsb_files, nsb_has_new_files = fetch_warehouse_stock_lookup_with_retry(
+        WAREHOUSE_DIRS["nsb"]["remote_dir"],
+        WAREHOUSE_DIRS["nsb"]["label"],
         process_mode,
-        "msk",
+        "nsb",
         state,
         force,
     )
 
-    if not smr_has_new_files and not msk_has_new_files:
+    if not smr_has_new_files and not nsb_has_new_files:
         logging.info("No new ETM FTP files to process; Google Sheets values were not written")
         return 0
 
     if smr_has_new_files and smr_bundle["records"] <= 0:
         logging.warning("Samara FTP file was found but no stock records were parsed")
-    if msk_has_new_files and msk_bundle["records"] <= 0:
-        logging.warning("Moscow FTP file was found but no stock records were parsed")
+    if nsb_has_new_files and nsb_bundle["records"] <= 0:
+        logging.warning("Novosibirsk FTP file was found but no stock records were parsed")
 
-    if smr_bundle["records"] <= 0 and msk_bundle["records"] <= 0:
+    if smr_bundle["records"] <= 0 and nsb_bundle["records"] <= 0:
         logging.info("No parsed ETM stock records; Google Sheets values were not written")
         return 0
 
@@ -1460,11 +1460,11 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
     etm_columns = gsheets_utils.resolve_header_columns(
         all_data[0], ETM_TR_SCHEMA, "ETM TR"
     )
-    col_stock_msk = etm_columns["stock_msk"]
+    col_stock_nsb = etm_columns["stock_nsb"]
     col_stock_smr = etm_columns["stock_smr"]
 
     computed = compute_sheet_values(
-        all_data, etm_columns["etm_code"], msk_bundle, smr_bundle
+        all_data, etm_columns["etm_code"], nsb_bundle, smr_bundle
     )
 
     feron_ws = gsheets_utils.get_worksheet(FERON_TR_SHEET_NAME)
@@ -1480,9 +1480,9 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
     )
 
     logging.info(
-        "MATCHED MSK: %s / %s",
-        computed["matched_msk"],
-        len(computed["msk_results"]),
+        "MATCHED NSB: %s / %s",
+        computed["matched_nsb"],
+        len(computed["nsb_results"]),
     )
     logging.info(
         "MATCHED SMR: %s / %s",
@@ -1507,19 +1507,19 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
     logging.info("Writing ETM TR values to Google Sheets...")
 
     wrote_any = False
-    if msk_bundle["records"] > 0:
-        msk_range = (
-            f"{gspread.utils.rowcol_to_a1(2, col_stock_msk)}:"
-            f"{gspread.utils.rowcol_to_a1(1 + len(computed['msk_results']), col_stock_msk)}"
+    if nsb_bundle["records"] > 0:
+        nsb_range = (
+            f"{gspread.utils.rowcol_to_a1(2, col_stock_nsb)}:"
+            f"{gspread.utils.rowcol_to_a1(1 + len(computed['nsb_results']), col_stock_nsb)}"
         )
-        update_sheet_range_with_retry(ws, msk_range, computed["msk_results"])
-        state["msk"] = {
-            "files": msk_files,
+        update_sheet_range_with_retry(ws, nsb_range, computed["nsb_results"])
+        state["nsb"] = {
+            "files": nsb_files,
             "processed_at": datetime.now(timezone.utc).isoformat(),
         }
         wrote_any = True
     else:
-        logging.info("Moscow values were not written because no records were parsed")
+        logging.info("Novosibirsk values were not written because no records were parsed")
 
     if smr_bundle["records"] > 0:
         smr_range = (

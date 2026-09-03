@@ -134,6 +134,12 @@ class EtmFtpFallbackTests(unittest.TestCase):
         self.assertEqual(etm.FTP_TIMEOUT, 300)
         self.assertEqual(etm.FTP_WAREHOUSE_RETRIES, 3)
 
+    def test_second_warehouse_maps_ftp_16_to_nsb_column(self):
+        self.assertEqual(etm.ETM_TR_SCHEMA["stock_nsb"], "stocks nsb")
+        self.assertEqual(etm.WAREHOUSE_DIRS["nsb"]["remote_dir"], "/from_etm/16")
+        self.assertEqual(etm.WAREHOUSE_DIRS["nsb"]["header"], "stocks nsb")
+        self.assertEqual(etm.WAREHOUSE_DIRS["nsb"]["label"], "Novosibirsk")
+
 
 if __name__ == "__main__":
     unittest.main()
