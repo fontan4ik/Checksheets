@@ -15,9 +15,9 @@
  * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
  * - «ВБ всего»              ← WB Analytics products, metrics.stockCount
- *                                 («Всего находится на складах»)
+ *                                 минус остаток «Склад WB РФ» = мёртвый остаток
  * - «ВБ ост»                ← WB Analytics groups, warehouses[].quantity
- *                                 по складу «Склад WB РФ»
+ *                                 по складу «Склад WB РФ» = живой остаток
  * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
@@ -84,13 +84,13 @@ const OBOR_VALUE_CONFIG = [
   {
     key: "wbStock",
     targetHeader: "ВБ всего",
-    sourceType: "wbAnalyticsStocks",
-    sourceMapKey: "wbStockTotalApi",
+    sourceType: "wbAnalyticsDeadStocks",
+    sourceMapKey: "wbStockDeadApi",
     sourceSheet: null,
     sourceArticleColumn: null,
     sourceValueColumns: [],
     subtractValueColumns: [],
-    note: "WB Analytics; metrics.stockCount = «Всего находится на складах»"
+    note: "WB Analytics: metrics.stockCount − «Склад WB РФ» = мёртвый остаток"
   },
   {
     key: "wbStockObor",
@@ -140,8 +140,21 @@ function calculateOborValues() {
   const sourceMaps = {};
   const sourceMapCache = {};
   OBOR_VALUE_CONFIG.forEach(item => {
-    if (item.sourceType === "wbAnalyticsStocks" || item.sourceType === "wbAnalyticsWarehouseStocks") {
+    if (item.sourceType === "wbAnalyticsDeadStocks" || item.sourceType === "wbAnalyticsStocks" || item.sourceType === "wbAnalyticsWarehouseStocks") {
       const sourceMapKey = item.sourceMapKey || item.key;
+      if (item.sourceType === "wbAnalyticsDeadStocks") {
+        if (!Object.prototype.hasOwnProperty.call(sourceMapCache, "wbStockTotalApi")) {
+          sourceMapCache.wbStockTotalApi = fetchOborWbStockByArticle_();
+        }
+        if (!Object.prototype.hasOwnProperty.call(sourceMapCache, "wbStockWbRfApi")) {
+          sourceMapCache.wbStockWbRfApi = fetchOborWbWarehouseStockByArticle_(OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME);
+        }
+        sourceMaps[item.key] = subtractOborWbStockMaps_(
+          sourceMapCache.wbStockTotalApi,
+          sourceMapCache.wbStockWbRfApi
+        );
+        return;
+      }
       if (!Object.prototype.hasOwnProperty.call(sourceMapCache, sourceMapKey)) {
         sourceMapCache[sourceMapKey] = item.sourceType === "wbAnalyticsWarehouseStocks"
           ? fetchOborWbWarehouseStockByArticle_(item.warehouseName)
@@ -186,11 +199,13 @@ function calculateOborValues() {
     targetSheet.getRange(1, targetColumn).setValue(item.targetHeader);
     targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);
 
-    const source = item.sourceType === "wbAnalyticsStocks"
-      ? "WB Analytics products / metrics.stockCount («Всего находится на складах»)"
-      : item.sourceType === "wbAnalyticsWarehouseStocks"
-        ? "WB Analytics groups / warehouses[].quantity («" + item.warehouseName + "»)"
-        : (item.sourceSheet || "Ozon FBS API");
+    const source = item.sourceType === "wbAnalyticsDeadStocks"
+      ? "WB Analytics: metrics.stockCount − warehouses[].quantity («" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») = мёртвый остаток"
+      : item.sourceType === "wbAnalyticsStocks"
+        ? "WB Analytics products / metrics.stockCount («Всего находится на складах»)"
+        : item.sourceType === "wbAnalyticsWarehouseStocks"
+          ? "WB Analytics groups / warehouses[].quantity («" + item.warehouseName + "»)"
+          : (item.sourceSheet || "Ozon FBS API");
     Logger.log(
       "Записано: " + item.targetHeader +
       "; источник: " + source +
@@ -224,13 +239,14 @@ function updateOborWbStockDirect() {
 
   const totalValueMap = fetchOborWbStockByArticle_();
   const warehouseValueMap = fetchOborWbWarehouseStockByArticle_(OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME);
+  const deadValueMap = subtractOborWbStockMaps_(totalValueMap, warehouseValueMap);
   const targetLastRow = targetSheet.getLastRow();
   if (targetLastRow < 2) return { rows: 0, nonZero: 0 };
 
   const targetArticles = targetSheet
     .getRange(2, 1, targetLastRow - 1, 1)
     .getValues();
-  const valuesByColumn = [totalValueMap, warehouseValueMap].map(valueMap => targetArticles.map(row => {
+  const valuesByColumn = [deadValueMap, warehouseValueMap].map(valueMap => targetArticles.map(row => {
     const article = normalizeOborArticle_(row[0]);
     if (!article) return [""];
     // WB-ответ агрегируется по базовому артикулу, поэтому 23348-1
@@ -248,7 +264,7 @@ function updateOborWbStockDirect() {
   const totalNonZero = valuesByColumn[0].filter(row => Number(row[0]) !== 0).length;
   const warehouseNonZero = valuesByColumn[1].filter(row => Number(row[0]) !== 0).length;
   Logger.log(
-    "ОБОР: «ВБ всего» и «ВБ ост» обновлены из разных WB Analytics-показателей" +
+    "ОБОР: W «ВБ всего» (мёртвый остаток F−G) и X «ВБ ост» (живой остаток G) обновлены" +
     "; строк=" + valuesByColumn[0].length +
     "; ненулевых W=" + totalNonZero +
     "; ненулевых X=" + warehouseNonZero
@@ -273,11 +289,13 @@ function installOborArrayFormulas() {
 /** Проверка конфигурации без записи и без вызова API. */
 function previewOborValues() {
   OBOR_VALUE_CONFIG.forEach(item => {
-    const source = item.sourceType === "wbAnalyticsStocks"
-      ? "прямой WB Analytics products / metrics.stockCount («Всего находится на складах»)"
-      : item.sourceType === "wbAnalyticsWarehouseStocks"
-        ? "прямой WB Analytics groups / warehouses[].quantity («" + item.warehouseName + "»)"
-        : (item.sourceSheet || "Ozon FBS API");
+    const source = item.sourceType === "wbAnalyticsDeadStocks"
+      ? "прямой WB Analytics: metrics.stockCount − warehouses[].quantity («" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») = мёртвый остаток"
+      : item.sourceType === "wbAnalyticsStocks"
+        ? "прямой WB Analytics products / metrics.stockCount («Всего находится на складах»)"
+        : item.sourceType === "wbAnalyticsWarehouseStocks"
+          ? "прямой WB Analytics groups / warehouses[].quantity («" + item.warehouseName + "»)"
+          : (item.sourceSheet || "Ozon FBS API");
     Logger.log(
       item.targetHeader +
       ": " + source +
@@ -558,6 +576,21 @@ function aggregateOborWbWarehouseStockRows_(rows, warehouseName) {
   });
 
   return { values: values, validRows: validRows };
+}
+
+function subtractOborWbStockMaps_(totalMap, liveMap) {
+  const values = {};
+  const keys = {};
+  Object.keys(totalMap || {}).forEach(key => { keys[key] = true; });
+  Object.keys(liveMap || {}).forEach(key => { keys[key] = true; });
+
+  Object.keys(keys).forEach(key => {
+    values[key] = Math.max(0,
+      parseOborNumber_(totalMap && totalMap[key]) -
+      parseOborNumber_(liveMap && liveMap[key])
+    );
+  });
+  return values;
 }
 
 /**

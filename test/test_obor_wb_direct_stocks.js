@@ -21,8 +21,10 @@ vm.runInContext(source, context, { filename: sourcePath });
 
 const aggregate = context.aggregateOborWbStockRows_;
 const warehouseAggregate = context.aggregateOborWbWarehouseStockRows_;
+const subtractMaps = context.subtractOborWbStockMaps_;
 assert.strictEqual(typeof aggregate, 'function');
 assert.strictEqual(typeof warehouseAggregate, 'function');
+assert.strictEqual(typeof subtractMaps, 'function');
 assert.strictEqual(typeof context.updateOborWbStockDirect, 'function');
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(vm.runInContext(
@@ -30,7 +32,7 @@ assert.deepStrictEqual(
     context,
   ))),
   [
-    { key: 'wbStock', targetHeader: 'ВБ всего', sourceType: 'wbAnalyticsStocks', sourceMapKey: 'wbStockTotalApi', warehouseName: null },
+    { key: 'wbStock', targetHeader: 'ВБ всего', sourceType: 'wbAnalyticsDeadStocks', sourceMapKey: 'wbStockDeadApi', warehouseName: null },
     { key: 'wbStockObor', targetHeader: 'ВБ ост', sourceType: 'wbAnalyticsWarehouseStocks', sourceMapKey: 'wbStockWbRfApi', warehouseName: 'Склад WB РФ' },
   ],
 );
@@ -79,6 +81,12 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(warehouseResult.values)), {
   '23348': 35,
 });
 assert.strictEqual(warehouseResult.validRows, 2);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(subtractMaps({ '23348': 115 }, { '23348': 32 }))), {
+  '23348': 83,
+});
+assert.deepStrictEqual(JSON.parse(JSON.stringify(subtractMaps({ 'a': 2 }, { 'a': 5 }))), {
+  'a': 0,
+});
 
 const writes = [];
 const targetSheet = {
@@ -127,9 +135,9 @@ context.retryFetch = url => ({
 });
 context.updateOborWbStockDirect();
 assert.deepStrictEqual(JSON.parse(JSON.stringify(writes)), [
-  { row: 2, column: 23, values: [[115], [0]] },
+  { row: 2, column: 23, values: [[83], [0]] },
   { row: 2, column: 24, values: [[32], [0]] },
 ]);
 
-console.log('OK: W получает metrics.stockCount = 115 («Всего находится на складах»)');
-console.log('OK: X получает warehouses[].quantity = 32 только по «Склад WB РФ»');
+console.log('OK: W получает мёртвый остаток 115 − 32 = 83');
+console.log('OK: X получает живой остаток warehouses[].quantity = 32 по «Склад WB РФ»');
