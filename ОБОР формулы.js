@@ -256,8 +256,7 @@ function updateOborWbStockDirect() {
     if (!article) return [""];
     // WB-ответ агрегируется по базовому артикулу, поэтому 23348-1
     // должен читать значение по ключу 23348, а не искать ключ 23348-1.
-    const parsed = parseOborArticle_(article);
-    return [roundOborValue_(valueMap[parsed.base] || 0)];
+    return [roundOborValue_(resolveOborWbWarehouseReportValue_(valueMap, article))];
   }));
 
   targetColumns.forEach((targetColumn, index) => {
@@ -432,7 +431,6 @@ function aggregateOborWbWarehouseRemainsRows_(rows) {
     const article = normalizeOborArticle_(row && (row.vendorCode || row.supplierArticle));
     if (!article || !Array.isArray(row.warehouses)) return;
 
-    const parsed = parseOborArticle_(article);
     const totalValue = row.warehouses.reduce((sum, warehouse) => {
       return warehouse && warehouse.warehouseName === OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME
         ? sum + Math.max(0, parseOborNumber_(warehouse.quantity))
@@ -444,12 +442,23 @@ function aggregateOborWbWarehouseRemainsRows_(rows) {
         : sum;
     }, 0);
 
-    total[parsed.base] = (total[parsed.base] || 0) + totalValue * parsed.multiplier;
-    live[parsed.base] = (live[parsed.base] || 0) + liveValue * parsed.multiplier;
+    // «39171-1» и «39171-2» — независимые vendorCode в отчёте WB.
+    // Не объединять их по базе: точное совпадение важнее упаковочного fallback-а.
+    total[article] = (total[article] || 0) + totalValue;
+    live[article] = (live[article] || 0) + liveValue;
     validRows++;
   });
 
   return { total: total, live: live, validRows: validRows };
+}
+
+function resolveOborWbWarehouseReportValue_(valueMap, article) {
+  const exact = normalizeOborArticle_(article);
+  if (Object.prototype.hasOwnProperty.call(valueMap || {}, exact)) return valueMap[exact];
+
+  const parsed = parseOborArticle_(exact);
+  const baseValue = valueMap && valueMap[parsed.base];
+  return baseValue === undefined ? 0 : baseValue * parsed.multiplier;
 }
 
 /**
