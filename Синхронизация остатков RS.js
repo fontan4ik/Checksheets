@@ -66,12 +66,23 @@ function updateRSStocksInSheet() {
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn())
     .getValues()[0]
     .map(value => String(value || "").trim().toLowerCase());
-  const findApiCol = (name, fallback) => {
-    const index = headers.indexOf(name.toLowerCase());
-    return index >= 0 ? index + 1 : fallback;
+  const findRequiredApiCol = name => {
+    const normalizedName = name.toLowerCase();
+    const matches = headers
+      .map((header, index) => header === normalizedName ? index + 1 : 0)
+      .filter(Boolean);
+    if (matches.length !== 1) {
+      throw new Error(
+        `Лист "${RS_API_SHEET_NAME}": заголовок "${name}" должен быть ровно один; найдено ${matches.length}`
+      );
+    }
+    return matches[0];
   };
-  const colModel = findApiCol("артикул производителя", RS_API_COL_MODEL);
-  const colStockApi = findApiCol("rs smr", RS_API_COL_STOCK);
+  const colModel = findRequiredApiCol("артикул производителя");
+  const colStockApi = findRequiredApiCol("rs smr");
+  if (headers[colStockApi - 1] === "fr") {
+    throw new Error(`Лист "${RS_API_SHEET_NAME}": колонка FR доступна только для чтения`);
+  }
 
   const models = sheet.getRange(2, colModel, lastRow - 1, 1).getValues().flat();
 

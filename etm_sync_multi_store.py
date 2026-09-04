@@ -1446,6 +1446,10 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
     )
     col_stock_nsb = etm_columns["stock_nsb"]
     col_stock_smr = etm_columns["stock_smr"]
+    # FR is an input-only column.  Validate the resolved targets immediately
+    # before any direct gspread update so a future schema change cannot hit it.
+    gsheets_utils.assert_writable_column(ws, col_stock_nsb)
+    gsheets_utils.assert_writable_column(ws, col_stock_smr)
 
     computed = compute_sheet_values(
         all_data, etm_columns["etm_code"], nsb_bundle, smr_bundle

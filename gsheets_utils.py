@@ -22,10 +22,34 @@ TRANSIENT_ERROR_TEXT = (
     "quota metric",
 )
 
+# Columns with these visible headers are inputs only.  Supplier synchronizers
+# may read them, but every shared write/clear helper must reject them.
+READ_ONLY_COLUMN_HEADERS = frozenset({"fr"})
+
 
 def normalize_header(value):
     """Normalize a Google Sheets header for stable schema matching."""
     return str(value or "").strip().lower().replace("ё", "е")
+
+
+def assert_writable_header(header_name, sheet_name="worksheet"):
+    """Reject writes to columns explicitly designated as read-only."""
+    if normalize_header(header_name) in READ_ONLY_COLUMN_HEADERS:
+        raise PermissionError(
+            f"Sheet '{sheet_name}': column '{header_name}' is read-only; "
+            "writing or clearing it is forbidden"
+        )
+
+
+def assert_writable_column(worksheet, col_index):
+    """Validate a numeric target column against its current visible header."""
+    col_index = int(col_index)
+    headers = _row_values(worksheet, 1)
+    header_name = headers[col_index - 1] if 0 < col_index <= len(headers) else ""
+    assert_writable_header(
+        header_name,
+        getattr(worksheet, "title", "worksheet"),
+    )
 
 
 def resolve_header_columns(headers, schema, sheet_name="worksheet"):
@@ -148,6 +172,11 @@ def update_column_by_header(worksheet, header_name, values, start_row=2):
     if not values:
         return
 
+    assert_writable_header(
+        header_name,
+        getattr(worksheet, "title", "worksheet"),
+    )
+
     col_index = resolve_header_columns(
         _row_values(worksheet, 1),
         {"target": header_name},
@@ -167,6 +196,10 @@ def clear_column(worksheet, header_name, start_row=2):
     """
     if isinstance(header_name, int):
         raise ValueError("clear_column requires a header name, not a column number")
+    assert_writable_header(
+        header_name,
+        getattr(worksheet, "title", "worksheet"),
+    )
     col_index = resolve_header_columns(
         _row_values(worksheet, 1),
         {"target": header_name},
@@ -179,6 +212,7 @@ def clear_column(worksheet, header_name, start_row=2):
 def clear_column_at_index(worksheet, col_index, start_row=2):
     """Clear a column already resolved from a validated sheet schema."""
     col_index = int(col_index)
+    assert_writable_column(worksheet, col_index)
     last_row = worksheet.row_count
     if last_row < start_row:
         return
@@ -200,6 +234,7 @@ def update_column(worksheet, col_num, values, start_row=2):
         return
 
     col_index = int(col_num)
+    assert_writable_column(worksheet, col_index)
     range_label = f"{gspread.utils.rowcol_to_a1(start_row, col_index)}:{gspread.utils.rowcol_to_a1(start_row + len(values) - 1, col_index)}"
     _retry_gsheet_call(
         f"update column {col_index} range {range_label}",
