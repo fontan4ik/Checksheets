@@ -23,10 +23,12 @@ const aggregate = context.aggregateOborWbStockRows_;
 const warehouseAggregate = context.aggregateOborWbWarehouseStockRows_;
 const extractWarehouseRows = context.extractOborWbWarehouseRows_;
 const subtractMaps = context.subtractOborWbStockMaps_;
+const warehouseRemainsAggregate = context.aggregateOborWbWarehouseRemainsRows_;
 assert.strictEqual(typeof aggregate, 'function');
 assert.strictEqual(typeof warehouseAggregate, 'function');
 assert.strictEqual(typeof extractWarehouseRows, 'function');
 assert.strictEqual(typeof subtractMaps, 'function');
+assert.strictEqual(typeof warehouseRemainsAggregate, 'function');
 assert.strictEqual(typeof context.updateOborWbStockDirect, 'function');
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(vm.runInContext(
@@ -102,6 +104,23 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(subtractMaps({ '23348': 115 }, 
 });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(subtractMaps({ 'a': 2 }, { 'a': 5 }))), {
   'a': 0,
+});
+
+const reportMaps = warehouseRemainsAggregate([
+  { vendorCode: '23348-1', warehouses: [{ warehouseName: 'Всего находится на складах', quantity: 115 }, { warehouseName: 'Склад WB РФ', quantity: 32 }, { warehouseName: 'Электросталь', quantity: 40 }] },
+  { vendorCode: '39171-1', warehouses: [{ warehouseName: 'Всего находится на складах', quantity: 82 }, { warehouseName: 'Склад WB РФ', quantity: 6 }, { warehouseName: 'Самара (Новосемейкино)', quantity: 51 }] },
+  { vendorCode: '5032873-3', warehouses: [{ warehouseName: 'В пути до получателей', quantity: 3 }, { warehouseName: 'В пути возвраты на склад WB', quantity: 11 }, { warehouseName: 'Всего находится на складах', quantity: 65 }, { warehouseName: 'Склад WB РФ', quantity: 2 }, { warehouseName: 'Электросталь', quantity: 36 }] },
+  { vendorCode: '55012-5', warehouses: [{ warehouseName: 'Всего находится на складах', quantity: 66 }, { warehouseName: 'Склад WB РФ', quantity: 8 }, { warehouseName: 'Краснодар', quantity: 16 }] },
+  { vendorCode: '55146-5', warehouses: [{ warehouseName: 'Всего находится на складах', quantity: 59 }, { warehouseName: 'Склад WB РФ', quantity: 27 }, { warehouseName: 'СПБ Шушары', quantity: 9 }] },
+]);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(reportMaps.total)), {
+  '23348': 115, '39171': 82, '5032873': 195, '55012': 330, '55146': 295,
+});
+assert.deepStrictEqual(JSON.parse(JSON.stringify(reportMaps.live)), {
+  '23348': 32, '39171': 6, '5032873': 6, '55012': 40, '55146': 135,
+});
+assert.deepStrictEqual(JSON.parse(JSON.stringify(subtractMaps(reportMaps.total, reportMaps.live))), {
+  '23348': 83, '39171': 76, '5032873': 189, '55012': 290, '55146': 160,
 });
 
 const writes = [];
