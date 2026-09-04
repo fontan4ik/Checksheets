@@ -20,16 +20,18 @@ vm.createContext(context);
 vm.runInContext(source, context, { filename: sourcePath });
 
 const aggregate = context.aggregateOborWbStockRows_;
+const warehouseAggregate = context.aggregateOborWbWarehouseStockRows_;
 assert.strictEqual(typeof aggregate, 'function');
+assert.strictEqual(typeof warehouseAggregate, 'function');
 assert.strictEqual(typeof context.updateOborWbStockDirect, 'function');
 assert.deepStrictEqual(
   JSON.parse(JSON.stringify(vm.runInContext(
-    "OBOR_VALUE_CONFIG.filter(item => item.sourceType === 'wbAnalyticsStocks').map(item => ({key: item.key, targetHeader: item.targetHeader, sourceMapKey: item.sourceMapKey || item.key}))",
+    "OBOR_VALUE_CONFIG.filter(item => item.key === 'wbStock' || item.key === 'wbStockObor').map(item => ({key: item.key, targetHeader: item.targetHeader, sourceType: item.sourceType, sourceMapKey: item.sourceMapKey || item.key, warehouseName: item.warehouseName || null}))",
     context,
   ))),
   [
-    { key: 'wbStock', targetHeader: 'ВБ всего', sourceMapKey: 'wbStockApi' },
-    { key: 'wbStockObor', targetHeader: 'ВБ ост', sourceMapKey: 'wbStockApi' },
+    { key: 'wbStock', targetHeader: 'ВБ всего', sourceType: 'wbAnalyticsStocks', sourceMapKey: 'wbStockTotalApi', warehouseName: null },
+    { key: 'wbStockObor', targetHeader: 'ВБ ост', sourceType: 'wbAnalyticsWarehouseStocks', sourceMapKey: 'wbStockWbRfApi', warehouseName: 'Склад WB РФ' },
   ],
 );
 
@@ -60,6 +62,24 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(analyticsResult.values)), {
 });
 assert.strictEqual(analyticsResult.validRows, 3);
 
+const warehouseResult = warehouseAggregate([
+  {
+    vendorCode: '23348-1',
+    warehouses: [
+      { warehouseName: 'Склад WB РФ', quantity: 32 },
+      { warehouseName: 'Коледино', quantity: 999 },
+    ],
+  },
+  {
+    vendorCode: '23348-1',
+    groups: [{ warehouses: [{ warehouseName: 'Склад WB РФ', quantity: 3 }] }],
+  },
+], 'Склад WB РФ');
+assert.deepStrictEqual(JSON.parse(JSON.stringify(warehouseResult.values)), {
+  '23348': 35,
+});
+assert.strictEqual(warehouseResult.validRows, 2);
+
 const writes = [];
 const targetSheet = {
   getLastRow() {
@@ -87,22 +107,29 @@ context.SpreadsheetApp = {
   flush() {},
 };
 context.wbAnalyticsStocksURL = () => 'https://example.test/stocks';
+context.wbAnalyticsStocksGroupsURL = () => 'https://example.test/groups';
 context.wbAnalyticsHeaders = () => ({ Authorization: 'redacted' });
-context.retryFetch = () => ({
+context.retryFetch = url => ({
   getResponseCode: () => 200,
   getContentText: () => JSON.stringify({
     data: {
-      items: [{ vendorCode: '23348-1', metrics: { stockCount: 32 } }],
+      items: url === 'https://example.test/stocks'
+        ? [{ vendorCode: '23348-1', metrics: { stockCount: 115 } }]
+        : [{
+            vendorCode: '23348-1',
+            warehouses: [
+              { warehouseName: 'Склад WB РФ', quantity: 32 },
+              { warehouseName: 'Коледино', quantity: 999 },
+            ],
+          }],
     },
   }),
 });
 context.updateOborWbStockDirect();
 assert.deepStrictEqual(JSON.parse(JSON.stringify(writes)), [
-  { row: 2, column: 23, values: [[32], [0]] },
+  { row: 2, column: 23, values: [[115], [0]] },
   { row: 2, column: 24, values: [[32], [0]] },
 ]);
 
-console.log('OK: актуальная Analytics-схема vendorCode/metrics.stockCount поддержана');
-console.log('OK: суффиксы упаковки учитываются при прямой загрузке в ОБОР');
-console.log('OK: отрицательный остаток обнуляется, пустой артикул пропускается');
-console.log('OK: updateOborWbStockDirect записывает колонки W и X');
+console.log('OK: W получает metrics.stockCount = 115 («Всего находится на складах»)');
+console.log('OK: X получает warehouses[].quantity = 32 только по «Склад WB РФ»');

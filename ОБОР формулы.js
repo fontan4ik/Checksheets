@@ -524,6 +524,40 @@ function aggregateOborWbStockRows_(rows) {
   return { values: values, validRows: validRows };
 }
 
+function aggregateOborWbWarehouseStockRows_(rows, warehouseName) {
+  const values = {};
+  let validRows = 0;
+
+  (Array.isArray(rows) ? rows : []).forEach(item => {
+    const article = normalizeOborArticle_(
+      item && (item.vendorCode || item.supplierArticle)
+    );
+    if (!article) return;
+
+    const parsed = parseOborArticle_(article);
+    const directWarehouses = item && Array.isArray(item.warehouses)
+      ? item.warehouses
+      : [];
+    const groupedWarehouses = item && Array.isArray(item.groups)
+      ? item.groups.reduce((all, group) => all.concat(
+        Array.isArray(group && group.warehouses) ? group.warehouses : []
+      ), [])
+      : [];
+    const warehouses = directWarehouses.length > 0
+      ? directWarehouses
+      : groupedWarehouses;
+    const stock = warehouses.reduce((sum, warehouse) => {
+      if (!warehouse || warehouse.warehouseName !== warehouseName) return sum;
+      return sum + Math.max(0, parseOborNumber_(warehouse.quantity));
+    }, 0);
+
+    values[parsed.base] = (values[parsed.base] || 0) + stock * parsed.multiplier;
+    validRows++;
+  });
+
+  return { values: values, validRows: validRows };
+}
+
 /**
  * Собрать остаток КГТ СДЭК из Ozon FBS API и агрегировать по базовому артикулу.
  * В API используется поле present, без reserved.
