@@ -486,15 +486,7 @@ function fetchOborWbWarehouseStockByArticle_(warehouseName) {
     }
 
     const data = payload && payload.data;
-    const items = data && Array.isArray(data.items)
-      ? data.items
-      : data && Array.isArray(data.products)
-        ? data.products
-        : Array.isArray(data)
-          ? data
-          : payload && Array.isArray(payload.items)
-            ? payload.items
-            : null;
+    const items = extractOborWbWarehouseRows_(payload);
     if (!items) {
       const payloadKeys = payload && typeof payload === "object"
         ? Object.keys(payload).join(",")
@@ -536,6 +528,40 @@ function getOborWbAnalyticsDateRange_() {
     dateFrom: Utilities.formatDate(dateFrom, timeZone, "yyyy-MM-dd"),
     dateTo: Utilities.formatDate(dateTo, timeZone, "yyyy-MM-dd")
   };
+}
+
+/** Извлечь строки warehouse-отчёта из фактической оболочки WB groups. */
+function extractOborWbWarehouseRows_(payload) {
+  const data = payload && payload.data;
+  const candidates = [
+    data && data.items,
+    data && data.products,
+    data && data.groups,
+    Array.isArray(data) ? data : null,
+    payload && payload.items,
+    payload && payload.groups
+  ];
+
+  for (let index = 0; index < candidates.length; index++) {
+    if (!Array.isArray(candidates[index])) continue;
+    return flattenOborWbWarehouseRows_(candidates[index]);
+  }
+  return null;
+}
+
+function flattenOborWbWarehouseRows_(rows) {
+  const result = [];
+  (Array.isArray(rows) ? rows : []).forEach(row => {
+    if (!row || typeof row !== "object") return;
+    if (row.vendorCode || row.supplierArticle || row.nmId || row.warehouses) {
+      result.push(row);
+      return;
+    }
+    [row.items, row.products, row.groups].forEach(nested => {
+      if (Array.isArray(nested)) result.push.apply(result, flattenOborWbWarehouseRows_(nested));
+    });
+  });
+  return result;
 }
 
 /** Чистая агрегация WB-строк, вынесенная для локальной проверки без API. */
