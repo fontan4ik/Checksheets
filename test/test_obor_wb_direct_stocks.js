@@ -132,23 +132,17 @@ context.SpreadsheetApp = {
 };
 context.wbAnalyticsStocksURL = () => 'https://example.test/stocks';
 context.wbAnalyticsStocksGroupsURL = () => 'https://example.test/groups';
+context.wbAnalyticsWarehouseStocksURL = () => 'https://example.test/warehouse-stocks';
 context.wbAnalyticsHeaders = () => ({ Authorization: 'redacted' });
 context.retryFetch = url => ({
   getResponseCode: () => 200,
-  getContentText: () => JSON.stringify({
-    data: url === 'https://example.test/stocks'
-      ? { items: [{ vendorCode: '23348-1', metrics: { stockCount: 115 } }] }
-      : {
-          groups: [{
-            vendorCode: '23348-1',
-            warehouses: [
-              { warehouseName: 'Склад WB РФ', quantity: 32 },
-              { warehouseName: 'Коледино', quantity: 999 },
-            ],
-          }],
-          currency: 'RUB',
-        },
-  }),
+  getContentText: () => JSON.stringify(
+    url === 'https://example.test/stocks'
+      ? { data: { items: [{ vendorCode: '23348-1', nmId: 23348001, metrics: { stockCount: 115 } }] } }
+      : url === 'https://example.test/warehouse-stocks'
+        ? { data: { items: [{ nmId: 23348001, warehouseName: 'Склад WB РФ', quantity: 32 }] } }
+        : { data: { groups: [], currency: 'RUB' } }
+  ),
 });
 context.updateOborWbStockDirect();
 assert.deepStrictEqual(JSON.parse(JSON.stringify(writes)), [
