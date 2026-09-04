@@ -204,12 +204,17 @@ async function main() {
   const startedAt = Date.now();
   const headers = ozonHeaders();
   const sheets = await createSheetsClient();
-  const stocks = await readCdekStocks(sheets);
+  const sourceStocks = await readCdekStocks(sheets);
+  const zeroMode = process.argv.includes("--zero");
+  const stocks = zeroMode
+    ? sourceStocks.map((item) => ({ ...item, stock: 0 }))
+    : sourceStocks;
   const positive = stocks.filter((item) => item.stock > 0).length;
   const total = stocks.reduce((sum, item) => sum + item.stock, 0);
   if (process.argv.includes("--dry-run")) {
     console.log(JSON.stringify({
       status: "dry-run",
+      mode: zeroMode ? "zero" : "sync",
       warehouse: WAREHOUSE_NAME,
       warehouseId: WAREHOUSE_ID,
       rows: stocks.length,
@@ -228,6 +233,7 @@ async function main() {
 
   console.log(JSON.stringify({
     status: mismatches.length ? "partial" : "ok",
+    mode: zeroMode ? "zero" : "sync",
     warehouse: WAREHOUSE_NAME,
     warehouseId: WAREHOUSE_ID,
     rows: stocks.length,
