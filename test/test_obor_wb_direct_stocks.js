@@ -21,9 +21,11 @@ vm.runInContext(source, context, { filename: sourcePath });
 
 const aggregate = context.aggregateOborWbStockRows_;
 const warehouseAggregate = context.aggregateOborWbWarehouseStockRows_;
+const extractWarehouseRows = context.extractOborWbWarehouseRows_;
 const subtractMaps = context.subtractOborWbStockMaps_;
 assert.strictEqual(typeof aggregate, 'function');
 assert.strictEqual(typeof warehouseAggregate, 'function');
+assert.strictEqual(typeof extractWarehouseRows, 'function');
 assert.strictEqual(typeof subtractMaps, 'function');
 assert.strictEqual(typeof context.updateOborWbStockDirect, 'function');
 assert.deepStrictEqual(
@@ -81,6 +83,20 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(warehouseResult.values)), {
   '23348': 35,
 });
 assert.strictEqual(warehouseResult.validRows, 2);
+const groupsPayload = {
+  data: {
+    groups: [{
+      vendorCode: '23348-1',
+      warehouses: [
+        { warehouseName: 'Склад WB РФ', quantity: 32 },
+        { warehouseName: 'Коледино', quantity: 999 },
+      ],
+    }],
+    currency: 'RUB',
+  },
+};
+assert.strictEqual(extractWarehouseRows(groupsPayload).length, 1);
+assert.strictEqual(extractWarehouseRows(groupsPayload)[0].vendorCode, '23348-1');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(subtractMaps({ '23348': 115 }, { '23348': 32 }))), {
   '23348': 83,
 });
@@ -120,17 +136,18 @@ context.wbAnalyticsHeaders = () => ({ Authorization: 'redacted' });
 context.retryFetch = url => ({
   getResponseCode: () => 200,
   getContentText: () => JSON.stringify({
-    data: {
-      items: url === 'https://example.test/stocks'
-        ? [{ vendorCode: '23348-1', metrics: { stockCount: 115 } }]
-        : [{
+    data: url === 'https://example.test/stocks'
+      ? { items: [{ vendorCode: '23348-1', metrics: { stockCount: 115 } }] }
+      : {
+          groups: [{
             vendorCode: '23348-1',
             warehouses: [
               { warehouseName: 'Склад WB РФ', quantity: 32 },
               { warehouseName: 'Коледино', quantity: 999 },
             ],
           }],
-    },
+          currency: 'RUB',
+        },
   }),
 });
 context.updateOborWbStockDirect();
