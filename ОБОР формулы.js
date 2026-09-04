@@ -271,7 +271,7 @@ function updateOborWbStockDirect() {
   const totalNonZero = valuesByColumn[0].filter(row => Number(row[0]) !== 0).length;
   const warehouseNonZero = valuesByColumn[1].filter(row => Number(row[0]) !== 0).length;
   Logger.log(
-    "ОБОР: W «ВБ всего» (мёртвый остаток: общий API−API склада WB РФ) и X «ВБ ост» (живой остаток API склада WB РФ) обновлены" +
+    "ОБОР: W «ВБ всего» (Warehouse Inventory Report: «" + OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME + "» − «" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») и X «ВБ ост» (точный vendorCode) обновлены" +
     "; строк=" + valuesByColumn[0].length +
     "; ненулевых W=" + totalNonZero +
     "; ненулевых X=" + warehouseNonZero
