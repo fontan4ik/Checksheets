@@ -22,6 +22,10 @@ vm.runInContext(source, context, { filename: sourcePath });
 const aggregate = context.aggregateOborWbStockRows_;
 assert.strictEqual(typeof aggregate, 'function');
 assert.strictEqual(typeof context.updateOborWbStockDirect, 'function');
+assert.strictEqual(
+  vm.runInContext("OBOR_VALUE_CONFIG.find(item => item.key === 'wbStock').targetHeader", context),
+  'ВБ всего',
+);
 
 const result = aggregate([
   { supplierArticle: '55222', quantity: 2 },

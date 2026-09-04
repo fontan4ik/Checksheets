@@ -4,7 +4,7 @@
  * Скрипт читает источники, агрегирует значения по базовому артикулу,
  * учитывает числовой суффикс после последнего дефиса и записывает готовые
  * значения в ОБОР в колонках с заголовками «Озон ост», «Уход месяц»,
- * «Факт выкупа месяц», «ВБ ост», «ВБ Ух» и «ВБ факт выкуп месяц».
+ * «Факт выкупа месяц», «ВБ всего», «ВБ Ух» и «ВБ факт выкуп месяц».
  *
  * Пример: 55222-10 и 55222-5 превращаются в 10 × значение и 5 × значение.
  *
@@ -13,7 +13,8 @@
  * - K «СДЭК Остаток»        ← ОТКЛЮЧЕНО (Ozon FBS API / склад «КГТ СДЭК»)
  * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
- * - «ВБ ост»                ← прямой WB Analytics stocks-report, stockCount
+ * - «ВБ всего»              ← WB Analytics stocks-report, metrics.stockCount
+ *                                 («Всего находится на складах»)
  * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
@@ -76,13 +77,13 @@ const OBOR_VALUE_CONFIG = [
   },
   {
     key: "wbStock",
-    targetHeader: "ВБ ост",
+    targetHeader: "ВБ всего",
     sourceType: "wbAnalyticsStocks",
     sourceSheet: null,
     sourceArticleColumn: null,
     sourceValueColumns: [],
     subtractValueColumns: [],
-    note: "Прямой WB supplier/stocks; поле quantity = «Склад WB РФ»"
+    note: "WB Analytics; metrics.stockCount = «Всего находится на складах»"
   },
   {
     key: "wbMonthWithdrawal",
@@ -176,7 +177,7 @@ function calculateOborValues() {
 }
 
 /**
- * Обновить только колонку «ВБ ост» прямой выгрузкой WB.
+ * Обновить только колонку «ВБ всего» прямой выгрузкой WB.
  * Остальные колонки листа «ОБОР» не изменяются.
  */
 function updateOborWbStockDirect() {
@@ -209,7 +210,7 @@ function updateOborWbStockDirect() {
 
   const nonZero = values.filter(row => Number(row[0]) !== 0).length;
   Logger.log(
-    "ОБОР: только «ВБ ост» обновлён напрямую из WB Analytics stocks" +
+    "ОБОР: только «ВБ всего» обновлён напрямую из WB Analytics stocks" +
     "; строк=" + values.length +
     "; ненулевых=" + nonZero
   );
@@ -287,10 +288,11 @@ function buildOborValueMap_(spreadsheet, item) {
 }
 
 /**
- * Получить остаток WB через Analytics API и подготовить источник для «ВБ ост».
+ * Получить показатель «Всего находится на складах» через WB Analytics API
+ * и подготовить источник для «ВБ всего».
  *
  * В актуальном ответе WB: vendorCode = «Артикул продавца»,
- * metrics.stockCount = остаток на складах WB при stockType="wb".
+ * metrics.stockCount = «Всего находится на складах» при stockType="wb".
  */
 function fetchOborWbStockByArticle_() {
   const dateRange = getOborWbAnalyticsDateRange_();
