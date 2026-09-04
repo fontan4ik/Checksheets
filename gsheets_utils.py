@@ -22,9 +22,21 @@ TRANSIENT_ERROR_TEXT = (
     "quota metric",
 )
 
-# Columns with these visible headers are inputs only.  Supplier synchronizers
-# may read them, but every shared write/clear helper must reject them.
-READ_ONLY_COLUMN_HEADERS = frozenset({"fr"})
+# Calculated/outbound stock columns are inputs for marketplace synchronizers
+# only. Supplier/API loaders may read them, but every shared write/clear helper
+# must reject them. Matching by visible header keeps the guard valid after
+# columns are inserted or moved in StreamSupps.
+READ_ONLY_COLUMN_HEADERS = frozenset(
+    {
+        "fr",
+        "подорожник фбс",
+        "ферон фбс",
+        "новосибирск ферон",
+        "екб ферон",
+        "этм самара",
+        "резерв",
+    }
+)
 
 
 def normalize_header(value):

@@ -33,6 +33,22 @@ class FakeWorksheet:
 
 
 class FrReadOnlyTests(unittest.TestCase):
+    OUTBOUND_READ_ONLY_HEADERS = (
+        "FR",
+        "ПОДОРОЖНИК ФБС",
+        "ФЕРОН ФБС",
+        "НОВОСИБИРСК ФЕРОН",
+        "ЕКБ Ферон",
+        "ЭТМ САМАРА",
+        "РЕЗЕРВ",
+    )
+
+    def test_all_marketplace_source_headers_are_read_only(self):
+        for header in self.OUTBOUND_READ_ONLY_HEADERS:
+            with self.subTest(header=header):
+                with self.assertRaisesRegex(PermissionError, "read-only"):
+                    gsheets_utils.assert_writable_header(header, "StreamSupps")
+
     def test_update_by_header_rejects_fr(self):
         worksheet = FakeWorksheet()
         with self.assertRaisesRegex(PermissionError, "read-only"):
