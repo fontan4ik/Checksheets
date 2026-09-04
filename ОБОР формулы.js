@@ -274,8 +274,10 @@ function installOborArrayFormulas() {
 function previewOborValues() {
   OBOR_VALUE_CONFIG.forEach(item => {
     const source = item.sourceType === "wbAnalyticsStocks"
-      ? "прямой WB Analytics stocks / metrics.stockCount («Склад WB РФ»)"
-      : (item.sourceSheet || "Ozon FBS API");
+      ? "прямой WB Analytics products / metrics.stockCount («Всего находится на складах»)"
+      : item.sourceType === "wbAnalyticsWarehouseStocks"
+        ? "прямой WB Analytics groups / warehouses[].quantity («" + item.warehouseName + "»)"
+        : (item.sourceSheet || "Ozon FBS API");
     Logger.log(
       item.targetHeader +
       ": " + source +
