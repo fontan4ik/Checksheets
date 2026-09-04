@@ -127,6 +127,8 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(reportDead)), {
   '23348-1': 83, '39171-1': 76, '39171-2': 1, '5032873-3': 63, '55012-5': 58, '55146-5': 32,
 });
 assert.strictEqual(resolveWarehouseReportValue(reportDead, '39171-1'), 76);
+assert.strictEqual(resolveWarehouseReportValue(reportDead, '39171'), 76);
+assert.strictEqual(resolveWarehouseReportValue(reportMaps.live, '39171'), 6);
 assert.strictEqual(resolveWarehouseReportValue(reportDead, '39171-2'), 1);
 
 const writes = [];

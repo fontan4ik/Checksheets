@@ -461,7 +461,19 @@ function resolveOborWbWarehouseReportValue_(valueMap, article) {
 
   const parsed = parseOborArticle_(exact);
   const baseValue = valueMap && valueMap[parsed.base];
-  return baseValue === undefined ? 0 : baseValue * parsed.multiplier;
+  if (baseValue !== undefined) return baseValue * parsed.multiplier;
+
+  // В ОБОР часть legacy-строк записана базовым артикулом без «-1».
+  // Если точного vendorCode и базовой строки WB нет, такая строка означает
+  // единичную упаковку `base-1`. Берём только её: `base-2` и другие варианты
+  // не суммируются и не могут повторно создать cross-aggregation.
+  if (exact === parsed.base) {
+    const unitVariant = exact + "-1";
+    if (Object.prototype.hasOwnProperty.call(valueMap || {}, unitVariant)) {
+      return valueMap[unitVariant];
+    }
+  }
+  return 0;
 }
 
 /**
