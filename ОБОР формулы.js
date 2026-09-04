@@ -222,34 +222,41 @@ function updateOborWbStockDirect() {
     columnToNumberObor_(OBOR_WB_STOCK_SECOND_TARGET_COLUMN)
   ];
 
-  const valueMap = fetchOborWbStockByArticle_();
+  const totalValueMap = fetchOborWbStockByArticle_();
+  const warehouseValueMap = fetchOborWbWarehouseStockByArticle_(OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME);
   const targetLastRow = targetSheet.getLastRow();
   if (targetLastRow < 2) return { rows: 0, nonZero: 0 };
 
   const targetArticles = targetSheet
     .getRange(2, 1, targetLastRow - 1, 1)
     .getValues();
-  const values = targetArticles.map(row => {
+  const valuesByColumn = [totalValueMap, warehouseValueMap].map(valueMap => targetArticles.map(row => {
     const article = normalizeOborArticle_(row[0]);
     if (!article) return [""];
     // WB-ответ агрегируется по базовому артикулу, поэтому 23348-1
     // должен читать значение по ключу 23348, а не искать ключ 23348-1.
     const parsed = parseOborArticle_(article);
     return [roundOborValue_(valueMap[parsed.base] || 0)];
-  });
+  }));
 
-  targetColumns.forEach(targetColumn => {
-    targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);
+  targetColumns.forEach((targetColumn, index) => {
+    targetSheet.getRange(2, targetColumn, valuesByColumn[index].length, 1)
+      .setValues(valuesByColumn[index]);
   });
   SpreadsheetApp.flush();
 
-  const nonZero = values.filter(row => Number(row[0]) !== 0).length;
+  const totalNonZero = valuesByColumn[0].filter(row => Number(row[0]) !== 0).length;
+  const warehouseNonZero = valuesByColumn[1].filter(row => Number(row[0]) !== 0).length;
   Logger.log(
-    "ОБОР: «ВБ всего» и «ВБ ост» обновлены напрямую из WB Analytics stocks" +
-    "; строк=" + values.length +
-    "; ненулевых=" + nonZero
+    "ОБОР: «ВБ всего» и «ВБ ост» обновлены из разных WB Analytics-показателей" +
+    "; строк=" + valuesByColumn[0].length +
+    "; ненулевых W=" + totalNonZero +
+    "; ненулевых X=" + warehouseNonZero
   );
-  return { rows: values.length, nonZero: nonZero };
+  return {
+    rows: valuesByColumn[0].length,
+    nonZero: { total: totalNonZero, warehouse: warehouseNonZero }
+  };
 }
 
 /** Совместимый короткий запуск. Также считает только значения, не формулы. */
@@ -399,6 +406,81 @@ function fetchOborWbStockByArticle_() {
   const aggregated = aggregateOborWbStockRows_(allItems);
   Logger.log(
     "WB Analytics stocks: товаров=" + allItems.length +
+    "; валидных артикулов=" + aggregated.validRows +
+    "; агрегированных артикулов=" + Object.keys(aggregated.values).length
+  );
+  return aggregated.values;
+}
+
+function fetchOborWbWarehouseStockByArticle_(warehouseName) {
+  if (!warehouseName) throw new Error("WB Analytics groups: не задано имя склада");
+
+  const dateRange = getOborWbAnalyticsDateRange_();
+  const allItems = [];
+  let offset = 0;
+
+  while (true) {
+    const response = retryFetch(
+      wbAnalyticsStocksGroupsURL(),
+      {
+        method: "post",
+        headers: wbAnalyticsHeaders(),
+        contentType: "application/json",
+        payload: JSON.stringify({
+          nmIDs: [],
+          currentPeriod: {
+            start: dateRange.dateFrom,
+            end: dateRange.dateTo
+          },
+          stockType: "wb",
+          skipDeletedNm: false,
+          availabilityFilters: [],
+          orderBy: {
+            field: "ordersCount",
+            mode: "desc"
+          },
+          limit: OBOR_WB_ANALYTICS_PAGE_LIMIT,
+          offset: offset
+        }),
+        muteHttpExceptions: true
+      },
+      3
+    );
+
+    if (!response) throw new Error("WB Analytics groups: пустой ответ API");
+
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText() || "";
+    if (responseCode < 200 || responseCode >= 300) {
+      throw new Error(
+        "WB Analytics groups: HTTP " + responseCode + ": " +
+        responseText.substring(0, 300)
+      );
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(responseText);
+    } catch (error) {
+      throw new Error("WB Analytics groups: ответ не является JSON: " + error.message);
+    }
+
+    const items = payload && payload.data && Array.isArray(payload.data.items)
+      ? payload.data.items
+      : null;
+    if (!items) throw new Error("WB Analytics groups: в data.items ожидался массив");
+
+    allItems.push.apply(allItems, items);
+    if (items.length < OBOR_WB_ANALYTICS_PAGE_LIMIT) break;
+
+    offset += items.length;
+    Utilities.sleep(OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS);
+  }
+
+  const aggregated = aggregateOborWbWarehouseStockRows_(allItems, warehouseName);
+  Logger.log(
+    "WB Analytics groups: склад=" + warehouseName +
+    "; товаров=" + allItems.length +
     "; валидных артикулов=" + aggregated.validRows +
     "; агрегированных артикулов=" + Object.keys(aggregated.values).length
   );
