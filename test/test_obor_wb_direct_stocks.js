@@ -35,7 +35,7 @@ assert.deepStrictEqual(
   ))),
   [
     { key: 'wbStock', targetHeader: 'ВБ всего', sourceType: 'wbAnalyticsDeadStocks', sourceMapKey: 'wbStockDeadApi', warehouseName: null },
-    { key: 'wbStockObor', targetHeader: 'ВБ ост', sourceType: 'wbAnalyticsWarehouseStocks', sourceMapKey: 'wbStockWbRfApi', warehouseName: 'Склад WB РФ' },
+    { key: 'wbStockObor', targetHeader: 'ВБ ост', sourceType: 'wbAnalyticsWarehouseStocks', sourceMapKey: 'wbStockWbRfApi', warehouseName: 'Склад WB' },
   ],
 );
 
@@ -70,15 +70,15 @@ const warehouseResult = warehouseAggregate([
   {
     vendorCode: '23348-1',
     warehouses: [
-      { warehouseName: 'Склад WB РФ', quantity: 32 },
+      { warehouseName: 'Склад WB', quantity: 32 },
       { warehouseName: 'Коледино', quantity: 999 },
     ],
   },
   {
     vendorCode: '23348-1',
-    groups: [{ warehouses: [{ warehouseName: 'Склад WB РФ', quantity: 3 }] }],
+    groups: [{ warehouses: [{ warehouseName: 'Склад WB', quantity: 3 }] }],
   },
-], 'Склад WB РФ');
+], 'Склад WB');
 assert.deepStrictEqual(JSON.parse(JSON.stringify(warehouseResult.values)), {
   '23348': 35,
 });
@@ -88,7 +88,7 @@ const groupsPayload = {
     groups: [{
       vendorCode: '23348-1',
       warehouses: [
-        { warehouseName: 'Склад WB РФ', quantity: 32 },
+        { warehouseName: 'Склад WB', quantity: 32 },
         { warehouseName: 'Коледино', quantity: 999 },
       ],
     }],
@@ -149,7 +149,7 @@ context.retryFetch = url => {
       url === 'https://example.test/stocks'
         ? { data: { items: [{ vendorCode: '23348-1', nmId: 23348001, metrics: { stockCount: 115 } }] } }
         : url === 'https://example.test/warehouse-stocks'
-          ? { data: { items: [{ nmId: 23348001, warehouseName: 'Склад WB РФ', quantity: 32 }] } }
+          ? { data: { items: [{ nmId: 23348001, warehouseName: 'Склад WB', quantity: 32 }] } }
           : { data: { groups: [], currency: 'RUB' } }
     ),
   };
@@ -162,4 +162,4 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(writes)), [
 assert.strictEqual(warehouseAttempts, 2);
 
 console.log('OK: W получает мёртвый остаток 115 − 32 = 83');
-console.log('OK: X получает живой остаток warehouses[].quantity = 32 по «Склад WB РФ»');
+console.log('OK: X получает живой остаток wb-warehouses.quantity = 32 по «Склад WB» (РФ)');

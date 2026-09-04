@@ -15,9 +15,9 @@
  * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
  * - «ВБ всего»              ← WB Analytics products, metrics.stockCount
- *                                 минус API-остаток «Склад WB РФ» = мёртвый остаток
+ *                                 минус API-остаток «Склад WB» (РФ) = мёртвый остаток
  * - «ВБ ост»                ← WB Analytics wb-warehouses, quantity
- *                                 по warehouseName «Склад WB РФ» = живой остаток
+ *                                 по warehouseName «Склад WB» (РФ) = живой остаток
  * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
@@ -40,7 +40,7 @@ const OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS = 12000;
 // Для ручного WB-запуска обновляются колонки W и X листа «ОБОР».
 const OBOR_WB_STOCK_TARGET_COLUMN = "W";
 const OBOR_WB_STOCK_SECOND_TARGET_COLUMN = "X";
-const OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME = "Склад WB РФ";
+const OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME = "Склад WB";
 let OBOR_WB_PRODUCT_ITEMS_CACHE_ = null;
 
 const OBOR_VALUE_CONFIG = [
@@ -103,7 +103,7 @@ const OBOR_VALUE_CONFIG = [
     sourceValueColumns: [],
     subtractValueColumns: [],
     warehouseName: OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME,
-    note: "WB Analytics groups; warehouses[].quantity по складу «Склад WB РФ»"
+    note: "WB Analytics wb-warehouses; quantity по warehouseName «Склад WB» (РФ)"
   },
   {
     key: "wbMonthWithdrawal",
@@ -295,7 +295,7 @@ function previewOborValues() {
       : item.sourceType === "wbAnalyticsStocks"
         ? "прямой WB Analytics products / metrics.stockCount («Всего находится на складах»)"
         : item.sourceType === "wbAnalyticsWarehouseStocks"
-          ? "прямой WB Analytics groups / warehouses[].quantity («" + item.warehouseName + "»)"
+          ? "прямой WB Analytics wb-warehouses / quantity («" + item.warehouseName + "»)"
           : (item.sourceSheet || "Ozon FBS API");
     Logger.log(
       item.targetHeader +
