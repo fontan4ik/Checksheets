@@ -24,6 +24,7 @@ const warehouseAggregate = context.aggregateOborWbWarehouseStockRows_;
 const extractWarehouseRows = context.extractOborWbWarehouseRows_;
 const subtractMaps = context.subtractOborWbStockMaps_;
 const warehouseRemainsAggregate = context.aggregateOborWbWarehouseRemainsRows_;
+const resolveWarehouseReportValue = context.resolveOborWbWarehouseReportValue_;
 assert.strictEqual(typeof aggregate, 'function');
 assert.strictEqual(typeof warehouseAggregate, 'function');
 assert.strictEqual(typeof extractWarehouseRows, 'function');

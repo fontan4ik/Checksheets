@@ -190,9 +190,12 @@ function calculateOborValues() {
     const values = targetArticles.map(row => {
       const article = normalizeOborArticle_(row[0]);
       if (!article) return [""];
-      // API агрегирует строки по базовому артикулу: 23348-1 → 23348.
+      const isWarehouseReport = item.sourceType === "wbAnalyticsDeadStocks" ||
+        item.sourceType === "wbAnalyticsWarehouseStocks";
       const parsed = parseOborArticle_(article);
-      const value = roundOborValue_(valueMap[parsed.base] || 0);
+      const value = roundOborValue_(isWarehouseReport
+        ? resolveOborWbWarehouseReportValue_(valueMap, article)
+        : (valueMap[parsed.base] || 0));
       if (Number(value) !== 0) nonZero[item.key] = (nonZero[item.key] || 0) + 1;
       return [value];
     });
@@ -254,8 +257,8 @@ function updateOborWbStockDirect() {
   const valuesByColumn = [deadValueMap, warehouseValueMap].map(valueMap => targetArticles.map(row => {
     const article = normalizeOborArticle_(row[0]);
     if (!article) return [""];
-    // WB-ответ агрегируется по базовому артикулу, поэтому 23348-1
-    // должен читать значение по ключу 23348, а не искать ключ 23348-1.
+    // Сначала точный vendorCode: 39171-1 не должен смешиваться с 39171-2.
+    // Базовый артикул используется только как fallback для упаковочной строки без точного API-совпадения.
     return [roundOborValue_(resolveOborWbWarehouseReportValue_(valueMap, article))];
   }));
 
