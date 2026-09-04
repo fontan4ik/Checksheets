@@ -15,7 +15,7 @@
  * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
  * - «ВБ всего»              ← WB Analytics products, metrics.stockCount
- *                                 минус остаток «Склад WB РФ» = мёртвый остаток
+ *                                 минус API-остаток «Склад WB РФ» = мёртвый остаток
  * - «ВБ ост»                ← WB Analytics groups, warehouses[].quantity
  *                                 по складу «Склад WB РФ» = живой остаток
  * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
@@ -90,7 +90,7 @@ const OBOR_VALUE_CONFIG = [
     sourceArticleColumn: null,
     sourceValueColumns: [],
     subtractValueColumns: [],
-    note: "WB Analytics: metrics.stockCount − «Склад WB РФ» = мёртвый остаток"
+    note: "WB Analytics: общий metrics.stockCount − API-остаток «Склад WB РФ» = мёртвый остаток"
   },
   {
     key: "wbStockObor",
@@ -264,7 +264,7 @@ function updateOborWbStockDirect() {
   const totalNonZero = valuesByColumn[0].filter(row => Number(row[0]) !== 0).length;
   const warehouseNonZero = valuesByColumn[1].filter(row => Number(row[0]) !== 0).length;
   Logger.log(
-    "ОБОР: W «ВБ всего» (мёртвый остаток F−G) и X «ВБ ост» (живой остаток G) обновлены" +
+    "ОБОР: W «ВБ всего» (мёртвый остаток: общий API−API склада WB РФ) и X «ВБ ост» (живой остаток API склада WB РФ) обновлены" +
     "; строк=" + valuesByColumn[0].length +
     "; ненулевых W=" + totalNonZero +
     "; ненулевых X=" + warehouseNonZero
