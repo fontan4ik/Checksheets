@@ -136,18 +136,28 @@ const targetSheet = {
   getLastRow() {
     return 3;
   },
-  getRange(row, column, numRows) {
+  getLastColumn() {
+    return 26;
+  },
+  getRange(row, column, numRows, numColumns) {
+    if (row === 1 && column === 1 && numRows === 1 && numColumns === 26) {
+      const headers = Array(26).fill('');
+      headers[22] = 'ВБ всего';
+      headers[23] = 'Сумм';
+      headers[24] = 'ВБ ост';
+      return { getDisplayValues: () => [headers] };
+    }
     if (row === 2 && column === 1 && numRows === 2) {
       return { getValues: () => [['23348-1'], ['99999']] };
     }
-    if ((column === 23 || column === 24) && row === 2 && numRows === 2) {
+    if ((column === 23 || column === 25) && row === 2 && numRows === 2) {
       return {
         setValues(values) {
           writes.push({ row, column, values });
         },
       };
     }
-    throw new Error(`Unexpected range: row=${row}, column=${column}, numRows=${numRows}`);
+    throw new Error(`Unexpected range: row=${row}, column=${column}, numRows=${numRows}, numColumns=${numColumns}`);
   },
 };
 
@@ -190,9 +200,9 @@ context.retryFetch = url => {
 context.updateOborWbStockDirect();
 assert.deepStrictEqual(JSON.parse(JSON.stringify(writes)), [
   { row: 2, column: 23, values: [[83], [0]] },
-  { row: 2, column: 24, values: [[32], [0]] },
+  { row: 2, column: 25, values: [[32], [0]] },
 ]);
 assert.strictEqual(reportAttempts, 4);
 
-console.log('OK: W получает мёртвый остаток 115 − 32 = 83');
-console.log('OK: X получает quantity = 32 из Warehouse Inventory Report по «Склад WB РФ»');
+console.log('OK: «ВБ всего» получает мёртвый остаток 115 − 32 = 83');
+console.log('OK: «ВБ ост» получает quantity = 32 из Warehouse Inventory Report по «Склад WB РФ» и пишется в Y, не в «Сумм» X');

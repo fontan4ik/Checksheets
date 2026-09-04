@@ -22,7 +22,7 @@
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
  * Основной ручной запуск: calculateOborValues().
- * updateOborWbStockDirect() обновляет обе WB-колонки W и X из разных API-полей.
+ * updateOborWbStockDirect() обновляет обе WB-колонки «ВБ всего» и «ВБ ост» из разных API-полей.
  * updateOborSummary() оставлен как короткий совместимый алиас.
  * Скрипт не создаёт триггеры.
  */
@@ -37,9 +37,9 @@ const OBOR_CDEK_BATCH_SIZE = 1000;
 const OBOR_CDEK_REQUEST_INTERVAL_MS = 1000;
 const OBOR_WB_ANALYTICS_PAGE_LIMIT = 1000;
 const OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS = 12000;
-// Для ручного WB-запуска обновляются колонки W и X листа «ОБОР».
-const OBOR_WB_STOCK_TARGET_COLUMN = "W";
-const OBOR_WB_STOCK_SECOND_TARGET_COLUMN = "X";
+// Для ручного WB-запуска колонки находятся по заголовкам, а не по буквам:
+// в текущем ОБОР «ВБ всего» = W, «ВБ ост» = Y; X занят «Сумм».
+const OBOR_WB_STOCK_TARGET_HEADERS = ["ВБ всего", "ВБ ост"];
 const OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME = "Склад WB РФ";
 const OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME = "Всего находится на складах";
 const OBOR_WB_WAREHOUSE_REPORT_POLL_INTERVAL_MS = 5000;
@@ -229,7 +229,7 @@ function calculateOborValues() {
 }
 
 /**
- * Обновить колонки «ВБ всего» и «ВБ ост» прямой выгрузкой WB.
+ * Обновить «ВБ всего» и «ВБ ост» прямой выгрузкой WB.
  * Остальные колонки листа «ОБОР» не изменяются.
  */
 function updateOborWbStockDirect() {
@@ -238,11 +238,14 @@ function updateOborWbStockDirect() {
   const targetSheet = spreadsheet.getSheetByName(OBOR_VALUES_TARGET_SHEET);
   if (!targetSheet) throw new Error("Не найден лист: " + OBOR_VALUES_TARGET_SHEET);
 
-  // Целевые столбцы для этого ручного запуска зафиксированы явно: W (23) и X (24).
-  const targetColumns = [
-    columnToNumberObor_(OBOR_WB_STOCK_TARGET_COLUMN),
-    columnToNumberObor_(OBOR_WB_STOCK_SECOND_TARGET_COLUMN)
-  ];
+  // «ВБ всего» и «ВБ ост» могут сдвигаться: в текущем листе это W и Y,
+  // поскольку X занят «Сумм». Находим их по фактическим заголовкам.
+  const targetHeaderMap = getOborHeaderMap_(targetSheet);
+  const targetColumns = OBOR_WB_STOCK_TARGET_HEADERS.map(header => {
+    const column = targetHeaderMap[normalizeOborHeader_(header)];
+    if (!column) throw new Error("ОБОР: не найден целевой заголовок «" + header + "»");
+    return column;
+  });
 
   const warehouseRemains = fetchOborWbWarehouseRemainsMaps_();
   const totalValueMap = warehouseRemains.total;
@@ -271,10 +274,10 @@ function updateOborWbStockDirect() {
   const totalNonZero = valuesByColumn[0].filter(row => Number(row[0]) !== 0).length;
   const warehouseNonZero = valuesByColumn[1].filter(row => Number(row[0]) !== 0).length;
   Logger.log(
-    "ОБОР: W «ВБ всего» (Warehouse Inventory Report: «" + OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME + "» − «" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») и X «ВБ ост» (точный vendorCode) обновлены" +
+    "ОБОР: «ВБ всего» (Warehouse Inventory Report: «" + OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME + "» − «" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») и «ВБ ост» (точный vendorCode) обновлены" +
     "; строк=" + valuesByColumn[0].length +
-    "; ненулевых W=" + totalNonZero +
-    "; ненулевых X=" + warehouseNonZero
+    "; ненулевых «ВБ всего»=" + totalNonZero +
+    "; ненулевых «ВБ ост»=" + warehouseNonZero
   );
   return {
     rows: valuesByColumn[0].length,
