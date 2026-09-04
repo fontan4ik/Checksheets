@@ -35,7 +35,7 @@ assert.deepStrictEqual(
   ))),
   [
     { key: 'wbStock', targetHeader: 'ВБ всего', sourceType: 'wbAnalyticsDeadStocks', sourceMapKey: 'wbStockDeadApi', warehouseName: null },
-    { key: 'wbStockObor', targetHeader: 'ВБ ост', sourceType: 'wbAnalyticsWarehouseStocks', sourceMapKey: 'wbStockWbRfApi', warehouseName: 'Склад WB' },
+    { key: 'wbStockObor', targetHeader: 'ВБ ост', sourceType: 'wbAnalyticsWarehouseStocks', sourceMapKey: 'wbStockWbRfApi', warehouseName: 'Склад WB РФ' },
   ],
 );
 
@@ -130,13 +130,11 @@ context.SpreadsheetApp = {
   },
   flush() {},
 };
-context.wbAnalyticsStocksURL = () => 'https://example.test/stocks';
-context.wbAnalyticsStocksGroupsURL = () => 'https://example.test/groups';
-context.wbAnalyticsWarehouseStocksURL = () => 'https://example.test/warehouse-stocks';
+context.wbAnalyticsWarehouseRemainsURL = () => 'https://example.test/warehouse-remains';
 context.wbAnalyticsHeaders = () => ({ Authorization: 'redacted' });
-let warehouseAttempts = 0;
+let reportAttempts = 0;
 context.retryFetch = url => {
-  if (url === 'https://example.test/warehouse-stocks' && warehouseAttempts++ === 0) {
+  if (url.startsWith('https://example.test/warehouse-remains') && reportAttempts++ === 0) {
     return {
       getResponseCode: () => 429,
       getHeaders: () => ({ 'X-RateLimit-Retry': '1' }),
@@ -146,11 +144,19 @@ context.retryFetch = url => {
   return {
     getResponseCode: () => 200,
     getContentText: () => JSON.stringify(
-      url === 'https://example.test/stocks'
-        ? { data: { items: [{ vendorCode: '23348-1', nmId: 23348001, metrics: { stockCount: 115 } }] } }
-        : url === 'https://example.test/warehouse-stocks'
-          ? { data: { items: [{ nmId: 23348001, warehouseName: 'Склад WB', quantity: 32 }] } }
-          : { data: { groups: [], currency: 'RUB' } }
+      url.includes('/status')
+        ? { data: { status: 'done' } }
+        : url.includes('/download')
+          ? [{
+              vendorCode: '23348-1',
+              nmId: 23348001,
+              warehouses: [
+                { warehouseName: 'Всего находится на складах', quantity: 115 },
+                { warehouseName: 'Склад WB РФ', quantity: 32 },
+                { warehouseName: 'Коледино', quantity: 999 },
+              ],
+            }]
+          : { data: { taskId: 'task-1' } }
     ),
   };
 };
@@ -159,7 +165,7 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(writes)), [
   { row: 2, column: 23, values: [[83], [0]] },
   { row: 2, column: 24, values: [[32], [0]] },
 ]);
-assert.strictEqual(warehouseAttempts, 2);
+assert.strictEqual(reportAttempts, 4);
 
 console.log('OK: W получает мёртвый остаток 115 − 32 = 83');
-console.log('OK: X получает живой остаток wb-warehouses.quantity = 32 по «Склад WB» (РФ)');
+console.log('OK: X получает quantity = 32 из Warehouse Inventory Report по «Склад WB РФ»');

@@ -134,6 +134,7 @@ const OBOR_VALUE_CONFIG = [
  * Запись начинается только после успешного чтения всех источников и API.
  */
 function calculateOborValues() {
+  OBOR_WB_WAREHOUSE_REMAINS_CACHE_ = null;
   const spreadsheet = SpreadsheetApp.openById(OBOR_VALUES_SPREADSHEET_ID);
   const targetSheet = spreadsheet.getSheetByName(OBOR_VALUES_TARGET_SHEET);
   if (!targetSheet) throw new Error("Не найден лист: " + OBOR_VALUES_TARGET_SHEET);
@@ -145,25 +146,22 @@ function calculateOborValues() {
   const sourceMaps = {};
   const sourceMapCache = {};
   OBOR_VALUE_CONFIG.forEach(item => {
-    if (item.sourceType === "wbAnalyticsDeadStocks" || item.sourceType === "wbAnalyticsStocks" || item.sourceType === "wbAnalyticsWarehouseStocks") {
-      const sourceMapKey = item.sourceMapKey || item.key;
-      if (item.sourceType === "wbAnalyticsDeadStocks") {
-        if (!Object.prototype.hasOwnProperty.call(sourceMapCache, "wbStockTotalApi")) {
-          sourceMapCache.wbStockTotalApi = fetchOborWbStockByArticle_();
-        }
-        if (!Object.prototype.hasOwnProperty.call(sourceMapCache, "wbStockWbRfApi")) {
-          sourceMapCache.wbStockWbRfApi = fetchOborWbWarehouseStockByArticle_(OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME);
-        }
-        sourceMaps[item.key] = subtractOborWbStockMaps_(
-          sourceMapCache.wbStockTotalApi,
-          sourceMapCache.wbStockWbRfApi
-        );
-        return;
+    if (item.sourceType === "wbAnalyticsDeadStocks" || item.sourceType === "wbAnalyticsWarehouseStocks") {
+      if (!Object.prototype.hasOwnProperty.call(sourceMapCache, "wbWarehouseRemains")) {
+        sourceMapCache.wbWarehouseRemains = fetchOborWbWarehouseRemainsMaps_();
       }
+      sourceMaps[item.key] = item.sourceType === "wbAnalyticsDeadStocks"
+        ? subtractOborWbStockMaps_(
+            sourceMapCache.wbWarehouseRemains.total,
+            sourceMapCache.wbWarehouseRemains.live
+          )
+        : sourceMapCache.wbWarehouseRemains.live;
+      return;
+    }
+    if (item.sourceType === "wbAnalyticsStocks") {
+      const sourceMapKey = item.sourceMapKey || item.key;
       if (!Object.prototype.hasOwnProperty.call(sourceMapCache, sourceMapKey)) {
-        sourceMapCache[sourceMapKey] = item.sourceType === "wbAnalyticsWarehouseStocks"
-          ? fetchOborWbWarehouseStockByArticle_(item.warehouseName)
-          : fetchOborWbStockByArticle_();
+        sourceMapCache[sourceMapKey] = fetchOborWbStockByArticle_();
       }
       sourceMaps[item.key] = sourceMapCache[sourceMapKey];
       return;
@@ -205,11 +203,11 @@ function calculateOborValues() {
     targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);
 
     const source = item.sourceType === "wbAnalyticsDeadStocks"
-      ? "WB Analytics: metrics.stockCount − warehouses[].quantity («" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») = мёртвый остаток"
+      ? "WB Warehouse Inventory Report: «" + OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME + "» − «" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "»"
       : item.sourceType === "wbAnalyticsStocks"
         ? "WB Analytics products / metrics.stockCount («Всего находится на складах»)"
         : item.sourceType === "wbAnalyticsWarehouseStocks"
-          ? "WB Analytics groups / warehouses[].quantity («" + item.warehouseName + "»)"
+          ? "WB Warehouse Inventory Report / quantity («" + item.warehouseName + "»)"
           : (item.sourceSheet || "Ozon FBS API");
     Logger.log(
       "Записано: " + item.targetHeader +
@@ -232,6 +230,7 @@ function calculateOborValues() {
  * Остальные колонки листа «ОБОР» не изменяются.
  */
 function updateOborWbStockDirect() {
+  OBOR_WB_WAREHOUSE_REMAINS_CACHE_ = null;
   const spreadsheet = SpreadsheetApp.openById(OBOR_VALUES_SPREADSHEET_ID);
   const targetSheet = spreadsheet.getSheetByName(OBOR_VALUES_TARGET_SHEET);
   if (!targetSheet) throw new Error("Не найден лист: " + OBOR_VALUES_TARGET_SHEET);
@@ -242,8 +241,9 @@ function updateOborWbStockDirect() {
     columnToNumberObor_(OBOR_WB_STOCK_SECOND_TARGET_COLUMN)
   ];
 
-  const totalValueMap = fetchOborWbStockByArticle_();
-  const warehouseValueMap = fetchOborWbWarehouseStockByArticle_(OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME);
+  const warehouseRemains = fetchOborWbWarehouseRemainsMaps_();
+  const totalValueMap = warehouseRemains.total;
+  const warehouseValueMap = warehouseRemains.live;
   const deadValueMap = subtractOborWbStockMaps_(totalValueMap, warehouseValueMap);
   const targetLastRow = targetSheet.getLastRow();
   if (targetLastRow < 2) return { rows: 0, nonZero: 0 };
@@ -299,7 +299,7 @@ function previewOborValues() {
       : item.sourceType === "wbAnalyticsStocks"
         ? "прямой WB Analytics products / metrics.stockCount («Всего находится на складах»)"
         : item.sourceType === "wbAnalyticsWarehouseStocks"
-          ? "прямой WB Analytics wb-warehouses / quantity («" + item.warehouseName + "»)"
+          ? "прямой WB Warehouse Inventory Report / quantity («" + item.warehouseName + "»)"
           : (item.sourceSheet || "Ozon FBS API");
     Logger.log(
       item.targetHeader +
@@ -352,6 +352,104 @@ function buildOborValueMap_(spreadsheet, item) {
   });
 
   return result;
+}
+
+/**
+ * Получить официальную складскую детализацию WB одним асинхронным отчётом.
+ * В warehouses[] выбираются только два референсных показателя из кабинета WB:
+ * «Всего находится на складах» и «Склад WB РФ».
+ */
+function fetchOborWbWarehouseRemainsMaps_() {
+  if (OBOR_WB_WAREHOUSE_REMAINS_CACHE_) return OBOR_WB_WAREHOUSE_REMAINS_CACHE_;
+
+  const requestState = { lastRequestAt: 0 };
+  const createUrl = wbAnalyticsWarehouseRemainsURL() +
+    "?locale=ru&groupBySa=true&groupByNm=true";
+  const createResponse = fetchOborWbWarehousePage_(
+    createUrl,
+    { method: "get", headers: wbAnalyticsHeaders(), muteHttpExceptions: true },
+    requestState
+  );
+  const createPayload = parseOborWbWarehouseReportResponse_(createResponse, "создание отчёта");
+  const taskId = createPayload && createPayload.data && createPayload.data.taskId;
+  if (!taskId) throw new Error("WB warehouse report: в ответе создания нет taskId");
+
+  let statusPayload = null;
+  for (let poll = 0; poll < OBOR_WB_WAREHOUSE_REPORT_MAX_POLLS; poll++) {
+    Utilities.sleep(OBOR_WB_WAREHOUSE_REPORT_POLL_INTERVAL_MS);
+    const statusResponse = fetchOborWbWarehousePage_(
+      wbAnalyticsWarehouseRemainsURL() + "/tasks/" + encodeURIComponent(taskId) + "/status",
+      { method: "get", headers: wbAnalyticsHeaders(), muteHttpExceptions: true },
+      requestState
+    );
+    statusPayload = parseOborWbWarehouseReportResponse_(statusResponse, "проверка готовности");
+    if (statusPayload && statusPayload.data && statusPayload.data.status === "done") break;
+  }
+
+  if (!statusPayload || !statusPayload.data || statusPayload.data.status !== "done") {
+    throw new Error("WB warehouse report: не готов после " + OBOR_WB_WAREHOUSE_REPORT_MAX_POLLS + " проверок");
+  }
+
+  const downloadResponse = fetchOborWbWarehousePage_(
+    wbAnalyticsWarehouseRemainsURL() + "/tasks/" + encodeURIComponent(taskId) + "/download",
+    { method: "get", headers: wbAnalyticsHeaders(), muteHttpExceptions: true },
+    requestState
+  );
+  const rows = parseOborWbWarehouseReportResponse_(downloadResponse, "загрузка отчёта");
+  if (!Array.isArray(rows)) throw new Error("WB warehouse report: ожидался массив товаров");
+
+  const maps = aggregateOborWbWarehouseRemainsRows_(rows);
+  OBOR_WB_WAREHOUSE_REMAINS_CACHE_ = maps;
+  Logger.log(
+    "WB warehouse report: товаров=" + rows.length +
+    "; валидных артикулов=" + maps.validRows +
+    "; total=" + Object.keys(maps.total).length +
+    "; склад WB РФ=" + Object.keys(maps.live).length
+  );
+  return maps;
+}
+
+function parseOborWbWarehouseReportResponse_(response, action) {
+  if (!response) throw new Error("WB warehouse report: пустой ответ (" + action + ")");
+  const responseCode = response.getResponseCode();
+  const responseText = response.getContentText() || "";
+  if (responseCode < 200 || responseCode >= 300) {
+    throw new Error("WB warehouse report: HTTP " + responseCode + " (" + action + "): " + responseText.substring(0, 300));
+  }
+  try {
+    return JSON.parse(responseText);
+  } catch (error) {
+    throw new Error("WB warehouse report: ответ не является JSON (" + action + "): " + error.message);
+  }
+}
+
+function aggregateOborWbWarehouseRemainsRows_(rows) {
+  const total = {};
+  const live = {};
+  let validRows = 0;
+
+  (rows || []).forEach(row => {
+    const article = normalizeOborArticle_(row && (row.vendorCode || row.supplierArticle));
+    if (!article || !Array.isArray(row.warehouses)) return;
+
+    const parsed = parseOborArticle_(article);
+    const totalValue = row.warehouses.reduce((sum, warehouse) => {
+      return warehouse && warehouse.warehouseName === OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME
+        ? sum + Math.max(0, parseOborNumber_(warehouse.quantity))
+        : sum;
+    }, 0);
+    const liveValue = row.warehouses.reduce((sum, warehouse) => {
+      return warehouse && warehouse.warehouseName === OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME
+        ? sum + Math.max(0, parseOborNumber_(warehouse.quantity))
+        : sum;
+    }, 0);
+
+    total[parsed.base] = (total[parsed.base] || 0) + totalValue * parsed.multiplier;
+    live[parsed.base] = (live[parsed.base] || 0) + liveValue * parsed.multiplier;
+    validRows++;
+  });
+
+  return { total: total, live: live, validRows: validRows };
 }
 
 /**
