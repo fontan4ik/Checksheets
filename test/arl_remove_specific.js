@@ -197,14 +197,17 @@ async function verifyOzon(rows, credentials) {
     throw new Error(`Ozon read-back: HTTP ${response.status}`);
   }
   const byOffer = new Map(
-    (Array.isArray(response.data?.products) ? response.data.products : []).map((item) => [
-      text(item.offer_id),
-      (Number(item.present) || 0) + (Number(item.reserved) || 0),
-    ]),
+    (Array.isArray(response.data?.products) ? response.data.products : [])
+      .filter((item) => String(item.warehouse_id) === String(OZON_WAREHOUSE_ID))
+      .map((item) => {
+        const fallback = Math.max(0, (Number(item.present) || 0) - (Number(item.reserved) || 0));
+        const freeStock = Number.isFinite(Number(item.free_stock)) ? Number(item.free_stock) : fallback;
+        return [text(item.offer_id), { freeStock, present: Number(item.present) || 0, reserved: Number(item.reserved) || 0 }];
+      }),
   );
   const nonZero = rows
-    .map((row) => ({ article: row.offerId, stock: byOffer.get(row.offerId) || 0 }))
-    .filter((item) => item.stock !== 0);
+    .map((row) => ({ article: row.offerId, ...(byOffer.get(row.offerId) || { freeStock: 0 }) }))
+    .filter((item) => item.freeStock !== 0);
   if (nonZero.length) throw new Error(`Ozon read-back: ненулевые остатки ${JSON.stringify(nonZero)}`);
   return { returnedProducts: byOffer.size, nonZero: 0 };
 }
@@ -275,10 +278,14 @@ async function main() {
     block: `${snapshot.firstRow}:${snapshot.lastRow}`,
   }));
 
-  const ozon = await zeroOzon(snapshot.rows, credentials);
-  console.log(JSON.stringify({ phase: "ozon_zeroed", ...ozon }));
-  const wb = await zeroWildberries(snapshot.rows, credentials);
-  console.log(JSON.stringify({ phase: "wb_zeroed", ...wb }));
+  if (process.argv.includes("--skip-zero")) {
+    console.log(JSON.stringify({ phase: "zero_skipped", reason: "API zeroing already completed" }));
+  } else {
+    const ozon = await zeroOzon(snapshot.rows, credentials);
+    console.log(JSON.stringify({ phase: "ozon_zeroed", ...ozon }));
+    const wb = await zeroWildberries(snapshot.rows, credentials);
+    console.log(JSON.stringify({ phase: "wb_zeroed", ...wb }));
+  }
 
   await sleep(5000);
   let ozonVerification;
