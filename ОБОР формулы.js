@@ -232,12 +232,14 @@ function updateOborWbStockDirect() {
     return [roundOborValue_(valueMap[parsed.base] || 0)];
   });
 
-  targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);
+  targetColumns.forEach(targetColumn => {
+    targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);
+  });
   SpreadsheetApp.flush();
 
   const nonZero = values.filter(row => Number(row[0]) !== 0).length;
   Logger.log(
-    "ОБОР: только «ВБ всего» обновлён напрямую из WB Analytics stocks" +
+    "ОБОР: «ВБ всего» и «ВБ ост» обновлены напрямую из WB Analytics stocks" +
     "; строк=" + values.length +
     "; ненулевых=" + nonZero
   );
