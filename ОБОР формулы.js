@@ -485,10 +485,28 @@ function fetchOborWbWarehouseStockByArticle_(warehouseName) {
       throw new Error("WB Analytics groups: ответ не является JSON: " + error.message);
     }
 
-    const items = payload && payload.data && Array.isArray(payload.data.items)
-      ? payload.data.items
-      : null;
-    if (!items) throw new Error("WB Analytics groups: в data.items ожидался массив");
+    const data = payload && payload.data;
+    const items = data && Array.isArray(data.items)
+      ? data.items
+      : data && Array.isArray(data.products)
+        ? data.products
+        : Array.isArray(data)
+          ? data
+          : payload && Array.isArray(payload.items)
+            ? payload.items
+            : null;
+    if (!items) {
+      const payloadKeys = payload && typeof payload === "object"
+        ? Object.keys(payload).join(",")
+        : "";
+      const dataKeys = data && typeof data === "object" && !Array.isArray(data)
+        ? Object.keys(data).join(",")
+        : Array.isArray(data) ? "array" : "";
+      throw new Error(
+        "WB Analytics groups: не найден массив товаров; payload=" + payloadKeys +
+        "; data=" + dataKeys
+      );
+    }
 
     allItems.push.apply(allItems, items);
     if (items.length < OBOR_WB_ANALYTICS_PAGE_LIMIT) break;
