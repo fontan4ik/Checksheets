@@ -167,7 +167,10 @@ function calculateOborValues() {
     const valueMap = sourceMaps[item.key] || {};
     const values = targetArticles.map(row => {
       const article = normalizeOborArticle_(row[0]);
-      const value = article ? roundOborValue_(valueMap[article] || 0) : "";
+      if (!article) return [""];
+      // API агрегирует строки по базовому артикулу: 23348-1 → 23348.
+      const parsed = parseOborArticle_(article);
+      const value = roundOborValue_(valueMap[parsed.base] || 0);
       if (Number(value) !== 0) nonZero[item.key] = (nonZero[item.key] || 0) + 1;
       return [value];
     });
