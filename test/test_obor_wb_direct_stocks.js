@@ -22,9 +22,15 @@ vm.runInContext(source, context, { filename: sourcePath });
 const aggregate = context.aggregateOborWbStockRows_;
 assert.strictEqual(typeof aggregate, 'function');
 assert.strictEqual(typeof context.updateOborWbStockDirect, 'function');
-assert.strictEqual(
-  vm.runInContext("OBOR_VALUE_CONFIG.find(item => item.key === 'wbStock').targetHeader", context),
-  'ВБ всего',
+assert.deepStrictEqual(
+  JSON.parse(JSON.stringify(vm.runInContext(
+    "OBOR_VALUE_CONFIG.filter(item => item.sourceType === 'wbAnalyticsStocks').map(item => ({key: item.key, targetHeader: item.targetHeader, sourceMapKey: item.sourceMapKey || item.key}))",
+    context,
+  ))),
+  [
+    { key: 'wbStock', targetHeader: 'ВБ всего', sourceMapKey: 'wbStockApi' },
+    { key: 'wbStockObor', targetHeader: 'ВБ ост', sourceMapKey: 'wbStockApi' },
+  ],
 );
 
 const result = aggregate([

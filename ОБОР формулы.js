@@ -4,7 +4,8 @@
  * Скрипт читает источники, агрегирует значения по базовому артикулу,
  * учитывает числовой суффикс после последнего дефиса и записывает готовые
  * значения в ОБОР в колонках с заголовками «Озон ост», «Уход месяц»,
- * «Факт выкупа месяц», «ВБ всего», «ВБ Ух» и «ВБ факт выкуп месяц».
+ * «Факт выкупа месяц», «ВБ всего», «ВБ ост», «ВБ Ух» и
+ * «ВБ факт выкуп месяц».
  *
  * Пример: 55222-10 и 55222-5 превращаются в 10 × значение и 5 × значение.
  *
@@ -15,6 +16,7 @@
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
  * - «ВБ всего»              ← WB Analytics stocks-report, metrics.stockCount
  *                                 («Всего находится на складах»)
+ * - «ВБ ост»                ← тот же WB Analytics API, отдельная колонка
  * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
@@ -79,11 +81,23 @@ const OBOR_VALUE_CONFIG = [
     key: "wbStock",
     targetHeader: "ВБ всего",
     sourceType: "wbAnalyticsStocks",
+    sourceMapKey: "wbStockApi",
     sourceSheet: null,
     sourceArticleColumn: null,
     sourceValueColumns: [],
     subtractValueColumns: [],
     note: "WB Analytics; metrics.stockCount = «Всего находится на складах»"
+  },
+  {
+    key: "wbStockObor",
+    targetHeader: "ВБ ост",
+    sourceType: "wbAnalyticsStocks",
+    sourceMapKey: "wbStockApi",
+    sourceSheet: null,
+    sourceArticleColumn: null,
+    sourceValueColumns: [],
+    subtractValueColumns: [],
+    note: "WB Analytics; тот же metrics.stockCount для колонки «ВБ ост»"
   },
   {
     key: "wbMonthWithdrawal",
@@ -106,7 +120,7 @@ const OBOR_VALUE_CONFIG = [
 ];
 
 /**
- * Полностью пересчитать и записать шесть активных целевых показателей.
+ * Полностью пересчитать и записать семь активных целевых показателей.
  * Запись начинается только после успешного чтения всех источников и API.
  */
 function calculateOborValues() {
@@ -119,9 +133,15 @@ function calculateOborValues() {
   validateOborSources_(spreadsheet);
 
   const sourceMaps = {};
+  const sourceMapCache = {};
   OBOR_VALUE_CONFIG.forEach(item => {
     if (item.sourceType === "wbAnalyticsStocks") {
-      sourceMaps[item.key] = fetchOborWbStockByArticle_();
+      // Обе WB-колонки используют один API-источник; не дублируем запросы.
+      const sourceMapKey = item.sourceMapKey || item.key;
+      if (!Object.prototype.hasOwnProperty.call(sourceMapCache, sourceMapKey)) {
+        sourceMapCache[sourceMapKey] = fetchOborWbStockByArticle_();
+      }
+      sourceMaps[item.key] = sourceMapCache[sourceMapKey];
       return;
     }
     if (!item.sourceSheet) return;
