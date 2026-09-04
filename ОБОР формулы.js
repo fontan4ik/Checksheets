@@ -14,14 +14,15 @@
  * - K «СДЭК Остаток»        ← ОТКЛЮЧЕНО (Ozon FBS API / склад «КГТ СДЭК»)
  * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
- * - «ВБ всего»              ← WB Analytics stocks-report, metrics.stockCount
+ * - «ВБ всего»              ← WB Analytics products, metrics.stockCount
  *                                 («Всего находится на складах»)
- * - «ВБ ост»                ← тот же WB Analytics API, отдельная колонка
+ * - «ВБ ост»                ← WB Analytics groups, warehouses[].quantity
+ *                                 по складу «Склад WB РФ»
  * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
  * Основной ручной запуск: calculateOborValues().
- * updateOborWbStockDirect() обновляет обе WB-колонки W и X.
+ * updateOborWbStockDirect() обновляет обе WB-колонки W и X из разных API-полей.
  * updateOborSummary() оставлен как короткий совместимый алиас.
  * Скрипт не создаёт триггеры.
  */
@@ -39,6 +40,7 @@ const OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS = 12000;
 // Для ручного WB-запуска обновляются колонки W и X листа «ОБОР».
 const OBOR_WB_STOCK_TARGET_COLUMN = "W";
 const OBOR_WB_STOCK_SECOND_TARGET_COLUMN = "X";
+const OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME = "Склад WB РФ";
 
 const OBOR_VALUE_CONFIG = [
   {
@@ -83,7 +85,7 @@ const OBOR_VALUE_CONFIG = [
     key: "wbStock",
     targetHeader: "ВБ всего",
     sourceType: "wbAnalyticsStocks",
-    sourceMapKey: "wbStockApi",
+    sourceMapKey: "wbStockTotalApi",
     sourceSheet: null,
     sourceArticleColumn: null,
     sourceValueColumns: [],
@@ -93,13 +95,14 @@ const OBOR_VALUE_CONFIG = [
   {
     key: "wbStockObor",
     targetHeader: "ВБ ост",
-    sourceType: "wbAnalyticsStocks",
-    sourceMapKey: "wbStockApi",
+    sourceType: "wbAnalyticsWarehouseStocks",
+    sourceMapKey: "wbStockWbRfApi",
     sourceSheet: null,
     sourceArticleColumn: null,
     sourceValueColumns: [],
     subtractValueColumns: [],
-    note: "WB Analytics; тот же metrics.stockCount для колонки «ВБ ост»"
+    warehouseName: OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME,
+    note: "WB Analytics groups; warehouses[].quantity по складу «Склад WB РФ»"
   },
   {
     key: "wbMonthWithdrawal",
@@ -137,11 +140,12 @@ function calculateOborValues() {
   const sourceMaps = {};
   const sourceMapCache = {};
   OBOR_VALUE_CONFIG.forEach(item => {
-    if (item.sourceType === "wbAnalyticsStocks") {
-      // Обе WB-колонки используют один API-источник; не дублируем запросы.
+    if (item.sourceType === "wbAnalyticsStocks" || item.sourceType === "wbAnalyticsWarehouseStocks") {
       const sourceMapKey = item.sourceMapKey || item.key;
       if (!Object.prototype.hasOwnProperty.call(sourceMapCache, sourceMapKey)) {
-        sourceMapCache[sourceMapKey] = fetchOborWbStockByArticle_();
+        sourceMapCache[sourceMapKey] = item.sourceType === "wbAnalyticsWarehouseStocks"
+          ? fetchOborWbWarehouseStockByArticle_(item.warehouseName)
+          : fetchOborWbStockByArticle_();
       }
       sourceMaps[item.key] = sourceMapCache[sourceMapKey];
       return;
@@ -183,8 +187,10 @@ function calculateOborValues() {
     targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);
 
     const source = item.sourceType === "wbAnalyticsStocks"
-      ? "WB Analytics stocks / metrics.stockCount («Склад WB РФ»)"
-      : (item.sourceSheet || "Ozon FBS API");
+      ? "WB Analytics products / metrics.stockCount («Всего находится на складах»)"
+      : item.sourceType === "wbAnalyticsWarehouseStocks"
+        ? "WB Analytics groups / warehouses[].quantity («" + item.warehouseName + "»)"
+        : (item.sourceSheet || "Ozon FBS API");
     Logger.log(
       "Записано: " + item.targetHeader +
       "; источник: " + source +
