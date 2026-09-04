@@ -92,6 +92,7 @@ const wbPricesApiURL = () => "https://discounts-prices-api.wildberries.ru/api/v2
 const wbAnalyticsStocksURL = () => "https://seller-analytics-api.wildberries.ru/api/v2/stocks-report/products/products";
 const wbAnalyticsStocksGroupsURL = () => "https://seller-analytics-api.wildberries.ru/api/v2/stocks-report/products/groups";
 const wbAnalyticsWarehouseStocksURL = () => "https://seller-analytics-api.wildberries.ru/api/analytics/v1/stocks-report/wb-warehouses";
+const wbAnalyticsWarehouseRemainsURL = () => "https://seller-analytics-api.wildberries.ru/api/v1/warehouse_remains";
 const wbSalesFunnelURL = () => "https://seller-analytics-api.wildberries.ru/api/analytics/v3/sales-funnel/products/history";
 const wbSalesFunnelProductsURL = () => "https://seller-analytics-api.wildberries.ru/api/analytics/v3/sales-funnel/products";
 const wbMarketplaceStocksURL = (warehouseId) => `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`;

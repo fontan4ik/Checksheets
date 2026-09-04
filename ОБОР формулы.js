@@ -14,10 +14,10 @@
  * - K «СДЭК Остаток»        ← ОТКЛЮЧЕНО (Ozon FBS API / склад «КГТ СДЭК»)
  * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
  * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
- * - «ВБ всего»              ← WB Analytics products, metrics.stockCount
- *                                 минус API-остаток «Склад WB» (РФ) = мёртвый остаток
- * - «ВБ ост»                ← WB Analytics wb-warehouses, quantity
- *                                 по warehouseName «Склад WB» (РФ) = живой остаток
+ * - «ВБ всего»              ← WB Warehouses Inventory Report:
+ *                                 «Всего находится на складах» − «Склад WB РФ» = мёртвый остаток
+ * - «ВБ ост»                ← WB Warehouses Inventory Report:
+ *                                 «Склад WB РФ» = живой остаток
  * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
@@ -40,8 +40,12 @@ const OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS = 12000;
 // Для ручного WB-запуска обновляются колонки W и X листа «ОБОР».
 const OBOR_WB_STOCK_TARGET_COLUMN = "W";
 const OBOR_WB_STOCK_SECOND_TARGET_COLUMN = "X";
-const OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME = "Склад WB";
+const OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME = "Склад WB РФ";
+const OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME = "Всего находится на складах";
+const OBOR_WB_WAREHOUSE_REPORT_POLL_INTERVAL_MS = 5000;
+const OBOR_WB_WAREHOUSE_REPORT_MAX_POLLS = 12;
 let OBOR_WB_PRODUCT_ITEMS_CACHE_ = null;
+let OBOR_WB_WAREHOUSE_REMAINS_CACHE_ = null;
 
 const OBOR_VALUE_CONFIG = [
   {
@@ -91,7 +95,7 @@ const OBOR_VALUE_CONFIG = [
     sourceArticleColumn: null,
     sourceValueColumns: [],
     subtractValueColumns: [],
-    note: "WB Analytics: общий metrics.stockCount − API-остаток «Склад WB РФ» = мёртвый остаток"
+    note: "WB Warehouses Inventory Report: «Всего находится на складах» − «Склад WB РФ» = мёртвый остаток"
   },
   {
     key: "wbStockObor",
@@ -103,7 +107,7 @@ const OBOR_VALUE_CONFIG = [
     sourceValueColumns: [],
     subtractValueColumns: [],
     warehouseName: OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME,
-    note: "WB Analytics wb-warehouses; quantity по warehouseName «Склад WB» (РФ)"
+    note: "WB Warehouses Inventory Report: quantity по «Склад WB РФ»"
   },
   {
     key: "wbMonthWithdrawal",
