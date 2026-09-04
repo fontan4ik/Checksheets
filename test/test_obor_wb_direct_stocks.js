@@ -134,21 +134,32 @@ context.wbAnalyticsStocksURL = () => 'https://example.test/stocks';
 context.wbAnalyticsStocksGroupsURL = () => 'https://example.test/groups';
 context.wbAnalyticsWarehouseStocksURL = () => 'https://example.test/warehouse-stocks';
 context.wbAnalyticsHeaders = () => ({ Authorization: 'redacted' });
-context.retryFetch = url => ({
-  getResponseCode: () => 200,
-  getContentText: () => JSON.stringify(
-    url === 'https://example.test/stocks'
-      ? { data: { items: [{ vendorCode: '23348-1', nmId: 23348001, metrics: { stockCount: 115 } }] } }
-      : url === 'https://example.test/warehouse-stocks'
-        ? { data: { items: [{ nmId: 23348001, warehouseName: 'Склад WB РФ', quantity: 32 }] } }
-        : { data: { groups: [], currency: 'RUB' } }
-  ),
-});
+let warehouseAttempts = 0;
+context.retryFetch = url => {
+  if (url === 'https://example.test/warehouse-stocks' && warehouseAttempts++ === 0) {
+    return {
+      getResponseCode: () => 429,
+      getHeaders: () => ({ 'X-RateLimit-Retry': '1' }),
+      getContentText: () => '{"status":429}',
+    };
+  }
+  return {
+    getResponseCode: () => 200,
+    getContentText: () => JSON.stringify(
+      url === 'https://example.test/stocks'
+        ? { data: { items: [{ vendorCode: '23348-1', nmId: 23348001, metrics: { stockCount: 115 } }] } }
+        : url === 'https://example.test/warehouse-stocks'
+          ? { data: { items: [{ nmId: 23348001, warehouseName: 'Склад WB РФ', quantity: 32 }] } }
+          : { data: { groups: [], currency: 'RUB' } }
+    ),
+  };
+};
 context.updateOborWbStockDirect();
 assert.deepStrictEqual(JSON.parse(JSON.stringify(writes)), [
   { row: 2, column: 23, values: [[83], [0]] },
   { row: 2, column: 24, values: [[32], [0]] },
 ]);
+assert.strictEqual(warehouseAttempts, 2);
 
 console.log('OK: W получает мёртвый остаток 115 − 32 = 83');
 console.log('OK: X получает живой остаток warehouses[].quantity = 32 по «Склад WB РФ»');

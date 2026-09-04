@@ -434,6 +434,32 @@ function fetchOborWbStockByArticle_() {
   return aggregated.values;
 }
 
+function fetchOborWbWarehousePage_(url, options, state) {
+  const maxAttempts = 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const elapsed = Date.now() - state.lastRequestAt;
+    if (elapsed < OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS) {
+      Utilities.sleep(OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS - elapsed);
+    }
+
+    const response = retryFetch(url, options, 1);
+    state.lastRequestAt = Date.now();
+    if (!response || response.getResponseCode() !== 429) return response;
+    if (attempt === maxAttempts) return response;
+
+    const headers = response.getHeaders ? response.getHeaders() : {};
+    const retryHeader = headers["X-RateLimit-Retry"] || headers["x-ratelimit-retry"];
+    const retrySeconds = Number(String(retryHeader || ""));
+    const retryMs = Number.isFinite(retrySeconds) && retrySeconds > 0
+      ? retrySeconds * 1000
+      : OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS;
+    const waitMs = Math.min(300000, Math.max(OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS, retryMs));
+    Logger.log("WB warehouse: HTTP 429; повтор через " + Math.ceil(waitMs / 1000) + " сек.");
+    Utilities.sleep(waitMs);
+  }
+  return null;
+}
+
 function fetchOborWbWarehouseStockByArticle_(warehouseName) {
   if (!warehouseName) throw new Error("WB warehouse: не задано имя склада");
 
@@ -448,13 +474,14 @@ function fetchOborWbWarehouseStockByArticle_(warehouseName) {
   const nmIds = Object.keys(articleByNmId);
   const stockRows = [];
   const batchSize = 1000;
+  const requestState = { lastRequestAt: 0 };
 
   for (let batchStart = 0; batchStart < nmIds.length; batchStart += batchSize) {
     const batch = nmIds.slice(batchStart, batchStart + batchSize);
     let offset = 0;
 
     while (true) {
-      const response = retryFetch(
+      const response = fetchOborWbWarehousePage_(
         wbAnalyticsWarehouseStocksURL(),
         {
           method: "post",
@@ -467,7 +494,7 @@ function fetchOborWbWarehouseStockByArticle_(warehouseName) {
           }),
           muteHttpExceptions: true
         },
-        3
+        requestState
       );
 
       if (!response) throw new Error("WB warehouse: пустой ответ API");
