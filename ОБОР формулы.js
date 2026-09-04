@@ -21,6 +21,7 @@
  * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
  *
  * Основной ручной запуск: calculateOborValues().
+ * updateOborWbStockDirect() обновляет обе WB-колонки W и X.
  * updateOborSummary() оставлен как короткий совместимый алиас.
  * Скрипт не создаёт триггеры.
  */
@@ -35,8 +36,9 @@ const OBOR_CDEK_BATCH_SIZE = 1000;
 const OBOR_CDEK_REQUEST_INTERVAL_MS = 1000;
 const OBOR_WB_ANALYTICS_PAGE_LIMIT = 1000;
 const OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS = 12000;
-// Для ручного WB-запуска обновляется только колонка W листа «ОБОР».
+// Для ручного WB-запуска обновляются колонки W и X листа «ОБОР».
 const OBOR_WB_STOCK_TARGET_COLUMN = "W";
+const OBOR_WB_STOCK_SECOND_TARGET_COLUMN = "X";
 
 const OBOR_VALUE_CONFIG = [
   {
@@ -200,7 +202,7 @@ function calculateOborValues() {
 }
 
 /**
- * Обновить только колонку «ВБ всего» прямой выгрузкой WB.
+ * Обновить колонки «ВБ всего» и «ВБ ост» прямой выгрузкой WB.
  * Остальные колонки листа «ОБОР» не изменяются.
  */
 function updateOborWbStockDirect() {
@@ -208,9 +210,11 @@ function updateOborWbStockDirect() {
   const targetSheet = spreadsheet.getSheetByName(OBOR_VALUES_TARGET_SHEET);
   if (!targetSheet) throw new Error("Не найден лист: " + OBOR_VALUES_TARGET_SHEET);
 
-  // Не ищем заголовок по всему листу: это могло выбрать не тот дубликат.
-  // Целевой столбец для этого ручного запуска зафиксирован явно: W (23).
-  const targetColumn = columnToNumberObor_(OBOR_WB_STOCK_TARGET_COLUMN);
+  // Целевые столбцы для этого ручного запуска зафиксированы явно: W (23) и X (24).
+  const targetColumns = [
+    columnToNumberObor_(OBOR_WB_STOCK_TARGET_COLUMN),
+    columnToNumberObor_(OBOR_WB_STOCK_SECOND_TARGET_COLUMN)
+  ];
 
   const valueMap = fetchOborWbStockByArticle_();
   const targetLastRow = targetSheet.getLastRow();
