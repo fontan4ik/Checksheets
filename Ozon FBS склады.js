@@ -11,12 +11,12 @@
  * - AH (34): GAUSS MSK
  *
  * Алгоритм:
- * 1. ШАГ 1 (один раз): fetchAndSaveWarehouses() - получить список складов через /v1/warehouse/list
- * 2. ШАГ 2 (основной): updateAllFBSWarehouses() - получить остатки по каждому складу
+ * 1. ШАГ 1 (один раз): fetchAndSaveWarehouses() - получить список складов через /v2/warehouse/list
+ * 2. ШАГ 2 (основной): updateAllFBSWarehouses() - получить остатки по всем складам через /v2/product/info/stocks-by-warehouse/fbs
  *
  * Официальная документация Ozon Seller API:
- * - https://docs.ozon.ru/api/seller/#v1/warehouse/list
- * - https://docs.ozon.ru/api/seller/#v1/product/info/stocks-by-warehouse/fbs
+ * - https://docs.ozon.ru/api/seller/#v2/warehouse/list
+ * - https://docs.ozon.ru/api/seller/#v2/product/info/stocks-by-warehouse/fbs
  */
 
 // ============================================
@@ -332,63 +332,67 @@ function checkSavedWarehouses() {
 /**
  * ШАГ 2 (основной): Обновить остатки по всем целевым FBS складам
  *
- * Официальный endpoint: POST /v1/product/info/stocks-by-warehouse/fbs
- * Документация: https://docs.ozon.ru/api/seller/#v1/product/info/stocks-by-warehouse/fbs
+ * Официальный endpoint: POST /v2/product/info/stocks-by-warehouse/fbs
+ * Документация: https://docs.ozon.ru/api/seller/#v2/product/info/stocks-by-warehouse/fbs
  *
  * Формат запроса:
  * {
- *   "sku": [123, 456, 789],      // массив SKU (числа) - МАКС 500!
- *   "warehouse_id": 1234567890,   // ID склада (число)
- *   "limit": 1000                // опционально, макс. количество результатов
+ *   "sku": [123, 456, 789],      // массив SKU (числа)
+ *   "limit": 1000,               // макс. количество результатов (до 1000)
+ *   "cursor": "..."              // курсор для пагинации (если has_next = true)
  * }
  *
  * Формат ответа:
  * {
- *   "result": [
+ *   "products": [
  *     {
- *       "sku": 123,              // SKU товара
- *       "warehouse_id": 1234567890,  // ID склада
- *       "present": 10,           // доступно для продажи (шт)
- *       "reserved": 2            // зарезервировано под заказы (шт)
+ *       "sku": 123,
+ *       "warehouse_id": 1020005000689690,
+ *       "warehouse_name": "ЭТМ САМАРА",
+ *       "present": 10,
+ *       "reserved": 2,
+ *       "free_stock": 10
  *     }
- *   ]
+ *   ],
+ *   "has_next": false,
+ *   "cursor": ""
  * }
  *
- * ВАЖНО: Мы записываем present + reserved (всего на складе), а не только present!
- *
- * КРИТИЧЕСКОЕ: API возвращает данные по ВСЕМ складам в одном ответе!
- * Поэтому мы фильтруем result по warehouse_id чтобы взять только текущий склад.
+ * ВАЖНО:
+ * 1. Мы записываем present + reserved (всего на складе), а не только present.
+ * 2. API v2 возвращает остатки по ВСЕМ складам сразу для каждого SKU.
+ *    Поэтому мы опрашиваем уникальные SKU один раз батчами по 200 и распределяем
+ *    остатки по всем целевым колонкам (AB:AH) за один проход!
+ * 3. Встроена защита: если все запросы завершились ошибкой, запись в таблицу
+ *    ОТМЕНЯЕТСЯ во избежание зануления колонок.
  */
 function updateAllFBSWarehouses() {
   const startTime = new Date();
 
   Logger.log("╔════════════════════════════════════════════════════════════════════════╗");
-  Logger.log("║   ШАГ 2: ОБНОВЛЕНИЕ ОСТАТКОВ ПО FBS СКЛАДАМ                             ║");
+  Logger.log("║   ШАГ 2: ОБНОВЛЕНИЕ ОСТАТКОВ ПО FBS СКЛАДАМ (Ozon v2 API)               ║");
   Logger.log("╚════════════════════════════════════════════════════════════════════════╝");
 
-  // 1. Загружаем список складов из PropertiesService
+  // 1. Загружаем список складов из PropertiesService (или запрашиваем через API)
   const scriptProperties = PropertiesService.getScriptProperties();
-  const warehousesJson = scriptProperties.getProperty("ozon_warehouses");
+  let warehousesJson = scriptProperties.getProperty("ozon_warehouses");
+  let warehouses = null;
 
-  if (!warehousesJson) {
-    Logger.log("❌ Список складов не найден в PropertiesService");
-    Logger.log("   Сначала выполните: fetchAndSaveWarehouses()");
-    Logger.log("   Или выполните: fetchAndUpdateAll() - сделает всё автоматически");
-    return;
+  if (warehousesJson) {
+    try {
+      warehouses = JSON.parse(warehousesJson);
+    } catch (e) {
+      Logger.log("⚠️ Ошибка парсинга ozon_warehouses: " + e.message);
+    }
   }
 
-  let warehouses;
-  try {
-    warehouses = JSON.parse(warehousesJson);
-  } catch (e) {
-    Logger.log("❌ Ошибка парсинга списка складов: " + e.message);
-    Logger.log("   Выполните: fetchAndUpdateAll() для получения свежего списка");
-    return;
-  }
-
-  if (!Array.isArray(warehouses)) {
-    Logger.log("❌ Неверный формат списка складов (не массив)");
-    return;
+  if (!warehouses || !Array.isArray(warehouses) || warehouses.length === 0) {
+    Logger.log("⚠️ Список складов не найден или пуст. Получаем свежий список складов...");
+    warehouses = fetchAndSaveWarehouses();
+    if (!warehouses || !Array.isArray(warehouses) || warehouses.length === 0) {
+      Logger.log("❌ Не удалось получить список складов. Завершение работы.");
+      return;
+    }
   }
 
   // 2. Ищем целевые склады
@@ -400,9 +404,9 @@ function updateAllFBSWarehouses() {
     return;
   }
 
-  Logger.log(`\n🎯 Найдено целевых складов: ${targetWarehouses.length}`);
-
+  const targetWhMap = {};
   targetWarehouses.forEach(tw => {
+    targetWhMap[String(tw.warehouseId)] = tw;
     Logger.log(`   ✅ "${tw.warehouseName}" (ID: ${tw.warehouseId}) → ${tw.letter} (${tw.column})`);
   });
 
@@ -415,61 +419,78 @@ function updateAllFBSWarehouses() {
     return;
   }
 
-  const skuRange = sheet.getRange(2, 22, lastRow - 1); // V (22): SKU Ozon
+  const numRows = lastRow - 1;
+  const skuRange = sheet.getRange(2, 22, numRows); // V (22): SKU Ozon
   const skuValuesRaw = skuRange.getValues().flat();
 
-  // Фильтруем валидные SKU
-  const validSkuEntries = skuValuesRaw
-    .map((sku, index) => ({ index, sku: sku ? Number(sku) : null }))
-    .filter(entry => entry.sku && !isNaN(entry.sku) && entry.sku > 0);
+  // Сопоставляем каждый валидный SKU со списком индексов строк (0-based)
+  const skuToIndices = new Map();
+  let validSkuCount = 0;
 
-  if (validSkuEntries.length === 0) {
+  for (let idx = 0; idx < skuValuesRaw.length; idx++) {
+    const val = skuValuesRaw[idx];
+    const sku = val ? Number(val) : null;
+    if (sku && !isNaN(sku) && sku > 0) {
+      validSkuCount++;
+      let indices = skuToIndices.get(sku);
+      if (!indices) {
+        indices = [];
+        skuToIndices.set(sku, indices);
+      }
+      indices.push(idx);
+    }
+  }
+
+  const uniqueSkus = Array.from(skuToIndices.keys());
+  Logger.log(`\n📦 Всего строк: ${numRows}, валидных SKU: ${validSkuCount}, уникальных SKU: ${uniqueSkus.length}`);
+
+  if (uniqueSkus.length === 0) {
     Logger.log("❌ Нет валидных SKU в колонке V (22)");
     Logger.log("   Сначала заполните SKU: выполните OzonMain()");
     return;
   }
 
-  const validSkus = validSkuEntries.map(e => e.sku);
-
-  Logger.log(`\n📦 Всего SKU в таблице: ${validSkuEntries.length}`);
-
   // 4. Подготавливаем массивы для записи (инициализируем нулями)
   const columnsData = {};
   targetWarehouses.forEach(tw => {
-    columnsData[tw.column] = new Array(skuValuesRaw.length).fill(0);
+    columnsData[tw.column] = new Array(numRows).fill(0);
   });
 
-  // 5. Для каждого склада получаем остатки
-  const chunkSize = 500; // Ozon API limit для /v1/product/info/stocks-by-warehouse/fbs (МАКС: 500!)
-  let totalUpdated = 0;
+  // 5. Запрашиваем остатки по батчам через v2 API (один проход по всем складам сразу)
+  const chunkSize = 200;
+  const totalChunks = Math.ceil(uniqueSkus.length / chunkSize);
+  const url = typeof ozonFBSStocks === "function" ? ozonFBSStocks() : "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs";
 
-  targetWarehouses.forEach(tw => {
-    Logger.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    Logger.log(`📦 Склад: "${tw.warehouseName}" (ID: ${tw.warehouseId}) → ${tw.letter} (${tw.column})`);
+  let lastRequestTime = Date.now() - 1000 / RPS();
+  let successCount = 0;
+  let failureCount = 0;
+  let totalProductsReceived = 0;
 
-    const stockMap = {}; // sku -> present + reserved (всего на складе)
-    let lastRequestTime = Date.now() - 1000 / RPS();
-    let processedCount = 0;
-    let filteredCount = 0; // ИСПРАВЛЕНО: считаем отфильтрованные строки
+  Logger.log(`\n📤 Запрос остатков по всем складам (Ozon v2 API)...`);
+  Logger.log(`   Всего чанков: ${totalChunks} (по ${chunkSize} SKU)`);
 
-    // Запрашиваем остатки по чанкам
-    for (let i = 0; i < validSkus.length; i += chunkSize) {
+  for (let i = 0; i < uniqueSkus.length; i += chunkSize) {
+    const chunk = uniqueSkus.slice(i, i + chunkSize);
+    const chunkNum = Math.floor(i / chunkSize) + 1;
+
+    if (chunkNum === 1 || chunkNum % 10 === 0 || chunkNum === totalChunks) {
+      Logger.log(`   📤 Чанк ${chunkNum}/${totalChunks} (${chunk.length} SKU)...`);
+    }
+
+    let cursor = "";
+    let hasNext = true;
+    let chunkSuccess = true;
+
+    while (hasNext) {
       lastRequestTime = rateLimitRPS(lastRequestTime, RPS());
 
-      const chunk = validSkus.slice(i, i + chunkSize);
-      const chunkNum = Math.floor(i / chunkSize) + 1;
-      const totalChunks = Math.ceil(validSkus.length / chunkSize);
-
-      if (chunkNum === 1 || chunkNum % 5 === 0 || chunkNum === totalChunks) {
-        Logger.log(`   📤 Чанк ${chunkNum}/${totalChunks} (${chunk.length} SKU)...`);
-      }
-
-      // Payload запроса (согласно документации Ozon)
       const payload = {
         "sku": chunk,
-        "warehouse_id": tw.warehouseId,
-        "limit": chunkSize
+        "limit": 1000
       };
+      if (cursor) {
+        payload.cursor = cursor;
+      }
 
       const options = {
         "method": "post",
@@ -480,79 +501,94 @@ function updateAllFBSWarehouses() {
       };
 
       try {
-        const url = "https://api-seller.ozon.ru/v1/product/info/stocks-by-warehouse/fbs";
         const response = retryFetch(url, options);
 
         if (!response) {
-          Logger.log(`❌ Не удалось получить FBS остатки для чанка`);
-          continue;
+          Logger.log(`   ❌ Ошибка сети при запросе остатков для чанка ${chunkNum}`);
+          chunkSuccess = false;
+          break;
         }
 
         const responseCode = response.getResponseCode();
 
         if (responseCode === 200) {
           const data = JSON.parse(response.getContentText());
+          const products = data.products || data.result || [];
 
-          if (data && data.result && Array.isArray(data.result)) {
-            data.result.forEach(item => {
-              // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: фильтруем по warehouse_id текущего склада!
-              // API может возвращать данные по нескольким складам в одном ответе
-              if (String(item.warehouse_id) !== String(tw.warehouseId)) {
-                filteredCount++; // считаем отфильтрованные
-                return; // пропускаем строки других складов
+          if (Array.isArray(products) && products.length > 0) {
+            totalProductsReceived += products.length;
+
+            products.forEach(item => {
+              const tw = targetWhMap[String(item.warehouse_id)];
+              if (tw) {
+                const sku = Number(item.sku);
+                const present = Number(item.present) || 0;
+                const reserved = Number(item.reserved) || 0;
+                const totalStock = present + reserved;
+
+                const indices = skuToIndices.get(sku);
+                if (indices) {
+                  for (let k = 0; k < indices.length; k++) {
+                    columnsData[tw.column][indices[k]] = totalStock;
+                  }
+                }
               }
-
-              const sku = item.sku;
-              // ИСПРАВЛЕНО: Берём present + reserved (всего на складе), а не только present
-              const present = Number(item.present) || 0;
-              const reserved = Number(item.reserved) || 0;
-              stockMap[sku] = present + reserved;
             });
+          }
 
-            processedCount += data.result.length;
+          if (data.has_next && data.cursor) {
+            cursor = data.cursor;
+          } else {
+            hasNext = false;
           }
         } else {
-          Logger.log(`   ❌ Ошибка API: код ${responseCode}`);
+          Logger.log(`   ❌ Ошибка API на чанке ${chunkNum}: код ${responseCode}`);
+          chunkSuccess = false;
+          break;
         }
       } catch (e) {
-        Logger.log(`   ❌ Исключение: ${e.message}`);
+        Logger.log(`   ❌ Исключение на чанке ${chunkNum}: ${e.message}`);
+        chunkSuccess = false;
+        break;
       }
     }
 
-    Logger.log(`   ✅ Обработано записей: ${processedCount}`);
-    if (filteredCount > 0) {
-      Logger.log(`   📊 Отфильтровано (другие склады): ${filteredCount} строк`);
+    if (chunkSuccess) {
+      successCount++;
+    } else {
+      failureCount++;
     }
+  }
 
-    // 6. Заполняем массив для записи
-    validSkuEntries.forEach(entry => {
-      const arrIndex = entry.index; // индекс в массиве (0-based)
-      const sku = entry.sku;
-      const present = stockMap[sku] || 0;
+  Logger.log(`\n📊 Результат запросов: успешно ${successCount}/${totalChunks} чанков, ошибок: ${failureCount}`);
+  Logger.log(`📦 Всего получено записей остатков: ${totalProductsReceived}`);
 
-      if (present > 0) {
-        columnsData[tw.column][arrIndex] = present;
-        totalUpdated++;
-      }
-    });
+  // КРИТИЧЕСКАЯ ЗАЩИТА: не перезаписывать таблицу нулями, если API упал
+  if (successCount === 0 && failureCount > 0) {
+    Logger.log("\n❌ КРИТИЧЕСКАЯ ОШИБКА: Ни один запрос к API не завершился успешно!");
+    Logger.log("⛔ Запись в таблицу ОТМЕНЕНА во избежание зануления остатков.");
+    return;
+  }
 
-    const withStock = Object.values(stockMap).filter(v => v > 0).length;
-    Logger.log(`   ✅ Товаров с остатками: ${withStock}`);
-  });
+  if (failureCount > totalChunks * 0.3) {
+    Logger.log(`\n⚠️ ВНИМАНИЕ: Слишком много ошибок запросов (${failureCount}/${totalChunks} > 30%)!`);
+    Logger.log("⛔ Запись в таблицу ОТМЕНЕНА для защиты целостности данных.");
+    return;
+  }
 
-  // 7. Записываем данные в таблицу (все колонки сразу для оптимизации)
+  // 6. Записываем данные в таблицу (все колонки)
   Logger.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   Logger.log(`📥 ЗАПИСЬ В ТАБЛИЦУ...`);
 
   targetWarehouses.forEach(tw => {
-    const values = columnsData[tw.column].map(v => [v]); // преобразуем в 2D массив
+    const values = columnsData[tw.column].map(v => [v]);
     sheet.getRange(2, tw.column, values.length, 1).setValues(values);
 
     const withStock = values.filter(v => v[0] > 0).length;
     Logger.log(`   ✅ ${tw.letter} (${tw.column}): "${tw.warehouseName}" - ${withStock} товаров с остатками`);
   });
 
-  // 8. Итоги
+  // 7. Итоги
   const endTime = new Date();
   const seconds = Math.round((endTime - startTime) / 1000);
 
@@ -560,7 +596,7 @@ function updateAllFBSWarehouses() {
   Logger.log("║   ИТОГИ                                                             ║");
   Logger.log("╚════════════════════════════════════════════════════════════════════════╝");
   Logger.log(`📊 Обновлено складов: ${targetWarehouses.length}`);
-  Logger.log(`📦 Всего SKU обработано: ${validSkuEntries.length}`);
+  Logger.log(`📦 Всего уникальных SKU обработано: ${uniqueSkus.length}`);
   Logger.log(`⏱️  Время выполнения: ${seconds} сек.`);
   Logger.log("✅ Завершено успешно!");
   Logger.log("════════════════════════════════════════════════════════════════════════\n");
@@ -608,30 +644,29 @@ function fetchAndUpdateAll() {
  */
 function diagnoseSku(skuToCheck) {
   Logger.log("╔════════════════════════════════════════════════════════════════════════╗");
-  Logger.log(`║   ДИАГНОСТИКА SKU: ${skuToCheck}                                        ║`);
+  Logger.log(`║   ДИАГНОСТИКА SKU: ${skuToCheck} (Ozon v2 API)                         ║`);
   Logger.log("╚════════════════════════════════════════════════════════════════════════╝");
 
   // Загружаем список складов
   const scriptProperties = PropertiesService.getScriptProperties();
   const warehousesJson = scriptProperties.getProperty("ozon_warehouses");
 
-  if (!warehousesJson) {
-    Logger.log("❌ Список складов не найден. Сначала выполните: fetchAndUpdateAll()");
-    return;
+  let warehouses = null;
+  if (warehousesJson) {
+    try {
+      warehouses = JSON.parse(warehousesJson);
+    } catch (e) {
+      Logger.log("❌ Ошибка парсинга списка складов: " + e.message);
+    }
   }
 
-  let warehouses;
-  try {
-    warehouses = JSON.parse(warehousesJson);
-  } catch (e) {
-    Logger.log("❌ Ошибка парсинга списка складов: " + e.message);
-    Logger.log("   Выполните: fetchAndUpdateAll() для получения свежего списка");
-    return;
-  }
-
-  if (!Array.isArray(warehouses)) {
-    Logger.log("❌ Неверный формат списка складов (не массив)");
-    return;
+  if (!warehouses || !Array.isArray(warehouses)) {
+    Logger.log("⚠️ Список складов не найден. Получаем свежий список...");
+    warehouses = fetchAndSaveWarehouses();
+    if (!warehouses) {
+      Logger.log("❌ Не удалось получить список складов");
+      return;
+    }
   }
 
   const targetWarehouses = findTargetWarehouses(warehouses);
@@ -641,54 +676,63 @@ function diagnoseSku(skuToCheck) {
     return;
   }
 
-  Logger.log(`\n🔍 Проверяю SKU ${skuToCheck} на ${targetWarehouses.length} складах...\n`);
+  Logger.log(`\n🔍 Запрос остатков по SKU ${skuToCheck} через Ozon v2 API...\n`);
 
-  // Запрашиваем остатки для каждого склада
-  const url = "https://api-seller.ozon.ru/v1/product/info/stocks-by-warehouse/fbs";
+  const url = typeof ozonFBSStocks === "function" ? ozonFBSStocks() : "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs";
+  const payload = {
+    "sku": [Number(skuToCheck)],
+    "limit": 100
+  };
 
-  targetWarehouses.forEach(tw => {
-    const payload = {
-      "sku": [skuToCheck],
-      "warehouse_id": tw.warehouseId,
-      "limit": 1
-    };
+  const options = {
+    "method": "post",
+    "contentType": "application/json",
+    "headers": ozonHeaders(),
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true
+  };
 
-    const options = {
-      "method": "post",
-      "contentType": "application/json",
-      "headers": ozonHeaders(),
-      "payload": JSON.stringify(payload),
-      "muteHttpExceptions": true
-    };
-
-    try {
-      const response = retryFetch(url, options);
-      const responseCode = response.getResponseCode();
-
-      if (responseCode === 200) {
-        const data = JSON.parse(response.getContentText());
-
-        if (data && data.result && Array.isArray(data.result) && data.result.length > 0) {
-          const item = data.result[0];
-          const present = Number(item.present) || 0;
-          const reserved = Number(item.reserved) || 0;
-          const total = present + reserved;
-
-          Logger.log(`${tw.letter} (${tw.column}): "${tw.warehouseName}" [ID: ${tw.warehouseId}]`);
-          Logger.log(`   Present (доступно): ${present}`);
-          Logger.log(`   Reserved (зарезервировано): ${reserved}`);
-          Logger.log(`   Всего (present + reserved): ${total}`);
-        } else {
-          Logger.log(`${tw.letter} (${tw.column}): "${tw.warehouseName}" [ID: ${tw.warehouseId}]`);
-          Logger.log(`   ❌ Нет данных (SKU не найден на этом складе)`);
-        }
-      } else {
-        Logger.log(`${tw.letter} (${tw.column}): ❌ Ошибка API: код ${responseCode}`);
-      }
-    } catch (e) {
-      Logger.log(`${tw.letter} (${tw.column}): ❌ Исключение: ${e.message}`);
+  try {
+    const response = retryFetch(url, options);
+    if (!response) {
+      Logger.log("❌ Не удалось получить ответ от API");
+      return;
     }
-  });
+
+    const responseCode = response.getResponseCode();
+
+    if (responseCode === 200) {
+      const data = JSON.parse(response.getContentText());
+      const products = data.products || data.result || [];
+
+      if (!Array.isArray(products) || products.length === 0) {
+        Logger.log(`⚪ Товар SKU ${skuToCheck} не имеет остатков ни на одном FBS складе`);
+      } else {
+        Logger.log(`📦 Всего записей по складам: ${products.length}\n`);
+
+        targetWarehouses.forEach(tw => {
+          const item = products.find(p => String(p.warehouse_id) === String(tw.warehouseId));
+          if (item) {
+            const present = Number(item.present) || 0;
+            const reserved = Number(item.reserved) || 0;
+            const total = present + reserved;
+
+            Logger.log(`✅ ${tw.letter} (${tw.column}): "${tw.warehouseName}" [ID: ${tw.warehouseId}]`);
+            Logger.log(`   Present (доступно): ${present}`);
+            Logger.log(`   Reserved (зарезервировано): ${reserved}`);
+            Logger.log(`   Всего (present + reserved): ${total}`);
+          } else {
+            Logger.log(`⚪ ${tw.letter} (${tw.column}): "${tw.warehouseName}" [ID: ${tw.warehouseId}] — 0 шт.`);
+          }
+        });
+      }
+    } else {
+      Logger.log(`❌ Ошибка API: код ${responseCode}`);
+      Logger.log(response.getContentText().substring(0, 300));
+    }
+  } catch (e) {
+    Logger.log(`❌ Исключение: ${e.message}`);
+  }
 
   Logger.log("\n════════════════════════════════════════════════════════════════════════\n");
 }

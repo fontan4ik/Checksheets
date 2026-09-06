@@ -100,13 +100,13 @@ function readODCStocksFromSheet() {
  * @returns {Array} Массив складов
  */
 function getODCOzonWarehouses() {
-  const url = "https://api-seller.ozon.ru/v1/warehouse/list";
+  const url = "https://api-seller.ozon.ru/v2/warehouse/list";
 
   const options = {
     method: "post",
     contentType: "application/json",
     headers: ozonHeaders(),
-    payload: JSON.stringify({}),
+    payload: JSON.stringify({ limit: 200 }),
     muteHttpExceptions: true
   };
 
@@ -126,7 +126,7 @@ function getODCOzonWarehouses() {
   }
 
   const data = JSON.parse(response.getContentText());
-  const warehouses = data.result || [];
+  const warehouses = data.warehouses || data.result || [];
 
   Logger.log(`📦 Получено ${warehouses.length} складов Ozon`);
 
