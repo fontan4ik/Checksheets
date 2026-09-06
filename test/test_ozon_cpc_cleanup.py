@@ -277,8 +277,14 @@ class OzonCpcCleanupTests(unittest.TestCase):
         week_start, week_end = period_range(PERIOD_WEEK, now)
         month_start, month_end = period_range(PERIOD_MONTH, now)
         self.assertEqual((day_start, day_end), ("2026-08-05T00:00:00+03:00", "2026-08-05T23:59:59+03:00"))
-        self.assertEqual((week_start, week_end), ("2026-07-30T00:00:00+03:00", "2026-08-05T23:59:59+03:00"))
-        self.assertEqual((month_start, month_end), ("2026-08-01T00:00:00+03:00", "2026-08-05T23:59:59+03:00"))
+        self.assertEqual((week_start, week_end), ("2026-07-29T00:00:00+03:00", "2026-08-04T23:59:59+03:00"))
+        self.assertEqual((month_start, month_end), ("2026-07-05T00:00:00+03:00", "2026-08-04T23:59:59+03:00"))
+
+        now_sep6 = datetime.fromisoformat("2026-09-06T12:00:00+03:00")
+        w_start, w_end = period_range(PERIOD_WEEK, now_sep6)
+        m_start, m_end = period_range(PERIOD_MONTH, now_sep6)
+        self.assertEqual((w_start, w_end), ("2026-08-30T00:00:00+03:00", "2026-09-05T23:59:59+03:00"))
+        self.assertEqual((m_start, m_end), ("2026-08-06T00:00:00+03:00", "2026-09-05T23:59:59+03:00"))
 
     def test_statistics_payload_uses_documented_rfc3339_fields_and_no_group_by(self):
         payload = build_statistics_payload(

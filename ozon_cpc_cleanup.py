@@ -283,15 +283,19 @@ def period_range(period: str, now: datetime | None = None) -> tuple[str, str]:
     """Return RFC3339 ``from``/``to`` bounds for day/week/month in Moscow time."""
     current = (now or datetime.now()).astimezone(MOSCOW_TZ)
     today = current.date()
+    yesterday = today - timedelta(days=1)
     if period == PERIOD_DAY:
         start = today
+        end = today
     elif period == PERIOD_WEEK:
-        start = today - timedelta(days=6)
+        end = yesterday
+        start = end - timedelta(days=6)
     elif period == PERIOD_MONTH:
-        start = today.replace(day=1)
+        end = yesterday
+        start = end - timedelta(days=30)
     else:
         raise ValueError(f"Неизвестный период: {period}")
-    return f"{start.isoformat()}T00:00:00+03:00", f"{today.isoformat()}T23:59:59+03:00"
+    return f"{start.isoformat()}T00:00:00+03:00", f"{end.isoformat()}T23:59:59+03:00"
 
 
 def rotation_slice(
@@ -614,7 +618,7 @@ def parse_report_block(
     sku_index = find_column(headers, ["sku"])
     clicks_index = find_column(headers, ["клики", "clicks"])
     campaign_index = find_column(headers, ["campaign id", "campaign_id", "id кампании"])
-    day_index = find_column(headers, ["день", "day", "дата"])
+    day_index = find_column(headers, ["день", "day", "дата", "date"])
     metric_indexes = {
         "impressions": find_column(headers, ["показы", "impressions"]),
         "ctr": find_column(headers, ["ctr, %", "ctr"]),
@@ -1131,14 +1135,20 @@ def fetch_period_metrics(
     ``on_batch`` is called right after each successfully fetched batch so the
     caller can write that slice to the sheet without waiting for the whole run.
     """
-    today_str = datetime.now(MOSCOW_TZ).date().strftime("%d.%m.%Y")
-    week_from = (datetime.now(MOSCOW_TZ).date() - timedelta(days=6)).strftime("%d.%m.%Y")
-    month_from, month_to = period_range(PERIOD_MONTH)
+    now = datetime.now(MOSCOW_TZ)
+    today = now.date()
+    yesterday = today - timedelta(days=1)
+    today_str = today.strftime("%d.%m.%Y")
+    yesterday_str = yesterday.strftime("%d.%m.%Y")
+    week_from_str = (yesterday - timedelta(days=6)).strftime("%d.%m.%Y")
+    month_from_str = (yesterday - timedelta(days=30)).strftime("%d.%m.%Y")
+    month_from, month_to = period_range(PERIOD_MONTH, now)
+    report_to = f"{today.isoformat()}T23:59:59+03:00" if include_day else month_to
     result: dict[str, dict[tuple[str, str], Metric]] = {period: {} for period in PERIODS}
     for start in range(0, len(campaign_ids), batch_size):
         batch = campaign_ids[start : start + batch_size]
         try:
-            raw = fetch_report_bytes(session, token, batch, month_from, month_to, group_by="DATE")
+            raw = fetch_report_bytes(session, token, batch, month_from, report_to, group_by="DATE")
         except DailyReportLimitError:
             print("Ozon API ограничил текущий запуск по дневной квоте; следующий запуск будет по расписанию")
             raise
@@ -1148,8 +1158,8 @@ def fetch_period_metrics(
             print(f"Пропущен батч {start // batch_size + 1}: {exc}")
             continue
         filters = {
-            PERIOD_WEEK: (week_from, today_str),
-            PERIOD_MONTH: (None, None),
+            PERIOD_WEEK: (week_from_str, yesterday_str),
+            PERIOD_MONTH: (month_from_str, yesterday_str),
         }
         if include_day:
             filters[PERIOD_DAY] = (today_str, today_str)
