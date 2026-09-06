@@ -74,19 +74,17 @@ function fetchAndSaveWarehouses() {
   Logger.log("║   ШАГ 1: ПОЛУЧЕНИЕ СПИСКА СКЛАДОВ OZON FBS                            ║");
   Logger.log("╚════════════════════════════════════════════════════════════════════════╝");
 
-  const url = "https://api-seller.ozon.ru/v1/warehouse/list";
+  const url = "https://api-seller.ozon.ru/v2/warehouse/list";
 
-  // ИСПРАВЛЕНО: API Ozon принимает limit только до 200 (не 1000!)
-  // Добавляем пагинацию для получения всех складов
-  const limit = 200; // макс. допустимое значение для /v1/warehouse/list
-  const maxPages = 10; // защита от бесконечного цикла (макс. 2000 складов)
+  const limit = 200;
+  const maxPages = 10;
 
   let allWarehouses = [];
-  let offset = 0;
+  let cursor = "";
   let pageCount = 0;
   let lastRequestTime = Date.now() - 1000 / RPS();
 
-  Logger.log("\n📤 Загрузка списка складов (с пагинацией)...");
+  Logger.log("\n📤 Загрузка списка складов (Ozon v2 API)...");
 
   try {
     // Цикл пагинации
@@ -97,9 +95,11 @@ function fetchAndSaveWarehouses() {
       lastRequestTime = rateLimitRPS(lastRequestTime, RPS());
 
       const payload = {
-        "limit": limit,
-        "offset": offset
+        "limit": limit
       };
+      if (cursor) {
+        payload.cursor = cursor;
+      }
 
       const options = {
         "method": "post",
@@ -110,7 +110,7 @@ function fetchAndSaveWarehouses() {
       };
 
       if (pageCount === 1 || pageCount % 5 === 0) {
-        Logger.log(`   📤 Страница ${pageCount} (offset: ${offset}, limit: ${limit})...`);
+        Logger.log(`   📤 Страница ${pageCount}...`);
       }
 
       const response = retryFetch(url, options);
@@ -125,21 +125,18 @@ function fetchAndSaveWarehouses() {
 
       if (responseCode === 200) {
         const data = JSON.parse(responseText);
+        const warehouses = data.warehouses || data.result || [];
 
-        if (data && data.result && Array.isArray(data.result)) {
-          const warehouses = data.result;
+        if (Array.isArray(warehouses) && warehouses.length > 0) {
           allWarehouses.push(...warehouses);
 
-          // Если вернулось меньше чем limit - это последняя страница
-          if (warehouses.length < limit) {
-            Logger.log(`   ✅ Загружена последняя страница (${warehouses.length} складов)`);
+          if (data.has_next && data.cursor) {
+            cursor = data.cursor;
+          } else {
+            Logger.log(`   ✅ Загружены все склады (${allWarehouses.length} складов)`);
             break;
           }
-
-          // Увеличиваем offset для следующей итерации
-          offset += limit;
         } else {
-          Logger.log(`   ❌ Неверный формат ответа на странице ${pageCount}`);
           break;
         }
       } else {
