@@ -71,13 +71,21 @@ async function sendTelegramAlert(serviceName, errorMessage, details = null) {
 /**
  * Record FBS broadcast numbers and calculate comparison vs previous day.
  */
-function recordAndCompareFbsStats(supplierName, totalSku, activeSku) {
+function recordAndCompareFbsStats(
+  historyKey,
+  totalSku,
+  activeSku,
+  marketplaceSku = null,
+  marketplacePieces = null
+) {
   if (!fs.existsSync(LOGS_DIR)) {
     fs.mkdirSync(LOGS_DIR, { recursive: true });
   }
 
-  const safeSupplier = supplierName.toLowerCase().replace(/[^a-z0-9а-яё]/gi, "_");
-  const historyFile = path.join(LOGS_DIR, `fbs_history_${safeSupplier}.json`);
+  const safeKey = String(historyKey || "unknown")
+    .toLowerCase()
+    .replace(/[^a-z0-9а-яё]/gi, "_");
+  const historyFile = path.join(LOGS_DIR, `fbs_history_${safeKey}.json`);
 
   let history = [];
   if (fs.existsSync(historyFile)) {
@@ -113,6 +121,8 @@ function recordAndCompareFbsStats(supplierName, totalSku, activeSku) {
     timestamp: now.toISOString(),
     total: totalSku,
     active: activeSku,
+    marketplaceSku,
+    marketplacePieces,
   });
 
   // Keep last 60 entries
@@ -128,10 +138,17 @@ function recordAndCompareFbsStats(supplierName, totalSku, activeSku) {
 
   let growthText = "Прирост: <i>(первый запуск, накапливаем статистику)</i>";
   if (prevDayEntry && typeof prevDayEntry.active === "number") {
-    const prevActive = prevDayEntry.active;
-    const delta = activeSku - prevActive;
+    // Compare marketplaceSku if present on both, otherwise activeSku
+    const useMarketplace =
+      marketplaceSku !== null &&
+      marketplaceSku !== undefined &&
+      typeof prevDayEntry.marketplaceSku === "number";
+    const currentVal = useMarketplace ? marketplaceSku : activeSku;
+    const prevVal = useMarketplace ? prevDayEntry.marketplaceSku : prevDayEntry.active;
+
+    const delta = currentVal - prevVal;
     const sign = delta >= 0 ? "+" : "";
-    const pct = prevActive > 0 ? (delta / prevActive) * 100 : 0;
+    const pct = prevVal > 0 ? (delta / prevVal) * 100 : 0;
     const pctSign = pct >= 0 ? "+" : "";
     const dateLabel = prevDayEntry.date < todayStr ? "днем ранее" : "прошлый запуск";
     growthText = `Прирост: <b>${pctSign}${pct.toFixed(1)}%</b> (${sign}${delta.toLocaleString("ru-RU")} SKU ${dateLabel})`;
@@ -144,12 +161,77 @@ function recordAndCompareFbsStats(supplierName, totalSku, activeSku) {
 }
 
 /**
- * Send completed FBS broadcast summary report.
+ * Send completed FBS warehouse broadcast report for a single warehouse & marketplace.
  */
-async function sendFbsBroadcastReport({
-  supplier = "ФБС",
+async function sendFbsWarehouseReport({
+  marketplace = "Ozon",
+  warehouseName = "Склад",
   totalSku = 0,
   activeSku = 0,
+  marketplaceStockSku = null,
+  marketplaceTotalPieces = null,
+  durationSec = null,
+  historyKey = null,
+}) {
+  const durationText = durationSec
+    ? `${Math.floor(durationSec / 60)} мин ${durationSec % 60} сек`
+    : "";
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("ru-RU", { timeZone: "Europe/Samara" });
+  const timeStr = now.toLocaleTimeString("ru-RU", { timeZone: "Europe/Samara", hour12: false });
+
+  const key = historyKey || `${marketplace}_${warehouseName}`;
+  const { growthText } = recordAndCompareFbsStats(
+    key,
+    totalSku,
+    activeSku,
+    marketplaceStockSku,
+    marketplaceTotalPieces
+  );
+
+  const formattedTotal = Number(totalSku).toLocaleString("ru-RU");
+  const formattedActive = Number(activeSku).toLocaleString("ru-RU");
+
+  const header = durationText
+    ? `📦 <b>Трансляция ${marketplace} (склад «${warehouseName}») завершена</b> (${durationText})`
+    : `📦 <b>Трансляция ${marketplace} (склад «${warehouseName}») завершена</b>`;
+
+  const lines = [
+    header,
+    `📅 <b>Дата:</b> <code>${dateStr}</code>`,
+    `⏰ <b>Время окончания трансляции:</b> <code>${timeStr}</code>`,
+    `Всего в трансляции: <b>${formattedTotal}</b> SKU`,
+    `Транслируем: <b>${formattedActive}</b> SKU`,
+  ];
+
+  if (marketplaceStockSku !== null && marketplaceStockSku !== undefined) {
+    const formattedMarketplaceSku = Number(marketplaceStockSku).toLocaleString("ru-RU");
+    if (marketplaceTotalPieces !== null && marketplaceTotalPieces !== undefined && marketplaceTotalPieces > 0) {
+      const formattedPieces = Number(marketplaceTotalPieces).toLocaleString("ru-RU");
+      lines.push(
+        `Сейчас на остатках ${marketplace}: <b>${formattedMarketplaceSku}</b> SKU (${formattedPieces} шт.)`
+      );
+    } else {
+      lines.push(
+        `Сейчас на остатках ${marketplace}: <b>${formattedMarketplaceSku}</b> SKU`
+      );
+    }
+  }
+
+  lines.push(growthText);
+
+  return sendTelegramMessage(lines.join("\n"), "HTML");
+}
+
+/**
+ * Send multi-warehouse summary report (for suppliers with multiple warehouses like Feron).
+ */
+async function sendFbsMultiWarehouseReport({
+  supplier = "Ферон",
+  marketplace = "Ozon",
+  totalSku = 0,
+  warehouses = [],
   durationSec = null,
 }) {
   const durationText = durationSec
@@ -160,30 +242,64 @@ async function sendFbsBroadcastReport({
   const dateStr = now.toLocaleDateString("ru-RU", { timeZone: "Europe/Samara" });
   const timeStr = now.toLocaleTimeString("ru-RU", { timeZone: "Europe/Samara", hour12: false });
 
-  const { growthText } = recordAndCompareFbsStats(supplier, totalSku, activeSku);
-
   const formattedTotal = Number(totalSku).toLocaleString("ru-RU");
-  const formattedActive = Number(activeSku).toLocaleString("ru-RU");
 
   const header = durationText
-    ? `📦 <b>Трансляция ФБС ${supplier} завершена</b> (${durationText})`
-    : `📦 <b>Трансляция ФБС ${supplier} завершена</b>`;
+    ? `📦 <b>Трансляция ${marketplace} (${supplier}) завершена</b> (${durationText})`
+    : `📦 <b>Трансляция ${marketplace} (${supplier}) завершена</b>`;
 
   const lines = [
     header,
     `📅 <b>Дата:</b> <code>${dateStr}</code>`,
     `⏰ <b>Время окончания трансляции:</b> <code>${timeStr}</code>`,
-    `Всего в трансляции ФБС: <b>${formattedTotal}</b> SKU`,
-    `Транслируем: <b>${formattedActive}</b> SKU`,
-    growthText,
+    `Всего в таблице: <b>${formattedTotal}</b> SKU`,
+    "",
+    `🏪 <b>Склады ${marketplace}:</b>`,
   ];
 
+  for (const wh of warehouses) {
+    const name = wh.warehouseName || wh.name || "Склад";
+    const active = Number(wh.activeSku || 0).toLocaleString("ru-RU");
+    let whLine = `• <b>${name}:</b> транслируем <b>${active}</b> SKU`;
+    if (wh.marketplaceStockSku !== null && wh.marketplaceStockSku !== undefined) {
+      const mktSku = Number(wh.marketplaceStockSku).toLocaleString("ru-RU");
+      if (wh.marketplaceTotalPieces !== null && wh.marketplaceTotalPieces !== undefined && wh.marketplaceTotalPieces > 0) {
+        const mktPieces = Number(wh.marketplaceTotalPieces).toLocaleString("ru-RU");
+        whLine += ` | остаток: <b>${mktSku}</b> SKU (${mktPieces} шт.)`;
+      } else {
+        whLine += ` | остаток: <b>${mktSku}</b> SKU`;
+      }
+    }
+    lines.push(whLine);
+  }
+
   return sendTelegramMessage(lines.join("\n"), "HTML");
+}
+
+/**
+ * Backwards-compatible sendFbsBroadcastReport.
+ */
+async function sendFbsBroadcastReport(options) {
+  if (options.warehouseName) {
+    return sendFbsWarehouseReport(options);
+  }
+  if (Array.isArray(options.warehouses) && options.warehouses.length > 0) {
+    return sendFbsMultiWarehouseReport(options);
+  }
+  return sendFbsWarehouseReport({
+    marketplace: options.supplier || "ФБС",
+    warehouseName: options.supplier || "ФБС",
+    totalSku: options.totalSku,
+    activeSku: options.activeSku,
+    durationSec: options.durationSec,
+  });
 }
 
 module.exports = {
   sendTelegramMessage,
   sendTelegramAlert,
+  sendFbsWarehouseReport,
+  sendFbsMultiWarehouseReport,
   sendFbsBroadcastReport,
   recordAndCompareFbsStats,
 };

@@ -2,7 +2,7 @@ const { google } = require("googleapis");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
-const { sendTelegramAlert, sendFbsBroadcastReport } = require("./telegram_notifier");
+const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsMultiWarehouseReport, sendFbsBroadcastReport } = require("./telegram_notifier");
 
 const SHEET_NAME = "StreamSupps";
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
@@ -265,6 +265,9 @@ async function verifyFeronOzonWarehouse(stocks, warehouse) {
 
   const mismatches = [];
   const samples = [];
+  let sheetPositiveCount = 0;
+  let marketplacePositiveCount = 0;
+  let marketplaceTotalPieces = 0;
 
   expected.forEach((item) => {
     const expectedStock = Number(item[warehouse.col]) || 0;
@@ -273,13 +276,21 @@ async function verifyFeronOzonWarehouse(stocks, warehouse) {
     }
     const actual = actualMap.get(String(item.ozon_sku));
     const actualStock = actual ? actual.present + actual.reserved : 0;
+    const freeStock = actual?.free_stock ?? 0;
+
+    if (expectedStock > 0) sheetPositiveCount++;
+    if (actualStock > 0) {
+      marketplacePositiveCount++;
+      marketplaceTotalPieces += actualStock;
+    }
+
     if (actualStock !== expectedStock) {
       mismatches.push({
         offer_id: item.offer_id,
         ozon_sku: item.ozon_sku,
         expected: expectedStock,
         actual: actualStock,
-        free: actual?.free_stock ?? 0,
+        free: freeStock,
       });
       if (samples.length < 10) {
         samples.push(
@@ -289,12 +300,20 @@ async function verifyFeronOzonWarehouse(stocks, warehouse) {
     }
   });
 
+  mismatches.stats = {
+    warehouseName: warehouse.name,
+    warehouseId: warehouse.id,
+    sheetPositiveCount,
+    marketplacePositiveCount,
+    marketplaceTotalPieces,
+  };
+
   if (mismatches.length === 0) {
-    log(`✅ Ozon post-check ${warehouse.name}: расхождений не найдено`);
-    return [];
+    log(`✅ Ozon post-check ${warehouse.name}: расхождений не найдено (остаток Ozon: ${marketplacePositiveCount} SKU, ${marketplaceTotalPieces} шт.)`);
+    return mismatches;
   }
 
-  log(`⚠️ Ozon post-check ${warehouse.name}: найдено ${mismatches.length} расхождений`);
+  log(`⚠️ Ozon post-check ${warehouse.name}: найдено ${mismatches.length} расхождений (остаток Ozon: ${marketplacePositiveCount} SKU, ${marketplaceTotalPieces} шт.)`);
   samples.forEach((line) => log(`   - ${line}`));
   return mismatches;
 }
@@ -363,25 +382,25 @@ async function updateFeronStocksOzon(stocks) {
   const warehouses = [
     {
       key: "MSK",
-      name: "Москва",
+      name: "ПОДОРОЖНИК ФБС (МСК)",
       id: FERON_TR_OZON_WAREHOUSES.MSK,
       col: "stock_msk",
     },
     {
       key: "SMR",
-      name: "Самара",
+      name: "ФЕРОН ФБС (Самара)",
       id: FERON_TR_OZON_WAREHOUSES.SMR,
       col: "stock_smr",
     },
     {
       key: "NSB",
-      name: "Новосибирск",
+      name: "НОВОСИБИРСК ФЕРОН",
       id: FERON_TR_OZON_WAREHOUSES.NSB,
       col: "stock_nsb",
     },
     {
       key: "EKB",
-      name: "Екатеринбург",
+      name: "ЕКБ Ферон",
       id: FERON_TR_OZON_WAREHOUSES.EKB,
       col: "stock_ekb",
     },
@@ -390,6 +409,7 @@ async function updateFeronStocksOzon(stocks) {
   let totalSuccess = 0;
   let totalError = 0;
   const pendingChecks = [];
+  const ozonWarehouseStats = [];
 
   for (const wh of warehouses) {
     log(`\n📦 Обработка склада: ${wh.name} (ID: ${wh.id})...`);
@@ -438,6 +458,15 @@ async function updateFeronStocksOzon(stocks) {
     );
     await new Promise((resolve) => setTimeout(resolve, OZON_POSTCHECK_DELAY_MS));
     const mismatches = await verifyFeronOzonWarehouse(validStocks, wh);
+    ozonWarehouseStats.push(
+      mismatches.stats || {
+        warehouseName: wh.name,
+        warehouseId: wh.id,
+        sheetPositiveCount: validStocks.filter((s) => s[wh.col] > 0).length,
+        marketplacePositiveCount: null,
+        marketplaceTotalPieces: null,
+      },
+    );
     if (mismatches.length > 0) {
       log(
         `ℹ️ Промежуточные расхождения Ozon ${wh.name} будут перепроверены в конце скрипта после WB: ${mismatches.length}`,
@@ -449,7 +478,7 @@ async function updateFeronStocksOzon(stocks) {
   }
 
   log(`\n🟠 Ozon Всего: ✅ ${totalSuccess} обновлено, ❌ ${totalError} ошибок`);
-  return pendingChecks;
+  return { pendingChecks, ozonWarehouseStats };
 }
 
 function isWBCargoRestrictionError(responseText) {
@@ -626,13 +655,13 @@ async function updateFeronStocksWB(stocks) {
   const warehouses = [
     {
       key: "MSK",
-      name: "Москва",
+      name: "Подорожник (МСК)",
       id: FERON_TR_WB_WAREHOUSE.MSK,
       col: "stock_msk",
     },
     {
       key: "SMR",
-      name: "Самара",
+      name: "ВольтМир (Самара)",
       id: FERON_TR_WB_WAREHOUSE.SMR,
       col: "stock_smr",
     },
@@ -654,6 +683,7 @@ async function updateFeronStocksWB(stocks) {
   let totalSuccess = 0;
   let totalSkipped = 0;
   let totalError = 0;
+  const wbWarehouseStats = [];
 
   for (const wh of warehouses) {
     log(`\n📦 Обработка склада: ${wh.name} (ID: ${wh.id})...`);
@@ -661,6 +691,18 @@ async function updateFeronStocksWB(stocks) {
     if (FORCE_ZERO_WB_EKB && wh.key === "EKB") {
       log(`⏸️ FORCE_ZERO_WB_EKB: склад EKB будет записан нулями`);
     }
+
+    const activeCount = validStocks.filter((s) => {
+      const amt = FORCE_ZERO_WB_EKB && wh.key === "EKB" ? 0 : s[wh.col];
+      return amt > 0;
+    }).length;
+    wbWarehouseStats.push({
+      warehouseName: wh.name,
+      warehouseId: wh.id,
+      activeSku: activeCount,
+      marketplaceStockSku: null,
+      marketplaceTotalPieces: null,
+    });
 
     const batchSize = 200;
     const batches = Math.ceil(validStocks.length / batchSize);
@@ -737,6 +779,7 @@ async function updateFeronStocksWB(stocks) {
   log(
     `\n🟣 WB Всего: ✅ ${totalSuccess} обновлено, ⏸️ ${totalSkipped} пропущено ODC/CD+, ❌ ${totalError} ошибок`,
   );
+  return wbWarehouseStats;
 }
 
 async function main() {

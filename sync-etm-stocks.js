@@ -2,7 +2,7 @@ const { google } = require("googleapis");
 const axios = require("axios");
 const path = require("path");
 const crypto = require("crypto");
-const { sendTelegramAlert, sendFbsBroadcastReport } = require("./telegram_notifier");
+const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsBroadcastReport } = require("./telegram_notifier");
 
 const SHEET_NAME = "StreamSupps";
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
@@ -380,6 +380,7 @@ async function verifyETMOzonStocks(stocks) {
   const samples = [];
   let sheetPositiveCount = 0;
   let marketplacePositiveCount = 0;
+  let marketplaceTotalPieces = 0;
 
   expected.forEach((item) => {
     const actual = actualMap.get(String(item.offer_id));
@@ -387,7 +388,10 @@ async function verifyETMOzonStocks(stocks) {
     const present = actual?.present ?? 0;
     const reserved = actual?.reserved ?? 0;
     if (item.stock > 0) sheetPositiveCount++;
-    if (freeStock > 0) marketplacePositiveCount++;
+    if (freeStock > 0) {
+      marketplacePositiveCount++;
+      marketplaceTotalPieces += freeStock;
+    }
     if (freeStock !== item.stock) {
       mismatches.push({
         offer_id: item.offer_id,
@@ -405,12 +409,22 @@ async function verifyETMOzonStocks(stocks) {
   });
 
   log(
-    `📊 Ozon non-zero check (склад ЭТМ САМАРА ${ETM_TR_OZON_WAREHOUSE}): Google S>0=${sheetPositiveCount}, marketplace free_stock>0=${marketplacePositiveCount}, delta=${marketplacePositiveCount - sheetPositiveCount}`,
+    `📊 Ozon non-zero check (склад ЭТМ САМАРА ${ETM_TR_OZON_WAREHOUSE}): Google S>0=${sheetPositiveCount}, marketplace free_stock>0=${marketplacePositiveCount}, pieces=${marketplaceTotalPieces}, delta=${marketplacePositiveCount - sheetPositiveCount}`,
   );
+
+  mismatches.stats = {
+    marketplace: "Ozon",
+    warehouseName: "ЭТМ САМАРА",
+    warehouseId: ETM_TR_OZON_WAREHOUSE,
+    totalSku: expected.length,
+    sheetPositiveCount,
+    marketplacePositiveCount,
+    marketplaceTotalPieces,
+  };
 
   if (mismatches.length === 0) {
     log("✅ Ozon post-check: расхождений по складу ЭТМ САМАРА не найдено");
-    return [];
+    return mismatches;
   }
 
   log(`⚠️ Ozon post-check: найдено ${mismatches.length} расхождений по складу ЭТМ САМАРА`);
@@ -946,20 +960,36 @@ async function verifyETMWBStocks(stocks) {
 
   let sheetPositiveCount = 0;
   let marketplacePositiveCount = 0;
+  let marketplaceTotalPieces = 0;
   let excludedCount = 0;
   expectedByChrtId.forEach((sheetStock, chrtId) => {
     if (failedChrtIds.has(chrtId)) {
       excludedCount++;
       return;
     }
+    const wbStock = actualMap.get(chrtId) ?? 0;
     if (sheetStock > 0) sheetPositiveCount++;
-    if ((actualMap.get(chrtId) ?? 0) > 0) marketplacePositiveCount++;
+    if (wbStock > 0) {
+      marketplacePositiveCount++;
+      marketplaceTotalPieces += wbStock;
+    }
   });
 
   const excludedText = excludedCount > 0 ? `, исключено из сравнения=${excludedCount}` : "";
   log(
-    `📊 WB non-zero check (склад ВольтМир ${ETM_TR_WB_WAREHOUSE}): Google S>0=${sheetPositiveCount}, marketplace amount>0=${marketplacePositiveCount}, delta=${marketplacePositiveCount - sheetPositiveCount}${excludedText}`,
+    `📊 WB non-zero check (склад ВольтМир ${ETM_TR_WB_WAREHOUSE}): Google S>0=${sheetPositiveCount}, marketplace amount>0=${marketplacePositiveCount}, pieces=${marketplaceTotalPieces}, delta=${marketplacePositiveCount - sheetPositiveCount}${excludedText}`,
   );
+
+  mismatches.stats = {
+    marketplace: "ВБ",
+    warehouseName: "ВольтМир",
+    warehouseId: ETM_TR_WB_WAREHOUSE,
+    totalSku: stocks.length,
+    sheetPositiveCount,
+    marketplacePositiveCount,
+    marketplaceTotalPieces,
+    excludedCount,
+  };
   
   if (mismatches.length === 0) {
     log("✅ WB post-check: расхождений по складу ВольтМир не найдено");
@@ -1108,13 +1138,15 @@ async function main() {
     setTimeout(resolve, OZON_POSTCHECK_RETRY_DELAY_MS),
   );
   const finalOzonMismatches = await verifyETMOzonStocks(stocks);
-  await repairETMOzonMismatches(stocks, finalOzonMismatches);
+  const remainingOzonMismatches = await repairETMOzonMismatches(stocks, finalOzonMismatches);
+  const ozonStats = remainingOzonMismatches?.stats || finalOzonMismatches?.stats;
 
   log("");
   log("🟣 Шаг 5: Ожидание 15 минут перед финальным WB post-check...");
   await new Promise((resolve) => setTimeout(resolve, 15 * 60 * 1000));
   const finalWBMismatches = await verifyETMWBStocks(stocks);
-  await repairETMWBMismatches(stocks, finalWBMismatches);
+  const remainingWBMismatches = await repairETMWBMismatches(stocks, finalWBMismatches);
+  const wbStats = remainingWBMismatches?.stats || finalWBMismatches?.stats;
 
   const endTime = new Date();
   const duration = Math.round((endTime - startTime) / 1000);
@@ -1124,14 +1156,33 @@ async function main() {
   log(`✅ Синхронизация завершена за ${duration} сек.`);
   console.log("============================================");
 
-  // Отправка итоговой сводки трансляции ФБС в Telegram
+  // Отправка итоговой сводки трансляции ФБС в Telegram (отдельно для Ozon и WB)
   try {
     const totalSku = stocks.length;
-    const activeSku = stocks.filter((s) => s.stock > 0).length;
-    await sendFbsBroadcastReport({
-      supplier: "ЭТМ",
+    const ozonActive = ozonStats?.sheetPositiveCount ?? stocks.filter((s) => s.stock > 0).length;
+    const wbActive = wbStats?.sheetPositiveCount ?? stocks.filter((s) => s.chrlid && s.wb_stock > 0).length;
+
+    // 1. Отчет по Ozon (склад «ЭТМ САМАРА»)
+    await sendFbsWarehouseReport({
+      marketplace: "Ozon",
+      warehouseName: "ЭТМ САМАРА",
       totalSku,
-      activeSku,
+      activeSku: ozonActive,
+      marketplaceStockSku: ozonStats?.marketplacePositiveCount ?? null,
+      marketplaceTotalPieces: ozonStats?.marketplaceTotalPieces ?? null,
+      durationSec: duration,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    // 2. Отчет по WB (склад «ВольтМир»)
+    await sendFbsWarehouseReport({
+      marketplace: "ВБ",
+      warehouseName: "ВольтМир",
+      totalSku,
+      activeSku: wbActive,
+      marketplaceStockSku: wbStats?.marketplacePositiveCount ?? null,
+      marketplaceTotalPieces: wbStats?.marketplaceTotalPieces ?? null,
       durationSec: duration,
     });
   } catch (repErr) {
