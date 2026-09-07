@@ -831,11 +831,12 @@ async function main() {
 
   log(``);
   log(`🟠 Шаг 2: Обновление остатков Ozon...`);
-  const ozonPendingChecks = await updateFeronStocksOzon(stocks);
+  const { pendingChecks: ozonPendingChecks, ozonWarehouseStats } =
+    await updateFeronStocksOzon(stocks);
 
   log(``);
   log(`🟣 Шаг 3: Обновление остатков WB...`);
-  await updateFeronStocksWB(stocks);
+  const wbWarehouseStats = await updateFeronStocksWB(stocks);
 
   if (ozonPendingChecks.length > 0) {
     log(``);
@@ -848,13 +849,19 @@ async function main() {
     );
 
     for (const pending of ozonPendingChecks) {
-      await verifyFeronOzonWarehouse(
+      const rechecked = await verifyFeronOzonWarehouse(
         pending.mismatches.map((item) => ({
           offer_id: item.offer_id,
           [pending.warehouse.col]: item.expected,
         })),
         pending.warehouse,
       );
+      if (rechecked?.stats) {
+        const idx = ozonWarehouseStats.findIndex(
+          (s) => s.warehouseId === pending.warehouse.id,
+        );
+        if (idx >= 0) ozonWarehouseStats[idx] = rechecked.stats;
+      }
     }
   }
 
@@ -866,20 +873,37 @@ async function main() {
   log(`✅ Синхронизация завершена за ${duration} сек.`);
   console.log("============================================");
 
-  // Отправка итоговой сводки трансляции ФБС в Telegram
+  // Отправка итоговой сводки трансляции ФБС в Telegram (Ozon и WB)
   try {
     const totalSku = stocks.length;
-    const activeSku = stocks.filter(
-      (s) =>
-        s.stock_msk > 0 ||
-        s.stock_smr > 0 ||
-        s.stock_nsb > 0 ||
-        s.stock_ekb > 0,
-    ).length;
-    await sendFbsBroadcastReport({
+
+    // 1. Отчет по Ozon (Ферон)
+    await sendFbsMultiWarehouseReport({
       supplier: "Ферон",
+      marketplace: "Ozon",
       totalSku,
-      activeSku,
+      warehouses: ozonWarehouseStats.map((st) => ({
+        warehouseName: st.warehouseName,
+        activeSku: st.sheetPositiveCount,
+        marketplaceStockSku: st.marketplacePositiveCount,
+        marketplaceTotalPieces: st.marketplaceTotalPieces,
+      })),
+      durationSec: duration,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    // 2. Отчет по WB (Ферон)
+    await sendFbsMultiWarehouseReport({
+      supplier: "Ферон",
+      marketplace: "ВБ",
+      totalSku,
+      warehouses: wbWarehouseStats.map((st) => ({
+        warehouseName: st.warehouseName,
+        activeSku: st.activeSku,
+        marketplaceStockSku: null,
+        marketplaceTotalPieces: null,
+      })),
       durationSec: duration,
     });
   } catch (repErr) {
