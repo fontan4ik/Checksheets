@@ -192,6 +192,11 @@ async function waitForETMTRPUStability(auth) {
     try {
       snapshot = await readETMTRPUStabilitySnapshot(auth);
     } catch (err) {
+      const isQuota = String(err.message || err).includes("exhausted") || String(err.message || err).includes("429");
+      if (isQuota) {
+        log(`🚨 Исчерпана квота Google Sheets API: ${err.message || err}. Прерываем ожидание снимка.`);
+        throw err;
+      }
       const delay = Math.min(30000, 5000 * Math.min(attempt, 6));
       log(
         `⚠️ Ошибка чтения P/U снимка ${attempt}: ${err.message || err}; повтор через ${Math.round(delay / 1000)} сек`,
