@@ -12,7 +12,7 @@ require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
 const axios = require("axios");
 const fs = require("fs");
 const { google } = require("googleapis");
-const { sendTelegramAlert } = require("./telegram_notifier");
+const { sendTelegramAlert, sendFbsWarehouseReport } = require("./telegram_notifier");
 
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const SHEET_NAME = "СДЕК TR";
@@ -244,6 +244,24 @@ async function main() {
     mismatches: mismatches.length,
     durationSec: Math.round((Date.now() - startedAt) / 1000),
   }));
+
+  try {
+    const marketplaceStockSku = [...actual.values()].filter((v) => v > 0).length;
+    const marketplaceTotalPieces = [...actual.values()].reduce((sum, v) => sum + v, 0);
+    await sendFbsWarehouseReport({
+      marketplace: "Ozon",
+      warehouseName: WAREHOUSE_NAME,
+      totalSku: stocks.length,
+      activeSku: positive,
+      marketplaceStockSku,
+      marketplaceTotalPieces,
+      durationSec: Math.round((Date.now() - startedAt) / 1000),
+      historyKey: "ozon_кгт_сдэк",
+    });
+  } catch (repErr) {
+    console.error("Не удалось отправить сводку в Telegram:", repErr);
+  }
+
   if (mismatches.length) process.exitCode = 2;
 }
 
