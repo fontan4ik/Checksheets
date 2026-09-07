@@ -1677,8 +1677,22 @@ def main() -> int:
             return run(args)
     except RuntimeError as exc:
         print(str(exc))
+        try:
+            from telegram_notifier import send_telegram_alert
+            send_telegram_alert("cpc-hourly (ozon_cpc_cleanup)", exc)
+        except Exception:
+            pass
         return 3
+    except Exception as exc:
+        print(f"CRITICAL ERROR: {exc}")
+        try:
+            from telegram_notifier import send_telegram_alert
+            send_telegram_alert("cpc-hourly (ozon_cpc_cleanup)", exc)
+        except Exception:
+            pass
+        return 1
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

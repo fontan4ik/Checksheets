@@ -26,6 +26,7 @@ import requests
 import config
 import gsheets_utils
 from network_bypass import SourceAddressAdapter
+from telegram_notifier import send_telegram_alert
 
 
 LOG_PATH = os.path.join(os.path.dirname(__file__), "logs", "etm_sync_multi.log")
@@ -1539,4 +1540,9 @@ if __name__ == "__main__":
         sys.exit(sync(process_mode=args.mode, dry_run=args.dry_run, force=args.force))
     except Exception as exc:
         logging.exception("CRITICAL ERROR: %s", exc)
+        try:
+            send_telegram_alert("etm_sync (ETM FTP)", exc)
+        except Exception as tg_err:
+            logging.error("Failed to send Telegram alert: %s", tg_err)
         sys.exit(1)
+

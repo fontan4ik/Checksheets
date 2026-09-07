@@ -20,6 +20,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import gsheets_utils
+from telegram_notifier import send_telegram_alert
 from ozon_cpc_cleanup import (
     SHEET_NAME,
     create_session,
@@ -206,8 +207,28 @@ def main() -> int:
     print(f"\nГотово: ok={ok}, failed={len(failed)}")
     for row_number, cid, sku, action, err in failed[:20]:
         print(f"  row={row_number} campaign={cid} sku={sku} [{action}]: {err}")
+
+    if failed:
+        err_details = "\n".join(
+            f"строка {r} camp={c} sku={s} [{a}]: {e}"
+            for r, c, s, a, e in failed[:10]
+        )
+        send_telegram_alert(
+            "toggle_cpc_campaigns (Реклама Ozon CPC)",
+            f"Не удалось переключить {len(failed)} из {len(tasks)} рекламных кампаний!",
+            details=err_details,
+        )
     return 0 if not failed else 1
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except Exception as exc:
+        print(f"CRITICAL ERROR: {exc}")
+        try:
+            send_telegram_alert("toggle_cpc_campaigns (Реклама Ozon CPC)", exc)
+        except Exception:
+            pass
+        raise SystemExit(1)
+

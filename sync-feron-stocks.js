@@ -2,6 +2,7 @@ const { google } = require("googleapis");
 const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
+const { sendTelegramAlert, sendFbsBroadcastReport } = require("./telegram_notifier");
 
 const SHEET_NAME = "StreamSupps";
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
@@ -774,6 +775,7 @@ async function main() {
 
   if (stocks.length === 0) {
     log("❌ Нет данных для синхронизации");
+    await sendTelegramAlert("sync_feron_stocks", "В листе StreamSupps не найдено строк с offer_id для синхронизации");
     return;
   }
 
@@ -820,9 +822,39 @@ async function main() {
   console.log("============================================");
   log(`✅ Синхронизация завершена за ${duration} сек.`);
   console.log("============================================");
+
+  // Отправка итоговой сводки трансляции ФБС в Telegram
+  try {
+    const totalSku = stocks.length;
+    const activeSku = stocks.filter(
+      (s) =>
+        s.stock_msk > 0 ||
+        s.stock_smr > 0 ||
+        s.stock_nsb > 0 ||
+        s.stock_ekb > 0,
+    ).length;
+    await sendFbsBroadcastReport({
+      supplier: "Ферон",
+      totalSku,
+      activeSku,
+      durationSec: duration,
+    });
+  } catch (repErr) {
+    console.error("Не удалось отправить сводку в Telegram:", repErr);
+  }
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error("❌ Ошибка:", err);
+  try {
+    await sendTelegramAlert(
+      "sync_feron_stocks",
+      err.message || String(err),
+      err.stack || null,
+    );
+  } catch (tgErr) {
+    console.error("Не удалось отправить Telegram алерт:", tgErr);
+  }
   process.exit(1);
 });
+

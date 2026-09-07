@@ -162,78 +162,90 @@ function updateOzonAdPerfFinal() {
   Logger.log('=== OZON AD PERFORMANCE (FINAL) ===');
   Logger.log('Target: ' + TARGET_SKU);
   
-  const token = getPerfToken();
-  if (!token) {
-    Logger.log('FAIL: No token');
-    return;
-  }
-  
-  const campaigns = getPerfCampaigns(token);
-  Logger.log('Campaigns: ' + campaigns.length);
-  
-  const allStats = {};
-  const BATCH_SIZE = 10;
-  
-  for (let i = 0; i < Math.min(50, campaigns.length); i += BATCH_SIZE) {
-    const batchIds = campaigns.slice(i, i + BATCH_SIZE).map(c => c.id);
-    Logger.log('Batch ' + (i/BATCH_SIZE+1) + ': ' + batchIds.slice(0,3) + '...');
+  try {
+    const token = getPerfToken();
+    if (!token) {
+      Logger.log('FAIL: No token');
+      if (typeof sendTelegramAlertGAS === 'function') {
+        sendTelegramAlertGAS('updateOzonAdPerfFinal (Реклама Ozon)', 'Не удалось получить токен Ozon Performance API');
+      }
+      return;
+    }
     
-    const uuid = createPerfReport(token, batchIds, '2025-04-01', '2025-04-15');
-    if (!uuid) continue;
+    const campaigns = getPerfCampaigns(token);
+    Logger.log('Campaigns: ' + campaigns.length);
     
-    const raw = waitPerfReport(token, uuid);
-    if (raw) {
-      const batchStats = parsePerfCSV(raw);
+    const allStats = {};
+    const BATCH_SIZE = 10;
+    
+    for (let i = 0; i < Math.min(50, campaigns.length); i += BATCH_SIZE) {
+      const batchIds = campaigns.slice(i, i + BATCH_SIZE).map(c => c.id);
+      Logger.log('Batch ' + (i/BATCH_SIZE+1) + ': ' + batchIds.slice(0,3) + '...');
       
-      for (const sku in batchStats) {
-        if (!allStats[sku]) allStats[sku] = { orders: 0, spend: 0, revenue: 0 };
-        allStats[sku].orders += batchStats[sku].orders;
-        allStats[sku].spend += batchStats[sku].spend;
-        allStats[sku].revenue += batchStats[sku].revenue;
+      const uuid = createPerfReport(token, batchIds, '2025-04-01', '2025-04-15');
+      if (!uuid) continue;
+      
+      const raw = waitPerfReport(token, uuid);
+      if (raw) {
+        const batchStats = parsePerfCSV(raw);
+        
+        for (const sku in batchStats) {
+          if (!allStats[sku]) allStats[sku] = { orders: 0, spend: 0, revenue: 0 };
+          allStats[sku].orders += batchStats[sku].orders;
+          allStats[sku].spend += batchStats[sku].spend;
+          allStats[sku].revenue += batchStats[sku].revenue;
+        }
+        
+        if (allStats[TARGET_SKU]) {
+          Logger.log('*** FOUND TARGET ' + TARGET_SKU + ': orders=' + allStats[TARGET_SKU].orders + 
+                ', spend=' + allStats[TARGET_SKU].spend.toFixed(2) + 
+                ', revenue=' + allStats[TARGET_SKU].revenue.toFixed(2));
+          break;
+        }
       }
       
-      if (allStats[TARGET_SKU]) {
-        Logger.log('*** FOUND TARGET ' + TARGET_SKU + ': orders=' + allStats[TARGET_SKU].orders + 
-              ', spend=' + allStats[TARGET_SKU].spend.toFixed(2) + 
-              ', revenue=' + allStats[TARGET_SKU].revenue.toFixed(2));
-        break;
+      if (i + BATCH_SIZE < campaigns.length) Utilities.sleep(15000);
+    }
+    
+    // Update sheet if target found
+    const sheet = mainSheet();
+    const lastRow = Math.max(2, sheet.getLastRow());
+    
+    const skuCol = sheet.getRange(2, 22, lastRow - 1).getValues().flat();
+    
+    const ba = [], bb = [], bc = [];
+    let filled = 0;
+    
+    for (let i = 0; i < skuCol.length; i++) {
+      const sku = skuCol[i] ? skuCol[i].toString().trim() : '';
+      
+      if (sku && allStats[sku]) {
+        ba.push([allStats[sku].orders]);
+        bb.push([allStats[sku].revenue]);
+        bc.push([allStats[sku].spend]);
+        filled++;
+      } else {
+        ba.push([0]);
+        bb.push([0]);
+        bc.push([0]);
       }
     }
     
-    if (i + BATCH_SIZE < campaigns.length) Utilities.sleep(15000);
-  }
-  
-  // Update sheet if target found
-  const sheet = mainSheet();
-  const lastRow = Math.max(2, sheet.getLastRow());
-  
-  const skuCol = sheet.getRange(2, 22, lastRow - 1).getValues().flat();
-  
-  const ba = [], bb = [], bc = [];
-  let filled = 0;
-  
-  for (let i = 0; i < skuCol.length; i++) {
-    const sku = skuCol[i] ? skuCol[i].toString().trim() : '';
+    sheet.getRange(2, 53, ba.length, 1).setValues(ba);
+    sheet.getRange(2, 54, bb.length, 1).setValues(bb);
+    sheet.getRange(2, 55, bc.length, 1).setValues(bc);
     
-    if (sku && allStats[sku]) {
-      ba.push([allStats[sku].orders]);
-      bb.push([allStats[sku].revenue]);
-      bc.push([allStats[sku].spend]);
-      filled++;
-    } else {
-      ba.push([0]);
-      bb.push([0]);
-      bc.push([0]);
+    Logger.log('Updated: ' + filled + ' rows');
+    Logger.log('DONE');
+  } catch (err) {
+    Logger.log('❌ Ошибка в updateOzonAdPerfFinal: ' + err);
+    if (typeof sendTelegramAlertGAS === 'function') {
+      sendTelegramAlertGAS('updateOzonAdPerfFinal (Реклама Ozon)', err.message || String(err), err.stack || null);
     }
+    throw err;
   }
-  
-  sheet.getRange(2, 53, ba.length, 1).setValues(ba);
-  sheet.getRange(2, 54, bb.length, 1).setValues(bb);
-  sheet.getRange(2, 55, bc.length, 1).setValues(bc);
-  
-  Logger.log('Updated: ' + filled + ' rows');
-  Logger.log('DONE');
 }
+
 
 function testPerfAPI() {
   Logger.log('=== TEST PERF API ===');

@@ -70,6 +70,24 @@ esac
 EXIT_CODE=$?
 echo "[$(date)] $SCRIPT_NAME finished with exit code $EXIT_CODE" >> "$LOG_FILE"
 
+# Alert in Telegram if script failed
+if [ $EXIT_CODE -ne 0 ]; then
+    BOT_TOKEN="8795048754:AAHXbXFhzTHa6ICvwyQ1sE2pBvb-ZgqZIac"
+    CHAT_ID="-5299125247"
+    NOW_STR=$(date '+%Y-%m-%d %H:%M:%S')
+    ERR_TAIL=$(tail -n 15 "$LOG_FILE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+    MSG="🚨 <b>Сбой триггера Checksheets: $SCRIPT_NAME</b>
+⏰ <b>Время:</b> <code>$NOW_STR</code>
+❌ <b>Код завершения:</b> <code>$EXIT_CODE</code>
+
+<b>Последние строки лога:</b>
+<pre>$ERR_TAIL</pre>"
+
+    curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
+        -H "Content-Type: application/json" \
+        -d "{\"chat_id\": \"$CHAT_ID\", \"text\": $(python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$MSG"), \"parse_mode\": \"HTML\", \"disable_web_page_preview\": true}" > /dev/null 2>&1
+fi
+
 # Remove lock file
 rm -f "$LOCK_FILE"
 

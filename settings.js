@@ -118,3 +118,13 @@ const etmPassword = () => 'Ibs30Rh2';
 const rsLogin = () => 'ntc-es1';
 const rsPassword = () => '4XK69YO0';
 const rsApiBaseUrl = () => 'https://holy-hall-9741.jilighyt4591667.workers.dev';
+
+// ============================================
+// TELEGRAM NOTIFICATIONS
+// ============================================
+
+const TELEGRAM_CONFIG = {
+  BOT_TOKEN: '8795048754:AAHXbXFhzTHa6ICvwyQ1sE2pBvb-ZgqZIac',
+  CHAT_ID: '-5299125247'
+};
+

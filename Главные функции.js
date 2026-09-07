@@ -21,16 +21,25 @@
  * - AB-AH (28-34): FBS склады (7 складов) ✅ НОВОЕ
  */
 function OzonMain(){
-  // updateProductsV2() сама последовательно обновляет A/U и данные карточек.
-  // Это также сохраняет совместимость с отдельным существующим триггером.
-  updateProductsV2();
-  updateStockFBO();             // Остатки FBO (F, 6) - ИСПРАВЛЕНО: суммирует все FBO
-  updateAllFBSStocks();         // Остатки FBS (G, 7) - ИСПРАВЛЕНО: сумма всех FBS
-  getOzonPricesOptimized();    // Цены
-  // updateSkuByProductId();      // ❌ УБРАНО: updateProductsV2() уже заполняет V (22) SKU!
-  getStocksByWarehouseFBS();   // FBS склад Москва (H, 8)
-  fetchAndUpdateAll();         // ✅ НОВОЕ: FBS склады (AB-AH, 28-34) - 7 складов
+  try {
+    // updateProductsV2() сама последовательно обновляет A/U и данные карточек.
+    // Это также сохраняет совместимость с отдельным существующим триггером.
+    updateProductsV2();
+    updateStockFBO();             // Остатки FBO (F, 6) - ИСПРАВЛЕНО: суммирует все FBO
+    updateAllFBSStocks();         // Остатки FBS (G, 7) - ИСПРАВЛЕНО: сумма всех FBS
+    getOzonPricesOptimized();    // Цены
+    // updateSkuByProductId();      // ❌ УБРАНО: updateProductsV2() уже заполняет V (22) SKU!
+    getStocksByWarehouseFBS();   // FBS склад Москва (H, 8)
+    fetchAndUpdateAll();         // ✅ НОВОЕ: FBS склады (AB-AH, 28-34) - 7 складов
+  } catch (err) {
+    Logger.log("❌ Ошибка в OzonMain: " + err);
+    if (typeof sendTelegramAlertGAS === "function") {
+      sendTelegramAlertGAS("OzonMain", err.message || String(err), err.stack || null);
+    }
+    throw err;
+  }
 }
+
 
 /**
  * Ручной полный запуск после установки исправления.
@@ -86,33 +95,41 @@ function resumeWbMain(e) {
 }
 function processWbStep(step) {
   Logger.log(`=== WB MAIN ШАГ ${step} ===`);
-  switch(step) {
-    case 1:
-      updateWBStocksFromStatisticsAPI();
-      scheduleNextWbStep(2, "Остатки загружены. Шаг 2: Сумма заказов...");
-      break;
-    case 2:
-      updateOrdersSummaryV2();
-      scheduleNextWbStep(3, "Шаг 3: Цены и картинки...");
-      break;
-    case 3:
-      updatePricesAndImages();
-      scheduleNextWbStep(4, "Шаг 4: Основная функция ВБ...");
-      break;
-    case 4:
-      main();
-      scheduleNextWbStep(5, "Шаг 5: Аналитика уходимость...");
-      break;
-    case 5:
-      // updateWBArticles(); - Убрано по вашей старой конфигурации
-      updateWBAnalytics();
-      scheduleNextWbStep(6, "Шаг 6: Склады WB...");
-      break;
-    case 6:
-      updateWBWarehousesByName();
-      PropertiesService.getScriptProperties().deleteProperty("wb_main_step");
-      SpreadsheetApp.getActiveSpreadsheet().toast("Обновление Wildberries полностью завершено!", "Готово", 5);
-      break;
+  try {
+    switch(step) {
+      case 1:
+        updateWBStocksFromStatisticsAPI();
+        scheduleNextWbStep(2, "Остатки загружены. Шаг 2: Сумма заказов...");
+        break;
+      case 2:
+        updateOrdersSummaryV2();
+        scheduleNextWbStep(3, "Шаг 3: Цены и картинки...");
+        break;
+      case 3:
+        updatePricesAndImages();
+        scheduleNextWbStep(4, "Шаг 4: Основная функция ВБ...");
+        break;
+      case 4:
+        main();
+        scheduleNextWbStep(5, "Шаг 5: Аналитика уходимость...");
+        break;
+      case 5:
+        // updateWBArticles(); - Убрано по вашей старой конфигурации
+        updateWBAnalytics();
+        scheduleNextWbStep(6, "Шаг 6: Склады WB...");
+        break;
+      case 6:
+        updateWBWarehousesByName();
+        PropertiesService.getScriptProperties().deleteProperty("wb_main_step");
+        SpreadsheetApp.getActiveSpreadsheet().toast("Обновление Wildberries полностью завершено!", "Готово", 5);
+        break;
+    }
+  } catch (err) {
+    Logger.log(`❌ Ошибка в WB Main на шаге ${step}: ` + err);
+    if (typeof sendTelegramAlertGAS === "function") {
+      sendTelegramAlertGAS(`WbMain (Шаг ${step})`, err.message || String(err), err.stack || null);
+    }
+    throw err;
   }
 }
 function scheduleNextWbStep(nextStep, toastMessage) {
@@ -137,8 +154,17 @@ function scheduleNextWbStep(nextStep, toastMessage) {
  * - L (12): Сумма заказов Мес ОЗОН
  */
 function OzonSKUAndAnalytic(){
-  fetchAndWriteAnalytics();      // Получение и запись аналитики
+  try {
+    fetchAndWriteAnalytics();      // Получение и запись аналитики
+  } catch (err) {
+    Logger.log("❌ Ошибка в OzonSKUAndAnalytic: " + err);
+    if (typeof sendTelegramAlertGAS === "function") {
+      sendTelegramAlertGAS("OzonSKUAndAnalytic", err.message || String(err), err.stack || null);
+    }
+    throw err;
+  }
 }
+
 
 /**
  * maintainArticleColumn - Проверка артикулов
@@ -243,7 +269,16 @@ function runWbOnly(){
  * Заполняет колонки AI (35), AJ (36), AK (37), AL (38)
  */
 function updateExternalAPIStocks(){
-  Logger.log("🚀 Запуск внешних API (Feron, ETM)...");
-  updateFeronStocks();       // AI, AJ, AK: Ферон склады
-  updateETMStocksTrigger();   // AL: ЭТМ Самара (с автоперезапуском через триггеры)
+  try {
+    Logger.log("🚀 Запуск внешних API (Feron, ETM)...");
+    updateFeronStocks();       // AI, AJ, AK: Ферон склады
+    updateETMStocksTrigger();   // AL: ЭТМ Самара (с автоперезапуском через триггеры)
+  } catch (err) {
+    Logger.log("❌ Ошибка в updateExternalAPIStocks: " + err);
+    if (typeof sendTelegramAlertGAS === "function") {
+      sendTelegramAlertGAS("updateExternalAPIStocks", err.message || String(err), err.stack || null);
+    }
+    throw err;
+  }
 }
+

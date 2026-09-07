@@ -40,3 +40,7 @@ TARGET_SHEET_NAME = "тест"
 # Лучше хранить актуальный токен в переменной окружения WB_API_TOKEN.
 # Фоллбек ниже оставлен для совместимости с текущим окружением.
 WB_API_TOKEN = "eyJhbGciOiJFUzI1NiIsImtpZCI6IjIwMjUwOTA0djEiLCJ0eXAiOiJKV1QifQ.eyJhY2MiOjEsImVudCI6MSwiZXhwIjoxNzg2MDUyMTMxLCJpZCI6IjAxOWMyZDI4LTI0MzMtNzY2MC1iZDU4LTRlNjVhYzMwM2E0YiIsImlpZCI6MTk3ODU3MDksIm9pZCI6MTc3NTU3LCJzIjo3OTM0LCJzaWQiOiI2OGI4Mjg0Ni0wZDk0LTRiNDEtODQ1NC1kYzM1MzM0ODJjOWEiLCJ0IjpmYWxzZSwidWlkIjoxOTc4NTcwOX0.fZu3j3YZBrIIEAZ6KtuWjTZ7HfPS3sR8Z6vOdmfT5L8hpQmjvVq3zf9Io-2wXTifmda46JEKhCZafyUlTUfpdA"
+
+# Telegram Bot Notifications
+TELEGRAM_BOT_TOKEN = "8795048754:AAHXbXFhzTHa6ICvwyQ1sE2pBvb-ZgqZIac"
+TELEGRAM_CHAT_ID = "-5299125247"

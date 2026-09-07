@@ -5,6 +5,7 @@ import re
 import config
 import gsheets_utils
 from network_bypass import SourceAddressAdapter
+from telegram_notifier import send_telegram_alert
 
 
 # Live Feron warehouse mapping confirmed from /offers/products/search and
@@ -287,8 +288,10 @@ def sync_feron():
     
     api_key = get_feron_session()
     if not api_key:
-        print("ERROR: Feron API key not found in config.py. Please check FERON_API_KEY.")
-        return
+        err = "Feron API key not found in config.py. Please check FERON_API_KEY."
+        print(f"ERROR: {err}")
+        send_telegram_alert("feron_sync (Feron API)", err)
+        raise RuntimeError(err)
 
     # Phase 1: Fetch ALL data from Feron API
     # This is much faster than per-article lookups and bypasses the 100-item limit
@@ -296,7 +299,8 @@ def sync_feron():
         all_feron_stocks = fetch_all_feron_data(api_key)
     except Exception as e:
         print(f"ERROR: Could not fetch Feron bulk data safely: {e}")
-        return
+        send_telegram_alert("feron_sync (Feron API)", f"Ошибка загрузки остатков Feron API: {e}")
+        raise
 
     warehouse_ids = dict(FERON_WAREHOUSE_IDS)
     seen_warehouse_ids = {
@@ -306,11 +310,10 @@ def sync_feron():
     }
     missing_warehouse_ids = set(warehouse_ids.values()) - seen_warehouse_ids
     if missing_warehouse_ids:
-        print(
-            "ERROR: Feron API response does not contain configured warehouse IDs "
-            f"{sorted(missing_warehouse_ids)}; aborting sheet write."
-        )
-        return
+        err = f"Feron API response does not contain configured warehouse IDs {sorted(missing_warehouse_ids)}"
+        print(f"ERROR: {err}; aborting sheet write.")
+        send_telegram_alert("feron_sync (Feron API)", err)
+        raise RuntimeError(err)
 
     # Phase 2: StreamSupps is the only stock target.  The former FERON TR and
     # ТЕСТ writes are intentionally not used.
@@ -320,22 +323,26 @@ def sync_feron():
         ws = gsheets_utils.get_worksheet(sheet_name)
     except Exception as e:
         print(f"ERROR: Could not access Google Sheet: {e}")
-        return
+        send_telegram_alert("feron_sync (Google Sheets)", f"Не удалось получить лист {sheet_name}: {e}")
+        raise
 
     try:
         columns = gsheets_utils.get_header_columns(ws, FERON_TR_SCHEMA, sheet_name)
     except Exception as e:
         print(f"ERROR: StreamSupps schema validation failed: {e}")
-        return
+        send_telegram_alert("feron_sync (Схема таблицы)", f"Ошибка колонок StreamSupps: {e}")
+        raise
 
     try:
         vendor_codes_raw = ws.col_values(columns["model"])[1:]
         print(f"Successfully loaded {len(vendor_codes_raw)} articles from header 'model'")
     except Exception as e:
         print(f"ERROR: Could not read articles from Sheet: {e}")
-        return
+        send_telegram_alert("feron_sync (Google Sheets)", f"Ошибка чтения артикулов из Sheet: {e}")
+        raise
 
     # Phase 3: Match and Upload for each warehouse
+    total_non_zero_across_all = 0
     for wh_name, wh_id in warehouse_ids.items():
         field_name = FERON_STOCK_FIELD_BY_WAREHOUSE[wh_name]
         col_num = columns[field_name]
@@ -364,6 +371,7 @@ def sync_feron():
         
         print(f"  - Match Rate: {stats['matched']}/{len(vendor_codes_raw)} articles found in API")
         print(f"  - Inventory: {stats['non_zero']} articles have stock > 0")
+        total_non_zero_across_all += stats["non_zero"]
         
         try:
             print(f"  - Updating Google Sheet header '{FERON_TR_SCHEMA[field_name]}' ({wh_name})...")
@@ -372,10 +380,27 @@ def sync_feron():
             print(f"  - OK: Warehouse {wh_name} updated successfully.")
         except Exception as e:
             print(f"  - ERROR: Failed to update {wh_name}: {e}")
+            send_telegram_alert("feron_sync (Google Sheets)", f"Ошибка записи остатков {wh_name}: {e}")
+            raise
+
+    if total_non_zero_across_all == 0:
+        err = "Аномалия: после сопоставления с Feron API получено 0 положительных остатков по всем складам!"
+        print(f"ERROR: {err}")
+        send_telegram_alert("feron_sync (Аномалия остатков)", err)
+        raise RuntimeError(err)
 
     print("\n" + "=" * 60)
     print("FERON STOCK SYNCHRONIZATION COMPLETED")
     print("=" * 60)
 
 if __name__ == "__main__":
-    sync_feron()
+    try:
+        sync_feron()
+    except Exception as exc:
+        print(f"CRITICAL ERROR: {exc}")
+        try:
+            send_telegram_alert("feron_sync", exc)
+        except Exception:
+            pass
+        raise SystemExit(1)
+

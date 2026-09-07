@@ -6,6 +6,7 @@ import re
 import config
 import gsheets_utils
 from network_bypass import SourceAddressAdapter
+from telegram_notifier import send_telegram_alert
 
 
 def get_active_interface_ip():
@@ -371,6 +372,12 @@ def sync_rs():
     print(f"  - Found with zero stock: {found_zero_stock}")
     print(f"  - Not found: {not_found}")
 
+    if total_processed > 0 and found_with_stock == 0:
+        err = f"Аномалия RS: обработано {total_processed} артикулов, но найдено 0 товаров с остатком > 0!"
+        print(f"ERROR: {err}")
+        send_telegram_alert("rs_sync (Аномалия остатков)", err)
+        raise RuntimeError(err)
+
     print(f"Updating Google Sheet '{config.RS_SHEET_NAME}'...")
 
     update_errors = []
@@ -386,9 +393,20 @@ def sync_rs():
         print(f"Error updating stock column after retries: {e}")
 
     if update_errors:
-        raise RuntimeError("Google Sheet update failed: " + "; ".join(update_errors))
+        err_text = "Google Sheet update failed: " + "; ".join(update_errors)
+        send_telegram_alert("rs_sync (Google Sheets)", err_text)
+        raise RuntimeError(err_text)
 
     print("RS Sync completed successfully!")
 
 if __name__ == "__main__":
-    sync_rs()
+    try:
+        sync_rs()
+    except Exception as exc:
+        print(f"CRITICAL ERROR: {exc}")
+        try:
+            send_telegram_alert("rs_sync", exc)
+        except Exception:
+            pass
+        raise SystemExit(1)
+
