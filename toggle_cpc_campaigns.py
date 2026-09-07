@@ -138,8 +138,8 @@ def main() -> int:
 
     worksheet = gsheets_utils.get_worksheet(SHEET_NAME)
     values = gsheets_utils._retry_gsheet_call(
-        f"read all values from {SHEET_NAME}",
-        worksheet.get_all_values,
+        f"read values from {SHEET_NAME}",
+        lambda: worksheet.get_values("A1:ZZ"),
     )
     headers = values[0] if values else []
     sku_index = find_column(headers, ["sku ozon", "sku"])

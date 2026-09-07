@@ -700,7 +700,11 @@ def parse_report(
 
 def read_sheet_rows() -> tuple[Any, list[str], list[SheetRow]]:
     worksheet = gsheets_utils.get_worksheet(SHEET_NAME)
-    headers, rows = rows_from_values(worksheet.get_all_values())
+    values = gsheets_utils._retry_gsheet_call(
+        f"read values from {SHEET_NAME}",
+        lambda: worksheet.get_values("A1:ZZ"),
+    )
+    headers, rows = rows_from_values(values)
     return worksheet, headers, rows
 
 
