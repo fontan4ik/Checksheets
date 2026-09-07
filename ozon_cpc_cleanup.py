@@ -118,14 +118,18 @@ def run_lock(timeout: int = 0):
             try:
                 fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                 acquired = True
-                yield True
-                return
             except OSError:
                 if deadline is None or time.monotonic() >= deadline:
-                    raise RuntimeError(
-                        f"Другой процесс уже выполняет прогон (lock: {LOCK_FILE})"
-                    )
+                    yield False
+                    return
                 time.sleep(5)
+                continue
+            break
+
+        # Keep exceptions raised by the protected run outside the flock
+        # acquisition handler. requests.ConnectionError inherits OSError and
+        # used to be mistaken for a failed lock acquisition here.
+        yield True
     finally:
         if acquired:
             try:
@@ -1677,7 +1681,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     try:
-        with run_lock(args.lock_timeout):
+        with run_lock(args.lock_timeout) as acquired:
+            if not acquired:
+                print(f"Другой процесс уже выполняет прогон; текущий запуск пропущен (lock: {LOCK_FILE})")
+                return 0
             return run(args)
     except RuntimeError as exc:
         print(str(exc))
@@ -1699,4 +1706,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

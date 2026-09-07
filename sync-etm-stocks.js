@@ -52,6 +52,14 @@ const GOOGLE_SHEETS_TIMEOUT_MS = parseInt(
   process.env.ETM_GOOGLE_SHEETS_TIMEOUT_MS || "60000",
   10,
 );
+const GOOGLE_SHEETS_MAX_RETRIES = parseInt(
+  process.env.ETM_GOOGLE_SHEETS_MAX_RETRIES || "8",
+  10,
+);
+const GOOGLE_SHEETS_RETRY_BASE_MS = parseInt(
+  process.env.ETM_GOOGLE_SHEETS_RETRY_BASE_MS || "5000",
+  10,
+);
 
 // Prevent a Sheets API request from holding the hourly lock forever.
 // Individual marketplace requests already have their own axios timeouts.
@@ -109,14 +117,65 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function googleSheetsStatus(err) {
+  return Number(err?.response?.status || err?.code || err?.cause?.code || 0);
+}
+
+function isTransientGoogleSheetsError(err) {
+  const status = googleSheetsStatus(err);
+  const text = String(err?.message || err).toLowerCase();
+  return (
+    [408, 409, 425, 429, 500, 502, 503, 504].includes(status) ||
+    text.includes("resource has been exhausted") ||
+    text.includes("quota") ||
+    text.includes("socket hang up") ||
+    text.includes("econnreset") ||
+    text.includes("etimedout") ||
+    text.includes("timed out") ||
+    text.includes("network error") ||
+    text.includes("remote end closed")
+  );
+}
+
+async function withGoogleSheetsRetry(label, operation) {
+  const maxAttempts = Math.max(1, GOOGLE_SHEETS_MAX_RETRIES + 1);
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
+      if (!isTransientGoogleSheetsError(err) || attempt >= maxAttempts) {
+        throw err;
+      }
+
+      const retryAfter = Number(err?.response?.headers?.["retry-after"] || 0) * 1000;
+      const exponentialDelay = Math.min(
+        GOOGLE_SHEETS_RETRY_BASE_MS * 2 ** (attempt - 1),
+        120000,
+      );
+      const jitter = Math.floor(Math.random() * 1000);
+      const delay = Math.max(retryAfter, exponentialDelay) + jitter;
+      log(
+        `⚠️ Google Sheets ${label}: ${err.message || err}; ` +
+          `retry ${attempt}/${maxAttempts - 1} через ${Math.round(delay / 1000)} сек`,
+      );
+      await sleep(delay);
+    }
+  }
+
+  throw lastError;
+}
+
 async function readETMTRPUStabilitySnapshot(auth) {
   const sheets = google.sheets({ version: "v4", auth });
-  const response = await sheets.spreadsheets.values.get({
+  const response = await withGoogleSheetsRetry("снимок стабильности", () => sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `${SHEET_NAME}!A:S`,
     majorDimension: "ROWS",
     valueRenderOption: "UNFORMATTED_VALUE",
-  });
+  }));
 
   const allRows = response.data.values || [];
   const headers = (allRows[0] || []).map((value) => String(value || "").trim().toLowerCase());
@@ -192,11 +251,6 @@ async function waitForETMTRPUStability(auth) {
     try {
       snapshot = await readETMTRPUStabilitySnapshot(auth);
     } catch (err) {
-      const isQuota = String(err.message || err).includes("exhausted") || String(err.message || err).includes("429");
-      if (isQuota) {
-        log(`🚨 Исчерпана квота Google Sheets API: ${err.message || err}. Прерываем ожидание снимка.`);
-        throw err;
-      }
       const delay = Math.min(30000, 5000 * Math.min(attempt, 6));
       log(
         `⚠️ Ошибка чтения P/U снимка ${attempt}: ${err.message || err}; повтор через ${Math.round(delay / 1000)} сек`,
@@ -229,11 +283,11 @@ async function waitForETMTRPUStability(auth) {
 async function readETMStocksFromSheet(auth) {
   const sheets = google.sheets({ version: "v4", auth });
 
-  const headersResp = await sheets.spreadsheets.values.get({
+  const headersResp = await withGoogleSheetsRetry("чтение заголовков", () => sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `${SHEET_NAME}!1:1`,
     valueRenderOption: "UNFORMATTED_VALUE",
-  });
+  }));
 
   const rawHeaders = headersResp.data.values?.[0] || [];
   if (rawHeaders.length === 0) {
@@ -262,11 +316,11 @@ async function readETMStocksFromSheet(auth) {
 
   const maxCol = Math.max(colArticul, colChrlid, colStock, colWbStock);
 
-  const dataResp = await sheets.spreadsheets.values.get({
+  const dataResp = await withGoogleSheetsRetry("чтение остатков", () => sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `${SHEET_NAME}!A:${String.fromCharCode(64 + maxCol)}`,
     majorDimension: "ROWS",
-  });
+  }));
 
   const allRows = dataResp.data.values || [];
   if (allRows.length < 2) {
@@ -1208,4 +1262,3 @@ main().catch(async (err) => {
   }
   process.exit(1);
 });
-

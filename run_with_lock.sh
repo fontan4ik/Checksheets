@@ -67,7 +67,9 @@ case "$SCRIPT_NAME" in
         ;;
 esac
 
-EXIT_CODE=$?
+if [ -z "${EXIT_CODE+x}" ]; then
+    EXIT_CODE=$?
+fi
 echo "[$(date)] $SCRIPT_NAME finished with exit code $EXIT_CODE" >> "$LOG_FILE"
 
 # Alert in Telegram if script failed

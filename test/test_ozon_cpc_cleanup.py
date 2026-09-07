@@ -33,6 +33,7 @@ from ozon_cpc_cleanup import (
     request_json,
     rotation_advance_index,
     rotation_slice,
+    run_lock,
     DailyReportLimitError,
     TokenManager,
     fetch_daily_sku_metrics,
@@ -64,6 +65,16 @@ class FakeSession:
 
 
 class OzonCpcCleanupTests(unittest.TestCase):
+    def test_run_lock_does_not_mask_oserror_from_protected_run(self):
+        with self.assertRaisesRegex(requests.exceptions.ConnectionError, "network down"):
+            with run_lock():
+                raise requests.exceptions.ConnectionError("network down")
+
+    def test_run_lock_reports_busy_without_raising(self):
+        with patch("ozon_cpc_cleanup.fcntl.flock", side_effect=BlockingIOError):
+            with run_lock() as acquired:
+                self.assertFalse(acquired)
+
     def test_token_manager_refreshes_before_expiry(self):
         with patch(
             "ozon_cpc_cleanup._fetch_token_data",
