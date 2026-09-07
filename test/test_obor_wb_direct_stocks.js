@@ -122,13 +122,20 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(reportMaps.total)), {
 assert.deepStrictEqual(JSON.parse(JSON.stringify(reportMaps.live)), {
   '23348-1': 32, '39171-1': 6, '39171-2': 0, '5032873-3': 2, '55012-5': 8, '55146-5': 27,
 });
+assert.deepStrictEqual(JSON.parse(JSON.stringify(reportMaps.totalByBase)), {
+  '23348': 115, '39171': 83, '5032873': 65, '55012': 66, '55146': 59,
+});
+assert.deepStrictEqual(JSON.parse(JSON.stringify(reportMaps.liveByBase)), {
+  '23348': 32, '39171': 6, '5032873': 2, '55012': 8, '55146': 27,
+});
 const reportDead = subtractMaps(reportMaps.total, reportMaps.live);
+const reportDeadByBase = subtractMaps(reportMaps.totalByBase, reportMaps.liveByBase);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(reportDead)), {
   '23348-1': 83, '39171-1': 76, '39171-2': 1, '5032873-3': 63, '55012-5': 58, '55146-5': 32,
 });
 assert.strictEqual(resolveWarehouseReportValue(reportDead, '39171-1'), 76);
-assert.strictEqual(resolveWarehouseReportValue(reportDead, '39171'), 76);
-assert.strictEqual(resolveWarehouseReportValue(reportMaps.live, '39171'), 6);
+assert.strictEqual(resolveWarehouseReportValue(reportDead, '39171', reportDeadByBase), 77);
+assert.strictEqual(resolveWarehouseReportValue(reportMaps.live, '39171', reportMaps.liveByBase), 6);
 assert.strictEqual(resolveWarehouseReportValue(reportDead, '39171-2'), 1);
 
 const writes = [];
@@ -206,3 +213,4 @@ assert.strictEqual(reportAttempts, 4);
 
 console.log('OK: «ВБ всего» получает мёртвый остаток 115 − 32 = 83');
 console.log('OK: «ВБ ост» получает quantity = 32 из Warehouse Inventory Report по «Склад WB РФ» и пишется в Y, не в «Сумм» X');
+console.log('OK: базовая строка 39171 суммирует WB-варианты 39171-1 и 39171-2');

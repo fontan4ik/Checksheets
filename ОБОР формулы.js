@@ -144,18 +144,26 @@ function calculateOborValues() {
   validateOborSources_(spreadsheet);
 
   const sourceMaps = {};
+  const sourceBaseMaps = {};
   const sourceMapCache = {};
   OBOR_VALUE_CONFIG.forEach(item => {
     if (item.sourceType === "wbAnalyticsDeadStocks" || item.sourceType === "wbAnalyticsWarehouseStocks") {
       if (!Object.prototype.hasOwnProperty.call(sourceMapCache, "wbWarehouseRemains")) {
         sourceMapCache.wbWarehouseRemains = fetchOborWbWarehouseRemainsMaps_();
       }
-      sourceMaps[item.key] = item.sourceType === "wbAnalyticsDeadStocks"
-        ? subtractOborWbStockMaps_(
+      if (item.sourceType === "wbAnalyticsDeadStocks") {
+        sourceMaps[item.key] = subtractOborWbStockMaps_(
             sourceMapCache.wbWarehouseRemains.total,
             sourceMapCache.wbWarehouseRemains.live
-          )
-        : sourceMapCache.wbWarehouseRemains.live;
+          );
+        sourceBaseMaps[item.key] = subtractOborWbStockMaps_(
+          sourceMapCache.wbWarehouseRemains.totalByBase,
+          sourceMapCache.wbWarehouseRemains.liveByBase
+        );
+      } else {
+        sourceMaps[item.key] = sourceMapCache.wbWarehouseRemains.live;
+        sourceBaseMaps[item.key] = sourceMapCache.wbWarehouseRemains.liveByBase;
+      }
       return;
     }
     if (item.sourceType === "wbAnalyticsStocks") {
@@ -194,7 +202,7 @@ function calculateOborValues() {
         item.sourceType === "wbAnalyticsWarehouseStocks";
       const parsed = parseOborArticle_(article);
       const value = roundOborValue_(isWarehouseReport
-        ? resolveOborWbWarehouseReportValue_(valueMap, article)
+        ? resolveOborWbWarehouseReportValue_(valueMap, article, sourceBaseMaps[item.key])
         : (valueMap[parsed.base] || 0));
       if (Number(value) !== 0) nonZero[item.key] = (nonZero[item.key] || 0) + 1;
       return [value];
@@ -251,18 +259,24 @@ function updateOborWbStockDirect() {
   const totalValueMap = warehouseRemains.total;
   const warehouseValueMap = warehouseRemains.live;
   const deadValueMap = subtractOborWbStockMaps_(totalValueMap, warehouseValueMap);
+  const totalBaseValueMap = warehouseRemains.totalByBase;
+  const warehouseBaseValueMap = warehouseRemains.liveByBase;
+  const deadBaseValueMap = subtractOborWbStockMaps_(totalBaseValueMap, warehouseBaseValueMap);
   const targetLastRow = targetSheet.getLastRow();
   if (targetLastRow < 2) return { rows: 0, nonZero: 0 };
 
   const targetArticles = targetSheet
     .getRange(2, 1, targetLastRow - 1, 1)
     .getValues();
-  const valuesByColumn = [deadValueMap, warehouseValueMap].map(valueMap => targetArticles.map(row => {
+  const valuesByColumn = [
+    { exact: deadValueMap, byBase: deadBaseValueMap },
+    { exact: warehouseValueMap, byBase: warehouseBaseValueMap }
+  ].map(maps => targetArticles.map(row => {
     const article = normalizeOborArticle_(row[0]);
     if (!article) return [""];
     // Сначала точный vendorCode: 39171-1 не должен смешиваться с 39171-2.
-    // Базовый артикул используется только как fallback для упаковочной строки без точного API-совпадения.
-    return [roundOborValue_(resolveOborWbWarehouseReportValue_(valueMap, article))];
+    // Базовая строка ОБОР без суффикса получает сумму всех её WB-вариантов.
+    return [roundOborValue_(resolveOborWbWarehouseReportValue_(maps.exact, article, maps.byBase))];
   }));
 
   targetColumns.forEach((targetColumn, index) => {
@@ -273,11 +287,15 @@ function updateOborWbStockDirect() {
 
   const totalNonZero = valuesByColumn[0].filter(row => Number(row[0]) !== 0).length;
   const warehouseNonZero = valuesByColumn[1].filter(row => Number(row[0]) !== 0).length;
+  const writtenDeadUnits = valuesByColumn[0].reduce((sum, row) => sum + parseOborNumber_(row[0]), 0);
+  const writtenLiveUnits = valuesByColumn[1].reduce((sum, row) => sum + parseOborNumber_(row[0]), 0);
   Logger.log(
     "ОБОР: «ВБ всего» (Warehouse Inventory Report: «" + OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME + "» − «" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») и «ВБ ост» (точный vendorCode) обновлены" +
     "; строк=" + valuesByColumn[0].length +
     "; ненулевых «ВБ всего»=" + totalNonZero +
-    "; ненулевых «ВБ ост»=" + warehouseNonZero
+    "; ненулевых «ВБ ост»=" + warehouseNonZero +
+    "; записано ед. «ВБ всего»=" + writtenDeadUnits +
+    "; записано ед. «ВБ ост»=" + writtenLiveUnits
   );
   return {
     rows: valuesByColumn[0].length,
@@ -408,8 +426,12 @@ function fetchOborWbWarehouseRemainsMaps_() {
   Logger.log(
     "WB warehouse report: товаров=" + rows.length +
     "; валидных артикулов=" + maps.validRows +
-    "; total=" + Object.keys(maps.total).length +
-    "; склад WB РФ=" + Object.keys(maps.live).length
+    "; vendorCode=" + Object.keys(maps.total).length +
+    "; базовых артикулов=" + Object.keys(maps.totalByBase).length +
+    "; всего ед.=" + sumOborMapValues_(maps.totalByBase) +
+    "; склад WB РФ, ед.=" + sumOborMapValues_(maps.liveByBase) +
+    "; разница, ед.=" +
+      (sumOborMapValues_(maps.totalByBase) - sumOborMapValues_(maps.liveByBase))
   );
   return maps;
 }
@@ -431,6 +453,8 @@ function parseOborWbWarehouseReportResponse_(response, action) {
 function aggregateOborWbWarehouseRemainsRows_(rows) {
   const total = {};
   const live = {};
+  const totalByBase = {};
+  const liveByBase = {};
   let validRows = 0;
 
   (rows || []).forEach(row => {
@@ -452,17 +476,29 @@ function aggregateOborWbWarehouseRemainsRows_(rows) {
     // Не объединять их по базе: точное совпадение важнее упаковочного fallback-а.
     total[article] = (total[article] || 0) + totalValue;
     live[article] = (live[article] || 0) + liveValue;
+    const base = parseOborArticle_(article).base;
+    totalByBase[base] = (totalByBase[base] || 0) + totalValue;
+    liveByBase[base] = (liveByBase[base] || 0) + liveValue;
     validRows++;
   });
 
-  return { total: total, live: live, validRows: validRows };
+  return {
+    total: total,
+    live: live,
+    totalByBase: totalByBase,
+    liveByBase: liveByBase,
+    validRows: validRows
+  };
 }
 
-function resolveOborWbWarehouseReportValue_(valueMap, article) {
+function resolveOborWbWarehouseReportValue_(valueMap, article, baseValueMap) {
   const exact = normalizeOborArticle_(article);
   if (Object.prototype.hasOwnProperty.call(valueMap || {}, exact)) return valueMap[exact];
 
   const parsed = parseOborArticle_(exact);
+  if (exact === parsed.base && Object.prototype.hasOwnProperty.call(baseValueMap || {}, parsed.base)) {
+    return baseValueMap[parsed.base];
+  }
   const baseValue = valueMap && valueMap[parsed.base];
   if (baseValue !== undefined) return baseValue * parsed.multiplier;
 
@@ -477,6 +513,12 @@ function resolveOborWbWarehouseReportValue_(valueMap, article) {
     }
   }
   return 0;
+}
+
+function sumOborMapValues_(valueMap) {
+  return Object.keys(valueMap || {}).reduce((sum, key) => {
+    return sum + parseOborNumber_(valueMap[key]);
+  }, 0);
 }
 
 /**
