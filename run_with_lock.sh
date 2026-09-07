@@ -35,12 +35,15 @@ cd /Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets
 case "$SCRIPT_NAME" in
     rs_sync)
         /opt/homebrew/bin/python3 rs_sync_local.py >> "$LOG_FILE" 2>&1
+        EXIT_CODE=$?
         ;;
     feron_sync)
         /opt/homebrew/bin/python3 feron_sync_local.py >> "$LOG_FILE" 2>&1
+        EXIT_CODE=$?
         ;;
     feron_mic_sync)
         /opt/homebrew/bin/python3 feron_mic_sync_local.py >> "$LOG_FILE" 2>&1
+        EXIT_CODE=$?
         ;;
     etm_sync)
         /opt/homebrew/bin/python3 etm_sync_multi_store.py >> "$LOG_FILE" 2>&1
@@ -53,12 +56,15 @@ case "$SCRIPT_NAME" in
         ;;
     sync_feron_stocks)
         /opt/homebrew/bin/node sync-feron-stocks.js >> "$LOG_FILE" 2>&1
+        EXIT_CODE=$?
         ;;
     sync_etm_stocks)
         /opt/homebrew/bin/node sync-etm-stocks.js >> "$LOG_FILE" 2>&1
+        EXIT_CODE=$?
         ;;
     cdek_hourly_sync)
         echo "[$(date)] cdek_hourly_sync disabled by operator request" >> "$LOG_FILE"
+        EXIT_CODE=0
         ;;
     *)
         echo "[$(date)] Unknown script: $SCRIPT_NAME" >> "$LOG_FILE"
@@ -67,9 +73,6 @@ case "$SCRIPT_NAME" in
         ;;
 esac
 
-if [ -z "${EXIT_CODE+x}" ]; then
-    EXIT_CODE=$?
-fi
 echo "[$(date)] $SCRIPT_NAME finished with exit code $EXIT_CODE" >> "$LOG_FILE"
 
 # Alert in Telegram if script failed

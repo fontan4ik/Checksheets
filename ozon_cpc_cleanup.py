@@ -132,10 +132,8 @@ def run_lock(timeout: int = 0):
         yield True
     finally:
         if acquired:
-            try:
-                fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
-            finally:
-                lock_handle.close()
+            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+        lock_handle.close()
 
 
 BASE_URL = str(config.OZON_PERF_BASE_URL).rstrip("/")

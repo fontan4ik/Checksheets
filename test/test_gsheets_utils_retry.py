@@ -77,6 +77,22 @@ class GSheetsRetryTests(unittest.TestCase):
 
         self.assertEqual(calls["count"], 1)
 
+    def test_open_spreadsheet_retries_transient_disconnect(self):
+        client = mock.Mock()
+        worksheet = object()
+        spreadsheet_mock = mock.Mock()
+        spreadsheet_mock.worksheet.return_value = worksheet
+        client.open_by_key.side_effect = [
+            requests.exceptions.ConnectionError("Connection aborted"),
+            spreadsheet_mock,
+        ]
+
+        with mock.patch.object(gsheets_utils, "get_gsheet_client", return_value=client):
+            result = gsheets_utils.get_worksheet("StreamSupps")
+
+        self.assertIs(result, worksheet)
+        self.assertEqual(client.open_by_key.call_count, 2)
+
     def test_duplicate_header_is_rejected_before_write(self):
         with self.assertRaisesRegex(ValueError, "duplicated"):
             gsheets_utils.resolve_header_columns(

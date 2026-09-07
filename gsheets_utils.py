@@ -1,4 +1,5 @@
 import http.client
+import os
 import socket
 import time
 
@@ -21,6 +22,8 @@ TRANSIENT_ERROR_TEXT = (
     "Quota exceeded",
     "quota metric",
 )
+GSHEETS_MAX_ATTEMPTS = max(1, int(os.getenv("GSHEETS_MAX_ATTEMPTS", "9")))
+GSHEETS_RETRY_BASE_DELAY = max(0.0, float(os.getenv("GSHEETS_RETRY_BASE_DELAY", "5")))
 
 # Calculated/outbound stock columns are inputs for marketplace synchronizers
 # only. Supplier/API loaders may read them, but every shared write/clear helper
@@ -133,7 +136,12 @@ def _is_transient_gsheet_error(exc):
     return any(fragment in message for fragment in TRANSIENT_ERROR_TEXT)
 
 
-def _retry_gsheet_call(label, func, max_attempts=6, base_delay=2.0):
+def _retry_gsheet_call(
+    label,
+    func,
+    max_attempts=GSHEETS_MAX_ATTEMPTS,
+    base_delay=GSHEETS_RETRY_BASE_DELAY,
+):
     """Run a Google Sheets API call with exponential backoff for transient disconnects."""
     last_exc = None
     for attempt in range(1, max_attempts + 1):
@@ -144,7 +152,7 @@ def _retry_gsheet_call(label, func, max_attempts=6, base_delay=2.0):
             if attempt >= max_attempts or not _is_transient_gsheet_error(exc):
                 raise
 
-            delay = min(base_delay * (2 ** (attempt - 1)), 30.0)
+            delay = min(base_delay * (2 ** (attempt - 1)), 120.0)
             print(
                 f"Google Sheets transient error during {label} "
                 f"(attempt {attempt}/{max_attempts}): {type(exc).__name__}: {exc}. "
