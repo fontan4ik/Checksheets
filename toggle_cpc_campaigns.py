@@ -17,7 +17,11 @@ from datetime import datetime
 import os
 import sys
 import time
+import http.client
+import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import requests
 
 import gsheets_utils
 from telegram_notifier import send_telegram_alert
@@ -30,6 +34,41 @@ from ozon_cpc_cleanup import (
     parse_number,
     request_json,
 )
+
+
+def is_transient_cpc_error(exc: Exception) -> bool:
+    """Return True for transient network or server errors worth retrying."""
+    if isinstance(
+        exc,
+        (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+            requests.exceptions.ChunkedEncodingError,
+            http.client.RemoteDisconnected,
+            ConnectionResetError,
+            BrokenPipeError,
+            TimeoutError,
+            socket.timeout,
+        ),
+    ):
+        return True
+    msg = str(exc)
+    return any(
+        phrase in msg
+        for phrase in (
+            "429",
+            "500",
+            "502",
+            "503",
+            "504",
+            "RemoteDisconnected",
+            "Connection aborted",
+            "Connection reset",
+            "Broken pipe",
+            "Read timed out",
+            "timed out",
+        )
+    )
 
 
 def activation_filter_reason(
@@ -59,7 +98,7 @@ def _request_with_retry(session, method: str, path: str, token: str, max_attempt
             return
         except Exception as exc:
             last_exc = exc
-            if "429" not in str(exc):
+            if not is_transient_cpc_error(exc) or attempt >= max_attempts:
                 raise
             time.sleep(min(2 ** attempt, 15))
     raise last_exc  # type: ignore[misc]
@@ -98,7 +137,10 @@ def main() -> int:
         )
 
     worksheet = gsheets_utils.get_worksheet(SHEET_NAME)
-    values = worksheet.get_all_values()
+    values = gsheets_utils._retry_gsheet_call(
+        f"read all values from {SHEET_NAME}",
+        worksheet.get_all_values,
+    )
     headers = values[0] if values else []
     sku_index = find_column(headers, ["sku ozon", "sku"])
     campaign_index = find_column(headers, ["campain id", "campaign id", "campaign_id"])
