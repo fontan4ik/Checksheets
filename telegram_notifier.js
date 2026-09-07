@@ -47,10 +47,13 @@ async function sendTelegramMessage(text, parseMode = "HTML") {
  * Send failure alert to Telegram.
  */
 async function sendTelegramAlert(serviceName, errorMessage, details = null) {
-  const nowStr = new Date().toLocaleString("ru-RU", { timeZone: "Europe/Samara" });
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("ru-RU", { timeZone: "Europe/Samara" });
+  const timeStr = now.toLocaleTimeString("ru-RU", { timeZone: "Europe/Samara", hour12: false });
   const lines = [
     `🚨 <b>Сбой синхронизации: ${serviceName}</b>`,
-    `⏰ <b>Время:</b> <code>${nowStr}</code>`,
+    `📅 <b>Дата ошибки:</b> <code>${dateStr}</code>`,
+    `⏰ <b>Время ошибки:</b> <code>${timeStr}</code>`,
     `❌ <b>Ошибка:</b> <code>${errorMessage}</code>`,
   ];
 
@@ -153,6 +156,10 @@ async function sendFbsBroadcastReport({
     ? `${Math.floor(durationSec / 60)} мин ${durationSec % 60} сек`
     : "";
 
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("ru-RU", { timeZone: "Europe/Samara" });
+  const timeStr = now.toLocaleTimeString("ru-RU", { timeZone: "Europe/Samara", hour12: false });
+
   const { growthText } = recordAndCompareFbsStats(supplier, totalSku, activeSku);
 
   const formattedTotal = Number(totalSku).toLocaleString("ru-RU");
@@ -164,6 +171,8 @@ async function sendFbsBroadcastReport({
 
   const lines = [
     header,
+    `📅 <b>Дата:</b> <code>${dateStr}</code>`,
+    `⏰ <b>Время окончания трансляции:</b> <code>${timeStr}</code>`,
     `Всего в трансляции ФБС: <b>${formattedTotal}</b> SKU`,
     `Транслируем: <b>${formattedActive}</b> SKU`,
     growthText,

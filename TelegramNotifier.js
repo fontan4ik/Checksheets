@@ -43,12 +43,16 @@ function sendTelegramMessageGAS(text, parseMode) {
 }
 
 function sendTelegramAlertGAS(serviceName, errorMessage, details) {
-  const now = Utilities.formatDate(new Date(), 'GMT+4', 'yyyy-MM-dd HH:mm:ss');
+  const now = new Date();
+  const dateStr = Utilities.formatDate(now, 'GMT+4', 'dd.MM.yyyy');
+  const timeStr = Utilities.formatDate(now, 'GMT+4', 'HH:mm:ss');
   const lines = [
     '🚨 <b>Сбой триггера (Apps Script): ' + serviceName + '</b>',
-    '⏰ <b>Время:</b> <code>' + now + '</code>',
+    '📅 <b>Дата ошибки:</b> <code>' + dateStr + '</code>',
+    '⏰ <b>Время ошибки:</b> <code>' + timeStr + '</code>',
     '❌ <b>Ошибка:</b> <code>' + errorMessage + '</code>'
   ];
+
 
   if (details) {
     let detailsStr = String(details);

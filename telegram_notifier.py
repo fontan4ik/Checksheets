@@ -62,7 +62,9 @@ def send_telegram_alert(
     details: str | dict[str, Any] | None = None,
 ) -> bool:
     """Send standardized failure alert to Telegram."""
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = datetime.now()
+    date_str = now.strftime("%d.%m.%Y")
+    time_str = now.strftime("%H:%M:%S")
 
     err_text = str(error_message)
     if isinstance(error_message, Exception) and not details:
@@ -70,9 +72,11 @@ def send_telegram_alert(
 
     lines = [
         f"🚨 <b>Сбой синхронизации: {service_name}</b>",
-        f"⏰ <b>Время:</b> <code>{now_str}</code>",
+        f"📅 <b>Дата ошибки:</b> <code>{date_str}</code>",
+        f"⏰ <b>Время ошибки:</b> <code>{time_str}</code>",
         f"❌ <b>Ошибка:</b> <code>{err_text}</code>",
     ]
+
 
     if details:
         details_str = str(details)

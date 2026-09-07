@@ -74,14 +74,17 @@ echo "[$(date)] $SCRIPT_NAME finished with exit code $EXIT_CODE" >> "$LOG_FILE"
 if [ $EXIT_CODE -ne 0 ]; then
     BOT_TOKEN="8795048754:AAHXbXFhzTHa6ICvwyQ1sE2pBvb-ZgqZIac"
     CHAT_ID="-5299125247"
-    NOW_STR=$(date '+%Y-%m-%d %H:%M:%S')
+    DATE_STR=$(date '+%d.%m.%Y')
+    TIME_STR=$(date '+%H:%M:%S')
     ERR_TAIL=$(tail -n 15 "$LOG_FILE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
     MSG="🚨 <b>Сбой триггера Checksheets: $SCRIPT_NAME</b>
-⏰ <b>Время:</b> <code>$NOW_STR</code>
+📅 <b>Дата ошибки:</b> <code>$DATE_STR</code>
+⏰ <b>Время ошибки:</b> <code>$TIME_STR</code>
 ❌ <b>Код завершения:</b> <code>$EXIT_CODE</code>
 
 <b>Последние строки лога:</b>
 <pre>$ERR_TAIL</pre>"
+
 
     curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
         -H "Content-Type: application/json" \
