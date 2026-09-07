@@ -157,7 +157,7 @@ const targetSheet = {
       return { getDisplayValues: () => [headers] };
     }
     if (row === 2 && column === 1 && numRows === 2) {
-      return { getValues: () => [['23348-1'], ['99999']] };
+      return { getValues: () => [['23348'], ['99999']] };
     }
     if ((column === 23 || column === 25) && row === 2 && numRows === 2) {
       return {

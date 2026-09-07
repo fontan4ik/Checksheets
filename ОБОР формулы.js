@@ -292,7 +292,7 @@ function updateOborWbStockDirect() {
   const sourceDeadUnits = sumOborMapValues_(deadBaseValueMap);
   const sourceLiveUnits = sumOborMapValues_(warehouseBaseValueMap);
   Logger.log(
-    "ОБОР: «ВБ всего» (Warehouse Inventory Report: «" + OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME + "» − «" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») и «ВБ ост» (точный vendorCode) обновлены" +
+    "ОБОР: «ВБ всего» (Warehouse Inventory Report: «" + OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME + "» − «" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») и «ВБ ост» (все WB-варианты базового артикула) обновлены" +
     "; строк=" + valuesByColumn[0].length +
     "; ненулевых «ВБ всего»=" + totalNonZero +
     "; ненулевых «ВБ ост»=" + warehouseNonZero +
@@ -476,8 +476,8 @@ function aggregateOborWbWarehouseRemainsRows_(rows) {
         : sum;
     }, 0);
 
-    // «39171-1» и «39171-2» — независимые vendorCode в отчёте WB.
-    // Не объединять их по базе: точное совпадение важнее упаковочного fallback-а.
+    // Точные vendorCode хранятся раздельно для суффиксных строк ОБОР.
+    // Параллельно суммируем их по базе для фактических базовых строк ОБОР.
     total[article] = (total[article] || 0) + totalValue;
     live[article] = (live[article] || 0) + liveValue;
     const base = normalizeOborWbBaseArticle_(article);
