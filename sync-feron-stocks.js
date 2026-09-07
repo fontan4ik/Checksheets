@@ -71,35 +71,20 @@ function log(msg) {
 async function readFeronStocksFromSheet(auth) {
   const sheets = google.sheets({ version: "v4", auth });
 
-  const spreadsheet = await sheets.spreadsheets.get({
-    spreadsheetId: SPREADSHEET_ID,
-  });
-  const sheet = spreadsheet.data.sheets.find(
-    (s) => s.properties.title === SHEET_NAME,
-  );
-
-  if (!sheet) {
-    log(`❌ Лист "${SHEET_NAME}" не найден!`);
-    return [];
-  }
-
-  const lastRow = sheet.properties.gridProperties.rowCount;
-
-  if (lastRow < 2) {
-    log(`❌ Нет данных на листе "${SHEET_NAME}"`);
-    return [];
-  }
-
-  const lastCol = sheet.properties.gridProperties.columnCount;
   const headersResp = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `${SHEET_NAME}!1:1`,
     valueRenderOption: "UNFORMATTED_VALUE",
   });
 
+  const headers = headersResp.data.values?.[0] || [];
+  if (headers.length === 0) {
+    log(`❌ Лист "${SHEET_NAME}" пуст или не найден!`);
+    return [];
+  }
+
   const normalizeHeader = (value) => String(value || "")
     .trim().toLowerCase().replaceAll("ё", "е");
-  const headers = headersResp.data.values?.[0] || [];
   const headerColumns = new Map();
   headers.forEach((header, index) => {
     const normalized = normalizeHeader(header);
@@ -150,6 +135,10 @@ async function readFeronStocksFromSheet(auth) {
   });
 
   const allRows = dataResp.data.values || [];
+  if (allRows.length < 2) {
+    log(`❌ Нет данных на листе "${SHEET_NAME}"`);
+    return [];
+  }
   const data = allRows.slice(1);
 
   const stocks = [];
@@ -810,8 +799,18 @@ async function main() {
     } catch (err) {
       log(`⚠️ Ошибка чтения листа (попытка ${attempt}/${maxReadRetries}): ${err.message || err}`);
       if (attempt === maxReadRetries) throw err;
-      const delay = 5000 * attempt;
-      log(`⏳ Ожидание ${delay / 1000} сек перед повтором...`);
+      const errMsg = String(err.message || err).toLowerCase();
+      const isQuotaOrLock =
+        errMsg.includes("exhausted") ||
+        errMsg.includes("429") ||
+        errMsg.includes("socket hang up") ||
+        errMsg.includes("etimedout") ||
+        errMsg.includes("timeout") ||
+        errMsg.includes("500") ||
+        errMsg.includes("503");
+
+      const delay = isQuotaOrLock ? 30000 * attempt : 5000 * attempt;
+      log(`⏳ Ожидание ${delay / 1000} сек перед повтором (тип ошибки: ${isQuotaOrLock ? "квота/перегрузка Google" : "стандартная"})...`);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
