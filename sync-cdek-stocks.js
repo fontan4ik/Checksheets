@@ -16,6 +16,7 @@ const axios = require("axios");
 const { google } = require("googleapis");
 const https = require("https");
 const os = require("os");
+const { sendTelegramAlert } = require("./telegram_notifier");
 
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const SHEET_NAME = "СДЕК TR";
@@ -304,8 +305,13 @@ function sleep(milliseconds) {
 }
 
 if (require.main === module) {
-  main().catch((error) => {
+  main().catch(async (error) => {
     console.error(`CDEK stock sync failed: ${error.message}`);
+    try {
+      await sendTelegramAlert("sync-cdek-stocks", error.message, error.stack);
+    } catch (tgErr) {
+      console.error("Не удалось отправить Telegram алерт:", tgErr);
+    }
     process.exit(1);
   });
 }

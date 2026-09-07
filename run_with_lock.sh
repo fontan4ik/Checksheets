@@ -63,8 +63,28 @@ case "$SCRIPT_NAME" in
         EXIT_CODE=$?
         ;;
     cdek_hourly_sync)
-        echo "[$(date)] cdek_hourly_sync disabled by operator request" >> "$LOG_FILE"
-        EXIT_CODE=0
+        (
+            FIRST_EXIT_CODE=0
+            SECOND_EXIT_CODE=0
+
+            echo "[$(date)] Starting sync-cdek-stocks.js"
+            /opt/homebrew/bin/node sync-cdek-stocks.js
+            FIRST_EXIT_CODE=$?
+            echo "[$(date)] sync-cdek-stocks.js finished with exit code $FIRST_EXIT_CODE"
+
+            echo "[$(date)] Waiting 60 seconds before sync-cdek-ozon-stocks.js"
+            /bin/sleep 60
+
+            echo "[$(date)] Starting sync-cdek-ozon-stocks.js"
+            /opt/homebrew/bin/node sync-cdek-ozon-stocks.js
+            SECOND_EXIT_CODE=$?
+            echo "[$(date)] sync-cdek-ozon-stocks.js finished with exit code $SECOND_EXIT_CODE"
+
+            if [ "$FIRST_EXIT_CODE" -ne 0 ] || [ "$SECOND_EXIT_CODE" -ne 0 ]; then
+                exit 1
+            fi
+        ) >> "$LOG_FILE" 2>&1
+        EXIT_CODE=$?
         ;;
     *)
         echo "[$(date)] Unknown script: $SCRIPT_NAME" >> "$LOG_FILE"

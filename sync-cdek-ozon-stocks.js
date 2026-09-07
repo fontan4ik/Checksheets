@@ -12,6 +12,7 @@ require("dotenv").config({ path: path.join(__dirname, ".env"), quiet: true });
 const axios = require("axios");
 const fs = require("fs");
 const { google } = require("googleapis");
+const { sendTelegramAlert } = require("./telegram_notifier");
 
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const SHEET_NAME = "СДЕК TR";
@@ -247,8 +248,13 @@ async function main() {
 }
 
 if (require.main === module) {
-  main().catch((error) => {
+  main().catch(async (error) => {
     console.error(`CDEK → Ozon stock sync failed: HTTP ${error.response?.status || 0} ${error.message}`);
+    try {
+      await sendTelegramAlert("sync-cdek-ozon-stocks", error.message, error.stack);
+    } catch (tgErr) {
+      console.error("Не удалось отправить Telegram алерт:", tgErr);
+    }
     process.exit(1);
   });
 }
