@@ -476,13 +476,19 @@ function aggregateOborWbWarehouseRemainsRows_(rows) {
         : sum;
     }, 0);
 
+    // Суффикс vendorCode задаёт число штук в упаковке:
+    // 13517-10 × 5 упаковок = 50 штук, 13517-5 × 1 упаковка = 5 штук.
+    const multiplier = parseOborArticle_(article).multiplier;
+    const totalUnits = totalValue * multiplier;
+    const liveUnits = liveValue * multiplier;
+
     // Точные vendorCode хранятся раздельно для суффиксных строк ОБОР.
     // Параллельно суммируем их по базе для фактических базовых строк ОБОР.
-    total[article] = (total[article] || 0) + totalValue;
-    live[article] = (live[article] || 0) + liveValue;
+    total[article] = (total[article] || 0) + totalUnits;
+    live[article] = (live[article] || 0) + liveUnits;
     const base = normalizeOborWbBaseArticle_(article);
-    totalByBase[base] = (totalByBase[base] || 0) + totalValue;
-    liveByBase[base] = (liveByBase[base] || 0) + liveValue;
+    totalByBase[base] = (totalByBase[base] || 0) + totalUnits;
+    liveByBase[base] = (liveByBase[base] || 0) + liveUnits;
     validRows++;
   });
 
