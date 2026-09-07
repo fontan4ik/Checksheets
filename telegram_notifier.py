@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import html
 import os
 import traceback
 from typing import Any
@@ -66,7 +67,7 @@ def send_telegram_alert(
     date_str = now.strftime("%d.%m.%Y")
     time_str = now.strftime("%H:%M:%S")
 
-    err_text = str(error_message)
+    err_text = html.escape(str(error_message))
     if isinstance(error_message, Exception) and not details:
         details = traceback.format_exc()
 
@@ -82,7 +83,7 @@ def send_telegram_alert(
         details_str = str(details)
         if len(details_str) > 1500:
             details_str = details_str[-1500:]  # keep the most recent traceback
-        lines.append(f"\n<b>Детали:</b>\n<pre>{details_str}</pre>")
+        lines.append(f"\n<b>Детали:</b>\n<pre>{html.escape(details_str)}</pre>")
 
     text = "\n".join(lines)
     return send_telegram_message(text, parse_mode="HTML")
