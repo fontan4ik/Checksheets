@@ -115,28 +115,30 @@ const reportMaps = warehouseRemainsAggregate([
   { vendorCode: '5032873-3', warehouses: [{ warehouseName: 'В пути до получателей', quantity: 3 }, { warehouseName: 'В пути возвраты на склад WB', quantity: 11 }, { warehouseName: 'Всего находится на складах', quantity: 65 }, { warehouseName: 'Склад WB РФ', quantity: 2 }, { warehouseName: 'Электросталь', quantity: 36 }] },
   { vendorCode: '55012-5', warehouses: [{ warehouseName: 'Всего находится на складах', quantity: 66 }, { warehouseName: 'Склад WB РФ', quantity: 8 }, { warehouseName: 'Краснодар', quantity: 16 }] },
   { vendorCode: '55146-5', warehouses: [{ warehouseName: 'Всего находится на складах', quantity: 59 }, { warehouseName: 'Склад WB РФ', quantity: 27 }, { warehouseName: 'СПБ Шушары', quantity: 9 }] },
+  { vendorCode: '04280-1', warehouses: [{ warehouseName: 'Всего находится на складах', quantity: 4 }, { warehouseName: 'Склад WB РФ', quantity: 1 }] },
 ]);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(reportMaps.total)), {
-  '23348-1': 115, '39171-1': 82, '39171-2': 1, '5032873-3': 65, '55012-5': 66, '55146-5': 59,
+  '23348-1': 115, '39171-1': 82, '39171-2': 1, '5032873-3': 65, '55012-5': 66, '55146-5': 59, '04280-1': 4,
 });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(reportMaps.live)), {
-  '23348-1': 32, '39171-1': 6, '39171-2': 0, '5032873-3': 2, '55012-5': 8, '55146-5': 27,
+  '23348-1': 32, '39171-1': 6, '39171-2': 0, '5032873-3': 2, '55012-5': 8, '55146-5': 27, '04280-1': 1,
 });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(reportMaps.totalByBase)), {
-  '23348': 115, '39171': 83, '5032873': 65, '55012': 66, '55146': 59,
+  '23348': 115, '39171': 83, '5032873': 65, '55012': 66, '55146': 59, '4280': 4,
 });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(reportMaps.liveByBase)), {
-  '23348': 32, '39171': 6, '5032873': 2, '55012': 8, '55146': 27,
+  '23348': 32, '39171': 6, '5032873': 2, '55012': 8, '55146': 27, '4280': 1,
 });
 const reportDead = subtractMaps(reportMaps.total, reportMaps.live);
 const reportDeadByBase = subtractMaps(reportMaps.totalByBase, reportMaps.liveByBase);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(reportDead)), {
-  '23348-1': 83, '39171-1': 76, '39171-2': 1, '5032873-3': 63, '55012-5': 58, '55146-5': 32,
+  '23348-1': 83, '39171-1': 76, '39171-2': 1, '5032873-3': 63, '55012-5': 58, '55146-5': 32, '04280-1': 3,
 });
 assert.strictEqual(resolveWarehouseReportValue(reportDead, '39171-1'), 76);
 assert.strictEqual(resolveWarehouseReportValue(reportDead, '39171', reportDeadByBase), 77);
 assert.strictEqual(resolveWarehouseReportValue(reportMaps.live, '39171', reportMaps.liveByBase), 6);
 assert.strictEqual(resolveWarehouseReportValue(reportDead, '39171-2'), 1);
+assert.strictEqual(resolveWarehouseReportValue(reportDead, '4280', reportDeadByBase), 3);
 
 const writes = [];
 const targetSheet = {

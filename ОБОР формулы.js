@@ -289,13 +289,17 @@ function updateOborWbStockDirect() {
   const warehouseNonZero = valuesByColumn[1].filter(row => Number(row[0]) !== 0).length;
   const writtenDeadUnits = valuesByColumn[0].reduce((sum, row) => sum + parseOborNumber_(row[0]), 0);
   const writtenLiveUnits = valuesByColumn[1].reduce((sum, row) => sum + parseOborNumber_(row[0]), 0);
+  const sourceDeadUnits = sumOborMapValues_(deadBaseValueMap);
+  const sourceLiveUnits = sumOborMapValues_(warehouseBaseValueMap);
   Logger.log(
     "ОБОР: «ВБ всего» (Warehouse Inventory Report: «" + OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME + "» − «" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») и «ВБ ост» (точный vendorCode) обновлены" +
     "; строк=" + valuesByColumn[0].length +
     "; ненулевых «ВБ всего»=" + totalNonZero +
     "; ненулевых «ВБ ост»=" + warehouseNonZero +
     "; записано ед. «ВБ всего»=" + writtenDeadUnits +
-    "; записано ед. «ВБ ост»=" + writtenLiveUnits
+    "; записано ед. «ВБ ост»=" + writtenLiveUnits +
+    "; не найдено в ОБОР, ед.=" +
+      Math.max(0, sourceDeadUnits - writtenDeadUnits + sourceLiveUnits - writtenLiveUnits)
   );
   return {
     rows: valuesByColumn[0].length,
@@ -476,7 +480,7 @@ function aggregateOborWbWarehouseRemainsRows_(rows) {
     // Не объединять их по базе: точное совпадение важнее упаковочного fallback-а.
     total[article] = (total[article] || 0) + totalValue;
     live[article] = (live[article] || 0) + liveValue;
-    const base = parseOborArticle_(article).base;
+    const base = normalizeOborWbBaseArticle_(article);
     totalByBase[base] = (totalByBase[base] || 0) + totalValue;
     liveByBase[base] = (liveByBase[base] || 0) + liveValue;
     validRows++;
@@ -496,8 +500,9 @@ function resolveOborWbWarehouseReportValue_(valueMap, article, baseValueMap) {
   if (Object.prototype.hasOwnProperty.call(valueMap || {}, exact)) return valueMap[exact];
 
   const parsed = parseOborArticle_(exact);
-  if (exact === parsed.base && Object.prototype.hasOwnProperty.call(baseValueMap || {}, parsed.base)) {
-    return baseValueMap[parsed.base];
+  const normalizedBase = normalizeOborWbBaseArticle_(exact);
+  if (exact === parsed.base && Object.prototype.hasOwnProperty.call(baseValueMap || {}, normalizedBase)) {
+    return baseValueMap[normalizedBase];
   }
   const baseValue = valueMap && valueMap[parsed.base];
   if (baseValue !== undefined) return baseValue * parsed.multiplier;
@@ -513,6 +518,13 @@ function resolveOborWbWarehouseReportValue_(valueMap, article, baseValueMap) {
     }
   }
   return 0;
+}
+
+function normalizeOborWbBaseArticle_(article) {
+  const base = parseOborArticle_(normalizeOborArticle_(article)).base;
+  // Google Sheets превращает числовой артикул 04280 в 4280.
+  // Для смешанных артикулов нули значимы и не удаляются.
+  return /^\d+$/.test(base) ? base.replace(/^0+(?=\d)/, "") : base;
 }
 
 function sumOborMapValues_(valueMap) {
