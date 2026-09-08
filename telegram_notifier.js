@@ -10,6 +10,7 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8795048754:AAHXbXFhzTHa6ICv
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-5299125247";
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 const LOGS_DIR = path.join(__dirname, "logs");
+const FBS_REPORT_QUEUE_FILE = path.join(LOGS_DIR, "fbs_broadcast_report_queue.json");
 
 /**
  * Safe Telegram text message sender.
@@ -173,55 +174,16 @@ async function sendFbsWarehouseReport({
   durationSec = null,
   historyKey = null,
 }) {
-  const durationText = durationSec
-    ? `${Math.floor(durationSec / 60)} мин ${durationSec % 60} сек`
-    : "";
-
-  const now = new Date();
-  const dateStr = now.toLocaleDateString("ru-RU", { timeZone: "Europe/Samara" });
-  const timeStr = now.toLocaleTimeString("ru-RU", { timeZone: "Europe/Samara", hour12: false });
-
-  const key = historyKey || `${marketplace}_${warehouseName}`;
-  const { growthText } = recordAndCompareFbsStats(
-    key,
+  return queueFbsBroadcastReport({
+    marketplace,
+    warehouseName,
     totalSku,
     activeSku,
     marketplaceStockSku,
-    marketplaceTotalPieces
-  );
-
-  const formattedTotal = Number(totalSku).toLocaleString("ru-RU");
-  const formattedActive = Number(activeSku).toLocaleString("ru-RU");
-
-  const header = durationText
-    ? `📦 <b>Трансляция ${marketplace} (склад «${warehouseName}») завершена</b> (${durationText})`
-    : `📦 <b>Трансляция ${marketplace} (склад «${warehouseName}») завершена</b>`;
-
-  const lines = [
-    header,
-    `📅 <b>Дата:</b> <code>${dateStr}</code>`,
-    `⏰ <b>Время окончания трансляции:</b> <code>${timeStr}</code>`,
-    `Всего в трансляции: <b>${formattedTotal}</b> SKU`,
-    `Транслируем: <b>${formattedActive}</b> SKU`,
-  ];
-
-  if (marketplaceStockSku !== null && marketplaceStockSku !== undefined) {
-    const formattedMarketplaceSku = Number(marketplaceStockSku).toLocaleString("ru-RU");
-    if (marketplaceTotalPieces !== null && marketplaceTotalPieces !== undefined && marketplaceTotalPieces > 0) {
-      const formattedPieces = Number(marketplaceTotalPieces).toLocaleString("ru-RU");
-      lines.push(
-        `Сейчас на остатках ${marketplace}: <b>${formattedMarketplaceSku}</b> SKU (${formattedPieces} шт.)`
-      );
-    } else {
-      lines.push(
-        `Сейчас на остатках ${marketplace}: <b>${formattedMarketplaceSku}</b> SKU`
-      );
-    }
-  }
-
-  lines.push(growthText);
-
-  return sendTelegramMessage(lines.join("\n"), "HTML");
+    marketplaceTotalPieces,
+    durationSec,
+    historyKey,
+  });
 }
 
 /**
@@ -234,46 +196,84 @@ async function sendFbsMultiWarehouseReport({
   warehouses = [],
   durationSec = null,
 }) {
-  const durationText = durationSec
-    ? `${Math.floor(durationSec / 60)} мин ${durationSec % 60} сек`
-    : "";
-
-  const now = new Date();
-  const dateStr = now.toLocaleDateString("ru-RU", { timeZone: "Europe/Samara" });
-  const timeStr = now.toLocaleTimeString("ru-RU", { timeZone: "Europe/Samara", hour12: false });
-
-  const formattedTotal = Number(totalSku).toLocaleString("ru-RU");
-
-  const header = durationText
-    ? `📦 <b>Трансляция ${marketplace} (${supplier}) завершена</b> (${durationText})`
-    : `📦 <b>Трансляция ${marketplace} (${supplier}) завершена</b>`;
-
-  const lines = [
-    header,
-    `📅 <b>Дата:</b> <code>${dateStr}</code>`,
-    `⏰ <b>Время окончания трансляции:</b> <code>${timeStr}</code>`,
-    `Всего в таблице: <b>${formattedTotal}</b> SKU`,
-    "",
-    `🏪 <b>Склады ${marketplace}:</b>`,
-  ];
-
+  const results = [];
   for (const wh of warehouses) {
-    const name = wh.warehouseName || wh.name || "Склад";
-    const active = Number(wh.activeSku || 0).toLocaleString("ru-RU");
-    let whLine = `• <b>${name}:</b> транслируем <b>${active}</b> SKU`;
-    if (wh.marketplaceStockSku !== null && wh.marketplaceStockSku !== undefined) {
-      const mktSku = Number(wh.marketplaceStockSku).toLocaleString("ru-RU");
-      if (wh.marketplaceTotalPieces !== null && wh.marketplaceTotalPieces !== undefined && wh.marketplaceTotalPieces > 0) {
-        const mktPieces = Number(wh.marketplaceTotalPieces).toLocaleString("ru-RU");
-        whLine += ` | остаток: <b>${mktSku}</b> SKU (${mktPieces} шт.)`;
-      } else {
-        whLine += ` | остаток: <b>${mktSku}</b> SKU`;
-      }
+    results.push(await queueFbsBroadcastReport({
+      supplier,
+      marketplace,
+      warehouseName: wh.warehouseName || wh.name || "Склад",
+      totalSku,
+      activeSku: wh.activeSku,
+      marketplaceStockSku: wh.marketplaceStockSku,
+      marketplaceTotalPieces: wh.marketplaceTotalPieces,
+      durationSec,
+    }));
+  }
+  return results.every(Boolean);
+}
+
+/** Store completed broadcasts until the next scheduled Telegram digest. */
+function queueFbsBroadcastReport(report) {
+  if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR, { recursive: true });
+
+  let queue = [];
+  try {
+    queue = JSON.parse(fs.readFileSync(FBS_REPORT_QUEUE_FILE, "utf8"));
+    if (!Array.isArray(queue)) queue = [];
+  } catch (err) {
+    if (err.code !== "ENOENT") {
+      console.error(`[telegram_notifier] Failed to read FBS report queue: ${err.message}`);
     }
-    lines.push(whLine);
   }
 
-  return sendTelegramMessage(lines.join("\n"), "HTML");
+  queue.push({ ...report, completedAt: new Date().toISOString() });
+  try {
+    fs.writeFileSync(FBS_REPORT_QUEUE_FILE, JSON.stringify(queue.slice(-500), null, 2), "utf8");
+    return true;
+  } catch (err) {
+    console.error(`[telegram_notifier] Failed to queue FBS report: ${err.message}`);
+    return false;
+  }
+}
+
+function formatFbsBroadcastDigest(reports) {
+  const lines = ["📦 <b>Сводка трансляций остатков</b>"];
+  for (const report of reports) {
+    const completedAt = new Date(report.completedAt);
+    const date = completedAt.toLocaleDateString("ru-RU", { timeZone: "Europe/Samara" });
+    const time = completedAt.toLocaleTimeString("ru-RU", { timeZone: "Europe/Samara", hour12: false });
+    const total = Number(report.totalSku || 0).toLocaleString("ru-RU");
+    const active = Number(report.activeSku || 0).toLocaleString("ru-RU");
+    const supplier = report.supplier ? `, ${report.supplier}` : "";
+
+    lines.push("", `🏪 <b>${report.marketplace}${supplier} — ${report.warehouseName}</b>`);
+    lines.push(`⏰ Трансляция завершена: <code>${date} ${time}</code>`);
+    lines.push(`Транслировалось: <b>${active}</b> из <b>${total}</b> SKU`);
+    if (report.marketplaceStockSku !== null && report.marketplaceStockSku !== undefined) {
+      const stockSku = Number(report.marketplaceStockSku).toLocaleString("ru-RU");
+      const pieces = Number(report.marketplaceTotalPieces || 0).toLocaleString("ru-RU");
+      lines.push(report.marketplaceTotalPieces > 0
+        ? `Остатки ${report.marketplace}: <b>${stockSku}</b> SKU, <b>${pieces}</b> шт.`
+        : `Остатки ${report.marketplace}: <b>${stockSku}</b> SKU`);
+    }
+  }
+  return lines.join("\n");
+}
+
+/** Send and clear all successful broadcast reports accumulated since the last digest. */
+async function sendQueuedFbsBroadcastSummary() {
+  let reports = [];
+  try {
+    reports = JSON.parse(fs.readFileSync(FBS_REPORT_QUEUE_FILE, "utf8"));
+    if (!Array.isArray(reports)) reports = [];
+  } catch (err) {
+    if (err.code !== "ENOENT") throw err;
+  }
+  if (!reports.length) return false;
+
+  const sent = await sendTelegramMessage(formatFbsBroadcastDigest(reports), "HTML");
+  if (sent) fs.unlinkSync(FBS_REPORT_QUEUE_FILE);
+  return sent;
 }
 
 /**
@@ -302,4 +302,7 @@ module.exports = {
   sendFbsMultiWarehouseReport,
   sendFbsBroadcastReport,
   recordAndCompareFbsStats,
+  queueFbsBroadcastReport,
+  formatFbsBroadcastDigest,
+  sendQueuedFbsBroadcastSummary,
 };
