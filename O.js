@@ -895,27 +895,8 @@ function downloadAndBuildOzonReport65StorageMap_(fileUrl) {
   }
 
   const blob = response.getBlob();
-  const bytes = blob.getBytes();
-  if (bytes.length > 1 && bytes[0] === 0x50 && bytes[1] === 0x4B) {
-    Logger.log("Формат отчёта хранения: XLSX");
-    try {
-      const rows = parseOzonReport65XlsxRows_(blob);
-      return {
-        storageMap: buildOzonReport65StorageMapFromRows_(rows),
-        rowCount: rows.length
-      };
-    } catch (error) {
-      Logger.log("XLSX слишком большой для ZIP-парсера Apps Script, пробую конвертацию через Google Sheets: " + error);
-      return buildOzonReport65StorageMapViaGoogleSheets_(blob);
-    }
-  }
-
-  Logger.log("Формат отчёта хранения: CSV/TSV");
-  const rows = parseOzonReport65DelimitedRows_(response.getContentText("UTF-8"));
-  return {
-    storageMap: buildOzonReport65StorageMapFromRows_(rows),
-    rowCount: rows.length
-  };
+  Logger.log("Отчёт хранения: конвертация через Google Sheets без ZIP-распаковки в памяти");
+  return buildOzonReport65StorageMapViaGoogleSheets_(blob);
 }
 
 function buildOzonReport65StorageMapFromRows_(rows) {
@@ -955,7 +936,7 @@ function buildOzonReport65StorageMapFromRows_(rows) {
 
 function buildOzonReport65StorageMapViaGoogleSheets_(blob) {
   const tempName = OZON_REPORT65_STORAGE_TEMP_SHEET_NAME + "_" + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd_HHmmss");
-  const xlsxBlob = blob.copyBlob()
+  const xlsxBlob = blob
     .setName(tempName + ".xlsx")
     .setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
   let tempFileId = "";
@@ -1031,37 +1012,52 @@ function addOzonReport65StorageRowsToMap_(storageMap, rows, skuIndex, offerIndex
 }
 
 function uploadOzonReport65XlsxAsGoogleSheet_(blob, name) {
-  const boundary = "ozon_report65_storage_" + Date.now();
-  const delimiter = "\r\n--" + boundary + "\r\n";
-  const closeDelimiter = "\r\n--" + boundary + "--";
+  const sourceContentType = blob.getContentType() || "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const authorization = "Bearer " + ScriptApp.getOAuthToken();
   const metadata = {
     name,
     mimeType: MimeType.GOOGLE_SHEETS
   };
-  const payloadBytes = []
-    .concat(Utilities.newBlob(delimiter + "Content-Type: application/json; charset=UTF-8\r\n\r\n" + JSON.stringify(metadata)).getBytes())
-    .concat(Utilities.newBlob(delimiter + "Content-Type: " + blob.getContentType() + "\r\n\r\n").getBytes())
-    .concat(blob.getBytes())
-    .concat(Utilities.newBlob(closeDelimiter).getBytes());
 
-  const response = UrlFetchApp.fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id", {
+  const initResponse = UrlFetchApp.fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id", {
     method: "post",
-    contentType: "multipart/related; boundary=" + boundary,
+    contentType: "application/json; charset=UTF-8",
     headers: {
-      Authorization: "Bearer " + ScriptApp.getOAuthToken()
+      Authorization: authorization,
+      "X-Upload-Content-Type": sourceContentType
     },
-    payload: payloadBytes,
+    payload: JSON.stringify(metadata),
     muteHttpExceptions: true
   });
-  const code = response.getResponseCode();
-  const text = response.getContentText();
+  const initCode = initResponse.getResponseCode();
+  const initText = initResponse.getContentText();
 
-  if (code < 200 || code >= 300) {
-    throw new Error("Drive upload HTTP " + code + ": " + text.slice(0, 1000));
+  if (initCode < 200 || initCode >= 300) {
+    throw new Error("Drive resumable init HTTP " + initCode + ": " + initText.slice(0, 1000));
   }
 
-  const json = JSON.parse(text);
-  if (!json.id) throw new Error("Drive upload не вернул id: " + text.slice(0, 1000));
+  const initHeaders = initResponse.getHeaders();
+  const uploadUrl = initHeaders.Location || initHeaders.location || "";
+  if (!uploadUrl) throw new Error("Drive resumable init не вернул Location");
+
+  const uploadResponse = UrlFetchApp.fetch(uploadUrl, {
+    method: "put",
+    contentType: sourceContentType,
+    headers: {
+      Authorization: authorization
+    },
+    payload: blob,
+    muteHttpExceptions: true
+  });
+  const uploadCode = uploadResponse.getResponseCode();
+  const uploadText = uploadResponse.getContentText();
+
+  if (uploadCode < 200 || uploadCode >= 300) {
+    throw new Error("Drive resumable upload HTTP " + uploadCode + ": " + uploadText.slice(0, 1000));
+  }
+
+  const json = JSON.parse(uploadText || "{}");
+  if (!json.id) throw new Error("Drive resumable upload не вернул id: " + uploadText.slice(0, 1000));
   return json.id;
 }
 
