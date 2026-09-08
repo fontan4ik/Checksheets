@@ -378,6 +378,60 @@ const ozonHeaders = () => ({
   "Api-Key": "fe539630-170b-4b48-b222-8ba092907a63",
 });
 
+function isRetryableOzonReadError(err) {
+  const status = Number(err?.response?.status || 0);
+  return (
+    [429, 500, 502, 503, 504].includes(status) ||
+    isTransportError(status, err?.message)
+  );
+}
+
+async function fetchOzonWarehouseStocksChunkWithRetry(
+  offerIds,
+  warehouseId,
+  retryCount = 0,
+) {
+  try {
+    return await axios.post(
+      "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs",
+      {
+        offer_id: offerIds,
+        warehouse_id: warehouseId,
+        limit: 1000,
+      },
+      {
+        headers: ozonHeaders(),
+        timeout: 30000,
+      },
+    );
+  } catch (err) {
+    if (
+      !isRetryableOzonReadError(err) ||
+      retryCount >= OZON_MAX_RETRIES
+    ) {
+      throw err;
+    }
+
+    const retryAfter =
+      Number(err?.response?.headers?.["retry-after"] || 0) * 1000;
+    const delay = Math.max(
+      retryAfter,
+      OZON_BASE_DELAY * Math.pow(2, retryCount),
+    );
+    const status = err?.response?.status || err.code || "network";
+
+    log(
+      `⏳ Ozon post-check ${status}: ожидание ${delay / 1000} сек перед retry ${retryCount + 1}/${OZON_MAX_RETRIES}...`,
+    );
+    await sleep(delay);
+    return fetchOzonWarehouseStocksChunkWithRetry(
+      offerIds,
+      warehouseId,
+      retryCount + 1,
+    );
+  }
+}
+
 async function fetchOzonWarehouseStocksByOfferIds(offerIds, warehouseId) {
   const stockMap = new Map();
   // Ozon returns multiple warehouse rows per offer_id even when warehouse_id is passed.
@@ -386,17 +440,9 @@ async function fetchOzonWarehouseStocksByOfferIds(offerIds, warehouseId) {
 
   for (let i = 0; i < offerIds.length; i += chunkSize) {
     const chunk = offerIds.slice(i, i + chunkSize);
-    const response = await axios.post(
-      "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs",
-      {
-        offer_id: chunk,
-        warehouse_id: warehouseId,
-        limit: 1000,
-      },
-      {
-        headers: ozonHeaders(),
-        timeout: 30000,
-      },
+    const response = await fetchOzonWarehouseStocksChunkWithRetry(
+      chunk,
+      warehouseId,
     );
 
     const products = Array.isArray(response.data?.products)
