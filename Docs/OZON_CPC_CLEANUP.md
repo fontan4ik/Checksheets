@@ -63,13 +63,12 @@
 2. Добавляет SKU
    `POST /api/client/campaign/{id}/products` с `{"bids":[{"sku":..., "bid":"0"}]}`.
 3. Активирует `POST /api/client/campaign/{id}/activate`.
-4. Одним batched-апдейтом записывает новые `CAMPAIN ID` в диапазон
-   `F2:F{last_row}` (один запрос к Google Sheets — иначе упрёмся в лимит
-   `Write requests per minute per user`).
+4. Одним batched-апдейтом записывает новые `CAMPAIN ID` строго в исходные
+   строки (например, `F1052`, `F1055`), не затрагивая уже заполненные строки.
 
-Скрипт всегда создаёт кампании для всех строк, даже если в `CAMPAIN ID` уже
-есть значение (по требованию «абсолютно все, даже те где уже есть»). Повторный
-запуск создаст ещё один набор кампаний.
+Скрипт создаёт кампании только для строк с `art` + `SKU OZON` и пустым
+`CAMPAIN ID`. Повторный запуск не создаёт дубликаты. Плановый LaunchAgent
+запускает этот поиск каждые 15 минут, а затем выполняет обычную CPC-аналитику.
 
 ## Аналитика и остановка (`ozon_cpc_cleanup.py`)
 
@@ -121,6 +120,11 @@ cd /Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets
 # Полный запуск: создать кампании, записать CAMPAIN ID, вывести аналитику
 ./.venv-etm-export/bin/python create_ozon_cpc_campaigns.py
 
+# Плановый режим: создать отсутствующие и записать аналитику
+./.venv-etm-export/bin/python create_ozon_cpc_campaigns.py \
+  --analytics-rotation-batches 2 --analytics-write-sheet \
+  --analytics-stop-on-filter
+
 # Только аналитика (dry-run)
 ./.venv-etm-export/bin/python ozon_cpc_cleanup.py
 
@@ -165,4 +169,3 @@ OZON_CPC_CONFIRM_DELETE=YES \
 - пропуск строк, у которых оба фильтра = 0;
 - защиту от удаления SKU, которого уже нет в кампании;
 - фильтрацию строк `СРС` без `art`.
-

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.voltmir.checksheets-cpc-hourly</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/.venv-etm-export/bin/python</string>
+    <string>-u</string>
+    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/create_ozon_cpc_campaigns.py</string>
+    <string>--analytics-rotation-batches</string>
+    <string>2</string>
+    <string>--analytics-write-sheet</string>
+    <string>--analytics-stop-on-filter</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>OZON_CPC_CONFIRM_DELETE</key>
+    <string>YES</string>
+    <key>OZON_CPC_SKIP_BYPASS</key>
+    <string>true</string>
+  </dict>
+  <key>StartInterval</key>
+  <integer>900</integer>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/cpc-hourly.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/cpc-hourly.err.log</string>
+</dict>
+</plist>
