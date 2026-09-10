@@ -18,6 +18,7 @@
  * - G (7): Остаток FBS
  * - H (8): FBS склад Москва
  * - K (11): ЦЕНА ОЗОН
+ * - BR (70): Минимальная цена Ozon / ограничение для акций и стратегий
  * - AB-AH (28-34): FBS склады (7 складов) ✅ НОВОЕ
  */
 function OzonMain(){
@@ -39,6 +40,7 @@ function OzonMain(){
     throw err;
   }
 }
+
 
 
 /**
@@ -281,4 +283,3 @@ function updateExternalAPIStocks(){
     throw err;
   }
 }
-
