@@ -3,6 +3,7 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsMultiWarehouseReport, sendFbsBroadcastReport } = require("./telegram_notifier");
+const { createWbStockAudit } = require("./wb_stock_audit");
 
 const SHEET_NAME = "StreamSupps";
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
@@ -192,6 +193,15 @@ async function readFeronStocksFromSheet(auth) {
 
   log(`📊 Прочитано ${stocks.length} товаров из листа "${SHEET_NAME}"`);
   log(`   С chrtId: ${stocks.filter((s) => s.chrt_id).length}`);
+
+  stocks.snapshotReadAt = new Date().toISOString();
+  stocks.wbSourceColumns = {
+    stock_msk: `${columnLetter(colStockMsk)}:${headers[colStockMsk - 1]}`,
+    stock_wb_voltmir: `${columnLetter(colWbVoltmirStock)}:${headers[colWbVoltmirStock - 1]}`,
+    stock_nsb: `${columnLetter(colStockNsb)}:${headers[colStockNsb - 1]}`,
+    stock_ekb: `${columnLetter(colStockEkb)}:${headers[colStockEkb - 1]}`,
+  };
+  log(`🧾 WB snapshot: readAt=${stocks.snapshotReadAt}, sources=${JSON.stringify(stocks.wbSourceColumns)}`);
 
   return stocks;
 }
@@ -594,6 +604,7 @@ async function processFeronWBConflictIndividually(
   validBatch,
   warehouseId,
   batchLabel,
+  auditContext = null,
 ) {
   let successCount = 0;
   let skippedCount = 0;
@@ -610,9 +621,19 @@ async function processFeronWBConflictIndividually(
 
     const item = validBatch[j];
     const result = await sendFeronWBStocksBatch([item], warehouseId);
+    const auditItem = auditContext?.itemsByChrtId.get(Number(item.chrtId));
 
     if (result.ok) {
       successCount++;
+      auditContext?.audit.recordItemResult({
+        warehouseId,
+        batchIndex: auditContext.batchIndex,
+        offerId: auditItem?.offerId,
+        chrtId: item.chrtId,
+        amount: item.amount,
+        status: "success",
+        code: result.code,
+      });
       continue;
     }
 
@@ -621,6 +642,15 @@ async function processFeronWBConflictIndividually(
         `⏸️ ${batchLabel}: пропущен ODC/CD+ chrtId=${item.chrtId}, amount=${item.amount}`,
       );
       skippedCount++;
+      auditContext?.audit.recordItemResult({
+        warehouseId,
+        batchIndex: auditContext.batchIndex,
+        offerId: auditItem?.offerId,
+        chrtId: item.chrtId,
+        amount: item.amount,
+        status: "cargo_restriction",
+        code: result.code,
+      });
       continue;
     }
 
@@ -629,6 +659,15 @@ async function processFeronWBConflictIndividually(
         `⏭️ ${batchLabel}: chrtId=${item.chrtId} - 429 превышен лимит, пропущен`,
       );
       skippedCount++;
+      auditContext?.audit.recordItemResult({
+        warehouseId,
+        batchIndex: auditContext.batchIndex,
+        offerId: auditItem?.offerId,
+        chrtId: item.chrtId,
+        amount: item.amount,
+        status: "rate_limited",
+        code: result.code,
+      });
       continue;
     }
 
@@ -636,6 +675,15 @@ async function processFeronWBConflictIndividually(
       `❌ ${batchLabel}: ошибка для chrtId=${item.chrtId}, code=${result.code}`,
     );
     errorCount++;
+    auditContext?.audit.recordItemResult({
+      warehouseId,
+      batchIndex: auditContext.batchIndex,
+      offerId: auditItem?.offerId,
+      chrtId: item.chrtId,
+      amount: item.amount,
+      status: "error",
+      code: result.code,
+    });
   }
 
   log(
@@ -655,6 +703,12 @@ async function updateFeronStocksWB(stocks) {
   }
 
   log(`📦 Товаров для обработки: ${validStocks.length}`);
+  const audit = createWbStockAudit({
+    scriptName: "sync-feron-stocks",
+    sheetName: SHEET_NAME,
+    sourceReadAt: stocks.snapshotReadAt,
+  });
+  log(`🧾 WB payload audit: ${audit.filePath} (runId=${audit.runId})`);
 
   const warehouses = [
     {
@@ -721,6 +775,7 @@ async function updateFeronStocksWB(stocks) {
       const batch = validStocks.slice(i * batchSize, (i + 1) * batchSize);
 
       const validBatch = [];
+      const auditItems = [];
 
       for (const item of batch) {
         const idNum = Number(item.chrt_id);
@@ -731,9 +786,22 @@ async function updateFeronStocksWB(stocks) {
         const amount =
           FORCE_ZERO_WB_EKB && wh.key === "EKB" ? 0 : item[wh.col];
         validBatch.push({ chrtId: idNum, amount });
+        auditItems.push({ offerId: item.offer_id, chrtId: idNum, amount });
       }
 
       if (validBatch.length === 0) continue;
+
+      const auditPayload = audit.recordPayload({
+        warehouseId: wh.id,
+        warehouseName: wh.name,
+        sourceColumn: stocks.wbSourceColumns?.[wh.col] || wh.col,
+        batchIndex: i + 1,
+        totalBatches: batches,
+        items: auditItems,
+      });
+      if (auditPayload.shouldWarn) {
+        log(`⚠️ WB STALE SNAPSHOT: снимку уже ${auditPayload.ageSeconds} сек; warehouse=${wh.name}, batch=${i + 1}/${batches}, source=${stocks.wbSourceColumns?.[wh.col] || wh.col}`);
+      }
 
       log(`📤 Отправка на WB ${wh.name}: ${validBatch.length} товаров, первый: chrtId=${validBatch[0]?.chrtId}, amount=${validBatch[0]?.amount}`);
 
@@ -741,6 +809,14 @@ async function updateFeronStocksWB(stocks) {
 
       if (result.ok) {
         warehouseSuccess += validBatch.length;
+        audit.recordBatchResult({
+          warehouseId: wh.id,
+          batchIndex: i + 1,
+          checksum: auditPayload.checksum,
+          status: "success",
+          code: result.code,
+          successCount: validBatch.length,
+        });
         log(
           `✅ Пачка ${i + 1}/${batches} обработана (${validBatch.length} товаров)`,
         );
@@ -753,7 +829,22 @@ async function updateFeronStocksWB(stocks) {
           validBatch,
           wh.id,
           `Пачка ${i + 1}/${batches}`,
+          {
+            audit,
+            batchIndex: i + 1,
+            itemsByChrtId: new Map(auditItems.map((item) => [item.chrtId, item])),
+          },
         );
+        audit.recordBatchResult({
+          warehouseId: wh.id,
+          batchIndex: i + 1,
+          checksum: auditPayload.checksum,
+          status: "individual_fallback",
+          code: result.code,
+          successCount: fallback.successCount,
+          skippedCount: fallback.skippedCount,
+          errorCount: fallback.errorCount,
+        });
         warehouseSuccess += fallback.successCount;
         warehouseSkipped += fallback.skippedCount;
         warehouseError += fallback.errorCount;
@@ -765,11 +856,27 @@ async function updateFeronStocksWB(stocks) {
           `⏭️ WB 429 (пачка ${i + 1}/${batches}): превышен лимит, пропущено ${validBatch.length} товаров`,
         );
         warehouseSkipped += validBatch.length;
+        audit.recordBatchResult({
+          warehouseId: wh.id,
+          batchIndex: i + 1,
+          checksum: auditPayload.checksum,
+          status: "rate_limited",
+          code: result.code,
+          skippedCount: validBatch.length,
+        });
         continue;
       }
 
       log(`❌ Ошибка API (пачка ${i + 1}/${batches}): ${result.code}`);
       warehouseError += validBatch.length;
+      audit.recordBatchResult({
+        warehouseId: wh.id,
+        batchIndex: i + 1,
+        checksum: auditPayload.checksum,
+        status: "error",
+        code: result.code,
+        errorCount: validBatch.length,
+      });
     }
 
     log(
