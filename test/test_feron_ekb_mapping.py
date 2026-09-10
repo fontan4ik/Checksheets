@@ -62,11 +62,6 @@ def test_wb_ekb_target_is_configured_for_feron_translation():
     assert 'marketplace_stock_nsb: "НОВОСИБИРСК ФЕРОН"' in source
     assert 'marketplace_stock_ekb: "ЕКБ Ферон"' in source
     assert "EKB: 1860503" in source
-    assert "FERON: 1449484" in source
-    assert 'name: "ФБС ФЕРОН МОСКВА"' in source
-    assert 'id: FERON_TR_WB_WAREHOUSE.FERON' in source
-    assert 'id: FERON_TR_WB_WAREHOUSE.MSK' not in source
-    assert 'id: FERON_TR_WB_WAREHOUSE.SMR' not in source
     assert 'name: "Екатеринбург"' in source
     assert 'col: "stock_ekb"' in source
-    assert "WB FBS (3 склада)" in source
+    assert "WB FBS (4 склада)" in source
