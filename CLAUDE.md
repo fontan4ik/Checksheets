@@ -79,7 +79,8 @@ These run on local servers or machines to update Google Sheets via the API:
 1. Python dependencies should be maintained in a virtual environment (`.venv-etm-export`).
 2. Use `SourceAddressAdapter` from `network_bypass.py` inside local Python scripts. On macOS it binds sockets with `IP_BOUND_IF`; a source-address-only bind is incompatible with full-tunnel Network Extension clients such as Happ.
 3. The Node CDEK sync uses the macOS system route by default. `CHECKSHEETS_NODE_SOURCE_BIND=true` restores the legacy source-address mode for non-Network-Extension VPN setups.
-4. Test execution locally:
+4. Local WB stock writers (`sync-etm-stocks.js`, `sync-feron-stocks.js`) MUST use `wb_stock_audit.js`. Do not remove or bypass the payload audit when changing batching, source columns, warehouse mappings, retries, or fallback behavior.
+5. Test execution locally:
     ```bash
     python3 rs_sync_local.py
     python3 feron_sync_local.py
@@ -145,6 +146,19 @@ These run on local servers or machines to update Google Sheets via the API:
 ---
 
 ## 🔧 RATE LIMITING & DIAGNOSTICS
+
+### WB Stock Payload Audit
+
+- The authoritative forensic log for local WB stock writes is `logs/wb_stock_payload_audit_YYYYMMDD.jsonl`.
+- Every prepared batch must record `runId`, script, spreadsheet tab, source snapshot timestamp, snapshot age, source column/header, WB warehouse ID/name, batch number, checksum, and every `offerId`/`chrtId`/`amount` sent.
+- Batch results must reference the prepared-payload checksum. When a `409` batch is split into individual requests, record the result of every individual `chrtId`.
+- Treat `WB STALE SNAPSHOT` as a material warning. The default threshold is 15 minutes and can be changed with `WB_STOCK_AUDIT_STALE_MS`; do not silently suppress this warning.
+- For an unexplained WB stock, inspect the audit before changing mappings or manually zeroing again:
+  ```bash
+  rg 'АРТИКУЛ_ИЛИ_CHRTID' logs/wb_stock_payload_audit_*.jsonl
+  ```
+- Distinguish the source-read time from the WB-send time. A long-running process can resend an old in-memory value after the sheet and Ozon have already changed.
+- `StreamSupps` mapping for WB must remain explicit: `M → WB 1449484 (Москва)`; `AC = N + S + W → WB 798761 (ВольтМир)`. Never include M in AC and never send N, S, or W independently to warehouse 798761.
 
 ### Diagnostic Suite
 Use the functions inside **`DIAGNOSTICS.js`** to verify system stability:
