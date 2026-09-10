@@ -30,6 +30,10 @@ from ozon_cpc_cleanup import (
 MAX_ATTEMPTS = 5
 
 
+class BidReadError(RuntimeError):
+    """The current Ozon bid could not be read reliably."""
+
+
 @dataclass(frozen=True)
 class BidRow:
     row_number: int
@@ -85,18 +89,35 @@ def read_bid_rows(values: list[list[str]]) -> tuple[list[BidRow], list[tuple[int
 
 
 def get_bid(session, token: str, campaign_id: str, sku: str) -> str | None:
-    r = session.get(
-        f"{BASE_URL}/api/client/campaign/{campaign_id}/v2/products",
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=30,
-    )
-    if r.status_code != 200:
-        return None
-    data = r.json()
-    for p in data.get("products", []):
-        if str(p.get("sku")) == sku:
-            return p.get("bid")
-    return None
+    """Return the current bid, or None only when the SKU is truly absent."""
+    last_error = "unknown error"
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            response = session.get(
+                f"{BASE_URL}/api/client/campaign/{campaign_id}/v2/products",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            last_error = f"{type(exc).__name__}: {exc}"
+        else:
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    last_error = f"invalid JSON: {exc}"
+                else:
+                    for product in data.get("products", []):
+                        if str(product.get("sku")) == sku:
+                            return str(product.get("bid"))
+                    return None
+            else:
+                last_error = f"HTTP {response.status_code}: {response.text[:300]}"
+                if response.status_code not in (429, 500, 502, 503, 504):
+                    raise BidReadError(last_error)
+        if attempt < MAX_ATTEMPTS:
+            time.sleep(min(2 ** attempt, 15))
+    raise BidReadError(last_error)
 
 
 def put_bid(
@@ -151,7 +172,12 @@ def main() -> int:
         idx, row = item
         sess = pool[idx % workers]
         tok = tokens[idx % workers]
-        bid = get_bid(sess, tok, row.campaign_id, row.sku)
+        try:
+            bid = get_bid(sess, tok, row.campaign_id, row.sku)
+        except BidReadError as exc:
+            return row, f"read_failed({exc})", 0, None
+        if bid is None:
+            return row, "sku_not_in_campaign", 0, None
         if bid == str(row.bid_microrubles):
             return row, "ok", 0, bid
         if not args.apply:

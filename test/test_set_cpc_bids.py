@@ -1,13 +1,24 @@
 import pathlib
 import sys
 import unittest
+from unittest.mock import Mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from set_cpc_bids import parse_bid_microrubles, read_bid_rows
+from set_cpc_bids import BidReadError, get_bid, parse_bid_microrubles, read_bid_rows
 
 
 class SetCpcBidsTests(unittest.TestCase):
+
+    def test_get_bid_distinguishes_missing_sku_from_failed_request(self):
+        missing = Mock(status_code=200)
+        missing.json.return_value = {"products": []}
+        self.assertIsNone(get_bid(Mock(get=Mock(return_value=missing)), "token", "1", "2"))
+
+        failed = Mock(status_code=400, text="bad request")
+        with self.assertRaises(BidReadError):
+            get_bid(Mock(get=Mock(return_value=failed)), "token", "1", "2")
+
     def test_parse_bid_microrubles_supports_ruble_formats(self):
         self.assertEqual(parse_bid_microrubles("8"), 8_000_000)
         self.assertEqual(parse_bid_microrubles("16,50"), 16_500_000)
