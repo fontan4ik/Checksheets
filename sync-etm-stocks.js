@@ -14,8 +14,10 @@ const ETM_TR_COLS = {
   ARTICUL: 1,
   CHRLID: 7,
   STOCK: 19, // S — ЭТМ САМАРА после добавления StreamSupps!H
-  WB_STOCK: 19, // Та же трансляция используется для WB
+  WB_STOCK: 29, // AC — сумма N + S + W для WB «ВольтМир»
 };
+
+const WB_VOLTMIR_STOCK_HEADER = "WB ВОЛЬТМИР ИТОГ";
 
 const MIN_STOCK_THRESHOLD = 0;
 
@@ -172,7 +174,7 @@ async function readETMTRPUStabilitySnapshot(auth) {
   const sheets = google.sheets({ version: "v4", auth });
   const response = await withGoogleSheetsRetry("снимок стабильности", () => sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A:S`,
+    range: `${SHEET_NAME}!A:${columnLetter(ETM_TR_COLS.WB_STOCK)}`,
     majorDimension: "ROWS",
     valueRenderOption: "UNFORMATTED_VALUE",
   }));
@@ -186,6 +188,7 @@ async function readETMTRPUStabilitySnapshot(auth) {
   const colArticul = findCol("артикул продавца", ETM_TR_COLS.ARTICUL);
   const colChrlid = findCol("chrlid", ETM_TR_COLS.CHRLID);
   const colStock = findCol("этм самара", ETM_TR_COLS.STOCK);
+  const colWbStock = findCol(WB_VOLTMIR_STOCK_HEADER, ETM_TR_COLS.WB_STOCK);
   const rows = allRows.slice(1);
   const hash = crypto.createHash("sha256");
   let rowCount = 0;
@@ -203,7 +206,7 @@ async function readETMTRPUStabilitySnapshot(auth) {
 
     const chrlid = String(row[colChrlid - 1] || "").trim();
     const ozonStock = numericCell(row[colStock - 1]);
-    const wbStock = numericCell(row[colStock - 1]);
+    const wbStock = numericCell(row[colWbStock - 1]);
 
     rowCount++;
     if (chrlid) {
@@ -242,7 +245,7 @@ async function waitForETMTRPUStability(auth) {
   let attempt = 0;
 
   log(
-    `⏳ Ждём стабильности StreamSupps!S: ${requiredReads} одинаковых снимка, интервал ${Math.round(intervalMs / 1000)} сек, максимум ${Math.round(maxWaitMs / 60000)} мин`,
+    `⏳ Ждём стабильности StreamSupps!S/AC: ${requiredReads} одинаковых снимка, интервал ${Math.round(intervalMs / 1000)} сек, максимум ${Math.round(maxWaitMs / 60000)} мин`,
   );
 
   while (Date.now() <= deadline) {
@@ -268,7 +271,7 @@ async function waitForETMTRPUStability(auth) {
     );
 
     if (stableReads >= requiredReads) {
-      log("✅ StreamSupps!S стабилен, начинаем синхронизацию маркетплейсов");
+      log("✅ StreamSupps!S/AC стабильны, начинаем синхронизацию маркетплейсов");
       return snapshot;
     }
 
@@ -276,7 +279,7 @@ async function waitForETMTRPUStability(auth) {
   }
 
   throw new Error(
-    `StreamSupps!S не стабилизировался за ${Math.round(maxWaitMs / 60000)} мин; marketplace sync остановлен`,
+    `StreamSupps!S/AC не стабилизировались за ${Math.round(maxWaitMs / 60000)} мин; marketplace sync остановлен`,
   );
 }
 
@@ -308,17 +311,17 @@ async function readETMStocksFromSheet(auth) {
   const colChrlid = findCol("chrlid", ETM_TR_COLS.CHRLID);
   // После вставки StreamSupps!H трансляция «ЭТМ САМАРА» находится в S.
   const colStock = findCol("этм самара", ETM_TR_COLS.STOCK);
-  const colWbStock = colStock;
+  const colWbStock = findCol(WB_VOLTMIR_STOCK_HEADER, ETM_TR_COLS.WB_STOCK);
 
   log(
-    `🔍 Колонки: Артикул=${columnLetter(colArticul)}(${colArticul}), chrlid=${columnLetter(colChrlid)}(${colChrlid}), ЭТМ САМАРА=${columnLetter(colStock)}(${colStock})`,
+    `🔍 Колонки: Артикул=${columnLetter(colArticul)}(${colArticul}), chrlid=${columnLetter(colChrlid)}(${colChrlid}), ЭТМ САМАРА=${columnLetter(colStock)}(${colStock}), ${WB_VOLTMIR_STOCK_HEADER}=${columnLetter(colWbStock)}(${colWbStock})`,
   );
 
   const maxCol = Math.max(colArticul, colChrlid, colStock, colWbStock);
 
   const dataResp = await withGoogleSheetsRetry("чтение остатков", () => sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A:${String.fromCharCode(64 + maxCol)}`,
+    range: `${SHEET_NAME}!A:${columnLetter(maxCol)}`,
     majorDimension: "ROWS",
   }));
 
@@ -1072,7 +1075,7 @@ async function verifyETMWBStocks(stocks) {
 
   const excludedText = excludedCount > 0 ? `, исключено из сравнения=${excludedCount}` : "";
   log(
-    `📊 WB non-zero check (склад ВольтМир ${ETM_TR_WB_WAREHOUSE}): Google S>0=${sheetPositiveCount}, marketplace amount>0=${marketplacePositiveCount}, pieces=${marketplaceTotalPieces}, delta=${marketplacePositiveCount - sheetPositiveCount}${excludedText}`,
+    `📊 WB non-zero check (склад ВольтМир ${ETM_TR_WB_WAREHOUSE}): Google AC>0=${sheetPositiveCount}, marketplace amount>0=${marketplacePositiveCount}, pieces=${marketplaceTotalPieces}, delta=${marketplacePositiveCount - sheetPositiveCount}${excludedText}`,
   );
 
   mismatches.stats = {

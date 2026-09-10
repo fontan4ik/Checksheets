@@ -19,9 +19,11 @@ const ETM_WB_WAREHOUSE_ID = 798761;            // ВольтМир
 // A = 1 - Артикул (offer_id Ozon)
 // G = 7 - chrlid (WB character ID)
 // S = 19 - ЭТМ САМАРА (остаток для выгрузки после вставки H)
+// AC = 29 - общий итог N + S + W для WB «ВольтМир»
 const ETM_COL_ARTICUL = 1;   // A - Артикул (offer_id Ozon)
 const ETM_COL_CHRT_ID = 7;   // G - chrlid (WB)
 const ETM_COL_STOCK = 19;    // S - ЭТМ САМАРА
+const ETM_COL_WB_STOCK = 29; // AC - WB ВОЛЬТМИР ИТОГ
 
 const ETM_MIN_STOCK_THRESHOLD = 5; // Минимальный остаток для выгрузки (> 4)
 
@@ -62,11 +64,12 @@ function readETMStocksFromSheet() {
   const dynamicColOfferId = findCol("артикул продавца", ETM_COL_ARTICUL);
   const dynamicColChrtId = findCol("chrlid", ETM_COL_CHRT_ID);
   const dynamicColStock = findCol("этм самара", ETM_COL_STOCK);
+  const dynamicColWbStock = findCol("wb вольтмир итог", ETM_COL_WB_STOCK);
 
-  Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, chrlid=${dynamicColChrtId}, ЭТМ САМАРА=${dynamicColStock}`);
+  Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, chrlid=${dynamicColChrtId}, ЭТМ САМАРА=${dynamicColStock}, WB ВОЛЬТМИР ИТОГ=${dynamicColWbStock}`);
 
   // Читаем нужные колонки
-  const maxCol = Math.max(dynamicColOfferId, dynamicColChrtId, dynamicColStock);
+  const maxCol = Math.max(dynamicColOfferId, dynamicColChrtId, dynamicColStock, dynamicColWbStock);
   const data = sheet.getRange(2, 1, lastRow - 1, maxCol).getValues();
 
   const stocks = [];
@@ -77,6 +80,7 @@ function readETMStocksFromSheet() {
     const offerId = row[dynamicColOfferId - 1];
     const chrtId = row[dynamicColChrtId - 1];
     const stockForUpload = row[dynamicColStock - 1];
+    const wbStockForUpload = row[dynamicColWbStock - 1];
 
     // Пропускаем пустые строки
     if (!offerId) {
@@ -95,6 +99,7 @@ function readETMStocksFromSheet() {
       offer_id: offerId,
       chrt_id: chrtId,
       stock: stock,
+      wb_stock: Math.max(0, Math.trunc(Number(wbStockForUpload) || 0)),
       original_stock: originalStock
     });
   }
@@ -393,7 +398,7 @@ function updateETMStocksWB(stocks, warehouseId) {
 
       validBatch.push({
         chrtId: idNum,
-        amount: item.stock
+        amount: item.wb_stock
       });
     }
 

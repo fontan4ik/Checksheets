@@ -29,6 +29,7 @@ const FERON_TR_SCHEMA = {
   marketplace_stock_smr: "ФЕРОН ФБС",
   marketplace_stock_nsb: "НОВОСИБИРСК ФЕРОН",
   marketplace_stock_ekb: "ЕКБ Ферон",
+  wb_voltmir_stock: "WB ВОЛЬТМИР ИТОГ",
   chrt_id: "chrlid",
 };
 
@@ -66,6 +67,16 @@ function log(msg) {
   const localTime = new Date().toLocaleTimeString("ru-RU", { hour12: false });
   const ms = String(new Date().getMilliseconds()).padStart(3, "0");
   console.log(`${localTime}.${ms} ${msg}`);
+}
+
+function columnLetter(col) {
+  let letter = "";
+  while (col > 0) {
+    const mod = (col - 1) % 26;
+    letter = String.fromCharCode(65 + mod) + letter;
+    col = Math.floor((col - mod) / 26);
+  }
+  return letter;
 }
 
 async function readFeronStocksFromSheet(auth) {
@@ -112,10 +123,11 @@ async function readFeronStocksFromSheet(auth) {
   const colStockSmr = columns.marketplace_stock_smr;
   const colStockNsb = columns.marketplace_stock_nsb;
   const colStockEkb = columns.marketplace_stock_ekb;
+  const colWbVoltmirStock = columns.wb_voltmir_stock;
   const colChrtId = columns.chrt_id;
 
   log(
-    `🔍 Колонки: offer_id=${colVendor}, sku_ozon=${colOzonSku}, MSK=${colStockMsk}, SMR=${colStockSmr}, NSB=${colStockNsb}, EKB=${colStockEkb}, chrtId=${colChrtId}`,
+    `🔍 Колонки: offer_id=${colVendor}, sku_ozon=${colOzonSku}, MSK=${colStockMsk}, SMR=${colStockSmr}, NSB=${colStockNsb}, EKB=${colStockEkb}, WB ВольтМир итог=${colWbVoltmirStock}, chrtId=${colChrtId}`,
   );
 
   const maxCol = Math.max(
@@ -125,12 +137,13 @@ async function readFeronStocksFromSheet(auth) {
     colStockSmr,
     colStockNsb,
     colStockEkb,
+    colWbVoltmirStock,
     colChrtId,
   );
 
   const dataResp = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A:${String.fromCharCode(64 + maxCol)}`,
+    range: `${SHEET_NAME}!A:${columnLetter(maxCol)}`,
     majorDimension: "ROWS",
   });
 
@@ -152,6 +165,7 @@ async function readFeronStocksFromSheet(auth) {
     const originalStockSmr = parseInt(row[colStockSmr - 1]) || 0;
     const originalStockNsb = parseInt(row[colStockNsb - 1]) || 0;
     const originalStockEkb = parseInt(row[colStockEkb - 1]) || 0;
+    const wbVoltmirStock = Number(row[colWbVoltmirStock - 1]) || 0;
     const chrtId = row[colChrtId - 1];
 
     if (!vendorCode) continue;
@@ -167,6 +181,7 @@ async function readFeronStocksFromSheet(auth) {
       stock_smr: originalStockSmr,
       stock_nsb: originalStockNsb,
       stock_ekb: originalStockEkb,
+      stock_wb_voltmir: wbVoltmirStock,
       original_stock_msk: originalStockMsk,
       original_stock_smr: originalStockSmr,
       original_stock_nsb: originalStockNsb,
@@ -652,7 +667,7 @@ async function updateFeronStocksWB(stocks) {
       key: "SMR",
       name: "ВольтМир (Самара)",
       id: FERON_TR_WB_WAREHOUSE.SMR,
-      col: "stock_smr",
+      col: "stock_wb_voltmir",
     },
     {
       key: "NSB",

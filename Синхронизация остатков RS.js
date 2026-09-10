@@ -30,6 +30,7 @@ const RS_API_COL_STOCK = 22;  // V - RS SMR после добавления Stre
 const RS_COL_STOCK_API = 6;   // F - legacy Остаток АПИ
 const RS_COL_COOLING = 7;     // G - Охлад
 const RS_COL_ROUNDED = 23;    // W - РЕЗЕРВ (Stock для выгрузки)
+const RS_COL_WB_STOCK = 29;   // AC - WB ВОЛЬТМИР ИТОГ (N + S + W)
 
 const RS_MIN_STOCK_THRESHOLD = 5; // Минимальный остаток для выгрузки (> 4)
 
@@ -188,11 +189,12 @@ function readRSStocksFromSheet() {
   const dynamicColOfferId = findCol("артикул продавца", RS_COL_ARTICUL);
   const dynamicColChrtId = findCol("chrtid", RS_COL_CHRT_ID) || findCol("chrlid", RS_COL_CHRT_ID);
   const dynamicColStock = findCol("резерв", RS_COL_ROUNDED);
+  const dynamicColWbStock = findCol("wb вольтмир итог", RS_COL_WB_STOCK);
 
-  Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, chrtId=${dynamicColChrtId}, Остаток=${dynamicColStock}`);
+  Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, chrtId=${dynamicColChrtId}, Остаток=${dynamicColStock}, WB ВОЛЬТМИР ИТОГ=${dynamicColWbStock}`);
 
   // Читаем нужные колонки
-  const maxCol = Math.max(dynamicColOfferId, dynamicColChrtId, dynamicColStock);
+  const maxCol = Math.max(dynamicColOfferId, dynamicColChrtId, dynamicColStock, dynamicColWbStock);
   const data = sheet.getRange(2, 1, lastRow - 1, maxCol).getValues();
 
   const stocks = [];
@@ -203,6 +205,7 @@ function readRSStocksFromSheet() {
     const offerId = row[dynamicColOfferId - 1];
     const chrtId = row[dynamicColChrtId - 1];
     const stockForUpload = row[dynamicColStock - 1];
+    const wbStockForUpload = row[dynamicColWbStock - 1];
 
     // Пропускаем пустые строки
     if (!offerId) {
@@ -221,6 +224,7 @@ function readRSStocksFromSheet() {
       offer_id: offerId,
       chrt_id: chrtId,
       stock: stock,
+      wb_stock: Math.max(0, Math.trunc(Number(wbStockForUpload) || 0)),
       original_stock: originalStock
     });
   }
@@ -585,7 +589,7 @@ function updateRSStocksWB(stocks, warehouseId) {
 
       validBatch.push({
         chrtId: idNum,
-        amount: item.stock
+        amount: item.wb_stock
       });
     }
 
@@ -794,7 +798,7 @@ function updateRSStocksWBBatch(stocks, warehouseId) {
 
       validBatch.push({
         chrtId,
-        amount: item.stock
+        amount: item.wb_stock
       });
     }
 
