@@ -107,6 +107,15 @@ Ozon может формировать статистику дольше пят�
 по умолчанию (`180 × 5 секунд`). Параметры: `OZON_CPC_REPORT_MAX_ATTEMPTS` и
 `OZON_CPC_REPORT_SLEEP_SECONDS`.
 
+## Ставки CPC (`set_cpc_bids.py`)
+
+Колонка `AD` — `Размер ставки` — задаёт ставку в рублях для соответствующей
+пары `SKU OZON` + `CAMPAIN ID`. Поддерживаются значения вроде `8`, `16` и
+`8,50`. Пустая ячейка не меняет ставку; некорректное или неположительное
+значение останавливает запуск до любых записей. Сначала скрипт сравнивает
+ставку с Ozon, затем отправляет только отличающиеся значения через
+`PUT /api/client/campaign/{id}/products` и проверяет результат.
+
 ## Режимы запуска
 
 Из корня проекта:
@@ -127,6 +136,12 @@ cd /Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets
 
 # Только аналитика (dry-run)
 ./.venv-etm-export/bin/python ozon_cpc_cleanup.py
+
+# Проверить план ставок из AD без изменения Ozon
+./.venv-etm-export/bin/python set_cpc_bids.py
+
+# Применить ставки из AD
+./.venv-etm-export/bin/python set_cpc_bids.py --apply
 
 # Записать метрики в СРС (без действий)
 ./.venv-etm-export/bin/python ozon_cpc_cleanup.py --write-sheet

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Set bid=8₽ (8_000_000 microrubbles) with retry on 429/5xx and verification.
+"""Synchronize Ozon CPC bids from the ``Размер ставки`` column of ``СРС``.
 
-После каждой записи делает GET /v2/products и проверяет, что наш SKU имеет
-bid=8_000_000. Если нет — ретрай.
+Each non-empty bid is read as rubles (``8``, ``16`` or ``8,50``), converted to
+microrubles, sent to the matching campaign/SKU only if it differs, and then
+verified with ``GET /v2/products``. The default mode only prints the plan;
+``--apply`` is required to change Ozon.
 """
 
 from __future__ import annotations
@@ -10,6 +12,8 @@ from __future__ import annotations
 import argparse
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 
 import gsheets_utils
 import requests
@@ -23,8 +27,61 @@ from ozon_cpc_cleanup import (
 )
 
 
-BID_MICRORUBLES = 8_000_000
 MAX_ATTEMPTS = 5
+
+
+@dataclass(frozen=True)
+class BidRow:
+    row_number: int
+    campaign_id: str
+    sku: str
+    bid_microrubles: int
+
+
+def parse_bid_microrubles(value: object) -> int | None:
+    """Parse a user-entered ruble amount without floating-point rounding."""
+    normalized = str(value or "").strip().replace("\u00a0", "").replace(" ", "")
+    if not normalized:
+        return None
+    try:
+        bid = Decimal(normalized.replace(",", "."))
+    except InvalidOperation:
+        return None
+    microrubles = bid * Decimal(1_000_000)
+    if bid <= 0 or microrubles != microrubles.to_integral_value():
+        return None
+    return int(microrubles)
+
+
+def read_bid_rows(values: list[list[str]]) -> tuple[list[BidRow], list[tuple[int, str]]]:
+    """Read valid bid requests and report rows with malformed non-empty AD."""
+    if not values:
+        raise RuntimeError(f"Лист {SHEET_NAME} пуст")
+    headers = values[0]
+    sku_index = find_column(headers, ["sku ozon", "sku"])
+    campaign_index = find_column(headers, ["campain id", "campaign id", "campaign_id"])
+    bid_index = find_column(headers, ["размер ставки"])
+    if min(sku_index, campaign_index, bid_index) < 0:
+        raise RuntimeError(
+            "В СРС нужны колонки 'SKU OZON', 'CAMPAIN ID' и 'Размер ставки'"
+        )
+
+    rows: list[BidRow] = []
+    invalid: list[tuple[int, str]] = []
+    for row_number, values_row in enumerate(values[1:], start=2):
+        padded = list(values_row) + [""] * (len(headers) - len(values_row))
+        raw_bid = padded[bid_index].strip()
+        if not raw_bid:
+            continue
+        bid_microrubles = parse_bid_microrubles(raw_bid)
+        if bid_microrubles is None:
+            invalid.append((row_number, raw_bid))
+            continue
+        sku = normalize_id(padded[sku_index])
+        campaign_id = normalize_id(padded[campaign_index])
+        if sku and campaign_id:
+            rows.append(BidRow(row_number, campaign_id, sku, bid_microrubles))
+    return rows, invalid
 
 
 def get_bid(session, token: str, campaign_id: str, sku: str) -> str | None:
@@ -42,7 +99,9 @@ def get_bid(session, token: str, campaign_id: str, sku: str) -> str | None:
     return None
 
 
-def put_bid(session, token: str, campaign_id: str, sku: str) -> tuple[bool, int]:
+def put_bid(
+    session, token: str, campaign_id: str, sku: str, bid_microrubles: int
+) -> tuple[bool, int]:
     for attempt in range(1, MAX_ATTEMPTS + 1):
         r = session.put(
             f"{BASE_URL}/api/client/campaign/{campaign_id}/products",
@@ -50,7 +109,7 @@ def put_bid(session, token: str, campaign_id: str, sku: str) -> tuple[bool, int]
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
             },
-            json={"bids": [{"sku": sku, "bid": str(BID_MICRORUBLES)}]},
+            json={"bids": [{"sku": sku, "bid": str(bid_microrubles)}]},
             timeout=60,
         )
         if r.status_code == 200:
@@ -65,65 +124,84 @@ def put_bid(session, token: str, campaign_id: str, sku: str) -> tuple[bool, int]
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--workers", type=int, default=6)
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="Записать ставки в Ozon. Без флага только показать план.",
+    )
     args = parser.parse_args()
 
     worksheet = gsheets_utils.get_worksheet(SHEET_NAME)
     values = worksheet.get_all_values()
-    headers = values[0] if values else []
-    sku_i = find_column(headers, ["sku ozon", "sku"])
-    camp_i = find_column(headers, ["campain id", "campaign id", "campaign_id"])
-    pairs = []
-    for r in values[1:]:
-        pad = list(r) + [""] * (len(headers) - len(r))
-        sku = normalize_id(pad[sku_i])
-        cid = normalize_id(pad[camp_i])
-        if sku and cid:
-            pairs.append((cid, sku))
-    print(f"Пар: {len(pairs)}")
+    rows, invalid = read_bid_rows(values)
+    print(f"Строк со ставкой в AD: {len(rows)}; некорректных: {len(invalid)}")
+    for row_number, raw_bid in invalid[:20]:
+        print(f"  row={row_number}: некорректная ставка AD={raw_bid!r}")
+    if invalid:
+        return 2
+    if not rows:
+        print("Нет ставок для синхронизации")
+        return 0
 
     workers = max(1, args.workers)
     pool = [create_session() for _ in range(workers)]
     tokens = [get_token(s) for s in pool]
 
-    def process(item):
-        idx, (cid, sku) = item
+    def process(item: tuple[int, BidRow]):
+        idx, row = item
         sess = pool[idx % workers]
         tok = tokens[idx % workers]
-        bid = get_bid(sess, tok, cid, sku)
-        if bid == str(BID_MICRORUBLES):
-            return cid, sku, "ok", 0
-        ok, attempts = put_bid(sess, tok, cid, sku)
+        bid = get_bid(sess, tok, row.campaign_id, row.sku)
+        if bid == str(row.bid_microrubles):
+            return row, "ok", 0, bid
+        if not args.apply:
+            return row, "planned", 0, bid
+        ok, attempts = put_bid(sess, tok, row.campaign_id, row.sku, row.bid_microrubles)
         if not ok:
-            return cid, sku, "put_failed", attempts
+            return row, "put_failed", attempts, bid
         # верифицируем
         time.sleep(0.2)
-        new_bid = get_bid(sess, tok, cid, sku)
-        if new_bid == str(BID_MICRORUBLES):
-            return cid, sku, "ok", attempts
-        return cid, sku, f"verify_mismatch(bid={new_bid})", attempts
+        new_bid = get_bid(sess, tok, row.campaign_id, row.sku)
+        if new_bid == str(row.bid_microrubles):
+            return row, "ok", attempts, new_bid
+        return row, f"verify_mismatch(bid={new_bid})", attempts, new_bid
 
     ok = 0
     already = 0
-    failed: list[tuple[str, str, str, int]] = []
+    planned = 0
+    failed: list[tuple[BidRow, str, int]] = []
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        futs = [ex.submit(process, (i, p)) for i, p in enumerate(pairs)]
+        futs = [ex.submit(process, (i, row)) for i, row in enumerate(rows)]
         done = 0
         for f in as_completed(futs):
-            cid, sku, status, attempts = f.result()
+            row, status, attempts, _ = f.result()
             if status == "ok":
                 if attempts == 0:
                     already += 1
                 else:
                     ok += 1
+            elif status == "planned":
+                planned += 1
             else:
-                failed.append((cid, sku, status, attempts))
+                failed.append((row, status, attempts))
             done += 1
-            if done % 50 == 0 or done == len(pairs):
-                print(f"[{done}/{len(pairs)}] ok={ok} already={already} failed={len(failed)}", flush=True)
+            if done % 50 == 0 or done == len(rows):
+                print(
+                    f"[{done}/{len(rows)}] updated={ok} already={already} "
+                    f"planned={planned} failed={len(failed)}",
+                    flush=True,
+                )
 
-    print(f"\nГотово: ok={ok}, already_correct={already}, failed={len(failed)}")
-    for cid, sku, status, attempts in failed[:20]:
-        print(f"  campaign={cid} sku={sku}: {status} (attempts={attempts})")
+    mode = "применено" if args.apply else "dry-run"
+    print(
+        f"\n{mode}: updated={ok}, already_correct={already}, "
+        f"planned={planned}, failed={len(failed)}"
+    )
+    for row, status, attempts in failed[:20]:
+        print(
+            f"  row={row.row_number} campaign={row.campaign_id} sku={row.sku}: "
+            f"{status} (attempts={attempts})"
+        )
     return 0 if not failed else 1
 
 
