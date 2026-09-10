@@ -396,6 +396,10 @@ function readOzonAnalyticsTempPayload_() {
     return JSON.parse(text || '{"rows":[]}');
   } catch (e) {
     Logger.log(`Не удалось прочитать временный файл Ozon analytics: ${e.toString()}`);
+    // ID мог стать недействительным: файл удалён, перемещён в корзину
+    // или стал недоступен аккаунту, выполняющему триггер. Не оставляем
+    // такой ID в свойствах, иначе следующая запись снова упадёт.
+    props.deleteProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY);
     return { rows: [] };
   }
 }
@@ -406,8 +410,15 @@ function writeOzonAnalyticsTempPayload_(payload) {
   const content = JSON.stringify(payload);
 
   if (fileId) {
-    DriveApp.getFileById(fileId).setContent(content);
-    return;
+    try {
+      DriveApp.getFileById(fileId).setContent(content);
+      return;
+    } catch (e) {
+      Logger.log(`Не удалось обновить временный файл Ozon analytics: ${e.toString()}`);
+      // Файл мог быть удалён между чтением и записью. Сбрасываем ID и
+      // создаём новый файл ниже, чтобы триггер мог продолжить работу.
+      props.deleteProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY);
+    }
   }
 
   const runId = props.getProperty(OZON_ANALYTICS_RUN_ID_KEY) || String(Date.now());
