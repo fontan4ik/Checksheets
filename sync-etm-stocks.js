@@ -3,6 +3,7 @@ const axios = require("axios");
 const path = require("path");
 const crypto = require("crypto");
 const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsBroadcastReport } = require("./telegram_notifier");
+const { createWbStockAudit } = require("./wb_stock_audit");
 
 const SHEET_NAME = "StreamSupps";
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
@@ -363,6 +364,10 @@ async function readETMStocksFromSheet(auth) {
 
   log(`📊 Прочитано ${stocks.length} товаров из листа "${SHEET_NAME}"`);
   log(`   С chrlid: ${stocks.filter((s) => s.chrlid).length}`);
+
+  stocks.snapshotReadAt = new Date().toISOString();
+  stocks.wbSourceColumn = `${columnLetter(colWbStock)}:${headers[colWbStock - 1] || WB_VOLTMIR_STOCK_HEADER}`;
+  log(`🧾 WB snapshot: readAt=${stocks.snapshotReadAt}, source=${stocks.wbSourceColumn}`);
 
   return stocks;
 }
@@ -847,6 +852,7 @@ async function processETMConflictIndividually(
   validBatch,
   warehouseId,
   batchLabel,
+  auditContext = null,
 ) {
   let successCount = 0;
   let skippedCount = 0;
@@ -863,9 +869,19 @@ async function processETMConflictIndividually(
 
     const item = validBatch[j];
     const result = await sendETMStocksBatch([item], warehouseId);
+    const auditItem = auditContext?.itemsByChrtId.get(Number(item.chrtId));
 
     if (result.ok) {
       successCount++;
+      auditContext?.audit.recordItemResult({
+        warehouseId,
+        batchIndex: auditContext.batchIndex,
+        offerId: auditItem?.offerId,
+        chrtId: item.chrtId,
+        amount: item.amount,
+        status: "success",
+        code: result.code,
+      });
       continue;
     }
 
@@ -874,6 +890,15 @@ async function processETMConflictIndividually(
         `⏸️ ${batchLabel}: пропущен ODC/CD+ chrtId=${item.chrtId}, amount=${item.amount}`,
       );
       skippedCount++;
+      auditContext?.audit.recordItemResult({
+        warehouseId,
+        batchIndex: auditContext.batchIndex,
+        offerId: auditItem?.offerId,
+        chrtId: item.chrtId,
+        amount: item.amount,
+        status: "cargo_restriction",
+        code: result.code,
+      });
       continue;
     }
 
@@ -882,6 +907,15 @@ async function processETMConflictIndividually(
         `⏭️ ${batchLabel}: chrtId=${item.chrtId} - 429 превышен лимит, пропущен`,
       );
       skippedCount++;
+      auditContext?.audit.recordItemResult({
+        warehouseId,
+        batchIndex: auditContext.batchIndex,
+        offerId: auditItem?.offerId,
+        chrtId: item.chrtId,
+        amount: item.amount,
+        status: "rate_limited",
+        code: result.code,
+      });
       continue;
     }
 
@@ -889,6 +923,15 @@ async function processETMConflictIndividually(
       `❌ ${batchLabel}: ошибка для chrtId=${item.chrtId}, code=${result.code}`,
     );
     errorCount++;
+    auditContext?.audit.recordItemResult({
+      warehouseId,
+      batchIndex: auditContext.batchIndex,
+      offerId: auditItem?.offerId,
+      chrtId: item.chrtId,
+      amount: item.amount,
+      status: "error",
+      code: result.code,
+    });
   }
 
   log(
@@ -913,6 +956,12 @@ async function updateETMStocksWB(stocks) {
 
   const batchSize = 200;
   const batches = Math.ceil(validStocks.length / batchSize);
+  const audit = createWbStockAudit({
+    scriptName: "sync-etm-stocks",
+    sheetName: SHEET_NAME,
+    sourceReadAt: stocks.snapshotReadAt,
+  });
+  log(`🧾 WB payload audit: ${audit.filePath} (runId=${audit.runId})`);
 
   lastRequestTime = Date.now() - 1000 / WB_RPS;
   let successCount = 0;
@@ -925,6 +974,7 @@ async function updateETMStocksWB(stocks) {
     const batch = validStocks.slice(i * batchSize, (i + 1) * batchSize);
 
     const validBatch = [];
+    const auditItems = [];
 
     for (const item of batch) {
       const idNum = Number(item.chrlid);
@@ -940,14 +990,35 @@ async function updateETMStocksWB(stocks) {
         log(`⚠️ Коррекция WB amount для chrtId=${idNum}: исходное=${rawAmount}, использовано=${amount}`);
       }
       validBatch.push({ chrtId: idNum, amount: amount });
+      auditItems.push({ offerId: item.offer_id, chrtId: idNum, amount });
     }
 
     if (validBatch.length === 0) continue;
+
+    const auditPayload = audit.recordPayload({
+      warehouseId: ETM_TR_WB_WAREHOUSE,
+      warehouseName: "ВольтМир",
+      sourceColumn: stocks.wbSourceColumn || "AC:WB ВОЛЬТМИР ИТОГ",
+      batchIndex: i + 1,
+      totalBatches: batches,
+      items: auditItems,
+    });
+    if (auditPayload.shouldWarn) {
+      log(`⚠️ WB STALE SNAPSHOT: снимку уже ${auditPayload.ageSeconds} сек; batch=${i + 1}/${batches}, source=${stocks.wbSourceColumn || "AC"}`);
+    }
 
     const result = await sendETMStocksBatch(validBatch, ETM_TR_WB_WAREHOUSE);
 
     if (result.ok) {
       successCount += validBatch.length;
+      audit.recordBatchResult({
+        warehouseId: ETM_TR_WB_WAREHOUSE,
+        batchIndex: i + 1,
+        checksum: auditPayload.checksum,
+        status: "success",
+        code: result.code,
+        successCount: validBatch.length,
+      });
       log(
         `✅ Пачка ${i + 1}/${batches} обработана (${validBatch.length} товаров)`,
       );
@@ -960,7 +1031,22 @@ async function updateETMStocksWB(stocks) {
         validBatch,
         ETM_TR_WB_WAREHOUSE,
         `Пачка ${i + 1}/${batches}`,
+        {
+          audit,
+          batchIndex: i + 1,
+          itemsByChrtId: new Map(auditItems.map((item) => [item.chrtId, item])),
+        },
       );
+      audit.recordBatchResult({
+        warehouseId: ETM_TR_WB_WAREHOUSE,
+        batchIndex: i + 1,
+        checksum: auditPayload.checksum,
+        status: "individual_fallback",
+        code: result.code,
+        successCount: fallback.successCount,
+        skippedCount: fallback.skippedCount,
+        errorCount: fallback.errorCount,
+      });
       successCount += fallback.successCount;
       skippedCount += fallback.skippedCount;
       errorCount += fallback.errorCount;
@@ -972,11 +1058,27 @@ async function updateETMStocksWB(stocks) {
         `⏭️ WB 429 (пачка ${i + 1}/${batches}): превышен лимит, пропущено ${validBatch.length} товаров`,
       );
       skippedCount += validBatch.length;
+      audit.recordBatchResult({
+        warehouseId: ETM_TR_WB_WAREHOUSE,
+        batchIndex: i + 1,
+        checksum: auditPayload.checksum,
+        status: "rate_limited",
+        code: result.code,
+        skippedCount: validBatch.length,
+      });
       continue;
     }
 
     log(`❌ Ошибка API (пачка ${i + 1}/${batches}): ${result.code}`);
     errorCount += validBatch.length;
+    audit.recordBatchResult({
+      warehouseId: ETM_TR_WB_WAREHOUSE,
+      batchIndex: i + 1,
+      checksum: auditPayload.checksum,
+      status: "error",
+      code: result.code,
+      errorCount: validBatch.length,
+    });
   }
 
   log(
