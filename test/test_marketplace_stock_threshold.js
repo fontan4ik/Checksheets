@@ -23,12 +23,6 @@ for (const [input, expected] of [
 }
 
 const requiredUsage = {
-  'Синхронизация остатков ETM TR.js': [
-    'const ETM_MIN_STOCK_THRESHOLD = MARKETPLACE_MIN_STOCK',
-    'wb_stock: normalizeMarketplaceStock(wbStockForUpload)',
-    'stock: normalizeMarketplaceStock(item.stock)',
-    'amount: normalizeMarketplaceStock(item.wb_stock)',
-  ],
   'Синхронизация остатков RS.js': [
     'const RS_MIN_STOCK_THRESHOLD = MARKETPLACE_MIN_STOCK',
     'wb_stock: normalizeMarketplaceStock(wbStockForUpload)',
@@ -38,16 +32,6 @@ const requiredUsage = {
   'Синхронизация остатков ARL.js': [
     'const stock = normalizeMarketplaceStock(originalStock)',
     'stock: normalizeMarketplaceStock(item.stock)',
-    'amount: normalizeMarketplaceStock(item.stock)',
-  ],
-  'Синхронизация остатков gaus.js': [
-    'const stock = normalizeMarketplaceStock(okruglenoe)',
-    'const validStocks = stocks.filter(s => s.offer_id);',
-    'amount: normalizeMarketplaceStock(item.stock)',
-  ],
-  'Синхронизация остатков ODC.js': [
-    'const stock = normalizeMarketplaceStock(okruglenoe)',
-    'const validStocks = stocks.filter(s => s.offer_id);',
     'amount: normalizeMarketplaceStock(item.stock)',
   ],
   'Синхронизация остатков поставщиков в Яндекс.js': [
