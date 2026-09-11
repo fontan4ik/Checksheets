@@ -59,7 +59,7 @@ const requiredUsage = {
     'stock: item.stock',
   ],
   'sync-feron-stocks.js': [
-    'brand: "Бренд"',
+    'const colBrand = 4;',
     'stock_msk: normalizeMarketplaceStock(originalStockMsk, brand)',
     'stock_wb_voltmir: normalizeMarketplaceStock(wbVoltmirStock, brand)',
     'stock: item[colName]',

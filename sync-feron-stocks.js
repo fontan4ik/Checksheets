@@ -25,7 +25,6 @@ const FERON_TR_WB_WAREHOUSE = {
 
 const FERON_TR_SCHEMA = {
   vendor_code: "Артикул продавца",
-  brand: "Бренд",
   ozon_sku: "SKU OZON",
   marketplace_stock_msk: "ПОДОРОЖНИК ФБС",
   marketplace_stock_smr: "ФЕРОН ФБС",
@@ -125,7 +124,7 @@ async function readFeronStocksFromSheet(auth) {
   }
 
   const colVendor = columns.vendor_code;
-  const colBrand = columns.brand;
+  const colBrand = 4; // StreamSupps!D — бренд
   const colOzonSku = columns.ozon_sku;
   const colStockMsk = columns.marketplace_stock_msk;
   const colStockSmr = columns.marketplace_stock_smr;
