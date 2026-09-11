@@ -1009,6 +1009,30 @@ def download_ftp_file(ftp, remote_path) -> bytes:
 
     try:
         ftp.retrbinary(f"RETR {remote_path}", collect)
+    except EOFError as exc:
+        # ЭТМ иногда передаёт весь поток данных, но рвёт control connection
+        # вместо финального FTP-ответа.  Не считаем такой буфер готовым здесь:
+        # вызывающий код обязательно валидирует полный CSV до парсинга и кэша.
+        # Пустой буфер всё ещё означает настоящий сбой загрузки.
+        if bytes_received:
+            content = b"".join(chunks)
+            logging.warning(
+                "FTP control connection closed after data: path=%s bytes=%s "
+                "duration=%.2fs; accepting payload only after CSV validation",
+                remote_path,
+                len(content),
+                time.monotonic() - started_at,
+            )
+            return content
+
+        logging.warning(
+            "FTP download failed: path=%s bytes=0 duration=%.2fs error=%s(%s)",
+            remote_path,
+            time.monotonic() - started_at,
+            type(exc).__name__,
+            str(exc) or "<empty>",
+        )
+        raise
     except Exception as exc:
         logging.warning(
             "FTP download failed: path=%s bytes=%s duration=%.2fs error=%s(%s)",
@@ -1545,4 +1569,3 @@ if __name__ == "__main__":
         except Exception as tg_err:
             logging.error("Failed to send Telegram alert: %s", tg_err)
         sys.exit(1)
-

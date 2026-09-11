@@ -103,6 +103,26 @@ class EtmFtpFallbackTests(unittest.TestCase):
         self.assertEqual(content, b"abcde")
         self.assertTrue(any("bytes=5" in line and "duration=2.50s" in line for line in captured.output))
 
+    def test_download_accepts_data_when_only_final_ftp_reply_is_missing(self):
+        class FakeFTP:
+            def retrbinary(self, command, callback):
+                callback(b"header;quantity\\nitem;2\\n")
+                raise EOFError()
+
+        with self.assertLogs(etm.logging.getLogger(), level="WARNING") as captured:
+            content = etm.download_ftp_file(FakeFTP(), "/from_etm/13/price.csv")
+
+        self.assertEqual(content, b"header;quantity\\nitem;2\\n")
+        self.assertTrue(any("accepting payload only after CSV validation" in line for line in captured.output))
+
+    def test_download_rejects_eof_without_data(self):
+        class FakeFTP:
+            def retrbinary(self, command, callback):
+                raise EOFError()
+
+        with self.assertRaises(EOFError):
+            etm.download_ftp_file(FakeFTP(), "/from_etm/13/price.csv")
+
     def test_validate_ftp_csv_reads_all_rows_and_requires_stock_columns(self):
         content = (
             "Код ЭТМ;Количество;Артикул;Производитель\n"
