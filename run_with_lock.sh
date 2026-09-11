@@ -12,6 +12,19 @@ find "$LOG_DIR" -type f \( -name "*.log" -o -name "*.err" \) -mtime +7 -delete 2
 
 LOCK_FILE="$LOCK_DIR/${SCRIPT_NAME}.lock"
 LOG_FILE="$LOG_DIR/${SCRIPT_NAME}_$(date +%Y%m%d).log"
+MARKETPLACE_LOCK_DIR="$LOCK_DIR/marketplace_stock_translations.lock"
+MARKETPLACE_LOCK_HELD=0
+
+# shellcheck disable=SC2329 # invoked by the EXIT/INT/TERM trap below
+cleanup_locks() {
+    rm -f "$LOCK_FILE"
+    if [ "$MARKETPLACE_LOCK_HELD" -eq 1 ]; then
+        rm -f "$MARKETPLACE_LOCK_DIR/pid"
+        rmdir "$MARKETPLACE_LOCK_DIR" 2>/dev/null || true
+    fi
+}
+
+trap cleanup_locks EXIT INT TERM
 
 # Check if already running
 if [ -f "$LOCK_FILE" ]; then
@@ -28,9 +41,40 @@ fi
 # Create lock file
 echo $$ > "$LOCK_FILE"
 
+# ETM, Feron and CDEK write marketplace stocks and must never overlap.
+# Unlike the per-job lock above, this shared lock waits instead of skipping,
+# so concurrently triggered launchd jobs form a sequential queue.
+case "$SCRIPT_NAME" in
+    sync_etm_stocks|sync_feron_stocks|cdek_hourly_sync)
+        WAIT_LOGGED=0
+        while ! mkdir "$MARKETPLACE_LOCK_DIR" 2>/dev/null; do
+            MARKETPLACE_PID=""
+            if [ -f "$MARKETPLACE_LOCK_DIR/pid" ]; then
+                MARKETPLACE_PID=$(cat "$MARKETPLACE_LOCK_DIR/pid" 2>/dev/null)
+            fi
+
+            if [ -n "$MARKETPLACE_PID" ] && ! ps -p "$MARKETPLACE_PID" >/dev/null 2>&1; then
+                echo "[$(date)] Removing stale marketplace stock lock (PID $MARKETPLACE_PID)" >> "$LOG_FILE"
+                rm -f "$MARKETPLACE_LOCK_DIR/pid"
+                rmdir "$MARKETPLACE_LOCK_DIR" 2>/dev/null || true
+                continue
+            fi
+
+            if [ "$WAIT_LOGGED" -eq 0 ]; then
+                echo "[$(date)] Waiting for marketplace stock queue (active PID ${MARKETPLACE_PID:-unknown})" >> "$LOG_FILE"
+                WAIT_LOGGED=1
+            fi
+            sleep 15
+        done
+        echo $$ > "$MARKETPLACE_LOCK_DIR/pid"
+        MARKETPLACE_LOCK_HELD=1
+        echo "[$(date)] Marketplace stock queue acquired" >> "$LOG_FILE"
+        ;;
+esac
+
 # Run the script
 echo "[$(date)] Starting $SCRIPT_NAME" >> "$LOG_FILE"
-cd /Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets
+cd /Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets || exit 1
 
 case "$SCRIPT_NAME" in
     rs_sync)
@@ -88,7 +132,6 @@ case "$SCRIPT_NAME" in
         ;;
     *)
         echo "[$(date)] Unknown script: $SCRIPT_NAME" >> "$LOG_FILE"
-        rm -f "$LOCK_FILE"
         exit 1
         ;;
 esac
@@ -115,8 +158,5 @@ if [ $EXIT_CODE -ne 0 ]; then
         -H "Content-Type: application/json" \
         -d "{\"chat_id\": \"$CHAT_ID\", \"text\": $(python3 -c 'import json, sys; print(json.dumps(sys.argv[1]))' "$MSG"), \"parse_mode\": \"HTML\", \"disable_web_page_preview\": true}" > /dev/null 2>&1
 fi
-
-# Remove lock file
-rm -f "$LOCK_FILE"
 
 exit $EXIT_CODE
