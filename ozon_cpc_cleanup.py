@@ -493,11 +493,23 @@ def get_token(session: requests.Session) -> str:
     return str(token)
 
 
-def get_campaigns(session: requests.Session, token: str | TokenManager, state: str | None = None) -> list[dict[str, Any]]:
+def get_campaigns(
+    session: requests.Session,
+    token: str | TokenManager,
+    state: str | None = None,
+    timeout: int = 60,
+) -> list[dict[str, Any]]:
     params: dict[str, str] = {"advObjectType": "SKU"}
     if state:
         params["state"] = state
-    data = request_json(session, "GET", "/api/client/campaign", token=token, params=params)
+    data = request_json(
+        session,
+        "GET",
+        "/api/client/campaign",
+        token=token,
+        params=params,
+        timeout=timeout,
+    )
     campaigns = data.get("list", []) if isinstance(data, dict) else []
     return [campaign for campaign in campaigns if normalize_id(campaign.get("id"))]
 

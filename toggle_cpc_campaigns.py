@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 from datetime import datetime
 import os
 import sys
@@ -29,11 +30,25 @@ from ozon_cpc_cleanup import (
     SHEET_NAME,
     create_session,
     find_column,
+    get_campaigns,
     get_token,
+    normalize,
     normalize_id,
     parse_number,
     request_json,
 )
+
+
+ToggleItem = tuple[int, str, str]
+
+
+@dataclass(frozen=True)
+class StateAwarePlan:
+    activate: list[ToggleItem]
+    deactivate: list[ToggleItem]
+    unchanged: list[ToggleItem]
+    missing: list[ToggleItem]
+    duplicate_rows: int
 
 
 def is_transient_cpc_error(exc: Exception) -> bool:
@@ -90,6 +105,60 @@ def activation_filter_reason(
     return None
 
 
+def select_required_state_changes(
+    plan_on: list[ToggleItem],
+    plan_off: list[ToggleItem],
+    campaigns_by_id: dict[str, dict],
+) -> StateAwarePlan:
+    """Keep only campaign actions that change the current Ozon state.
+
+    A campaign may occur in several sheet rows.  Deactivation has priority and
+    every campaign is sent at most once per run.
+    """
+    unique_off: dict[str, ToggleItem] = {}
+    for item in plan_off:
+        unique_off.setdefault(item[1], item)
+
+    blocked_campaigns = set(unique_off)
+    unique_on: dict[str, ToggleItem] = {}
+    for item in plan_on:
+        if item[1] not in blocked_campaigns:
+            unique_on.setdefault(item[1], item)
+
+    unique_count = len(unique_on) + len(unique_off)
+    duplicate_rows = len(plan_on) + len(plan_off) - unique_count
+    activate: list[ToggleItem] = []
+    deactivate: list[ToggleItem] = []
+    unchanged: list[ToggleItem] = []
+    missing: list[ToggleItem] = []
+
+    for item in unique_on.values():
+        campaign = campaigns_by_id.get(item[1])
+        if campaign is None:
+            missing.append(item)
+        elif normalize(campaign.get("state")) == "campaign_state_running":
+            unchanged.append(item)
+        else:
+            activate.append(item)
+
+    for item in unique_off.values():
+        campaign = campaigns_by_id.get(item[1])
+        if campaign is None:
+            missing.append(item)
+        elif normalize(campaign.get("state")) != "campaign_state_running":
+            unchanged.append(item)
+        else:
+            deactivate.append(item)
+
+    return StateAwarePlan(
+        activate=activate,
+        deactivate=deactivate,
+        unchanged=unchanged,
+        missing=missing,
+        duplicate_rows=duplicate_rows,
+    )
+
+
 def _request_with_retry(session, method: str, path: str, token: str, max_attempts: int = 5) -> None:
     last_exc: Exception | None = None
     for attempt in range(1, max_attempts + 1):
@@ -120,6 +189,12 @@ def main() -> int:
         help="Реально дёргать activate/deactivate (по умолчанию dry-run).",
     )
     parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument(
+        "--status-timeout",
+        type=int,
+        default=30,
+        help="Максимум секунд на получение списка статусов кампаний.",
+    )
     parser.add_argument(
         "--scheduled",
         action="store_true",
@@ -180,16 +255,57 @@ def main() -> int:
         else:
             skipped.append((row_number, cid, sku))
 
-    # A filter stop has priority over a manual ``1``.  This also prevents a
-    # campaign with multiple SKU rows from receiving activate and deactivate
-    # requests in the same run.
+    # A filter stop has priority over a manual ``1``.
     blocked_campaigns = {cid for _, cid, _ in plan_off}
     plan_on = [item for item in plan_on if item[1] not in blocked_campaigns]
 
-    print(f"Включить ({len(plan_on)}), выключить ({len(plan_off)}), пропущено ({len(skipped)})")
+    print(
+        f"По таблице: включить ({len(plan_on)}), выключить ({len(plan_off)}), "
+        f"пропущено ({len(skipped)})"
+    )
     for cid, reason in forced_off_reasons.items():
         print(f"  [filter-off] campaign={cid}: {reason}")
     if not plan_on and not plan_off:
+        return 0
+
+    main_session = create_session()
+    token = get_token(main_session)
+    status_started = time.monotonic()
+    try:
+        campaigns = get_campaigns(
+            main_session,
+            token,
+            timeout=max(1, args.status_timeout),
+        )
+    except Exception as exc:
+        elapsed = time.monotonic() - status_started
+        raise RuntimeError(
+            f"Не удалось получить статусы кампаний за {elapsed:.1f} сек; "
+            f"activate/deactivate не выполнялись: {type(exc).__name__}: {exc}"
+        ) from exc
+    status_elapsed = time.monotonic() - status_started
+    campaigns_by_id = {
+        normalize_id(campaign.get("id")): campaign for campaign in campaigns
+    }
+    state_plan = select_required_state_changes(
+        plan_on,
+        plan_off,
+        campaigns_by_id,
+    )
+    plan_on = state_plan.activate
+    plan_off = state_plan.deactivate
+    print(
+        f"Статусы Ozon: кампаний={len(campaigns_by_id)}, время={status_elapsed:.2f} сек; "
+        f"реально включить={len(plan_on)}, выключить={len(plan_off)}, "
+        f"уже в нужном состоянии={len(state_plan.unchanged)}, "
+        f"не найдено={len(state_plan.missing)}, "
+        f"дубли строк={state_plan.duplicate_rows}"
+    )
+    for row_number, cid, sku in state_plan.missing[:10]:
+        print(f"  [missing] row={row_number} campaign={cid} sku={sku}")
+
+    if not plan_on and not plan_off:
+        print("Изменения состояний не требуются")
         return 0
 
     if not args.apply:
@@ -203,8 +319,6 @@ def main() -> int:
             print(f"  ... и ещё {len(plan_off) - 5} на выключение")
         return 0
 
-    main_session = create_session()
-    token = get_token(main_session)
     workers = max(1, args.workers)
 
     def worker_init():
@@ -273,4 +387,3 @@ if __name__ == "__main__":
         except Exception:
             pass
         raise SystemExit(1)
-

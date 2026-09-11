@@ -4,7 +4,7 @@ import sys
 import requests
 from datetime import datetime
 from typing import Any, cast
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 import unittest
 import zipfile
 
@@ -25,6 +25,7 @@ from ozon_cpc_cleanup import (
     create_statistics_report,
     contiguous_row_groups,
     flush_campaign_statuses,
+    get_campaigns,
     parse_report,
     parse_report_block,
     period_range,
@@ -65,6 +66,24 @@ class FakeSession:
 
 
 class OzonCpcCleanupTests(unittest.TestCase):
+    @patch("ozon_cpc_cleanup.request_json")
+    def test_get_campaigns_forwards_timeout(self, mocked_request_json):
+        mocked_request_json.return_value = {
+            "list": [{"id": "123", "state": "CAMPAIGN_STATE_RUNNING"}]
+        }
+
+        campaigns = get_campaigns(object(), "token", timeout=17)
+
+        self.assertEqual(campaigns[0]["id"], "123")
+        mocked_request_json.assert_called_once_with(
+            ANY,
+            "GET",
+            "/api/client/campaign",
+            token="token",
+            params={"advObjectType": "SKU"},
+            timeout=17,
+        )
+
     def test_run_lock_does_not_mask_oserror_from_protected_run(self):
         with self.assertRaisesRegex(requests.exceptions.ConnectionError, "network down"):
             with run_lock():

@@ -12,6 +12,7 @@ from toggle_cpc_campaigns import (
     activation_filter_reason,
     is_transient_cpc_error,
     _request_with_retry,
+    select_required_state_changes,
 )
 
 
@@ -42,6 +43,51 @@ class ToggleCpcCampaignsTests(unittest.TestCase):
             filter_drr_month="5",
         )
         self.assertIsNone(reason)
+
+    def test_selects_only_real_state_changes(self):
+        plan = select_required_state_changes(
+            plan_on=[
+                (2, "running", "sku-1"),
+                (3, "stopped", "sku-2"),
+            ],
+            plan_off=[
+                (4, "running-off", "sku-3"),
+                (5, "stopped-off", "sku-4"),
+            ],
+            campaigns_by_id={
+                "running": {"state": "CAMPAIGN_STATE_RUNNING"},
+                "stopped": {"state": "CAMPAIGN_STATE_STOPPED"},
+                "running-off": {"state": "CAMPAIGN_STATE_RUNNING"},
+                "stopped-off": {"state": "CAMPAIGN_STATE_STOPPED"},
+            },
+        )
+        self.assertEqual(plan.activate, [(3, "stopped", "sku-2")])
+        self.assertEqual(plan.deactivate, [(4, "running-off", "sku-3")])
+        self.assertEqual(
+            plan.unchanged,
+            [(2, "running", "sku-1"), (5, "stopped-off", "sku-4")],
+        )
+        self.assertEqual(plan.missing, [])
+
+    def test_deduplicates_campaigns_and_deactivation_wins(self):
+        plan = select_required_state_changes(
+            plan_on=[
+                (2, "same", "sku-1"),
+                (3, "same", "sku-2"),
+                (4, "missing", "sku-3"),
+            ],
+            plan_off=[
+                (5, "same", "sku-4"),
+                (6, "same", "sku-5"),
+            ],
+            campaigns_by_id={
+                "same": {"state": "CAMPAIGN_STATE_RUNNING"},
+            },
+        )
+        self.assertEqual(plan.activate, [])
+        self.assertEqual(plan.deactivate, [(5, "same", "sku-4")])
+        self.assertEqual(plan.missing, [(4, "missing", "sku-3")])
+        self.assertEqual(plan.duplicate_rows, 3)
 
     def test_is_transient_cpc_error(self):
         conn_err = requests.exceptions.ConnectionError(
