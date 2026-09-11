@@ -10,7 +10,7 @@ function sendTelegramMessageGAS(text, parseMode) {
       : '8795048754:AAHXbXFhzTHa6ICvwyQ1sE2pBvb-ZgqZIac';
     const chatId = (typeof TELEGRAM_CONFIG !== 'undefined' && TELEGRAM_CONFIG.CHAT_ID)
       ? TELEGRAM_CONFIG.CHAT_ID
-      : '-5299125247';
+      : '751491813';
 
     if (!token || !chatId) return false;
 

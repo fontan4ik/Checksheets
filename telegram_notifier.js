@@ -7,7 +7,7 @@ const fs = require("fs");
 const path = require("path");
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8795048754:AAHXbXFhzTHa6ICvwyQ1sE2pBvb-ZgqZIac";
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID || "-5299125247";
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID || "751491813";
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 const LOGS_DIR = path.join(__dirname, "logs");
 const FBS_REPORT_QUEUE_FILE = path.join(LOGS_DIR, "fbs_broadcast_report_queue.json");
