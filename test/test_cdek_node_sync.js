@@ -74,17 +74,20 @@ function testLegacyOzonCredentials() {
 
 async function testOzonRetry() {
   let attempts = 0;
-  const httpClient = { post: async () => {
+  let sentStock;
+  const httpClient = { post: async (url, body) => {
     attempts += 1;
     if (attempts === 1) {
       const error = new Error("temporary Ozon error");
       error.response = { status: 500 };
       throw error;
     }
+    sentStock = body.stocks[0].stock;
     return { data: { result: [{ offer_id: "retry", updated: true, errors: [] }] } };
   }};
   assert.strictEqual(await ozon.uploadBatch([{ offer_id: "retry", stock: 1 }], {}, httpClient), 1);
   assert.strictEqual(attempts, 2);
+  assert.strictEqual(sentStock, 0);
 }
 
 (async () => {

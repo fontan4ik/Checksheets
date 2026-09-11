@@ -17,6 +17,10 @@ const context = {
   retryFetch() { throw new Error('network must not be called in this test'); },
   ozonHeaders() { return {}; },
   YANDEX_MARKET_API_KEY() { return 'test'; },
+  normalizeMarketplaceStock(value) {
+    const stock = Math.trunc(Number(value));
+    return Number.isFinite(stock) && stock >= 2 ? stock : 0;
+  },
 };
 vm.createContext(context);
 vm.runInContext(source, context, { filename: sourcePath });
@@ -54,25 +58,28 @@ const rowA = Array(27).fill('');
 rowA[0] = 'A-1'; rowA[19] = '1 299,90'; rowA[24] = '3'; rowA[26] = '7'; rowA[31] = '1';
 const rowB = Array(27).fill('');
 rowB[0] = 'B-2'; rowB[19] = '500'; rowB[24] = '4'; rowB[26] = '0'; rowB[31] = '0';
-const sheet = mockSheet([header, rowA, rowB]);
+const rowC = Array(27).fill('');
+rowC[0] = 'C-3'; rowC[19] = '700'; rowC[24] = '1'; rowC[26] = '1'; rowC[31] = '1';
+const sheet = mockSheet([header, rowA, rowB, rowC]);
 
 const stockRows = context.readOzonNtcYnxUnitStockRows_(sheet);
 assert.strictEqual(stockRows.stockColumn, 25);
-assert.deepStrictEqual(JSON.parse(JSON.stringify(stockRows.stockValues)), [['3'], ['4']]);
+assert.deepStrictEqual(JSON.parse(JSON.stringify(stockRows.stockValues)), [['3'], ['4'], ['1']]);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(stockRows.rows)), [
   { rowNumber: 2, offerId: 'A-1' },
   { rowNumber: 3, offerId: 'B-2' },
+  { rowNumber: 4, offerId: 'C-3' },
 ]);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(context.readOzonNtcYnxYandexStockEntries_(sheet))), [
   { sku: 'A-1', count: 7 },
+  { sku: 'B-2', count: 0 },
+  { sku: 'C-3', count: 0 },
 ]);
 assert.deepStrictEqual(JSON.parse(JSON.stringify(context.readOzonNtcYnxYandexPriceEntries_(sheet))), [
   { offerId: 'A-1', price: 1299.9 },
   { offerId: 'B-2', price: 500 },
+  { offerId: 'C-3', price: 700 },
 ]);
-assert.strictEqual(context.isOzonNtcYnxYandexEnabled_('1'), true);
-assert.strictEqual(context.isOzonNtcYnxYandexEnabled_('0'), false);
-assert.strictEqual(context.isOzonNtcYnxYandexEnabled_(''), false);
 assert.strictEqual(context.getOzonNtcYnxYandexPricesUrl_(58480133), 'https://api.partner.market.yandex.ru/v2/campaigns/58480133/offer-prices/updates');
 assert.ok(source.includes('const OZON_NTC_YNX_YANDEX_PRICE_CAMPAIGN_IDS = [149209348, 58480133];'));
 
