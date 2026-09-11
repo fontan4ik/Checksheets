@@ -220,6 +220,12 @@ function fetchOzonMinElasticBoostPrices_(productIds) {
     });
 
     pageCount++;
+    // Ozon завершает выдачу пустой страницей и повторяет в ней последний
+    // last_id. Это штатный конец пагинации, не цикл.
+    if (!products.length) {
+      break;
+    }
+
     const nextLastId = String(result.last_id || "");
     if (nextLastId && nextLastId === lastId) {
       throw new Error("pagination candidates не продвигается для акции " + action.id);
