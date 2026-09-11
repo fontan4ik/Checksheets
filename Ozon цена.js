@@ -1,9 +1,9 @@
 function getOzonPricesOptimized() {
   const sheet = mainSheet();
   const lastRow = sheet.getLastRow();
-  const minPriceColumn = 70; // BR — Минимальная цена Ozon
+  const minPriceColumn = 70; // BR — Цена для минимального бустинга Ozon
 
-  sheet.getRange(1, minPriceColumn).setValue("Минимальная цена Ozon");
+  sheet.getRange(1, minPriceColumn).setValue("Цена мин. бустинга Ozon");
 
   if (lastRow < 2) {
     Logger.log("Ozon цены: в листе нет строк товаров");
@@ -16,7 +16,6 @@ function getOzonPricesOptimized() {
   const rowIndexes = productIdRange.map((r, i) => [r[0], i + 2]); // [product_id, rowNumber]
 
   const priceMap = {};
-  const minPriceMap = {};
   const chunkSize = 1000;
   let apiErrorCount = 0;
   let ozonProductsCount = 0;
@@ -82,8 +81,6 @@ function getOzonPricesOptimized() {
         const productId = item.product_id;
         if (productId === null || productId === undefined || productId === "") return;
 
-        // Существующая выгрузка сопоставляется по product_id, поэтому min_price
-        // берём из того же ответа и сохраняем по тому же ключу.
         const p = item.price || {};
         let price = "";
         if (p.marketing_seller_price !== null && p.marketing_seller_price !== undefined && p.marketing_seller_price !== "") {
@@ -95,8 +92,6 @@ function getOzonPricesOptimized() {
         }
 
         priceMap[productId] = price;
-        const minPrice = Number(p.min_price);
-        minPriceMap[productId] = isFinite(minPrice) && minPrice > 0 ? minPrice : "";
       });
 
       pageNumber++;
@@ -131,26 +126,146 @@ function getOzonPricesOptimized() {
     sheet.getRange(startRow, 11, numRows, 1).setValues(pricesToWrite); // K (11): ЦЕНА ОЗОН
   }
 
-  // BR обновляем только после полной успешной выгрузки: при ошибке Ozon
-  // ранее корректные значения должны остаться нетронутыми.
+  let elasticBoostResult = null;
   if (completeSuccess && productIds.length > 0) {
-    const minPricesToWrite = rowIndexes.map(([pid]) => [
-      minPriceMap[pid] !== undefined ? minPriceMap[pid] : ""
-    ]);
-    sheet.getRange(2, minPriceColumn, minPricesToWrite.length, 1).setValues(minPricesToWrite);
+    try {
+      elasticBoostResult = fetchOzonMinElasticBoostPrices_(productIds);
+      const elasticBoostPricesToWrite = rowIndexes.map(([pid]) => [
+        elasticBoostResult.priceMap[pid] !== undefined ? elasticBoostResult.priceMap[pid] : ""
+      ]);
+      // BR обновляем только после полной успешной выгрузки: при ошибке Ozon
+      // ранее корректные значения должны остаться нетронутыми.
+      sheet.getRange(2, minPriceColumn, elasticBoostPricesToWrite.length, 1).setValues(elasticBoostPricesToWrite);
+    } catch (error) {
+      apiErrorCount++;
+      completeSuccess = false;
+      Logger.log("❌ Ozon min elastic boost: " + error);
+    }
   }
 
-  const matchedCount = rowIndexes.filter(([pid]) => minPriceMap[pid] !== undefined).length;
-  const filledMinPriceCount = rowIndexes.filter(([pid]) => minPriceMap[pid] > 0).length;
-  Logger.log("Ozon min_price sync: " + JSON.stringify({
+  const elasticPriceMap = elasticBoostResult ? elasticBoostResult.priceMap : {};
+  const matchedCount = rowIndexes.filter(([pid]) => elasticPriceMap[pid] !== undefined).length;
+  const filledMinPriceCount = rowIndexes.filter(([pid]) => elasticPriceMap[pid] > 0).length;
+  Logger.log("Ozon min elastic boost sync: " + JSON.stringify({
     rows: rowIndexes.length,
     ozon_products: ozonProductsCount,
+    elastic_action_id: elasticBoostResult ? elasticBoostResult.actionId : null,
+    elastic_action_products: elasticBoostResult ? elasticBoostResult.actionProductsCount : 0,
     matched: matchedCount,
-    with_min_price: filledMinPriceCount,
-    without_min_price: matchedCount - filledMinPriceCount,
+    with_min_elastic_price: filledMinPriceCount,
+    without_min_elastic_price: matchedCount - filledMinPriceCount,
     not_matched: rowIndexes.length - matchedCount,
     api_requests: requestCount,
     api_errors: apiErrorCount,
     status: completeSuccess ? "SUCCESS" : "ERROR"
   }));
+}
+
+/**
+ * Возвращает цены для минимального бустинга из конкретной акции
+ * «Эластичный бустинг». Это не price.min_price: последнее поле является
+ * общим ограничением цены товара для акций и стратегий.
+ */
+function fetchOzonMinElasticBoostPrices_(productIds) {
+  const action = getOzonElasticBoostAction_();
+  const requestedIds = {};
+  productIds.forEach(function(productId) {
+    requestedIds[String(productId)] = true;
+  });
+
+  const priceMap = {};
+  let lastId = "";
+  let pageCount = 0;
+  let actionProductsCount = 0;
+  const seenLastIds = {};
+  let lastRequestTime = Date.now() - 1000 / RPS();
+
+  do {
+    lastRequestTime = rateLimitRPS(lastRequestTime, RPS());
+    const response = retryFetch(ozonActionCandidatesApiURL(), {
+      method: "post",
+      contentType: "application/json",
+      headers: ozonHeaders(),
+      payload: JSON.stringify({
+        action_id: action.id,
+        limit: 1000,
+        last_id: lastId
+      }),
+      muteHttpExceptions: true
+    });
+
+    if (!response) {
+      throw new Error("не удалось получить candidates акции " + action.id);
+    }
+    if (response.getResponseCode() < 200 || response.getResponseCode() >= 300) {
+      throw new Error("candidates акции " + action.id + ": HTTP " + response.getResponseCode() + " " + response.getContentText().substring(0, 500));
+    }
+
+    let data;
+    try {
+      data = JSON.parse(response.getContentText());
+    } catch (error) {
+      throw new Error("candidates акции " + action.id + " вернул некорректный JSON: " + error);
+    }
+
+    const result = data.result || {};
+    const products = result.products || [];
+    actionProductsCount += products.length;
+    products.forEach(function(product) {
+      const productId = String(product.id === undefined ? product.product_id : product.id);
+      if (!requestedIds[productId]) return;
+
+      const price = Number(product.price_min_elastic);
+      priceMap[productId] = isFinite(price) && price > 0 ? price : "";
+    });
+
+    pageCount++;
+    const nextLastId = String(result.last_id || "");
+    if (nextLastId && nextLastId === lastId) {
+      throw new Error("pagination candidates не продвигается для акции " + action.id);
+    }
+    if (nextLastId && seenLastIds[nextLastId]) {
+      throw new Error("pagination candidates зациклилась для акции " + action.id);
+    }
+    if (nextLastId) seenLastIds[nextLastId] = true;
+    lastId = nextLastId;
+  } while (lastId);
+
+  Logger.log("Эластичный бустинг: акция " + action.id + ", страниц: " + pageCount + ", товаров: " + actionProductsCount);
+  return {
+    actionId: action.id,
+    actionProductsCount: actionProductsCount,
+    priceMap: priceMap
+  };
+}
+
+function getOzonElasticBoostAction_() {
+  const response = retryFetch(ozonActionsApiURL(), {
+    method: "get",
+    headers: ozonHeaders(),
+    muteHttpExceptions: true
+  });
+
+  if (!response) {
+    throw new Error("не удалось получить список акций Ozon");
+  }
+  if (response.getResponseCode() < 200 || response.getResponseCode() >= 300) {
+    throw new Error("список акций Ozon: HTTP " + response.getResponseCode() + " " + response.getContentText().substring(0, 500));
+  }
+
+  let data;
+  try {
+    data = JSON.parse(response.getContentText());
+  } catch (error) {
+    throw new Error("список акций Ozon вернул некорректный JSON: " + error);
+  }
+
+  const actions = data.result || data.actions || [];
+  const action = actions.find(function(item) {
+    return /^Эластичный бустинг/i.test(String(item.title || "").trim());
+  });
+  if (!action || !action.id) {
+    throw new Error("в кабинете не найдена активная акция «Эластичный бустинг»");
+  }
+  return action;
 }

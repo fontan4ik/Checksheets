@@ -72,6 +72,8 @@ const ozonStocksApiURL = () => 'https://api-seller.ozon.ru/v4/product/info/stock
 const ozonFBOAvailableStocksApiURL = () => 'https://api-seller.ozon.ru/v1/analytics/stocks';
 const ozonPricesApiURL = () => "https://api-seller.ozon.ru/v5/product/info/prices";
 const ozonPricesDetailsURL = () => "https://api-seller.ozon.ru/v1/product/prices/details";
+const ozonActionsApiURL = () => "https://api-seller.ozon.ru/v1/actions";
+const ozonActionCandidatesApiURL = () => "https://api-seller.ozon.ru/v1/actions/candidates";
 const ozonAnalyticsData = () => "https://api-seller.ozon.ru/v1/analytics/data";
 const ozonFBSStocks = () => "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs";
 const ozonFinanceTransactionsURL = () => "https://api-seller.ozon.ru/v3/finance/transaction/list";
@@ -127,4 +129,3 @@ const TELEGRAM_CONFIG = {
   BOT_TOKEN: '8795048754:AAHXbXFhzTHa6ICvwyQ1sE2pBvb-ZgqZIac',
   CHAT_ID: '-5299125247'
 };
-
