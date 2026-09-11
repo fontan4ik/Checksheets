@@ -76,7 +76,7 @@ function readStocksFromSheet() {
       continue;
     }
 
-    const stock = parseInt(okruglenoe) || 0;
+    const stock = normalizeMarketplaceStock(okruglenoe);
 
     stocks.push({
       art_producer: artProducer,
@@ -128,8 +128,8 @@ function getFeronWarehouseId() {
 function updateOzonStocks(stocks, warehouseId) {
   Logger.log(`🟠 Обновление остатков Ozon (склад ID: ${warehouseId})...`);
 
-  // Фильтруем товары с offer_id и stock > 0
-  const validStocks = stocks.filter(s => s.offer_id && s.stock > 0);
+  // Нулевые остатки тоже отправляем, чтобы снять с MP ранее выставленную 1 шт.
+  const validStocks = stocks.filter(s => s.offer_id);
 
   if (validStocks.length === 0) {
     Logger.log(`⚠️ Нет товаров с offer_id для обновления Ozon`);
@@ -155,7 +155,7 @@ function updateOzonStocks(stocks, warehouseId) {
     const body = {
       stocks: batch.map(item => ({
         offer_id: String(item.offer_id),
-        stock: item.stock,
+        stock: normalizeMarketplaceStock(item.stock),
         warehouse_id: warehouseId
       }))
     };
@@ -405,7 +405,7 @@ function updateWBStocks(stocks, warehouseId) {
 
       validBatch.push({
         chrtId: idNum,
-        amount: item.stock
+        amount: normalizeMarketplaceStock(item.stock)
       });
     }
 

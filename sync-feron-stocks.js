@@ -34,7 +34,12 @@ const FERON_TR_SCHEMA = {
   chrt_id: "chrlid",
 };
 
-const MIN_STOCK_THRESHOLD = 0;
+const MIN_STOCK_THRESHOLD = 2;
+
+function normalizeMarketplaceStock(value) {
+  const stock = Math.trunc(Number(value));
+  return Number.isFinite(stock) && stock >= MIN_STOCK_THRESHOLD ? stock : 0;
+}
 
 // Скидка WB-остатка: когда true, склад Екатеринбург (EKB) записывает только 0.
 // Установи false, чтобы вернуть обычный расчёт остатков.
@@ -178,11 +183,11 @@ async function readFeronStocksFromSheet(auth) {
     stocks.push({
       offer_id: vendorCode,
       ozon_sku: ozonSku,
-      stock_msk: originalStockMsk,
-      stock_smr: originalStockSmr,
-      stock_nsb: originalStockNsb,
-      stock_ekb: originalStockEkb,
-      stock_wb_voltmir: wbVoltmirStock,
+      stock_msk: normalizeMarketplaceStock(originalStockMsk),
+      stock_smr: normalizeMarketplaceStock(originalStockSmr),
+      stock_nsb: normalizeMarketplaceStock(originalStockNsb),
+      stock_ekb: normalizeMarketplaceStock(originalStockEkb),
+      stock_wb_voltmir: normalizeMarketplaceStock(wbVoltmirStock),
       original_stock_msk: originalStockMsk,
       original_stock_smr: originalStockSmr,
       original_stock_nsb: originalStockNsb,
@@ -341,7 +346,7 @@ async function updateFeronStocksOzonWithRetry(
   const body = {
     stocks: batch.map((item) => ({
       offer_id: String(item.offer_id),
-      stock: item[colName],
+      stock: normalizeMarketplaceStock(item[colName]),
       warehouse_id: warehouseId,
     })),
   };
@@ -783,8 +788,9 @@ async function updateFeronStocksWB(stocks) {
           warehouseError++;
           continue;
         }
-        const amount =
-          FORCE_ZERO_WB_EKB && wh.key === "EKB" ? 0 : item[wh.col];
+        const amount = normalizeMarketplaceStock(
+          FORCE_ZERO_WB_EKB && wh.key === "EKB" ? 0 : item[wh.col],
+        );
         validBatch.push({ chrtId: idNum, amount });
         auditItems.push({ offerId: item.offer_id, chrtId: idNum, amount });
       }

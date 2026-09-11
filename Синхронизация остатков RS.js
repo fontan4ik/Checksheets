@@ -32,7 +32,7 @@ const RS_COL_COOLING = 7;     // G - Охлад
 const RS_COL_ROUNDED = 23;    // W - РЕЗЕРВ (Stock для выгрузки)
 const RS_COL_WB_STOCK = 29;   // AC - WB ВОЛЬТМИР ИТОГ (N + S + W)
 
-const RS_MIN_STOCK_THRESHOLD = 5; // Минимальный остаток для выгрузки (> 4)
+const RS_MIN_STOCK_THRESHOLD = MARKETPLACE_MIN_STOCK; // Выгружаем от 2 шт. включительно
 
 // Задержки пост-проверки Ozon (из sync-etm-stocks.js)
 const RS_OZON_POSTCHECK_DELAY_MS = 30000;       // 30 сек перед первой пост-проверкой
@@ -224,7 +224,7 @@ function readRSStocksFromSheet() {
       offer_id: offerId,
       chrt_id: chrtId,
       stock: stock,
-      wb_stock: Math.max(0, Math.trunc(Number(wbStockForUpload) || 0)),
+      wb_stock: normalizeMarketplaceStock(wbStockForUpload),
       original_stock: originalStock
     });
   }
@@ -304,7 +304,7 @@ function updateRSStocksOzon(stocks, warehouseId) {
     const body = {
       stocks: batch.map(item => ({
         offer_id: String(item.offer_id),
-        stock: item.stock,
+        stock: normalizeMarketplaceStock(item.stock),
         warehouse_id: warehouseId
       }))
     };
@@ -589,7 +589,7 @@ function updateRSStocksWB(stocks, warehouseId) {
 
       validBatch.push({
         chrtId: idNum,
-        amount: item.wb_stock
+        amount: normalizeMarketplaceStock(item.wb_stock)
       });
     }
 
@@ -764,7 +764,7 @@ function updateRSStocksOzonBatch(stocks, warehouseId) {
     const body = {
       stocks: batch.map(item => ({
         offer_id: item.offer_id,
-        stock: item.stock,
+        stock: normalizeMarketplaceStock(item.stock),
         warehouse_id: warehouseId
       }))
     };
@@ -798,7 +798,7 @@ function updateRSStocksWBBatch(stocks, warehouseId) {
 
       validBatch.push({
         chrtId,
-        amount: item.wb_stock
+        amount: normalizeMarketplaceStock(item.wb_stock)
       });
     }
 

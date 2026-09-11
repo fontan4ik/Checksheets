@@ -61,6 +61,14 @@ function YANDEX_MARKET_API_KEY() {
 const RPS = () => 20; // Ограничение RPS по умолчанию (Ozon до 50 запросов в секунду)
 const WB_RPS = () => 2; // RPS для Wildberries
 
+// На маркетплейсах публикуем остаток только от 2 шт. включительно.
+// Единицу передаём как 0, чтобы не продавать последний экземпляр.
+const MARKETPLACE_MIN_STOCK = 2;
+function normalizeMarketplaceStock(value) {
+  const stock = Math.trunc(Number(value));
+  return Number.isFinite(stock) && stock >= MARKETPLACE_MIN_STOCK ? stock : 0;
+}
+
 // ============================================
 // OZON API URL
 // ============================================

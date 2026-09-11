@@ -20,7 +20,12 @@ const ETM_TR_COLS = {
 
 const WB_VOLTMIR_STOCK_HEADER = "WB ВОЛЬТМИР ИТОГ";
 
-const MIN_STOCK_THRESHOLD = 0;
+const MIN_STOCK_THRESHOLD = 2;
+
+function normalizeMarketplaceStock(value) {
+  const stock = Math.trunc(Number(value));
+  return Number.isFinite(stock) && stock >= MIN_STOCK_THRESHOLD ? stock : 0;
+}
 
 const RPS = 10;
 const WB_RPS = 0.12; // ~14 per minute = 1 req per 4.3 sec
@@ -345,8 +350,8 @@ async function readETMStocksFromSheet(auth) {
     if (!offerId) continue;
 
     // Применяем порог: если остаток < MIN_STOCK_THRESHOLD, выгружаем 0
-    const stock = originalStock >= MIN_STOCK_THRESHOLD ? originalStock : 0;
-    const wb_stock = Number(row[colWbStock - 1]) || 0;
+    const stock = normalizeMarketplaceStock(originalStock);
+    const wb_stock = normalizeMarketplaceStock(row[colWbStock - 1]);
 
     // Validate wb_stock is a non‑negative integer
     if (!Number.isInteger(wb_stock) || wb_stock < 0) {
@@ -596,7 +601,7 @@ async function updateETMStocksOzonWithRetry(
   const body = {
     stocks: batch.map((item) => ({
       offer_id: String(item.offer_id),
-      stock: item.stock,
+      stock: normalizeMarketplaceStock(item.stock),
       warehouse_id: warehouseId,
     })),
   };
@@ -985,7 +990,7 @@ async function updateETMStocksWB(stocks) {
       // Use wb_stock for Wildberries amount
       // Ensure amount sent to WB is an integer
       const rawAmount = Number(item.wb_stock);
-      const amount = Number.isInteger(rawAmount) && rawAmount >= 0 ? rawAmount : 0;
+      const amount = normalizeMarketplaceStock(rawAmount);
       if (amount !== rawAmount) {
         log(`⚠️ Коррекция WB amount для chrtId=${idNum}: исходное=${rawAmount}, использовано=${amount}`);
       }

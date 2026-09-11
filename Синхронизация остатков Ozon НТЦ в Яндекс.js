@@ -203,7 +203,7 @@ function readOzonNtcYnxYandexStockEntries_(sheet) {
       invalidOfferIds.push(offerId);
       return;
     }
-    entries.push({ sku: offerId, count: count });
+    entries.push({ sku: offerId, count: normalizeMarketplaceStock(count) });
   });
 
   if (invalidOfferIds.length) {
@@ -395,7 +395,7 @@ function uploadOzonNtcYnxStocksToYandex_(entries, apiKey) {
       },
       payload: JSON.stringify({
         skus: batch.map(function(item) {
-          return { sku: item.sku, items: [{ count: item.count }] };
+          return { sku: item.sku, items: [{ count: normalizeMarketplaceStock(item.count) }] };
         })
       }),
       muteHttpExceptions: true

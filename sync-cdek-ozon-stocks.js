@@ -20,6 +20,7 @@ const WAREHOUSE_ID = 1020002321437000;
 const WAREHOUSE_NAME = "КГТ СДЭК";
 const OZON_API_URL = "https://api-seller.ozon.ru";
 const BATCH_SIZE = 100;
+const MIN_STOCK_THRESHOLD = 2;
 const REQUEST_INTERVAL_MS = 120;
 const MAX_RETRIES = 3;
 const POSTCHECK_DELAY_MS = 30000;
@@ -46,7 +47,8 @@ function sleep(milliseconds) {
 function numberStock(value) {
   const parsed = Number(String(value ?? "").replace(",", "."));
   if (!Number.isFinite(parsed) || parsed < 0) return 0;
-  return Math.trunc(parsed);
+  const stock = Math.trunc(parsed);
+  return stock >= MIN_STOCK_THRESHOLD ? stock : 0;
 }
 
 function parseLegacyOzonCredentials(source) {
@@ -154,7 +156,7 @@ async function uploadBatch(batch, headers, httpClient = axios) {
     {
       stocks: batch.map((item) => ({
         offer_id: item.offer_id,
-        stock: item.stock,
+        stock: numberStock(item.stock),
         warehouse_id: WAREHOUSE_ID,
       })),
     },

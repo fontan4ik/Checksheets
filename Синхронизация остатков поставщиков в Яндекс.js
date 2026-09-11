@@ -264,7 +264,7 @@ function readSamaraSupplierYnxStockEntries_(sheet) {
       invalid.push(sku);
       return;
     }
-    entries.push({ sku: sku, count: Math.trunc(Number(raw)) });
+    entries.push({ sku: sku, count: normalizeMarketplaceStock(raw) });
   });
   if (invalid.length) {
     throw new Error('UNIT YNX!«' + SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER +
@@ -290,7 +290,7 @@ function uploadSamaraSupplierYnxStocksToYandex_(entries, apiKey) {
         },
         payload: JSON.stringify({
           skus: batch.map(function(item) {
-            return { sku: item.sku, items: [{ count: item.count }] };
+            return { sku: item.sku, items: [{ count: normalizeMarketplaceStock(item.count) }] };
           })
         }),
         muteHttpExceptions: true

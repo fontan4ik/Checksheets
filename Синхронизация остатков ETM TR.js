@@ -25,7 +25,7 @@ const ETM_COL_CHRT_ID = 7;   // G - chrlid (WB)
 const ETM_COL_STOCK = 19;    // S - ЭТМ САМАРА
 const ETM_COL_WB_STOCK = 29; // AC - WB ВОЛЬТМИР ИТОГ
 
-const ETM_MIN_STOCK_THRESHOLD = 5; // Минимальный остаток для выгрузки (> 4)
+const ETM_MIN_STOCK_THRESHOLD = MARKETPLACE_MIN_STOCK; // Выгружаем от 2 шт. включительно
 
 // ============================================
 // 1. ФУНКЦИИ ДЛЯ ЧТЕНИЯ ДАННЫХ ИЗ ЛИСТА
@@ -99,7 +99,7 @@ function readETMStocksFromSheet() {
       offer_id: offerId,
       chrt_id: chrtId,
       stock: stock,
-      wb_stock: Math.max(0, Math.trunc(Number(wbStockForUpload) || 0)),
+      wb_stock: normalizeMarketplaceStock(wbStockForUpload),
       original_stock: originalStock
     });
   }
@@ -293,7 +293,7 @@ function updateETMStocksOzon(stocks, warehouseId) {
     const body = {
       stocks: batch.map(item => ({
         offer_id: String(item.offer_id),
-        stock: item.stock,
+        stock: normalizeMarketplaceStock(item.stock),
         warehouse_id: warehouseId
       }))
     };
@@ -398,7 +398,7 @@ function updateETMStocksWB(stocks, warehouseId) {
 
       validBatch.push({
         chrtId: idNum,
-        amount: item.wb_stock
+        amount: normalizeMarketplaceStock(item.wb_stock)
       });
     }
 

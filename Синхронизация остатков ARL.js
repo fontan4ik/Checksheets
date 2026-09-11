@@ -128,10 +128,8 @@ function readARLStocksFromSheet() {
       continue;
     }
 
-    // Передаём фактический остаток без минимального порога.
-    // Значения 1–4 больше не обнуляются перед выгрузкой на маркетплейсы.
-    const stock = parseInt(stockForUpload) || 0;
-    const originalStock = stock;
+    const originalStock = parseInt(stockForUpload) || 0;
+    const stock = normalizeMarketplaceStock(originalStock);
 
     // Очистка цен от пробелов и валют
     const priceOzon = Math.floor(parseFloat(String(priceOzonVal).replace(/[^0-9.,]/g, '').replace(',', '.'))) || 0;
@@ -222,7 +220,7 @@ function updateARLStocksOzon(stocks, warehouseId) {
     const body = {
       stocks: batch.map(item => ({
         offer_id: String(item.offer_id),
-        stock: item.stock,
+        stock: normalizeMarketplaceStock(item.stock),
         warehouse_id: warehouseId
       }))
     };
@@ -540,7 +538,7 @@ for (let i = 0; i < batches; i++) {
 
       validBatch.push({
         chrtId: idNum,  // ✅ chrtId из колонки J
-        amount: item.stock  // 0 тоже валидное значение
+        amount: normalizeMarketplaceStock(item.stock)  // 0 тоже валидное значение
       });
     }
 
@@ -1345,7 +1343,7 @@ function testWBFBSUpload() {
   }
 
   const testChrtId = Number(chrtId);
-  const testStock = parseInt(stock) || 120;
+  const testStock = normalizeMarketplaceStock(parseInt(stock) || 120);
   const warehouseId = ARL_WB_WAREHOUSE_ID;
 
   Logger.log(`📋 Тестовые данные:`);
