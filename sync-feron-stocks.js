@@ -25,6 +25,7 @@ const FERON_TR_WB_WAREHOUSE = {
 
 const FERON_TR_SCHEMA = {
   vendor_code: "Артикул продавца",
+  brand: "Бренд",
   ozon_sku: "SKU OZON",
   marketplace_stock_msk: "ПОДОРОЖНИК ФБС",
   marketplace_stock_smr: "ФЕРОН ФБС",
@@ -34,11 +35,11 @@ const FERON_TR_SCHEMA = {
   chrt_id: "chrlid",
 };
 
-const MIN_STOCK_THRESHOLD = 2;
-
-function normalizeMarketplaceStock(value) {
+function normalizeMarketplaceStock(value, brand) {
   const stock = Math.trunc(Number(value));
-  return Number.isFinite(stock) && stock >= MIN_STOCK_THRESHOLD ? stock : 0;
+  if (!Number.isFinite(stock) || stock < 0) return 0;
+  const isArlight = String(brand || "").trim().toLowerCase() === "arlight";
+  return stock === 1 && !isArlight ? 0 : stock;
 }
 
 // Скидка WB-остатка: когда true, склад Екатеринбург (EKB) записывает только 0.
@@ -124,6 +125,7 @@ async function readFeronStocksFromSheet(auth) {
   }
 
   const colVendor = columns.vendor_code;
+  const colBrand = columns.brand;
   const colOzonSku = columns.ozon_sku;
   const colStockMsk = columns.marketplace_stock_msk;
   const colStockSmr = columns.marketplace_stock_smr;
@@ -138,6 +140,7 @@ async function readFeronStocksFromSheet(auth) {
 
   const maxCol = Math.max(
     colVendor,
+    colBrand,
     colOzonSku,
     colStockMsk,
     colStockSmr,
@@ -166,6 +169,7 @@ async function readFeronStocksFromSheet(auth) {
     const row = data[i];
 
     const vendorCode = row[colVendor - 1];
+    const brand = String(row[colBrand - 1] || "").trim();
     const ozonSku = parseInt(row[colOzonSku - 1]) || 0;
     const originalStockMsk = parseInt(row[colStockMsk - 1]) || 0;
     const originalStockSmr = parseInt(row[colStockSmr - 1]) || 0;
@@ -182,12 +186,13 @@ async function readFeronStocksFromSheet(auth) {
 
     stocks.push({
       offer_id: vendorCode,
+      brand: brand,
       ozon_sku: ozonSku,
-      stock_msk: normalizeMarketplaceStock(originalStockMsk),
-      stock_smr: normalizeMarketplaceStock(originalStockSmr),
-      stock_nsb: normalizeMarketplaceStock(originalStockNsb),
-      stock_ekb: normalizeMarketplaceStock(originalStockEkb),
-      stock_wb_voltmir: normalizeMarketplaceStock(wbVoltmirStock),
+      stock_msk: normalizeMarketplaceStock(originalStockMsk, brand),
+      stock_smr: normalizeMarketplaceStock(originalStockSmr, brand),
+      stock_nsb: normalizeMarketplaceStock(originalStockNsb, brand),
+      stock_ekb: normalizeMarketplaceStock(originalStockEkb, brand),
+      stock_wb_voltmir: normalizeMarketplaceStock(wbVoltmirStock, brand),
       original_stock_msk: originalStockMsk,
       original_stock_smr: originalStockSmr,
       original_stock_nsb: originalStockNsb,
@@ -346,7 +351,7 @@ async function updateFeronStocksOzonWithRetry(
   const body = {
     stocks: batch.map((item) => ({
       offer_id: String(item.offer_id),
-      stock: normalizeMarketplaceStock(item[colName]),
+      stock: item[colName],
       warehouse_id: warehouseId,
     })),
   };
@@ -788,9 +793,7 @@ async function updateFeronStocksWB(stocks) {
           warehouseError++;
           continue;
         }
-        const amount = normalizeMarketplaceStock(
-          FORCE_ZERO_WB_EKB && wh.key === "EKB" ? 0 : item[wh.col],
-        );
+        const amount = FORCE_ZERO_WB_EKB && wh.key === "EKB" ? 0 : item[wh.col];
         validBatch.push({ chrtId: idNum, amount });
         auditItems.push({ offerId: item.offer_id, chrtId: idNum, amount });
       }

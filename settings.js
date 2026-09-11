@@ -61,12 +61,14 @@ function YANDEX_MARKET_API_KEY() {
 const RPS = () => 20; // Ограничение RPS по умолчанию (Ozon до 50 запросов в секунду)
 const WB_RPS = () => 2; // RPS для Wildberries
 
-// На маркетплейсах публикуем остаток только от 2 шт. включительно.
-// Единицу передаём как 0, чтобы не продавать последний экземпляр.
-const MARKETPLACE_MIN_STOCK = 2;
-function normalizeMarketplaceStock(value) {
+// Базовое MP-правило: точно 1 шт. передаём как 0.
+// 0 продолжаем выгружать; 2+ передаём без изменений.
+// Для бренда Arlight на общих складах StreamSupps единица разрешена.
+function normalizeMarketplaceStock(value, brand) {
   const stock = Math.trunc(Number(value));
-  return Number.isFinite(stock) && stock >= MARKETPLACE_MIN_STOCK ? stock : 0;
+  if (!Number.isFinite(stock) || stock < 0) return 0;
+  const isArlight = String(brand || '').trim().toLowerCase() === 'arlight';
+  return stock === 1 && !isArlight ? 0 : stock;
 }
 
 // ============================================

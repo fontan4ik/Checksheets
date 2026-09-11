@@ -32,6 +32,12 @@ function testCdekBypassInterface() {
   }, ""), { interfaceName: "en0", sourceIp: "192.168.1.5" });
 }
 
+function testCdekAllowsSingleUnit() {
+  assert.strictEqual(ozon.numberStock(0), 0);
+  assert.strictEqual(ozon.numberStock(1), 1);
+  assert.strictEqual(ozon.numberStock(2), 2);
+}
+
 async function testOzonUploadAndVerification() {
   const calls = [];
   const httpClient = { post: async (url, body) => {
@@ -87,12 +93,13 @@ async function testOzonRetry() {
   }};
   assert.strictEqual(await ozon.uploadBatch([{ offer_id: "retry", stock: 1 }], {}, httpClient), 1);
   assert.strictEqual(attempts, 2);
-  assert.strictEqual(sentStock, 0);
+  assert.strictEqual(sentStock, 1);
 }
 
 (async () => {
   await testCdekStockCalculation();
   testCdekBypassInterface();
+  testCdekAllowsSingleUnit();
   await testOzonUploadAndVerification();
   await testSheetInputValidation();
   testLegacyOzonCredentials();

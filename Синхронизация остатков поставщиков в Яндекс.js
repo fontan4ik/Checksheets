@@ -21,6 +21,9 @@
 
 const SAMARA_SUPPLIER_YNX_SPREADSHEET_ID = '15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI';
 const SAMARA_SUPPLIER_YNX_TARGET_SHEET = 'UNIT YNX';
+const SAMARA_SUPPLIER_YNX_SOURCE_SHEET = 'StreamSupps';
+const SAMARA_SUPPLIER_YNX_SOURCE_KEY_COLUMN = 1;   // A — артикул
+const SAMARA_SUPPLIER_YNX_SOURCE_BRAND_COLUMN = 4; // D — бренд
 const SAMARA_SUPPLIER_YNX_TARGET_KEY_HEADER = 'art';
 const SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER = 'TR YA FBS';
 const SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGN_ID = 58480133;
@@ -106,9 +109,11 @@ function syncSamaraSupplierStocksToYandexFbs() {
   withSamaraSupplierYnxLock_('отправка самарских остатков в Яндекс FBS', function() {
     const spreadsheet = SpreadsheetApp.openById(SAMARA_SUPPLIER_YNX_SPREADSHEET_ID);
     const targetSheet = getSamaraSupplierYnxSheet_(spreadsheet, SAMARA_SUPPLIER_YNX_TARGET_SHEET);
+    const sourceSheet = getSamaraSupplierYnxSheet_(spreadsheet, SAMARA_SUPPLIER_YNX_SOURCE_SHEET);
+    const brandBySku = readSamaraSupplierYnxBrandMap_(sourceSheet);
     readSamaraSupplierYnxFormulaSummary_(targetSheet);
     SpreadsheetApp.flush();
-    const entries = readSamaraSupplierYnxStockEntries_(targetSheet);
+    const entries = readSamaraSupplierYnxStockEntries_(targetSheet, brandBySku);
     const apiKey = YANDEX_MARKET_API_KEY();
     uploadSamaraSupplierYnxStocksToYandex_(entries, apiKey);
     Logger.log('✅ UNIT YNX!«' + SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER +
@@ -247,7 +252,21 @@ function aggregateSamaraSupplierMaps_(targetKeys, feronMap, etmMap, rsMap) {
   });
 }
 
-function readSamaraSupplierYnxStockEntries_(sheet) {
+function readSamaraSupplierYnxBrandMap_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return {};
+  const width = Math.max(SAMARA_SUPPLIER_YNX_SOURCE_KEY_COLUMN, SAMARA_SUPPLIER_YNX_SOURCE_BRAND_COLUMN);
+  const values = sheet.getRange(2, 1, lastRow - 1, width).getDisplayValues();
+  const result = {};
+  values.forEach(function(row) {
+    const sku = String(row[SAMARA_SUPPLIER_YNX_SOURCE_KEY_COLUMN - 1] || '').trim();
+    if (!sku) return;
+    result[sku] = String(row[SAMARA_SUPPLIER_YNX_SOURCE_BRAND_COLUMN - 1] || '').trim();
+  });
+  return result;
+}
+
+function readSamaraSupplierYnxStockEntries_(sheet, brandBySku) {
   const lastRow = sheet.getLastRow();
   const lastColumn = Math.max(1, sheet.getLastColumn());
   if (lastRow < 2) throw new Error('UNIT YNX: нет строк для Яндекса.');
@@ -264,7 +283,8 @@ function readSamaraSupplierYnxStockEntries_(sheet) {
       invalid.push(sku);
       return;
     }
-    entries.push({ sku: sku, count: normalizeMarketplaceStock(raw) });
+    const brand = String((brandBySku || {})[sku] || '').trim();
+    entries.push({ sku: sku, brand: brand, count: normalizeMarketplaceStock(raw, brand) });
   });
   if (invalid.length) {
     throw new Error('UNIT YNX!«' + SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER +
@@ -290,7 +310,7 @@ function uploadSamaraSupplierYnxStocksToYandex_(entries, apiKey) {
         },
         payload: JSON.stringify({
           skus: batch.map(function(item) {
-            return { sku: item.sku, items: [{ count: normalizeMarketplaceStock(item.count) }] };
+            return { sku: item.sku, items: [{ count: normalizeMarketplaceStock(item.count, item.brand) }] };
           })
         }),
         muteHttpExceptions: true

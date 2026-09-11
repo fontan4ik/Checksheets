@@ -24,6 +24,7 @@ const RS_WB_WAREHOUSE_ID = 798761;              // ВольтМир
 // Фоллбек колонки (если заголовки не найдены)
 const RS_COL_VENDOR_CODE = 2; // B - Модель
 const RS_COL_ARTICUL = 1;     // A - Артикул (offer_id Ozon)
+const RS_COL_BRAND = 4;       // D - Бренд; Arlight разрешено передавать с остатком 1
 const RS_COL_CHRT_ID = 7;     // G - chrlid (WB)
 const RS_API_COL_MODEL = 2;   // B - Артикул производителя (formula)
 const RS_API_COL_STOCK = 22;  // V - RS SMR после добавления StreamSupps!H
@@ -31,8 +32,6 @@ const RS_COL_STOCK_API = 6;   // F - legacy Остаток АПИ
 const RS_COL_COOLING = 7;     // G - Охлад
 const RS_COL_ROUNDED = 23;    // W - РЕЗЕРВ (Stock для выгрузки)
 const RS_COL_WB_STOCK = 29;   // AC - WB ВОЛЬТМИР ИТОГ (N + S + W)
-
-const RS_MIN_STOCK_THRESHOLD = MARKETPLACE_MIN_STOCK; // Выгружаем от 2 шт. включительно
 
 // Задержки пост-проверки Ozon (из sync-etm-stocks.js)
 const RS_OZON_POSTCHECK_DELAY_MS = 30000;       // 30 сек перед первой пост-проверкой
@@ -187,14 +186,15 @@ function readRSStocksFromSheet() {
   };
 
   const dynamicColOfferId = findCol("артикул продавца", RS_COL_ARTICUL);
+  const dynamicColBrand = findCol("бренд", RS_COL_BRAND);
   const dynamicColChrtId = findCol("chrtid", RS_COL_CHRT_ID) || findCol("chrlid", RS_COL_CHRT_ID);
   const dynamicColStock = findCol("резерв", RS_COL_ROUNDED);
   const dynamicColWbStock = findCol("wb вольтмир итог", RS_COL_WB_STOCK);
 
-  Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, chrtId=${dynamicColChrtId}, Остаток=${dynamicColStock}, WB ВОЛЬТМИР ИТОГ=${dynamicColWbStock}`);
+  Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, Бренд=${dynamicColBrand}, chrtId=${dynamicColChrtId}, Остаток=${dynamicColStock}, WB ВОЛЬТМИР ИТОГ=${dynamicColWbStock}`);
 
   // Читаем нужные колонки
-  const maxCol = Math.max(dynamicColOfferId, dynamicColChrtId, dynamicColStock, dynamicColWbStock);
+  const maxCol = Math.max(dynamicColOfferId, dynamicColBrand, dynamicColChrtId, dynamicColStock, dynamicColWbStock);
   const data = sheet.getRange(2, 1, lastRow - 1, maxCol).getValues();
 
   const stocks = [];
@@ -203,6 +203,7 @@ function readRSStocksFromSheet() {
     const row = data[i];
 
     const offerId = row[dynamicColOfferId - 1];
+    const brand = String(row[dynamicColBrand - 1] || "").trim();
     const chrtId = row[dynamicColChrtId - 1];
     const stockForUpload = row[dynamicColStock - 1];
     const wbStockForUpload = row[dynamicColWbStock - 1];
@@ -212,29 +213,25 @@ function readRSStocksFromSheet() {
       continue;
     }
 
-    let stock = parseInt(stockForUpload) || 0;
-
-    // Применяем порог: если остаток < RS_MIN_STOCK_THRESHOLD, выгружаем 0
-    const originalStock = stock;
-    if (stock < RS_MIN_STOCK_THRESHOLD) {
-      stock = 0;
-    }
+    const originalStock = parseInt(stockForUpload) || 0;
+    const stock = normalizeMarketplaceStock(originalStock, brand);
 
     stocks.push({
       offer_id: offerId,
+      brand: brand,
       chrt_id: chrtId,
       stock: stock,
-      wb_stock: normalizeMarketplaceStock(wbStockForUpload),
+      wb_stock: normalizeMarketplaceStock(wbStockForUpload, brand),
       original_stock: originalStock
     });
   }
 
-  const aboveThreshold = stocks.filter(s => s.original_stock >= RS_MIN_STOCK_THRESHOLD).length;
-  const belowThreshold = stocks.filter(s => s.original_stock > 0 && s.original_stock < RS_MIN_STOCK_THRESHOLD).length;
+  const zeroedOnes = stocks.filter(s => s.original_stock === 1 && String(s.brand || '').toLowerCase() !== 'arlight').length;
+  const arlightOnes = stocks.filter(s => s.original_stock === 1 && String(s.brand || '').toLowerCase() === 'arlight').length;
 
   Logger.log(`📊 Прочитано ${stocks.length} товаров из листа "${RS_SHEET_NAME}"`);
-  Logger.log(`   С остатком >= ${RS_MIN_STOCK_THRESHOLD}: ${aboveThreshold}`);
-  Logger.log(`   С остатком < ${RS_MIN_STOCK_THRESHOLD} (будет 0): ${belowThreshold}`);
+  Logger.log(`   Остаток 1 обнулён: ${zeroedOnes}`);
+  Logger.log(`   Arlight с остатком 1 сохранён: ${arlightOnes}`);
   Logger.log(`   С chrtId: ${stocks.filter(s => s.chrt_id).length}`);
 
   return stocks;
@@ -304,7 +301,7 @@ function updateRSStocksOzon(stocks, warehouseId) {
     const body = {
       stocks: batch.map(item => ({
         offer_id: String(item.offer_id),
-        stock: normalizeMarketplaceStock(item.stock),
+        stock: item.stock,
         warehouse_id: warehouseId
       }))
     };
@@ -589,7 +586,7 @@ function updateRSStocksWB(stocks, warehouseId) {
 
       validBatch.push({
         chrtId: idNum,
-        amount: normalizeMarketplaceStock(item.wb_stock)
+        amount: item.wb_stock
       });
     }
 
@@ -764,7 +761,7 @@ function updateRSStocksOzonBatch(stocks, warehouseId) {
     const body = {
       stocks: batch.map(item => ({
         offer_id: item.offer_id,
-        stock: normalizeMarketplaceStock(item.stock),
+        stock: item.stock,
         warehouse_id: warehouseId
       }))
     };
@@ -798,7 +795,7 @@ function updateRSStocksWBBatch(stocks, warehouseId) {
 
       validBatch.push({
         chrtId,
-        amount: normalizeMarketplaceStock(item.wb_stock)
+        amount: item.wb_stock
       });
     }
 

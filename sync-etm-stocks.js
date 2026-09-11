@@ -13,6 +13,7 @@ const ETM_TR_WB_WAREHOUSE = 798761; // Updated to correct WB warehouse ID
 
 const ETM_TR_COLS = {
   ARTICUL: 1,
+  BRAND: 4, // D — бренд; Arlight разрешено передавать с остатком 1
   CHRLID: 7,
   STOCK: 19, // S — ЭТМ САМАРА после добавления StreamSupps!H
   WB_STOCK: 29, // AC — сумма N + S + W для WB «ВольтМир»
@@ -20,11 +21,11 @@ const ETM_TR_COLS = {
 
 const WB_VOLTMIR_STOCK_HEADER = "WB ВОЛЬТМИР ИТОГ";
 
-const MIN_STOCK_THRESHOLD = 2;
-
-function normalizeMarketplaceStock(value) {
+function normalizeMarketplaceStock(value, brand) {
   const stock = Math.trunc(Number(value));
-  return Number.isFinite(stock) && stock >= MIN_STOCK_THRESHOLD ? stock : 0;
+  if (!Number.isFinite(stock) || stock < 0) return 0;
+  const isArlight = String(brand || "").trim().toLowerCase() === "arlight";
+  return stock === 1 && !isArlight ? 0 : stock;
 }
 
 const RPS = 10;
@@ -192,6 +193,7 @@ async function readETMTRPUStabilitySnapshot(auth) {
     return index >= 0 ? index + 1 : fallback;
   };
   const colArticul = findCol("артикул продавца", ETM_TR_COLS.ARTICUL);
+  const colBrand = findCol("бренд", ETM_TR_COLS.BRAND);
   const colChrlid = findCol("chrlid", ETM_TR_COLS.CHRLID);
   const colStock = findCol("этм самара", ETM_TR_COLS.STOCK);
   const colWbStock = findCol(WB_VOLTMIR_STOCK_HEADER, ETM_TR_COLS.WB_STOCK);
@@ -210,6 +212,7 @@ async function readETMTRPUStabilitySnapshot(auth) {
     const offerId = String(row[colArticul - 1] || "").trim();
     if (!offerId) return;
 
+    const brand = String(row[colBrand - 1] || "").trim();
     const chrlid = String(row[colChrlid - 1] || "").trim();
     const ozonStock = numericCell(row[colStock - 1]);
     const wbStock = numericCell(row[colWbStock - 1]);
@@ -225,7 +228,7 @@ async function readETMTRPUStabilitySnapshot(auth) {
     wbTotal += wbStock;
     if (ozonStock > 0) ozonPositiveCount++;
     if (wbStock > 0) wbPositiveCount++;
-    hash.update(`${offerId}\t${chrlid}\t${ozonStock}\t${wbStock}\n`);
+    hash.update(`${offerId}\t${brand}\t${chrlid}\t${ozonStock}\t${wbStock}\n`);
   });
 
   return {
@@ -314,16 +317,17 @@ async function readETMStocksFromSheet(auth) {
   };
 
   const colArticul = findCol("артикул продавца", ETM_TR_COLS.ARTICUL);
+  const colBrand = findCol("бренд", ETM_TR_COLS.BRAND);
   const colChrlid = findCol("chrlid", ETM_TR_COLS.CHRLID);
   // После вставки StreamSupps!H трансляция «ЭТМ САМАРА» находится в S.
   const colStock = findCol("этм самара", ETM_TR_COLS.STOCK);
   const colWbStock = findCol(WB_VOLTMIR_STOCK_HEADER, ETM_TR_COLS.WB_STOCK);
 
   log(
-    `🔍 Колонки: Артикул=${columnLetter(colArticul)}(${colArticul}), chrlid=${columnLetter(colChrlid)}(${colChrlid}), ЭТМ САМАРА=${columnLetter(colStock)}(${colStock}), ${WB_VOLTMIR_STOCK_HEADER}=${columnLetter(colWbStock)}(${colWbStock})`,
+    `🔍 Колонки: Артикул=${columnLetter(colArticul)}(${colArticul}), Бренд=${columnLetter(colBrand)}(${colBrand}), chrlid=${columnLetter(colChrlid)}(${colChrlid}), ЭТМ САМАРА=${columnLetter(colStock)}(${colStock}), ${WB_VOLTMIR_STOCK_HEADER}=${columnLetter(colWbStock)}(${colWbStock})`,
   );
 
-  const maxCol = Math.max(colArticul, colChrlid, colStock, colWbStock);
+  const maxCol = Math.max(colArticul, colBrand, colChrlid, colStock, colWbStock);
 
   const dataResp = await withGoogleSheetsRetry("чтение остатков", () => sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
@@ -344,14 +348,14 @@ async function readETMStocksFromSheet(auth) {
     const row = data[i];
 
     const offerId = row[colArticul - 1];
+    const brand = String(row[colBrand - 1] || "").trim();
     const chrlid = row[colChrlid - 1];
     const originalStock = parseInt(row[colStock - 1]) || 0;
 
     if (!offerId) continue;
 
-    // Применяем порог: если остаток < MIN_STOCK_THRESHOLD, выгружаем 0
-    const stock = normalizeMarketplaceStock(originalStock);
-    const wb_stock = normalizeMarketplaceStock(row[colWbStock - 1]);
+    const stock = normalizeMarketplaceStock(originalStock, brand);
+    const wb_stock = normalizeMarketplaceStock(row[colWbStock - 1], brand);
 
     // Validate wb_stock is a non‑negative integer
     if (!Number.isInteger(wb_stock) || wb_stock < 0) {
@@ -360,6 +364,7 @@ async function readETMStocksFromSheet(auth) {
 
     stocks.push({
       offer_id: offerId,
+      brand: brand,
       chrlid: chrlid,
       stock: stock,
       wb_stock: wb_stock,
@@ -601,7 +606,7 @@ async function updateETMStocksOzonWithRetry(
   const body = {
     stocks: batch.map((item) => ({
       offer_id: String(item.offer_id),
-      stock: normalizeMarketplaceStock(item.stock),
+      stock: item.stock,
       warehouse_id: warehouseId,
     })),
   };
@@ -990,7 +995,7 @@ async function updateETMStocksWB(stocks) {
       // Use wb_stock for Wildberries amount
       // Ensure amount sent to WB is an integer
       const rawAmount = Number(item.wb_stock);
-      const amount = normalizeMarketplaceStock(rawAmount);
+      const amount = Number.isInteger(rawAmount) && rawAmount >= 0 ? rawAmount : 0;
       if (amount !== rawAmount) {
         log(`⚠️ Коррекция WB amount для chrtId=${idNum}: исходное=${rawAmount}, использовано=${amount}`);
       }

@@ -22,12 +22,21 @@ for (const [input, expected] of [
   assert.strictEqual(actual, expected, `stock ${JSON.stringify(input)}`);
 }
 
+for (const [input, expected] of [[0, 0], [1, 1], [2, 2]]) {
+  const actual = vm.runInContext(
+    `normalizeMarketplaceStock(${JSON.stringify(input)}, ' ArLiGhT ')`,
+    context,
+  );
+  assert.strictEqual(actual, expected, `Arlight stock ${JSON.stringify(input)}`);
+}
+
 const requiredUsage = {
   'Синхронизация остатков RS.js': [
-    'const RS_MIN_STOCK_THRESHOLD = MARKETPLACE_MIN_STOCK',
-    'wb_stock: normalizeMarketplaceStock(wbStockForUpload)',
-    'stock: normalizeMarketplaceStock(item.stock)',
-    'amount: normalizeMarketplaceStock(item.wb_stock)',
+    'const RS_COL_BRAND = 4;',
+    'const stock = normalizeMarketplaceStock(originalStock, brand)',
+    'wb_stock: normalizeMarketplaceStock(wbStockForUpload, brand)',
+    'stock: item.stock',
+    'amount: item.wb_stock',
   ],
   'Синхронизация остатков ARL.js': [
     'const stock = normalizeMarketplaceStock(originalStock)',
@@ -35,26 +44,28 @@ const requiredUsage = {
     'amount: normalizeMarketplaceStock(item.stock)',
   ],
   'Синхронизация остатков поставщиков в Яндекс.js': [
-    'count: normalizeMarketplaceStock(raw)',
-    'count: normalizeMarketplaceStock(item.count)',
+    'const SAMARA_SUPPLIER_YNX_SOURCE_BRAND_COLUMN = 4;',
+    'count: normalizeMarketplaceStock(raw, brand)',
+    'count: normalizeMarketplaceStock(item.count, item.brand)',
   ],
   'Синхронизация остатков Ozon НТЦ в Яндекс.js': [
     'count: normalizeMarketplaceStock(count)',
     'count: normalizeMarketplaceStock(item.count)',
   ],
   'sync-etm-stocks.js': [
-    'const MIN_STOCK_THRESHOLD = 2;',
-    'const wb_stock = normalizeMarketplaceStock(row[colWbStock - 1])',
-    'stock: normalizeMarketplaceStock(item.stock)',
+    'BRAND: 4',
+    'const stock = normalizeMarketplaceStock(originalStock, brand)',
+    'const wb_stock = normalizeMarketplaceStock(row[colWbStock - 1], brand)',
+    'stock: item.stock',
   ],
   'sync-feron-stocks.js': [
-    'const MIN_STOCK_THRESHOLD = 2;',
-    'stock_msk: normalizeMarketplaceStock(originalStockMsk)',
-    'stock_wb_voltmir: normalizeMarketplaceStock(wbVoltmirStock)',
-    'stock: normalizeMarketplaceStock(item[colName])',
+    'brand: "Бренд"',
+    'stock_msk: normalizeMarketplaceStock(originalStockMsk, brand)',
+    'stock_wb_voltmir: normalizeMarketplaceStock(wbVoltmirStock, brand)',
+    'stock: item[colName]',
   ],
   'sync-cdek-ozon-stocks.js': [
-    'const MIN_STOCK_THRESHOLD = 2;',
+    'return Math.trunc(parsed);',
     'stock: numberStock(item.stock)',
   ],
 };
@@ -66,4 +77,4 @@ for (const [file, snippets] of Object.entries(requiredUsage)) {
   }
 }
 
-console.log('PASS marketplace stock threshold: 0/1 -> 0, 2+ -> unchanged');
+console.log('PASS marketplace stock rule: base 1 -> 0; Arlight/CDEK 1 -> 1; zero preserved');
