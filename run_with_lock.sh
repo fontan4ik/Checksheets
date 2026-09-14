@@ -89,6 +89,10 @@ case "$SCRIPT_NAME" in
         /opt/homebrew/bin/python3 feron_mic_sync_local.py >> "$LOG_FILE" 2>&1
         EXIT_CODE=$?
         ;;
+    arlight_api_sync)
+        .venv-etm-export/bin/python -u arlight_sync_local.py >> "$LOG_FILE" 2>&1
+        EXIT_CODE=$?
+        ;;
     etm_sync)
         /opt/homebrew/bin/python3 etm_sync_multi_store.py >> "$LOG_FILE" 2>&1
         EXIT_CODE=$?

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.checksheets.arlight_api_sync</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/run_with_lock.sh</string>
+        <string>arlight_api_sync</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets</string>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Minute</key>
+        <integer>47</integer>
+    </dict>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+    <key>Nice</key>
+    <integer>10</integer>
+    <key>ThrottleInterval</key>
+    <integer>300</integer>
+    <key>StandardOutPath</key>
+    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/arlight_api_sync_launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/arlight_api_sync_launchd.err</string>
+</dict>
+</plist>
