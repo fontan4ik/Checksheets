@@ -32,6 +32,19 @@ python rs_sync_local.py
 1. Загружает весь каталог РС для сопоставления артикулов производителя (Модель) с кодами РС.
 2. Обновляет колонки "Остаток АПИ", "Охлад" и "Округление".
 
+### Трансляция RS на маркетплейсы (лист "StreamSupps"):
+```bash
+node sync-rs-stocks.js
+```
+Скрипт локально:
+1. Читает рассчитанные колонки **РЕЗЕРВ** и **WB ВОЛЬТМИР ИТОГ**.
+2. Передаёт **РЕЗЕРВ** на склад RS в Ozon (`1020005005049870`).
+3. Передаёт **WB ВОЛЬТМИР ИТОГ** на склад RS «ВольтМир» в WB (`798761`).
+4. Выполняет Ozon post-check и пишет обязательный WB payload-аудит в `logs/wb_stock_payload_audit_YYYYMMDD.jsonl`.
+
+Для проверки чтения без записи используйте `node sync-rs-stocks.js --dry-run`; для запуска без ожидания Ozon post-check — `--skip-postcheck`.
+Для запуска через общий lock-скрипт используйте `./run_with_lock.sh sync_rs_stocks`.
+
 ### Обновление Feron (лист "ТЕСТ"):
 ```bash
 python feron_sync_local.py
@@ -62,6 +75,7 @@ python sync_master.py
 - `etm_sync_local.py`: Логика работы с ETM.
 - `feron_sync_local.py`: Логика работы с Feron.
 - `rs_sync_local.py`: Логика работы с РС (использует прокси для обхода блокировок).
+- `sync-rs-stocks.js`: Локальная трансляция готовых остатков RS из `StreamSupps` в Ozon/WB.
 - `wb_tech_data_sync_local.py`: Локальная выгрузка техданных WB в лист `ТЕХ данные wb`.
 - `sync_master.py`: Скрипт для запуска всех выгрузок по очереди.
 - `gsheets_utils.py`: Общие функции для работы с Google Таблицами.

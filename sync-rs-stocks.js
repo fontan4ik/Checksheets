@@ -40,7 +40,7 @@ const RS_COLUMNS = {
 const OZON_API_URL = "https://api-seller.ozon.ru";
 const WB_API_URL = "https://marketplace-api.wildberries.ru";
 const OZON_RPS = 10;
-const WB_RPS = 0.1;
+const WB_RPS = Math.max(0.1, Number(process.env.RS_WB_RPS || 2));
 const BATCH_SIZE_OZON = 100;
 const BATCH_SIZE_WB = 200;
 const MAX_RETRIES = 3;
@@ -335,7 +335,7 @@ async function sendRsWbStocksBatch(batch, retry = 0) {
   try {
     const response = await axios.put(
       `${WB_API_URL}/api/v3/stocks/${RS_WB_WAREHOUSE_ID}`,
-      { stocks: batch },
+      { stocks: batch.map((item) => ({ chrtId: item.chrtId, amount: item.amount })) },
       { headers: wbHeaders(), timeout: 30000 },
     );
     return { ok: response.status === 200 || response.status === 204, code: response.status, text: JSON.stringify(response.data || {}) };
@@ -348,7 +348,12 @@ async function sendRsWbStocksBatch(batch, retry = 0) {
       await sleep(delay);
       return sendRsWbStocksBatch(batch, retry + 1);
     }
-    return { ok: false, code, text: responseText, cargoRestriction: code === 409 && isWbCargoRestrictionError(responseText) };
+    return {
+      ok: false,
+      code,
+      text: code === 429 ? "MAX_RETRIES_EXCEEDED" : responseText,
+      cargoRestriction: code === 409 && isWbCargoRestrictionError(responseText),
+    };
   }
 }
 
@@ -419,7 +424,11 @@ async function updateRsStocksWb(stocks) {
     });
     if (payload.shouldWarn) log(`⚠️ WB STALE SNAPSHOT: снимку уже ${payload.ageSeconds} сек.`);
 
-    const requestBatch = prepared.map((item) => ({ chrtId: item.chrtId, amount: item.amount }));
+    const requestBatch = prepared.map((item) => ({
+      offerId: item.offerId,
+      chrtId: item.chrtId,
+      amount: item.amount,
+    }));
     const result = await sendRsWbStocksBatch(requestBatch);
     if (result.ok) {
       successCount += requestBatch.length;
@@ -540,5 +549,8 @@ module.exports = {
   updateRsStocksOzon,
   updateRsStocksWb,
   verifyRsOzonStocks,
+  readRSStocksFromSheet: readRsStocksFromSheet,
+  updateRSStocksOzon: updateRsStocksOzon,
+  updateRSStocksWB: updateRsStocksWb,
   main,
 };
