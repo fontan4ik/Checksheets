@@ -45,7 +45,7 @@ echo $$ > "$LOCK_FILE"
 # Unlike the per-job lock above, this shared lock waits instead of skipping,
 # so concurrently triggered launchd jobs form a sequential queue.
 case "$SCRIPT_NAME" in
-    sync_etm_stocks|sync_feron_stocks|cdek_hourly_sync)
+    sync_etm_stocks|sync_feron_stocks|sync_rs_stocks|cdek_hourly_sync)
         WAIT_LOGGED=0
         while ! mkdir "$MARKETPLACE_LOCK_DIR" 2>/dev/null; do
             MARKETPLACE_PID=""
@@ -104,6 +104,10 @@ case "$SCRIPT_NAME" in
         ;;
     sync_feron_stocks)
         /opt/homebrew/bin/node sync-feron-stocks.js >> "$LOG_FILE" 2>&1
+        EXIT_CODE=$?
+        ;;
+    sync_rs_stocks)
+        /opt/homebrew/bin/node sync-rs-stocks.js >> "$LOG_FILE" 2>&1
         EXIT_CODE=$?
         ;;
     sync_etm_stocks)
