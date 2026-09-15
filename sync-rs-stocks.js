@@ -40,20 +40,17 @@ const RS_COLUMNS = {
 const OZON_API_URL = "https://api-seller.ozon.ru";
 const WB_API_URL = "https://marketplace-api.wildberries.ru";
 const OZON_RPS = 10;
-const WB_RPS = Math.max(0.1, Number(process.env.RS_WB_RPS || 2));
+const configuredWbRps = Number(process.env.RS_WB_RPS || 2);
+const WB_RPS = Number.isFinite(configuredWbRps) ? Math.max(0.1, configuredWbRps) : 2;
 const BATCH_SIZE_OZON = 100;
 const BATCH_SIZE_WB = 200;
 const MAX_RETRIES = 3;
 const OZON_BASE_DELAY_MS = 1000;
 const WB_BASE_DELAY_MS = 3000;
-const POSTCHECK_DELAY_MS = Math.max(
-  0,
-  Number(process.env.RS_OZON_POSTCHECK_DELAY_MS || 30000),
-);
-const POSTCHECK_RETRY_DELAY_MS = Math.max(
-  0,
-  Number(process.env.RS_OZON_POSTCHECK_RETRY_DELAY_MS || 60000),
-);
+const configuredPostcheckDelay = Number(process.env.RS_OZON_POSTCHECK_DELAY_MS || 30000);
+const configuredPostcheckRetryDelay = Number(process.env.RS_OZON_POSTCHECK_RETRY_DELAY_MS || 60000);
+const POSTCHECK_DELAY_MS = Number.isFinite(configuredPostcheckDelay) ? Math.max(0, configuredPostcheckDelay) : 30000;
+const POSTCHECK_RETRY_DELAY_MS = Number.isFinite(configuredPostcheckRetryDelay) ? Math.max(0, configuredPostcheckRetryDelay) : 60000;
 
 function text(value) {
   return String(value ?? "").trim();
@@ -270,20 +267,30 @@ async function updateRsStocksOzon(stocks) {
   return { successCount, errorCount };
 }
 
-async function fetchOzonStocksByOfferIds(offerIds, warehouseId) {
+async function fetchOzonStocksByOfferIds(offerIds, warehouseId, retry = 0) {
   const result = new Map();
-  for (let offset = 0; offset < offerIds.length; offset += 500) {
-    const response = await axios.post(
-      `${OZON_API_URL}/v2/product/info/stocks-by-warehouse/fbs`,
-      { offer_id: offerIds.slice(offset, offset + 500), warehouse_id: warehouseId, limit: 1000 },
-      { headers: ozonHeaders(), timeout: 30000 },
-    );
-    for (const item of Array.isArray(response.data?.products) ? response.data.products : []) {
-      if (String(item.warehouse_id) !== String(warehouseId)) continue;
-      result.set(String(item.offer_id), (Number(item.present) || 0) + (Number(item.reserved) || 0));
+  try {
+    for (let offset = 0; offset < offerIds.length; offset += 500) {
+      const response = await axios.post(
+        `${OZON_API_URL}/v2/product/info/stocks-by-warehouse/fbs`,
+        { offer_id: offerIds.slice(offset, offset + 500), warehouse_id: warehouseId, limit: 1000 },
+        { headers: ozonHeaders(), timeout: 30000 },
+      );
+      for (const item of Array.isArray(response.data?.products) ? response.data.products : []) {
+        if (String(item.warehouse_id) !== String(warehouseId)) continue;
+        result.set(String(item.offer_id), (Number(item.present) || 0) + (Number(item.reserved) || 0));
+      }
     }
+    return result;
+  } catch (error) {
+    if (isRetryable(error) && retry < MAX_RETRIES) {
+      const delay = OZON_BASE_DELAY_MS * 2 ** retry;
+      log(`⏳ Ozon post-check ${error.response?.status || "transport"}: retry ${retry + 1}/${MAX_RETRIES} через ${delay / 1000} сек.`);
+      await sleep(delay);
+      return fetchOzonStocksByOfferIds(offerIds, warehouseId, retry + 1);
+    }
+    throw error;
   }
-  return result;
 }
 
 async function verifyRsOzonStocks(stocks) {
@@ -549,8 +556,10 @@ module.exports = {
   updateRsStocksOzon,
   updateRsStocksWb,
   verifyRsOzonStocks,
+  sendRsWbStocksBatch,
   readRSStocksFromSheet: readRsStocksFromSheet,
   updateRSStocksOzon: updateRsStocksOzon,
   updateRSStocksWB: updateRsStocksWb,
+  syncRSStocks: main,
   main,
 };

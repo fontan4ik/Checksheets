@@ -41,7 +41,7 @@ fi
 # Create lock file
 echo $$ > "$LOCK_FILE"
 
-# ETM, Feron and CDEK write marketplace stocks and must never overlap.
+# ETM, Feron, RS and CDEK write marketplace stocks and must never overlap.
 # Unlike the per-job lock above, this shared lock waits instead of skipping,
 # so concurrently triggered launchd jobs form a sequential queue.
 case "$SCRIPT_NAME" in
