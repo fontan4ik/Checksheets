@@ -16,7 +16,7 @@ const NTC_WRITE_OFF_PENDING = [
   'awaiting_deliver', 'awaiting_registration'
 ];
 
-/** Один раз после проверки тестов: формулы L/N и минутный FBS-триггер. */
+/** Один раз после проверки тестов: формулы L/N и начальная FBS-сверка. */
 function installNtcWriteOffs() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(NTC_WRITE_OFF_SHEET);
@@ -48,8 +48,6 @@ function installNtcWriteOffs() {
       .requireFormulaSatisfied('=OR(K2="";AND(ISNUMBER(K2);K2>=0;MOD(K2;1)=0))')
       .setAllowInvalid(false).build();
     sheet.getRange(2, 11, Math.max(count, 1), 1).setDataValidation(validation);
-    const existing = ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'syncNtcFbsWriteOffs');
-    if (!existing.length) ScriptApp.newTrigger('syncNtcFbsWriteOffs').timeBased().everyMinutes(1).create();
   } finally {
     lock.releaseLock();
   }
