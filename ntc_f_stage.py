@@ -147,7 +147,8 @@ def advance(payload: dict, previous_state: dict | None = None) -> dict:
     state["applied_physical_by_model"] = target_physical
     state["last_f_by_model"] = new_f
     return {"F_by_model": new_f, "delta_physical_by_model": delta,
-            "L_by_offer": L, "applied_units_by_offer": dict(target_units), "state": state}
+            "L_by_offer": L, "applied_units_by_offer": {offer: qty for offer, qty in target_units.items() if qty},
+            "state": state}
 
 
 if __name__ == "__main__":
