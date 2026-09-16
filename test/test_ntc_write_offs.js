@@ -62,6 +62,9 @@ vm.runInContext(source, context);
 const formula = context.ntcOutboundFormula_(2, 1000);
 assert.match(formula, /\$N2/, 'outbound stock uses net model stock');
 assert.doesNotMatch(formula, /\$G2|\$I2/, 'reference columns do not drive outbound stock');
+const availableFormula = context.ntcAvailableFormula_(2, 1000);
+assert.match(availableFormula, /\$K\$2:\$K\$1000/, 'manual write-off reads K');
+assert.doesNotMatch(availableFormula, /\$J\$2:\$J\$1000/, 'chrlid in J is never subtracted');
 
 function posting(status, quantity = 2) {
   return {posting_number: '123-1', status, in_process_at: '2026-09-15T00:00:00Z',

@@ -1,7 +1,7 @@
 /**
  * НТЦ: FBS-резерв и ручное списание. Ни одна функция здесь не пишет остатки в MP.
  * F — внешний остаток модели; H — кратность артикула;
- * J — накопленное ручное списание в упаковках.
+ * K — накопленное ручное списание в упаковках; J — chrlid.
  * L — готовое количество упаковок артикула для будущей выгрузки на MP.
  * M — FBS-резерв в физических штуках модели, N — доступно по модели.
  * G и I остаются справочными; MP API здесь не вызывается.
@@ -38,14 +38,14 @@ function installNtcWriteOffs() {
       const available = [], outbound = [];
       const end = Math.max(1000, count + 1);
       for (let row = 2; row < count + 2; row++) {
-        available.push([`=IF($A${row}="";"";N($F${row})-N($M${row})-SUMPRODUCT(($B$2:$B$${end}=$B${row})*IFERROR($J$2:$J$${end}*1;0)*IFERROR($H$2:$H$${end}*1;0)))`]);
+        available.push([ntcAvailableFormula_(row, end)]);
         outbound.push([ntcOutboundFormula_(row, end)]);
       }
       sheet.getRange(2, 14, count, 1).setFormulas(available);
       sheet.getRange(2, 12, count, 1).setFormulas(outbound);
     }
     const validation = SpreadsheetApp.newDataValidation()
-      .requireFormulaSatisfied('=OR(J2="";AND(ISNUMBER(J2);J2>=0;MOD(J2;1)=0))')
+      .requireFormulaSatisfied('=OR(K2="";AND(ISNUMBER(K2);K2>=0;MOD(K2;1)=0))')
       .setAllowInvalid(false).build();
     sheet.getRange(2, 11, Math.max(count, 1), 1).setDataValidation(validation);
     const existing = ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'syncNtcFbsWriteOffs');
@@ -134,6 +134,10 @@ function syncNtcFbsWriteOffs() {
 }
 
 /** Распределяет общий запас модели между её кратностями, не обещая одни физические штуки дважды. */
+function ntcAvailableFormula_(row, end) {
+  return `=IF($A${row}="";"";N($F${row})-N($M${row})-SUMPRODUCT(($B$2:$B$${end}=$B${row})*IFERROR($K$2:$K$${end}*1;0)*IFERROR($H$2:$H$${end}*1;0)))`;
+}
+
 function ntcOutboundFormula_(row, end) {
   return `=IF(OR($A${row}="";$H${row}="");"";IF(COUNTIFS($B$2:$B$${end};$B${row};$H$2:$H$${end};$H${row})>1;0;IFERROR(LET(` +
     `sizes;SORT(FILTER($H$2:$H$${end};$B$2:$B$${end}=$B${row});1;TRUE);` +
