@@ -1,7 +1,7 @@
-"""Poll Ozon NTC FBS postings and update only column M on «НТЦ списания».
+"""Legacy read-only NTC FBS reservation diagnostic.
 
-The persistent posting ledger is the same hidden sheet used by Apps Script.
-No marketplace stock API is called here.
+The old M writer is disabled because ntc_live_local.py now changes F directly.
+The persistent posting ledger is retained only for migration/history.
 """
 
 from __future__ import annotations
@@ -170,6 +170,8 @@ def reconcile(old: dict[str, dict], postings: list[dict], articles: dict[str, tu
 
 
 def sync(*, apply: bool = False) -> None:
+    if apply:
+        raise RuntimeError("Old M-reserve writer is disabled; ntc_live_local.py now accounts through F")
     client = gspread.service_account(filename=str(ROOT / "nomadic-bedrock-485314-b0-d7624dedd83c.json"))
     book = client.open_by_key(SPREADSHEET_ID)
     stock = book.worksheet(SHEET_NAME)
@@ -179,7 +181,6 @@ def sync(*, apply: bool = False) -> None:
         raise RuntimeError("NTC sheet headers changed")
     rows = stock.get("A2:H1000", value_render_option="UNFORMATTED_VALUE")
     articles: dict[str, tuple[str, int]] = {}
-    models: list[str] = []
     for row in rows:
         if not row or not row[0]:
             continue
@@ -188,7 +189,6 @@ def sync(*, apply: bool = False) -> None:
         if not isinstance(size, int) or size <= 0 or not model:
             raise RuntimeError(f"Invalid model or multiplicity for {offer}")
         articles[offer] = (model, size)
-        models.append(model)
     old = read_ledger(ledger_sheet)
     state = ledger_sheet.get("E1:F2")
     now = utc_now()
@@ -209,23 +209,13 @@ def sync(*, apply: bool = False) -> None:
         postings.extend(fetch_postings(http, api_headers, wid, since, to, status=status))
     postings.extend(fetch_postings(http, api_headers, wid, since, to, changed=iso(changed)))
     next_ledger, reserved = reconcile(old, postings, articles, start)
-    entries = [[number, record["status"], json.dumps({"items": record["items"],
-        "shipped": record["shipped"]}, ensure_ascii=False)] for number, record in sorted(next_ledger.items())]
-    if apply:
-        if entries:
-            ledger_sheet.update(range_name=f"A2:C{len(entries)+1}", values=entries, value_input_option="RAW")
-        if models:
-            stock.update(range_name=f"M2:M{len(models)+1}", values=[[reserved.get(model, 0)] for model in models],
-                         value_input_option="RAW")
-        ledger_sheet.update(range_name="E1:F2", values=[["start_utc", "cursor_utc"], [iso(start), to]],
-                            value_input_option="RAW")
-    print(f"NTC FBS {'applied' if apply else 'dry-run'}: {len(next_ledger)} tracked postings, "
+    print(f"NTC FBS dry-run: {len(next_ledger)} tracked postings, "
           f"{reserved} reserved physical units")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--apply", action="store_true", help="write the reserve to Google Sheets")
+    parser.add_argument("--apply", action="store_true", help="disabled: use ntc_live_local.py --apply")
     args = parser.parse_args()
     lock_path = ROOT / "logs" / "ntc_fbs_reserve.lock"
     lock_path.parent.mkdir(exist_ok=True)

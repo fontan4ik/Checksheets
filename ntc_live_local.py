@@ -276,5 +276,6 @@ if __name__ == "__main__":
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            raise SystemExit("NTC local sync already running")
+            print("NTC local sync skipped: another run is active")
+            raise SystemExit(0)
         run(apply=args.apply)

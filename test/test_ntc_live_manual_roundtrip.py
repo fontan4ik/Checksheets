@@ -15,9 +15,9 @@ def run_sync():
     command = [str(ROOT / ".venv-etm-export/bin/python"), str(ROOT / "ntc_live_local.py"), "--apply"]
     for _ in range(8):
         result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=45)
-        if result.returncode == 0:
+        if result.returncode == 0 and "skipped" not in result.stdout:
             return result.stdout.strip()
-        if "already running" not in result.stderr:
+        if "skipped" not in result.stdout:
             raise RuntimeError(result.stderr or result.stdout)
         time.sleep(2)
     raise RuntimeError("NTC local sync stayed locked")
