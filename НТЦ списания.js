@@ -7,6 +7,7 @@
 const NTC_WRITE_OFF_SHEET = 'НТЦ списания';
 const NTC_WRITE_OFF_LEDGER = '_НТЦ FBS резерв';
 const NTC_WRITE_OFF_START_KEY = 'NTC_FBS_RESERVE_START_UTC';
+const NTC_WRITE_OFF_CURSOR_KEY = 'NTC_FBS_RESERVE_CURSOR_UTC';
 const NTC_WRITE_OFF_PAGE_SIZE = 1000;
 const NTC_WRITE_OFF_PENDING = [
   'acceptance_in_progress', 'awaiting_approve', 'awaiting_packaging',
@@ -60,13 +61,24 @@ function syncNtcFbsWriteOffs() {
   const lock = LockService.getDocumentLock();
   if (!lock.tryLock(30000)) throw new Error('НТЦ: другое списание ещё выполняется.');
   try {
-    const start = PropertiesService.getDocumentProperties().getProperty(NTC_WRITE_OFF_START_KEY);
+    const props = PropertiesService.getDocumentProperties();
+    const start = props.getProperty(NTC_WRITE_OFF_START_KEY);
     if (!start) throw new Error('Сначала выполните installNtcWriteOffs().');
     const ledger = ntcLedgerSheet_(ss);
     const old = ntcReadLedger_(ledger);
     const warehouseId = ozonNTCFindWarehouseId();
     const since = new Date(Date.parse(start) - 90 * 86400000).toISOString();
-    const postings = ntcFetchPostings_(warehouseId, since, new Date().toISOString());
+    const now = new Date().toISOString();
+    const cursor = props.getProperty(NTC_WRITE_OFF_CURSOR_KEY);
+    let postings = [];
+    if (!cursor) {
+      // Начальный резерв включает все ещё собираемые отправления, даже созданные до установки.
+      NTC_WRITE_OFF_PENDING.forEach(status => {
+        postings.push(...ntcFetchPostings_(warehouseId, since, now, status));
+      });
+    }
+    const changedFrom = new Date(Date.parse(cursor || start) - 5 * 60000).toISOString();
+    postings.push(...ntcFetchPostings_(warehouseId, since, now, '', changedFrom));
     const next = Object.assign({}, old);
     postings.forEach(posting => {
       const number = String(posting.posting_number || '').trim();
@@ -108,18 +120,22 @@ function syncNtcFbsWriteOffs() {
     // Запись выполняется только после успешной полной загрузки и валидации.
     ntcWriteLedger_(ledger, next);
     if (rows.length) sheet.getRange(2, 12, rows.length, 1).setValues(rows.map(r => [reserved[String(r[1] || '').trim()] || 0]));
+    props.setProperty(NTC_WRITE_OFF_CURSOR_KEY, now);
     Logger.log('НТЦ FBS: ' + Object.keys(next).length + ' отправлений; резерв ' + JSON.stringify(reserved));
   } finally {
     lock.releaseLock();
   }
 }
 
-function ntcFetchPostings_(warehouseId, since, to) {
+function ntcFetchPostings_(warehouseId, since, to, status, changedFrom) {
   const all = [];
   let offset = 0;
   while (true) {
+    const filter = {since: since, to: to, warehouse_id: [warehouseId]};
+    if (status) filter.status = status;
+    if (changedFrom) filter.last_changed_status_date = {from: changedFrom, to: to};
     const response = ozonNTCPost('/v3/posting/fbs/list', {
-      dir: 'ASC', filter: {since: since, to: to, warehouse_id: [warehouseId]},
+      dir: 'ASC', filter: filter,
       limit: NTC_WRITE_OFF_PAGE_SIZE, offset: offset,
       with: {analytics_data: false, financial_data: false, translit: false}
     });
