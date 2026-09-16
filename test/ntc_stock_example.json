@@ -1,0 +1,21 @@
+{
+  "stock_by_model": {"1029089": 100},
+  "articles": [
+    {"offer_id": "1029089-3", "model": "1029089", "H": 3},
+    {"offer_id": "1029089-5", "model": "1029089", "H": 5},
+    {"offer_id": "1029089-10", "model": "1029089", "H": 10}
+  ],
+  "postings": [
+    {
+      "posting_number": "EXAMPLE-1",
+      "status": "awaiting_packaging",
+      "ever_handed_over": false,
+      "items": [{"offer_id": "1029089-10", "quantity": 1}]
+    }
+  ],
+  "manual_k": {"1029089-5": 2},
+  "manual_booked": {},
+  "outbound_booked": {},
+  "return_reconciled": {},
+  "returns": []
+}
