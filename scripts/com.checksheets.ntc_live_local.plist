@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.checksheets.ntc_fbs_reserve</string>
+  <string>com.checksheets.ntc_live_local</string>
   <key>ProgramArguments</key>
   <array>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/.venv-etm-export/bin/python</string>
-    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/ntc_fbs_reserve_sync.py</string>
+    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/ntc_live_local.py</string>
     <string>--apply</string>
   </array>
   <key>WorkingDirectory</key>
@@ -19,8 +19,8 @@
   <key>ProcessType</key>
   <string>Background</string>
   <key>StandardOutPath</key>
-  <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/ntc_fbs_reserve_launchd.log</string>
+  <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/ntc_live_launchd.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/ntc_fbs_reserve_launchd.err</string>
+  <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/ntc_live_launchd.err</string>
 </dict>
 </plist>
