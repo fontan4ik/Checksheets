@@ -83,10 +83,15 @@ postings = [posting('cancelled')];
 context.syncNtcFbsWriteOffs();
 assert.equal(JSON.stringify(reserveRows), '[[6],[6]]', 'post-shipment cancellation does not invent a physical return');
 
-const before = JSON.stringify(ledgerRows);
 postings = [posting('awaiting_packaging'), {posting_number: 'bad', status: 'awaiting_packaging',
   in_process_at: '2026-09-15T00:00:00Z', products: [{offer_id: 'missing', quantity: 1}]}];
-assert.throws(() => context.syncNtcFbsWriteOffs(), /отсутствует на листе/);
+context.syncNtcFbsWriteOffs();
+assert.equal(JSON.stringify(reserveRows), '[[6],[6]]', 'unlisted warehouse products are ignored');
+const before = JSON.stringify(ledgerRows);
+
+postings = [{posting_number: 'broken', status: 'awaiting_packaging',
+  in_process_at: '2026-09-15T00:00:00Z', products: [{offer_id: '2851987-3', quantity: -1}]}];
+assert.throws(() => context.syncNtcFbsWriteOffs(), /Некорректные товары/);
 assert.equal(JSON.stringify(ledgerRows), before, 'validation failure preserves ledger');
 
 failFetch = true;

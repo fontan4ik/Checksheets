@@ -66,17 +66,26 @@ function syncNtcFbsWriteOffs() {
     if (!start) throw new Error('Сначала выполните installNtcWriteOffs().');
     const ledger = ntcLedgerSheet_(ss);
     const old = ntcReadLedger_(ledger);
+    const rowCount = Math.max(0, sheet.getLastRow() - 1);
+    const rows = rowCount ? sheet.getRange(2, 1, rowCount, 8).getValues() : [];
+    const article = {};
+    rows.forEach((r, index) => {
+      const offer = String(r[0] || '').trim();
+      if (!offer) return;
+      const size = Number(r[7]);
+      if (!Number.isInteger(size) || size <= 0) throw new Error('НТЦ: неверный размер упаковки H' + (index + 2));
+      article[offer] = {model: String(r[1] || '').trim(), size: size};
+    });
     const warehouseId = ozonNTCFindWarehouseId();
     const since = new Date(Date.parse(start) - 90 * 86400000).toISOString();
     const now = new Date().toISOString();
     const cursor = props.getProperty(NTC_WRITE_OFF_CURSOR_KEY);
-    let postings = [];
-    if (!cursor) {
-      // Начальный резерв включает все ещё собираемые отправления, даже созданные до установки.
-      NTC_WRITE_OFF_PENDING.forEach(status => {
-        postings.push(...ntcFetchPostings_(warehouseId, since, now, status));
-      });
-    }
+    const postings = [];
+    // Повторно читаем сборку: частичная отмена может изменить products без смены статуса.
+    // Также это включает заказы, созданные до установки, но ещё не переданные в доставку.
+    NTC_WRITE_OFF_PENDING.forEach(status => {
+      postings.push(...ntcFetchPostings_(warehouseId, since, now, status));
+    });
     const changedFrom = new Date(Date.parse(cursor || start) - 5 * 60000).toISOString();
     postings.push(...ntcFetchPostings_(warehouseId, since, now, '', changedFrom));
     const next = Object.assign({}, old);
@@ -92,19 +101,11 @@ function syncNtcFbsWriteOffs() {
       if (items.some(p => !p.offer_id || !Number.isInteger(p.quantity) || p.quantity < 0)) {
         throw new Error('Некорректные товары отправления ' + number);
       }
+      const relevant = items.filter(item => article[item.offer_id]);
+      if (!relevant.length && !wasTracked) return;
       const shipped = wasTracked && old[number].shipped ||
         ['driver_pickup', 'delivering', 'delivered', 'last_mile'].includes(status);
-      next[number] = {status: status, items: items, shipped: Boolean(shipped)};
-    });
-    const rowCount = Math.max(0, sheet.getLastRow() - 1);
-    const rows = rowCount ? sheet.getRange(2, 1, rowCount, 8).getValues() : [];
-    const article = {};
-    rows.forEach((r, index) => {
-      const offer = String(r[0] || '').trim();
-      if (!offer) return;
-      const size = Number(r[7]);
-      if (!Number.isInteger(size) || size <= 0) throw new Error('НТЦ: неверный размер упаковки H' + (index + 2));
-      article[offer] = {model: String(r[1] || '').trim(), size: size};
+      next[number] = {status: status, items: relevant, shipped: Boolean(shipped)};
     });
     const reserved = {};
     Object.keys(next).forEach(number => {
@@ -113,7 +114,8 @@ function syncNtcFbsWriteOffs() {
       record.items.forEach(item => {
         if (!item.quantity) return;
         const found = article[item.offer_id];
-        if (!found || !found.model) throw new Error('НТЦ: артикул ' + item.offer_id + ' из отправления ' + number + ' отсутствует на листе.');
+        if (!found) return;
+        if (!found.model) throw new Error('НТЦ: у артикула ' + item.offer_id + ' нет модели.');
         reserved[found.model] = (reserved[found.model] || 0) + item.quantity * found.size;
       });
     });
@@ -121,7 +123,7 @@ function syncNtcFbsWriteOffs() {
     ntcWriteLedger_(ledger, next);
     if (rows.length) sheet.getRange(2, 12, rows.length, 1).setValues(rows.map(r => [reserved[String(r[1] || '').trim()] || 0]));
     props.setProperty(NTC_WRITE_OFF_CURSOR_KEY, now);
-    Logger.log('НТЦ FBS: ' + Object.keys(next).length + ' отправлений; резерв ' + JSON.stringify(reserved));
+    Logger.log('НТЦ FBS: ' + Object.keys(next).length + ' отправлений по листу; резерв ' + JSON.stringify(reserved));
   } finally {
     lock.releaseLock();
   }
