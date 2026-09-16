@@ -1,8 +1,10 @@
 /**
  * НТЦ: FBS-резерв и ручное списание. Ни одна функция здесь не пишет остатки в MP.
- * F — внешний остаток модели; J — накопленное ручное списание в упаковках.
- * L — FBS-резерв в физических штуках модели, M — доступно по модели.
- * G пересчитывается из M; I (выгрузка на MP) намеренно не меняется.
+ * F — внешний остаток модели; H — кратность артикула;
+ * J — накопленное ручное списание в упаковках.
+ * L — готовое количество упаковок артикула для будущей выгрузки на MP.
+ * M — FBS-резерв в физических штуках модели, N — доступно по модели.
+ * G и I остаются справочными; MP API здесь не вызывается.
  */
 const NTC_WRITE_OFF_SHEET = 'НТЦ списания';
 const NTC_WRITE_OFF_LEDGER = '_НТЦ FBS резерв';
@@ -14,7 +16,7 @@ const NTC_WRITE_OFF_PENDING = [
   'awaiting_deliver', 'awaiting_registration'
 ];
 
-/** Один раз после проверки тестов: формулы G/L/M и минутный FBS-триггер. */
+/** Один раз после проверки тестов: формулы L/N и минутный FBS-триггер. */
 function installNtcWriteOffs() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(NTC_WRITE_OFF_SHEET);
@@ -28,17 +30,19 @@ function installNtcWriteOffs() {
       props.setProperty(NTC_WRITE_OFF_START_KEY, new Date().toISOString());
     }
     ntcLedgerSheet_(ss);
-    sheet.getRange('L1:M1').setValues([['Резерв FBS по модели, шт.', 'Доступно по модели, шт.']]);
+    sheet.getRange('L1:N1').setValues([[
+      'Остаток для маркетплейсов, упаковок', 'Резерв FBS по модели, шт.', 'Доступно по модели, шт.'
+    ]]);
     const count = Math.max(0, sheet.getLastRow() - 1);
     if (count) {
-      const available = [], article = [];
+      const available = [], outbound = [];
       const end = Math.max(1000, count + 1);
       for (let row = 2; row < count + 2; row++) {
-        available.push([`=IF($A${row}="";"";N($F${row})-N($L${row})-SUMPRODUCT(($B$2:$B$${end}=$B${row})*IFERROR($J$2:$J$${end}*1;0)*IFERROR($H$2:$H$${end}*1;0)))`]);
-        article.push([`=IFERROR(MAX(0;TRUNC($M${row}/$H${row}));"")`]);
+        available.push([`=IF($A${row}="";"";N($F${row})-N($M${row})-SUMPRODUCT(($B$2:$B$${end}=$B${row})*IFERROR($J$2:$J$${end}*1;0)*IFERROR($H$2:$H$${end}*1;0)))`]);
+        outbound.push([ntcOutboundFormula_(row, end)]);
       }
-      sheet.getRange(2, 13, count, 1).setFormulas(available);
-      sheet.getRange(2, 7, count, 1).setFormulas(article);
+      sheet.getRange(2, 14, count, 1).setFormulas(available);
+      sheet.getRange(2, 12, count, 1).setFormulas(outbound);
     }
     const validation = SpreadsheetApp.newDataValidation()
       .requireFormulaSatisfied('=OR(J2="";AND(ISNUMBER(J2);J2>=0;MOD(J2;1)=0))')
@@ -121,12 +125,25 @@ function syncNtcFbsWriteOffs() {
     });
     // Запись выполняется только после успешной полной загрузки и валидации.
     ntcWriteLedger_(ledger, next);
-    if (rows.length) sheet.getRange(2, 12, rows.length, 1).setValues(rows.map(r => [reserved[String(r[1] || '').trim()] || 0]));
+    if (rows.length) sheet.getRange(2, 13, rows.length, 1).setValues(rows.map(r => [reserved[String(r[1] || '').trim()] || 0]));
     props.setProperty(NTC_WRITE_OFF_CURSOR_KEY, now);
     Logger.log('НТЦ FBS: ' + Object.keys(next).length + ' отправлений по листу; резерв ' + JSON.stringify(reserved));
   } finally {
     lock.releaseLock();
   }
+}
+
+/** Распределяет общий запас модели между её кратностями, не обещая одни физические штуки дважды. */
+function ntcOutboundFormula_(row, end) {
+  return `=IF(OR($A${row}="";$H${row}="");"";IF(COUNTIFS($B$2:$B$${end};$B${row};$H$2:$H$${end};$H${row})>1;0;IFERROR(LET(` +
+    `sizes;SORT(FILTER($H$2:$H$${end};$B$2:$B$${end}=$B${row});1;TRUE);` +
+    `prefixes;SCAN(0;sizes;LAMBDA(a;x;a+x));` +
+    `rev;SORT(prefixes;1;FALSE);` +
+    `pool;MAX(0;N($N${row}));` +
+    `remainders;VSTACK(pool;SCAN(pool;rev;LAMBDA(a;x;MOD(a;x))));` +
+    `rounds;ARRAYFORMULA(QUOTIENT(FILTER(remainders;SEQUENCE(ROWS(remainders))<ROWS(remainders));rev));` +
+    `INDEX(SCAN(0;rounds;LAMBDA(a;x;a+x));MATCH($H${row};SORT(sizes;1;FALSE);0))` +
+    `);0)))`;
 }
 
 function ntcFetchPostings_(warehouseId, since, to, status, changedFrom) {

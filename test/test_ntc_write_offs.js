@@ -21,7 +21,7 @@ const stock = {
       'Артикул продавца', '', '', '', '', 'Остаток склад по моделям', '', '', '', '', 'Ручное списание штук'
     ]]};
     if (col === 1) return {getValues: () => stockRows};
-    if (col === 12) return {setValues(values) { reserveRows.splice(0, reserveRows.length, ...values); }};
+    if (col === 13) return {setValues(values) { reserveRows.splice(0, reserveRows.length, ...values); }};
     throw Error('Unexpected stock range ' + row + '/' + col + '/' + count);
   }
 };
@@ -59,6 +59,9 @@ const context = vm.createContext({
   }
 });
 vm.runInContext(source, context);
+const formula = context.ntcOutboundFormula_(2, 1000);
+assert.match(formula, /\$N2/, 'outbound stock uses net model stock');
+assert.doesNotMatch(formula, /\$G2|\$I2/, 'reference columns do not drive outbound stock');
 
 function posting(status, quantity = 2) {
   return {posting_number: '123-1', status, in_process_at: '2026-09-15T00:00:00Z',
