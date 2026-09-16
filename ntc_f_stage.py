@@ -14,7 +14,7 @@ from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
 
-from ntc_stock_engine import _base_allocation, _integer, _quantities
+from ntc_stock_engine import _integer, _quantities
 
 
 HANDOVER_STATUSES = {"driver_pickup", "delivering", "delivered", "last_mile"}
@@ -23,7 +23,7 @@ RECEIVED_RETURN_STATUS = "ReceivedBySeller"
 
 
 def advance(payload: dict, previous_state: dict | None = None) -> dict:
-    """Reconcile order/return snapshots and calculate new F, L, and ledger state.
+    """Reconcile order/return snapshots and calculate new F and ledger state.
 
     ``postings`` and ``returns`` may contain only updated records; unseen records
     remain in the ledger. ``manual_k`` must be the complete current K snapshot.
@@ -31,7 +31,6 @@ def advance(payload: dict, previous_state: dict | None = None) -> dict:
     """
     current_f = {str(k): _integer(v, f"F/{k}") for k, v in payload["stock_by_model"].items()}
     articles = {}
-    groups = defaultdict(list)
     for item in payload["articles"]:
         offer = str(item.get("offer_id") or "").strip()
         model = str(item.get("model") or "").strip()
@@ -39,16 +38,15 @@ def advance(payload: dict, previous_state: dict | None = None) -> dict:
         if not offer or not model or not size or offer in articles or model not in current_f:
             raise ValueError(f"invalid article {offer!r}")
         articles[offer] = (model, size)
-        groups[model].append(offer)
 
     state = deepcopy(previous_state) if previous_state else {
-        "base_f_by_model": dict(current_f), "last_f_by_model": dict(current_f),
+        "last_f_by_model": dict(current_f),
         "applied_physical_by_model": {model: 0 for model in current_f},
         "postings": {}, "returns": {}, "manual_k": {},
     }
     if current_f != state["last_f_by_model"]:
         raise ValueError("F changed outside this ledger; reconcile warehouse source before continuing")
-    if set(current_f) != set(state["base_f_by_model"]):
+    if set(current_f) != set(state["applied_physical_by_model"]):
         raise ValueError("model set changed since ledger creation")
 
     for posting in payload.get("postings", []):
@@ -130,24 +128,10 @@ def advance(payload: dict, previous_state: dict | None = None) -> dict:
     if any(stock < 0 for stock in new_f.values()):
         raise ValueError("write-off exceeds F; no stock/state update should be committed")
 
-    L = {}
-    for model, offers in groups.items():
-        sizes = {offer: articles[offer][1] for offer in offers}
-        baseline = _base_allocation(state["base_f_by_model"][model], offers, sizes)
-        caps = {offer: max(0, baseline[offer] - target_units[offer]) for offer in offers}
-        used = sum(caps[offer] * sizes[offer] for offer in offers)
-        for offer in sorted(offers, key=lambda item: (-sizes[item], item)):
-            if used <= new_f[model]:
-                break
-            drop = min(caps[offer], (used - new_f[model] + sizes[offer] - 1) // sizes[offer])
-            caps[offer] -= drop
-            used -= drop * sizes[offer]
-        L.update(caps)
-
     state["applied_physical_by_model"] = target_physical
     state["last_f_by_model"] = new_f
     return {"F_by_model": new_f, "delta_physical_by_model": delta,
-            "L_by_offer": L, "applied_units_by_offer": {offer: qty for offer, qty in target_units.items() if qty},
+            "applied_units_by_offer": {offer: qty for offer, qty in target_units.items() if qty},
             "state": state}
 
 

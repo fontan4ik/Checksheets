@@ -32,10 +32,10 @@ def accepted_return(quantity=1, status="ReceivedBySeller", return_id="R"):
 
 
 class FStageTests(unittest.TestCase):
-    def test_order_debits_f_and_exact_article_once(self):
+    def test_order_debits_f_once(self):
         first = advance(snapshot(status="awaiting_packaging"))
         self.assertEqual(first["F_by_model"], {"M": 90})
-        self.assertEqual(first["L_by_offer"], {"M-3": 6, "M-5": 6, "M-10": 4})
+        self.assertNotIn("L_by_offer", first)
         repeated = advance(snapshot(stock=90, status="awaiting_packaging"), first["state"])
         self.assertEqual(repeated["delta_physical_by_model"], {"M": 0})
         self.assertEqual(repeated["F_by_model"], {"M": 90})
@@ -45,7 +45,6 @@ class FStageTests(unittest.TestCase):
         cancelled = advance(snapshot(stock=90, status="cancelled"), first["state"])
         self.assertEqual(cancelled["delta_physical_by_model"], {"M": -10})
         self.assertEqual(cancelled["F_by_model"], {"M": 100})
-        self.assertEqual(cancelled["L_by_offer"], {"M-3": 6, "M-5": 6, "M-10": 5})
         repeated = advance(snapshot(stock=100, status="cancelled"), cancelled["state"])
         self.assertEqual(repeated["delta_physical_by_model"], {"M": 0})
 
@@ -68,8 +67,6 @@ class FStageTests(unittest.TestCase):
         returned = advance(snapshot(stock=70, manual=2, returns=[accepted_return()]), first["state"])
         self.assertEqual(returned["F_by_model"], {"M": 80})
         self.assertEqual(returned["applied_units_by_offer"], {"M-10": 1, "M-5": 2})
-        self.assertLessEqual(sum(returned["L_by_offer"][a["offer_id"]] * a["H"]
-                                 for a in snapshot()["articles"]), 80)
 
     def test_manual_k_changes_apply_only_the_difference(self):
         first = advance(snapshot(manual=2))

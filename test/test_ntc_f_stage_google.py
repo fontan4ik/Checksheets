@@ -38,10 +38,11 @@ def main():
     book = client.open_by_key(SPREADSHEET_ID)
     tab = book.add_worksheet(title="_TEST_NTC_F_" + uuid.uuid4().hex[:8], rows=8, cols=4)
     try:
-        tab.update(range_name="A1:C2", values=[["Модель", "F физические штуки", "L упаковки"], ["M", 100, 20]])
+        tab.update(range_name="A1:C2", values=[["Модель", "F физические штуки", "Формула, упаковки"],
+                                                   ["M", 100, "=INT(B2/5)"]], value_input_option="USER_ENTERED")
         stock = int(tab.acell("B2").value)
         first = advance(payload(stock, "awaiting_packaging"))
-        tab.update(range_name="B2:C2", values=[[first["F_by_model"]["M"], first["L_by_offer"]["M-5"]]])
+        tab.update(range_name="B2", values=[[first["F_by_model"]["M"]]])
         assert [int(v) for v in tab.row_values(2)[1:3]] == [90, 18]
 
         stock = int(tab.acell("B2").value)
@@ -49,18 +50,18 @@ def main():
         assert repeat["delta_physical_by_model"]["M"] == 0
 
         cancelled = advance(payload(stock, "cancelled"), repeat["state"])
-        tab.update(range_name="B2:C2", values=[[cancelled["F_by_model"]["M"], cancelled["L_by_offer"]["M-5"]]])
+        tab.update(range_name="B2", values=[[cancelled["F_by_model"]["M"]]])
         assert [int(v) for v in tab.row_values(2)[1:3]] == [100, 20]
 
         sent = advance(payload(100, "delivering", handed_over=True), cancelled["state"])
-        tab.update(range_name="B2:C2", values=[[sent["F_by_model"]["M"], sent["L_by_offer"]["M-5"]]])
+        tab.update(range_name="B2", values=[[sent["F_by_model"]["M"]]])
         assert [int(v) for v in tab.row_values(2)[1:3]] == [90, 18]
         late_cancel = advance(payload(90, "cancelled", handed_over=True), sent["state"])
         assert late_cancel["F_by_model"]["M"] == 90
 
         partial = advance(payload(90, "cancelled", handed_over=True,
                                   returns=[accepted_return()]), late_cancel["state"])
-        tab.update(range_name="B2:C2", values=[[partial["F_by_model"]["M"], partial["L_by_offer"]["M-5"]]])
+        tab.update(range_name="B2", values=[[partial["F_by_model"]["M"]]])
         assert [int(v) for v in tab.row_values(2)[1:3]] == [95, 19]
         print("Google scratch NTC F-stage: order 100→90, early cancel 90→100, "
               "late cancel stays 90, accepted partial return 90→95; passed")
