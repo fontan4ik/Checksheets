@@ -6,6 +6,7 @@ No marketplace stock API is called here.
 
 from __future__ import annotations
 
+import argparse
 import fcntl
 import json
 import os
@@ -168,7 +169,7 @@ def reconcile(old: dict[str, dict], postings: list[dict], articles: dict[str, tu
     return next_ledger, reserved
 
 
-def sync() -> None:
+def sync(*, apply: bool = False) -> None:
     client = gspread.service_account(filename=str(ROOT / "nomadic-bedrock-485314-b0-d7624dedd83c.json"))
     book = client.open_by_key(SPREADSHEET_ID)
     stock = book.worksheet(SHEET_NAME)
@@ -210,17 +211,22 @@ def sync() -> None:
     next_ledger, reserved = reconcile(old, postings, articles, start)
     entries = [[number, record["status"], json.dumps({"items": record["items"],
         "shipped": record["shipped"]}, ensure_ascii=False)] for number, record in sorted(next_ledger.items())]
-    if entries:
-        ledger_sheet.update(range_name=f"A2:C{len(entries)+1}", values=entries, value_input_option="RAW")
-    if models:
-        stock.update(range_name=f"M2:M{len(models)+1}", values=[[reserved.get(model, 0)] for model in models],
-                     value_input_option="RAW")
-    ledger_sheet.update(range_name="E1:F2", values=[["start_utc", "cursor_utc"], [iso(start), to]],
-                        value_input_option="RAW")
-    print(f"NTC FBS: {len(next_ledger)} tracked postings, {reserved} reserved physical units")
+    if apply:
+        if entries:
+            ledger_sheet.update(range_name=f"A2:C{len(entries)+1}", values=entries, value_input_option="RAW")
+        if models:
+            stock.update(range_name=f"M2:M{len(models)+1}", values=[[reserved.get(model, 0)] for model in models],
+                         value_input_option="RAW")
+        ledger_sheet.update(range_name="E1:F2", values=[["start_utc", "cursor_utc"], [iso(start), to]],
+                            value_input_option="RAW")
+    print(f"NTC FBS {'applied' if apply else 'dry-run'}: {len(next_ledger)} tracked postings, "
+          f"{reserved} reserved physical units")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--apply", action="store_true", help="write the reserve to Google Sheets")
+    args = parser.parse_args()
     lock_path = ROOT / "logs" / "ntc_fbs_reserve.lock"
     lock_path.parent.mkdir(exist_ok=True)
     with lock_path.open("w") as lock:
@@ -228,4 +234,4 @@ if __name__ == "__main__":
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise SystemExit("NTC FBS sync already running")
-        sync()
+        sync(apply=args.apply)

@@ -8,6 +8,7 @@
   <array>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/.venv-etm-export/bin/python</string>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/ntc_fbs_reserve_sync.py</string>
+    <string>--apply</string>
   </array>
   <key>WorkingDirectory</key>
   <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets</string>
