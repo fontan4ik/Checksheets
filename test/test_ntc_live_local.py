@@ -65,6 +65,21 @@ class LocalConnectorTests(unittest.TestCase):
         updates = normalize_postings(raw, {"M-5", "M-10"}, {"tracked"}, start)
         self.assertEqual({item["posting_number"] for item in updates}, {"tracked", "new"})
 
+    def test_cancellation_after_ship_flag_survives_missed_intermediate_status(self):
+        start = datetime(2026, 9, 16, 8, 53, tzinfo=timezone.utc)
+        posting = {"posting_number": "tracked", "status": "cancelled",
+                   "in_process_at": "2026-09-16T10:00:00Z",
+                   "products": [{"offer_id": "M-5", "quantity": 1}],
+                   "cancellation": {"cancelled_after_ship": True}}
+        update = normalize_postings([posting], {"M-5"}, {"tracked"}, start)[0]
+        self.assertIs(update["ever_handed_over"], True)
+        posting["cancellation"]["cancelled_after_ship"] = False
+        update = normalize_postings([posting], {"M-5"}, {"tracked"}, start)[0]
+        self.assertIs(update["ever_handed_over"], False)
+        del posting["cancellation"]
+        update = normalize_postings([posting], {"M-5"}, {"tracked"}, start)[0]
+        self.assertIs(update["ever_handed_over"], True)
+
     def test_return_api_is_read_only_and_uses_posting_filter(self):
         calls = []
         def fake_post(_http, _headers, path, body):

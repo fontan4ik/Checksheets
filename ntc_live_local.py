@@ -131,6 +131,12 @@ def normalize_postings(raw: list[dict], articles: set[str], known: set[str], sta
         if not relevant and number not in known:
             continue
         update = {"posting_number": number, "status": status}
+        if status in ("cancelled", "not_accepted"):
+            cancellation = posting.get("cancellation") or {}
+            after_ship = cancellation.get("cancelled_after_ship")
+            # Unknown cancellation history stays reserved. Ozon supplies this
+            # flag on real cancelled FBS postings, including changes between polls.
+            update["ever_handed_over"] = after_ship if isinstance(after_ship, bool) else True
         if relevant:
             update["items"] = relevant
         updates[number] = update

@@ -59,8 +59,8 @@ def advance(payload: dict, previous_state: dict | None = None) -> dict:
         if handoff is not None and not isinstance(handoff, bool):
             raise ValueError(f"invalid handoff history for {number}")
         handed_over = bool(old.get("ever_handed_over")) or status in HANDOVER_STATUSES or handoff is True
-        if status in CANCELLED_STATUSES and handoff is None and not old:
-            handed_over = True  # Unknown history: fail closed.
+        if status in CANCELLED_STATUSES and handoff is None:
+            handed_over = True  # Unknown cancellation history: fail closed.
         if "items" in posting:
             items = _quantities(posting["items"], number)
         elif old:

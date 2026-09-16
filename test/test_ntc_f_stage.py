@@ -99,6 +99,9 @@ class FStageTests(unittest.TestCase):
         data = snapshot(status="cancelled")
         del data["postings"][0]["ever_handed_over"]
         self.assertEqual(advance(data)["F_by_model"], {"M": 90})
+        first = advance(snapshot(status="awaiting_packaging"))
+        data["stock_by_model"]["M"] = 90
+        self.assertEqual(advance(data, first["state"])["F_by_model"], {"M": 90})
 
 
 if __name__ == "__main__":
