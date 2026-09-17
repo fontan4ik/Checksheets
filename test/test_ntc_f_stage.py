@@ -78,6 +78,16 @@ class FStageTests(unittest.TestCase):
         reduced = advance(snapshot(stock=85, manual=1), increased["state"])
         self.assertEqual(reduced["F_by_model"], {"M": 95})
 
+    def test_large_manual_k_has_shortage_and_clears_without_overcredit(self):
+        first = advance(snapshot())
+        old_state = first["state"]
+        del old_state["base_physical_by_model"]  # Existing live journal upgrade.
+        shortage = advance(snapshot(manual=25), old_state)  # 25 × H5 = 125.
+        self.assertEqual(shortage["F_by_model"], {"M": 0})
+        self.assertEqual(shortage["shortage_physical_by_model"], {"M": 25})
+        restored = advance(snapshot(stock=0, manual=0), shortage["state"])
+        self.assertEqual(restored["F_by_model"], {"M": 100})
+
     def test_partial_cancellation_before_handover_returns_difference(self):
         first = advance(snapshot(status="awaiting_packaging", quantity=2))
         self.assertEqual(first["F_by_model"], {"M": 80})
@@ -89,11 +99,14 @@ class FStageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "F changed outside"):
             advance(snapshot(stock=100), first["state"])
 
-    def test_debit_over_f_is_rejected_without_mutation(self):
+    def test_debit_over_f_clamps_to_zero_and_restores_from_original_pool(self):
         first = advance(snapshot(stock=5))
-        with self.assertRaisesRegex(ValueError, "exceeds F"):
-            advance(snapshot(stock=5, status="awaiting_packaging"), first["state"])
-        self.assertEqual(first["state"]["last_f_by_model"], {"M": 5})
+        overdrawn = advance(snapshot(stock=5, status="awaiting_packaging"), first["state"])
+        self.assertEqual(overdrawn["F_by_model"], {"M": 0})
+        self.assertEqual(overdrawn["shortage_physical_by_model"], {"M": 5})
+        cancelled = advance(snapshot(stock=0, status="cancelled"), overdrawn["state"])
+        self.assertEqual(cancelled["F_by_model"], {"M": 5})
+        self.assertEqual(cancelled["shortage_physical_by_model"], {"M": 0})
 
     def test_unknown_handoff_on_cancelled_order_is_conservative(self):
         data = snapshot(status="cancelled")

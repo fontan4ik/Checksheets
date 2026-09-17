@@ -42,12 +42,20 @@ def advance(payload: dict, previous_state: dict | None = None) -> dict:
     state = deepcopy(previous_state) if previous_state else {
         "last_f_by_model": dict(current_f),
         "applied_physical_by_model": {model: 0 for model in current_f},
+        "base_physical_by_model": dict(current_f),
         "postings": {}, "returns": {}, "manual_k": {},
     }
     if current_f != state["last_f_by_model"]:
         raise ValueError("F changed outside this ledger; reconcile warehouse source before continuing")
     if set(current_f) != set(state["applied_physical_by_model"]):
         raise ValueError("model set changed since ledger creation")
+    if "base_physical_by_model" not in state:
+        # Upgrade the pre-shortage journal. Until now negative F was rejected,
+        # so the original physical pool is exactly last F + applied debits.
+        state["base_physical_by_model"] = {
+            model: state["last_f_by_model"][model] + state["applied_physical_by_model"][model]
+            for model in current_f
+        }
 
     for posting in payload.get("postings", []):
         number = str(posting.get("posting_number") or "").strip()
@@ -124,13 +132,15 @@ def advance(payload: dict, previous_state: dict | None = None) -> dict:
         target_physical[model] += quantity * size
     delta = {model: target_physical[model] - state["applied_physical_by_model"][model]
              for model in current_f}
-    new_f = {model: current_f[model] - delta[model] for model in current_f}
-    if any(stock < 0 for stock in new_f.values()):
-        raise ValueError("write-off exceeds F; no stock/state update should be committed")
+    new_f = {model: max(0, state["base_physical_by_model"][model] - target_physical[model])
+             for model in current_f}
+    shortage = {model: max(0, target_physical[model] - state["base_physical_by_model"][model])
+                for model in current_f}
 
     state["applied_physical_by_model"] = target_physical
     state["last_f_by_model"] = new_f
     return {"F_by_model": new_f, "delta_physical_by_model": delta,
+            "shortage_physical_by_model": shortage,
             "applied_units_by_offer": {offer: qty for offer, qty in target_units.items() if qty},
             "state": state}
 

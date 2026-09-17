@@ -13,16 +13,14 @@ class FakeSheet:
     def __init__(self):
         self.rows = [
             ["Артикул продавца", "Модель", "", "", "", "Остаток склад по моделям",
-             "", "Х", "", "", "Ручное списание штук", "", "Резерв", "Доступно"],
-            ["M-5", "M", "", "", "", 100, "", 5, "", "", 2, "", 10, "=F2"],
-            ["M-10", "M", "", "", "", 100, "", 10, "", "", "", "", 10, "=F3"],
+             "", "Х", "", "", "Ручное списание штук", "L"],
+            ["M-5", "M", "", "", "", 100, "", 5, "", "", 2, "=F2"],
+            ["M-10", "M", "", "", "", 100, "", 10, "", "", "", "=F3"],
         ]
         self.updated_ranges = []
 
     def get(self, range_name, value_render_option=None):
-        if range_name.startswith("N2:N") and value_render_option == "FORMULA":
-            return [[row[13]] for row in self.rows[1:]]
-        if range_name == "A1:N1000":
+        if range_name == "A1:L1000":
             return self.rows
         raise AssertionError(range_name)
 
@@ -36,13 +34,13 @@ class FakeSheet:
 
 
 class LocalConnectorTests(unittest.TestCase):
-    def test_reads_model_once_and_writes_only_f_m_n(self):
+    def test_reads_model_once_and_writes_only_f(self):
         sheet = FakeSheet()
         snapshot = read_sheet(sheet)
         self.assertEqual(snapshot["stock_by_model"], {"M": 100})
         self.assertEqual(snapshot["manual_k"], {"M-5": 2, "M-10": 0})
-        write_sheet(sheet, {"M": 80}, snapshot["model_rows"], snapshot["row_count"], migration=True)
-        self.assertEqual(sheet.updated_ranges, ["F2:F3", "M2:M3", "N2:N3"])
+        write_sheet(sheet, {"M": 80}, snapshot["model_rows"], snapshot["row_count"])
+        self.assertEqual(sheet.updated_ranges, ["F2:F3"])
         self.assertEqual(read_sheet(sheet)["stock_by_model"], {"M": 80})
         self.assertEqual(sheet.rows[1][10], 2)  # K input unchanged.
 
