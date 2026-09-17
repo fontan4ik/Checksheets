@@ -29,6 +29,7 @@ function updateStockFBO() {
 }
 
 function updateStockFBO_() {
+  const startedAt = Date.now();
   const sheet = mainSheet();
   const lastRow = sheet.getLastRow();
 
@@ -51,16 +52,24 @@ function updateStockFBO_() {
 
   const validRows = rowData.filter(row => row.offerId && row.sku);
   const skus = [...new Set(validRows.map(row => row.sku))];
+  const cursorKey = 'OZON_FBO_STOCK_NEXT_SKU';
+  const props = PropertiesService.getScriptProperties();
+  const savedCursor = Number(props.getProperty(cursorKey)) || 0;
+  const startIndex = savedCursor >= 0 && savedCursor < skus.length ? savedCursor : 0;
+  let nextIndex = startIndex;
   const batchSize = 100;
   const apiItems = [];
   const failedSkus = new Set();
+  const processedSkus = new Set();
   let lastRequestTime = Date.now() - 1000 / RPS();
 
   Logger.log("=== ОБНОВЛЕНИЕ FBO: ДОСТУПНО К ПРОДАЖЕ (F, 6) ===");
   Logger.log(`Строк с offer_id: ${rowData.filter(row => row.offerId).length}`);
   Logger.log(`Уникальных SKU для Ozon Analytics: ${skus.length}`);
 
-  for (let i = 0; i < skus.length; i += batchSize) {
+  for (let i = startIndex; i < skus.length; i += batchSize) {
+    // Штатный повторный запуск продолжит работу без дополнительного триггера.
+    if (Date.now() - startedAt >= 3 * 60 * 1000) break;
     const batch = skus.slice(i, i + batchSize);
     lastRequestTime = rateLimitRPS(lastRequestTime, RPS());
 
@@ -85,28 +94,32 @@ function updateStockFBO_() {
         throw new Error("В ответе Ozon отсутствует массив items");
       }
       apiItems.push(...json.items);
+      batch.forEach(sku => processedSkus.add(sku));
+      nextIndex = i + batch.length;
     } catch (error) {
       Logger.log(`❌ Ошибка FBO Analytics для батча ${i + 1}-${i + batch.length}: ${error.message}`);
       batch.forEach(sku => failedSkus.add(sku));
+      break;
     }
   }
 
   const stockMap = aggregateFBOAvailableStocksByOffer(apiItems);
   const valuesToWrite = rowData.map(row => {
     if (!row.offerId) return [""];
-    if (!row.sku || failedSkus.has(row.sku)) return [row.previousFbo];
+    if (!row.sku || !processedSkus.has(row.sku)) return [row.previousFbo];
     return [stockMap[row.offerId] ?? 0];
   });
 
   sheet.getRange(2, columnByHeader_(sheet, 'Остаток ФБО ОЗОН'), valuesToWrite.length, 1).setValues(valuesToWrite);
+  if (nextIndex < skus.length) props.setProperty(cursorKey, String(nextIndex));
+  else props.deleteProperty(cursorKey);
 
   Logger.log(`Ответов по складским строкам: ${apiItems.length}`);
   Logger.log(`Offer_id с доступным остатком: ${Object.keys(stockMap).length}`);
   Logger.log(`Неуспешных SKU-батчей: ${failedSkus.size ? "есть" : "нет"}`);
   Logger.log("✅ Колонка F обновлена значением Ozon «Доступно к продаже».");
 
-  // Обновляем G отдельным FBS-контуром, как и раньше.
-  updateAllFBSStocks_();
+  // G обновляет собственный существующий триггер updateAllFBSStocks.
   if (failedSkus.size) {
     throw new Error(`Ozon FBO: не получены остатки для ${failedSkus.size} SKU; прежние значения сохранены`);
   }

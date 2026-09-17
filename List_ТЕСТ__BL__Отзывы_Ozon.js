@@ -31,6 +31,18 @@ function updateOzonReviewCountBL() {
 }
 
 function updateOzonReviewCountBL_() {
+  // Действующий локальный LaunchAgent ozon-reviews уже обновляет BL с
+  // сохранением прогресса. Старый Apps Script триггер другого пользователя
+  // мог запускать тот же проход и неизбежно упирался в лимит 6 минут.
+  Logger.log('Отзывы Ozon обновляет локальный ozon_reviews_local.js; повторный проход Apps Script пропущен.');
+}
+
+// Ручной аварийный вариант на случай недоступности локального исполнителя.
+function updateOzonReviewCountBLManual() {
+  return runWithTelegramAlertGAS_('updateOzonReviewCountBLManual', updateOzonReviewCountBLManual_);
+}
+
+function updateOzonReviewCountBLManual_() {
   const sheet = mainSheet();
   const lastRow = sheet.getLastRow();
 

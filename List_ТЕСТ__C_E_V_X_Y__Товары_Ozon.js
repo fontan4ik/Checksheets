@@ -41,7 +41,8 @@ function updateProductsV2() {
 
 function updateProductsV2AlertCore_() {
   return runWithOzonProductSyncLock_("updateProductsV2", function() {
-    syncOfferIdWithProductIdCore_();
+    // A/U обновляет отдельный существующий триггер syncOfferIdWithProductId.
+    // Повторная полная синхронизация здесь удваивала длительность запуска.
     updateProductsV2Core_();
   });
 }

@@ -7,7 +7,7 @@ const OZON_ANALYTICS_CONTINUATION_HANDLER = "continueFetchAndWriteAnalytics";
 const OZON_ANALYTICS_RPS = 1 / 8;
 const OZON_ANALYTICS_BATCH_SIZE = 500;
 const OZON_ANALYTICS_MAX_RETRIES = 3;
-const OZON_ANALYTICS_MAX_RUN_MS = 4.5 * 60 * 1000;
+const OZON_ANALYTICS_MAX_RUN_MS = 3 * 60 * 1000;
 const OZON_ANALYTICS_RETRY_BASE_DELAY_MS = 30000;
 
 function fetchAndWriteAnalytics() {
@@ -19,7 +19,10 @@ function startFetchAndWriteAnalytics() {
 }
 
 function startFetchAndWriteAnalytics_() {
-  fetchAndWriteAnalytics_(true);
+  // При исчерпании квоты триггеров продолжение возьмёт следующий штатный
+  // запуск; его нельзя сбрасывать в начало при каждом таком запуске.
+  const props = PropertiesService.getScriptProperties();
+  fetchAndWriteAnalytics_(!props.getProperty(OZON_ANALYTICS_RUN_ID_KEY));
 }
 
 function fetchAndWriteAnalytics_(resetState) {
@@ -318,6 +321,7 @@ function continueFetchAndWriteAnalytics() {
 }
 
 function continueFetchAndWriteAnalytics_() {
+  deleteOzonAnalyticsContinuationTriggers_();
   fetchAndWriteAnalytics();
 }
 
@@ -450,11 +454,18 @@ function clearOzonAnalyticsTempStorage_() {
 }
 
 function scheduleOzonAnalyticsContinuation_(delayMs) {
-  deleteOzonAnalyticsContinuationTriggers_();
-  ScriptApp.newTrigger(OZON_ANALYTICS_CONTINUATION_HANDLER)
-    .timeBased()
-    .after(delayMs || 60 * 1000)
-    .create();
+  const existing = ScriptApp.getProjectTriggers().some(trigger =>
+    trigger.getHandlerFunction() === OZON_ANALYTICS_CONTINUATION_HANDLER);
+  if (existing) return;
+  try {
+    ScriptApp.newTrigger(OZON_ANALYTICS_CONTINUATION_HANDLER)
+      .timeBased()
+      .after(delayMs || 60 * 1000)
+      .create();
+  } catch (error) {
+    if (!/trigger|триггер|too many|limit|quota/i.test(String(error))) throw error;
+    Logger.log('Квота триггеров заполнена; аналитика продолжится штатным запуском startFetchAndWriteAnalytics: ' + error);
+  }
 }
 
 function deleteOzonAnalyticsContinuationTriggers_() {
