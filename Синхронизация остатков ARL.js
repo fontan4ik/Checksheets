@@ -345,7 +345,7 @@ function verifyARLOzonStocks(stocks, warehouseId) {
 // ODC/CD+ DETECTION
 // ============================================
 
-function isWBCargoRestrictionError(responseText) {
+function isARLWBCargoRestrictionError(responseText) {
   try {
     const errorData = JSON.parse(responseText);
     const errorItems = Array.isArray(errorData)
@@ -417,7 +417,7 @@ function sendARLWBStocksBatch(batch, warehouseId, retryCount = 0) {
     ok: code === 200 || code === 204,
     code,
     text,
-    cargoRestriction: code === 409 && isWBCargoRestrictionError(text)
+    cargoRestriction: code === 409 && isARLWBCargoRestrictionError(text)
   };
 }
 

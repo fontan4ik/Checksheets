@@ -404,7 +404,7 @@ function verifyRSOzonStocks(stocks, warehouseId) {
 // ODC/CD+ DETECTION (из sync-etm-stocks.js)
 // ============================================
 
-function isWBCargoRestrictionError(responseText) {
+function isRSWBCargoRestrictionError(responseText) {
   try {
     const errorData = JSON.parse(responseText);
     const errorItems = Array.isArray(errorData)
@@ -476,7 +476,7 @@ function sendRSWBStocksBatch(batch, warehouseId, retryCount = 0) {
     ok: code === 200 || code === 204,
     code,
     text,
-    cargoRestriction: code === 409 && isWBCargoRestrictionError(text)
+    cargoRestriction: code === 409 && isRSWBCargoRestrictionError(text)
   };
 }
 

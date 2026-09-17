@@ -30,7 +30,7 @@ These are uploaded to the Google Spreadsheet Script Editor environment:
 
 *   **`Главные функции.js`** — Main entry points for automated time-driven and manual triggers.
 *   **`settings.js`** — Common configurations, API keys, endpoints, and custom rate limits (RPS).
-*   **`utils.js`** & **`fetchapp.js`** — Core utility stack (custom HTTP fetchers, rate limiting, and exponential retry mechanisms).
+*   **`fetchapp.js`** — Core HTTP fetcher, rate limiting, and exponential retry logic.
 *   **`DIAGNOSTICS.js`** — Full system diagnostic routines (`runDiagnostics()`).
 *   **`Ozon обновить товары V2.js`** — Updates brand, model, and item categories from Ozon Seller API.
 *   **`Ozon Получить товары.js`** — Synchronizes Seller Offer IDs with Ozon Product IDs.
