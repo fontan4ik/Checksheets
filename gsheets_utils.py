@@ -81,7 +81,19 @@ def resolve_header_columns(headers, schema, sheet_name="worksheet"):
             normalized_to_columns.setdefault(normalized, []).append(column)
 
     resolved = {}
-    for field_name, header_name in schema.items():
+    for field_name, header_definition in schema.items():
+        if isinstance(header_definition, dict):
+            header_name = header_definition["header"]
+            occurrence = int(header_definition.get("occurrence", 1))
+            if occurrence < 1:
+                raise ValueError(
+                    f"Sheet '{sheet_name}': occurrence for header '{header_name}' "
+                    f"and field '{field_name}' must be positive"
+                )
+        else:
+            header_name = header_definition
+            occurrence = None
+
         normalized = normalize_header(header_name)
         columns = normalized_to_columns.get(normalized, [])
         if not columns:
@@ -89,15 +101,22 @@ def resolve_header_columns(headers, schema, sheet_name="worksheet"):
                 f"Sheet '{sheet_name}': header '{header_name}' for field "
                 f"'{field_name}' was not found"
             )
-        if len(columns) != 1:
+        if occurrence is None and len(columns) != 1:
             raise ValueError(
                 f"Sheet '{sheet_name}': header '{header_name}' for field "
                 f"'{field_name}' is duplicated in columns {columns}"
             )
-        resolved[field_name] = columns[0]
+        if occurrence is not None and len(columns) < occurrence:
+            raise ValueError(
+                f"Sheet '{sheet_name}': header '{header_name}' for field "
+                f"'{field_name}' has only {len(columns)} occurrence(s); "
+                f"occurrence {occurrence} was requested"
+            )
+        resolved[field_name] = columns[occurrence - 1] if occurrence is not None else columns[0]
         print(
             f"Sheet schema: {sheet_name} -> {field_name} -> "
-            f"'{header_name}' -> column {columns[0]}"
+            f"'{header_name}' -> column {resolved[field_name]}"
+            + (f" (occurrence {occurrence})" if occurrence is not None else "")
         )
     return resolved
 
@@ -206,6 +225,27 @@ def update_column_by_header(worksheet, header_name, values, start_row=2):
     range_label = f"{gspread.utils.rowcol_to_a1(start_row, col_index)}:{gspread.utils.rowcol_to_a1(start_row + len(values) - 1, col_index)}"
     _retry_gsheet_call(
         f"update column '{header_name}' range {range_label}",
+        lambda: worksheet.update(range_label, values),
+    )
+
+
+def update_column_by_schema(worksheet, schema, field_name, values, start_row=2):
+    """Update a column using a schema, including an explicit duplicate occurrence."""
+    if not values:
+        return
+
+    columns = get_header_columns(worksheet, schema)
+    col_index = columns[field_name]
+    headers = _row_values(worksheet, 1)
+    header_name = headers[col_index - 1]
+    assert_writable_header(header_name, getattr(worksheet, "title", "worksheet"))
+
+    range_label = (
+        f"{gspread.utils.rowcol_to_a1(start_row, col_index)}:"
+        f"{gspread.utils.rowcol_to_a1(start_row + len(values) - 1, col_index)}"
+    )
+    _retry_gsheet_call(
+        f"update schema field '{field_name}' range {range_label}",
         lambda: worksheet.update(range_label, values),
     )
 
