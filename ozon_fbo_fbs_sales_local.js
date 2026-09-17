@@ -17,7 +17,7 @@ const CREDENTIALS = process.env.GOOGLE_APPLICATION_CREDENTIALS || path.join(ROOT
 dotenv.config({ path: process.env.OZON_REVIEWS_SECRETS_FILE || '/Users/vladimirgrebennikov/AI agents/secrets/ozon-reviews.env', quiet: true });
 dotenv.config({ path: path.join(ROOT, '.env'), quiet: true });
 
-const FBS_STATUSES = ['awaiting_packaging', 'awaiting_deliver', 'last_mile', 'delivering', 'driver_pickup', 'delivered'];
+const FBS_STATUSES = ['awaiting_packaging', 'awaiting_deliver', 'delivering', 'driver_pickup', 'delivered'];
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const text = value => String(value ?? '').trim();
 const dateText = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -179,4 +179,4 @@ if (require.main === module) main({ dryRun: process.argv.includes('--dry-run'), 
   process.exitCode = 1;
 });
 
-module.exports = { periods, resultRows, verifySheetHeaders };
+module.exports = { periods, resultRows, verifySheetHeaders, FBS_STATUSES };

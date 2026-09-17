@@ -1,9 +1,10 @@
 const assert = require('assert');
-const { periods, resultRows, verifySheetHeaders } = require('../ozon_fbo_fbs_sales_local');
+const { periods, resultRows, verifySheetHeaders, FBS_STATUSES } = require('../ozon_fbo_fbs_sales_local');
 
 const range = periods(new Date(2026, 8, 17));
 assert.deepStrictEqual(range.month, ['2026-08-16', '2026-09-16']);
 assert.deepStrictEqual(range.quarter, ['2026-06-17', '2026-09-17']);
+assert.equal(FBS_STATUSES.includes('last_mile'), false);
 
 assert.deepStrictEqual(resultRows(
   ['1', '2', ''],
