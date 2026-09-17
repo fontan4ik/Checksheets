@@ -48,7 +48,9 @@ function updateProductsV2AlertCore_() {
 }
 
 function updateProductsV2Core_() {
+  const startedAt = Date.now();
   const sheet = mainSheet();
+  if (sheet.getLastRow() < 2) return;
 
   const sourceColumnLetter = "A"; // Колонка A - Артикул (offer_id)
   const sourceColumnIndex = columnLetterToIndex(sourceColumnLetter);
@@ -78,16 +80,24 @@ function updateProductsV2Core_() {
 
   const validRows = rowData.filter(r => r.offerId);
   const batchSize = 1000;
+  const props = PropertiesService.getScriptProperties();
+  const cursorKey = 'OZON_PRODUCTS_V2_NEXT_OFFER';
+  const signatureKey = 'OZON_PRODUCTS_V2_SHEET_SIGNATURE';
+  const signature = `${validRows.length}:${validRows[0]?.offerId || ''}:${validRows[validRows.length - 1]?.offerId || ''}`;
+  const savedCursor = props.getProperty(signatureKey) === signature ? Number(props.getProperty(cursorKey)) || 0 : 0;
+  const startIndex = savedCursor >= 0 && savedCursor < validRows.length ? savedCursor : 0;
+  let nextIndex = startIndex;
   const resultsMap = new Map(); // key: offer_id, value: { данные }
   const categoryIdSet = new Set();
   let lastRequestTime = Date.now() - 1000 / RPS();
   let sampleLogged = false;
 
-  Logger.log(`🚀 Начало выгрузки. Всего товаров: ${validRows.length}`);
+  Logger.log(`🚀 Выгрузка товаров: ${validRows.length}, продолжение с ${startIndex + 1}`);
 
   // Первый проход: получаем базовую информацию + атрибуты
   // Используем v4/product/info/attributes - возвращает атрибуты с брендом и моделью
-  for (let i = 0; i < validRows.length; i += batchSize) {
+  for (let i = startIndex; i < validRows.length; i += batchSize) {
+    if (i > startIndex && (i - startIndex >= 8000 || Date.now() - startedAt >= 2.5 * 60 * 1000)) break;
     lastRequestTime = rateLimitRPS(lastRequestTime, RPS());
 
     const batch = validRows.slice(i, i + batchSize);
@@ -110,22 +120,17 @@ function updateProductsV2Core_() {
     const response = retryFetch('https://api-seller.ozon.ru/v4/product/info/attributes', options);
 
     if (!response) {
-      Logger.log(`❌ Ошибка: null response для batch ${i}`);
-      continue;
+      throw new Error(`Ozon товары: нет ответа для batch ${i}`);
     }
 
     const responseText = response.getContentText();
     if (!responseText) {
-      Logger.log(`❌ Ошибка: пустой response для batch ${i}`);
-      continue;
+      throw new Error(`Ozon товары: пустой ответ для batch ${i}`);
     }
 
     const data = JSON.parse(responseText);
 
-    if (!data.result || data.result.length === 0) {
-      Logger.log(`⚠️ Пустой результат для batch ${i}`);
-      continue;
-    }
+    if (!Array.isArray(data.result)) throw new Error(`Ozon товары: нет result для batch ${i}`);
 
     const items = data.result || [];  // v4 API возвращает result
 
@@ -172,7 +177,14 @@ function updateProductsV2Core_() {
     });
 
     Logger.log(`✅ Обработано ${Math.min(i + batchSize, validRows.length)}/${validRows.length} товаров`);
+    nextIndex = i + batch.length;
   }
+
+  if (nextIndex === startIndex) return;
+  const processedRows = validRows.slice(startIndex, nextIndex);
+  const firstRow = processedRows[0].rowIndex;
+  const lastRow = processedRows[processedRows.length - 1].rowIndex;
+  const targetRows = rowData.slice(firstRow - 2, lastRow - 1);
 
   // Получаем дерево категорий
   const categoryTreeOptions = {
@@ -185,8 +197,7 @@ function updateProductsV2Core_() {
   const treeResponse = retryFetch('https://api-seller.ozon.ru/v1/description-category/tree', categoryTreeOptions);
 
   if (!treeResponse) {
-    Logger.log(`❌ Не удалось получить дерево категорий`);
-    return;
+    throw new Error('Ozon товары: не удалось получить дерево категорий');
   }
 
   const treeData = JSON.parse(treeResponse.getContentText());
@@ -202,6 +213,7 @@ function updateProductsV2Core_() {
       }
     }
   }
+  if (!Array.isArray(treeData.result)) throw new Error('Ozon товары: дерево категорий имеет неверный формат');
   traverseTree(treeData.result);
 
   // Обновляем названия категорий
@@ -216,7 +228,7 @@ function updateProductsV2Core_() {
   // количество обращений к Spreadsheet Service и не упираться в таймаут.
   const valuesByKey = {};
   for (const [colLetter, key] of Object.entries(columnKeyMap)) {
-    valuesByKey[key] = rowData.map(r => {
+    valuesByKey[key] = targetRows.map(r => {
       const result = resultsMap.get(r.offerId);
       return result
         ? key === "primary_image"
@@ -226,7 +238,7 @@ function updateProductsV2Core_() {
     });
   }
 
-  const missingOfferIds = [...new Set(validRows.map(r => r.offerId))]
+  const missingOfferIds = [...new Set(processedRows.map(r => r.offerId))]
     .filter(offerId => !resultsMap.has(offerId));
   if (missingOfferIds.length > 0) {
     Logger.log(`⚠️ Ozon не вернул данные для ${missingOfferIds.length} артикулов. Старые значения этих строк будут сохранены.`);
@@ -240,10 +252,10 @@ function updateProductsV2Core_() {
 
   for (const [colLetter, header] of Object.entries(writeColumns)) {
     const resolvedColumn = columnByHeader_(sheet, header);
-    const range = sheet.getRange(2, resolvedColumn, rowData.length, 1);
+    const range = sheet.getRange(firstRow, resolvedColumn, targetRows.length, 1);
     const existingValues = range.getValues();
     const existingFormulas = range.getFormulas();
-    const values = rowData.map((row, rowIndex) => {
+    const values = targetRows.map((row, rowIndex) => {
       if (!row.offerId) return [""];
       if (!resultsMap.has(row.offerId)) {
         return [existingFormulas[rowIndex][0] || existingValues[rowIndex][0]];
@@ -253,6 +265,14 @@ function updateProductsV2Core_() {
     range.setValues(values);
     const key = columnKeyMap[colLetter];
     Logger.log(`📝 Колонка ${header} (${resolvedColumn}): ${key} - обновлено ${valuesByKey[key].filter(Boolean).length} строк`);
+  }
+  if (nextIndex < validRows.length) {
+    props.setProperty(signatureKey, signature);
+    props.setProperty(cursorKey, String(nextIndex));
+    Logger.log(`Товары Ozon: продолжим со SKU ${nextIndex + 1}/${validRows.length} при следующем штатном запуске`);
+  } else {
+    props.deleteProperty(signatureKey);
+    props.deleteProperty(cursorKey);
   }
 
   // Статистика
