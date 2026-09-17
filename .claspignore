@@ -15,3 +15,4 @@ zero-wb-fbs-stocks.js
 telegram_notifier.js
 send-fbs-broadcast-summary.js
 wb_stock_audit.js
+stream_supps_schema.js

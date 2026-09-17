@@ -40,7 +40,6 @@ These are uploaded to the Google Spreadsheet Script Editor environment:
 *   **`Huckster цены.js`** — Read-only выгрузка текущей и рекомендуемой цены Huckster в BN:BO и ручная запись цен из `ARL TR` в Huckster.
 *   **`Ozon заказы.js`** — Pulls orders and performance metrics from Ozon Seller API.
 *   **`Ozon реклама V3.js`** — Final optimized Ozon Performance Ads sync (Quantity, Revenue, Spend).
-*   **`Ozon Запись SKU.js`** — Maps product details to internal SKU lists.
 *   **`WB Артикулы.js`** — Fills Wildberries nmId columns based on catalog mapping.
 *   **`WB Аналитика.js`** — Fills WB month/quarter analytics columns.
 *   **`WB Склады.js`** & **`ВБ остатки.js`** — Handles Wildberries warehouse mapping and stocks.
@@ -94,7 +93,7 @@ These run on local servers or machines to update Google Sheets via the API:
 | **4** | **D** | Связка (model_name) | `updateProductsV2()` in `Ozon обновить товары V2.js` | ✅ |
 | **5** | **E** | Картинка | `updateProductsV2()` in `Ozon обновить товары V2.js` | ✅ |
 | **6** | **F** | Остаток ФБО ОЗОН | `updateStockFBO()` in `Ozon остатки FBO.js` | ✅ |
-| **7** | **G** | Остаток ФБС ОЗОН | `getStocksByWarehouseFBS()` in `Ozon склад Москва.js` | ✅ |
+| **7** | **G** | Остаток ФБС ОЗОН | `updateAllFBSStocks()` in `Ozon остатки FBO.js` | ✅ |
 | **8** | **H** | ОСТ ФБС МСК ОЗОН | `getStocksByWarehouseFBS()` in `Ozon склад Москва.js` | ✅ |
 | **9** | **I** | Уход Мес ОЗОН | `fetchAndWriteAnalytics()` in `Ozon заказы.js` | ✅ |
 | **10** | **J** | Уход КВ | `fetchAndWriteAnalytics()` in `Ozon заказы.js` | ✅ |
@@ -109,7 +108,7 @@ These run on local servers or machines to update Google Sheets via the API:
 | **19** | **S** | Уход КВ ВБ | `updateWBAnalytics()` in `WB Аналитика.js` | ✅ |
 | **20** | **T** | Артикул ВБ | `updateWBArticles()` in `WB Артикулы.js` | ✅ |
 | **21** | **U** | Product_id Ozon | `syncOfferIdWithProductId()` in `Ozon Получить товары.js` | ✅ |
-| **22** | **V** | SKU Ozon | `updateSkuByProductId()` in `Ozon Запись SKU.js` | ✅ |
+| **22** | **V** | SKU Ozon | `updateProductsV2()` in `Ozon обновить товары V2.js` | ✅ |
 | **24** | **X** | Название модели | `updateProductsV2()` in `Ozon обновить товары V2.js` | ✅ |
 | **25** | **Y** | Категория товара | `updateProductsV2()` in `Ozon обновить товары V2.js` | ✅ |
 | **53** | **BA** | Реклама Количество | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |

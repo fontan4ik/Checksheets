@@ -29,7 +29,6 @@ function OzonMain(){
     updateStockFBO();             // Остатки FBO (F, 6) - ИСПРАВЛЕНО: суммирует все FBO
     updateAllFBSStocks();         // Остатки FBS (G, 7) - ИСПРАВЛЕНО: сумма всех FBS
     getOzonPricesOptimized();    // Цены
-    // updateSkuByProductId();      // ❌ УБРАНО: updateProductsV2() уже заполняет V (22) SKU!
     getStocksByWarehouseFBS();   // FBS склад Москва (H, 8)
     fetchAndUpdateAll();         // ✅ НОВОЕ: FBS склады (AB-AH, 28-34) - 7 складов
   } catch (err) {
