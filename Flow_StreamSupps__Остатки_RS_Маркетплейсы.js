@@ -808,8 +808,9 @@ function updateRSStocksWBBatch(stocks, warehouseId) {
 }
 
 function syncRSStocks() {
-  var args = arguments;
   return runWithTelegramAlertGAS_('syncRSStocks', function() {
-    return syncRSStocksCore_.apply(null, args);
+    // Тот же маршрут StreamSupps → Ozon/WB выполняет локальный
+    // sync-rs-stocks.js без шестиминутного ограничения Apps Script.
+    Logger.log('RS stocks: работу выполняет локальный LaunchAgent com.checksheets.sync_rs_stocks.');
   });
 }

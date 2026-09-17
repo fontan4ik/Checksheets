@@ -7,6 +7,8 @@
  * - AS (45): Продажи штуки квартал FBO ОЗОН
  * - AT (46): Продажи штуки квартал FBS ОЗОН
  *
+ * Плановое обновление выполняет локальный ozon_fbo_fbs_sales_local.js.
+ * Старая реализация ниже оставлена для ручной диагностики.
  * Метод:
  * 1. Общие продажи через v1/analytics/data (dimension: ["sku"], metric: ordered_units)
  * 2. FBS продажи через v3/posting/fbs/list (статусы в обработке/доставке;
@@ -15,7 +17,11 @@
  */
 
 function updateOzonFBOSales() {
-  return runWithTelegramAlertGAS_("updateOzonFBOSales", updateOzonFBOSalesCore_);
+  return runWithTelegramAlertGAS_("updateOzonFBOSales", function() {
+    // Исторический триггер остаётся, но полный обход выполняет локальный
+    // LaunchAgent без лимита Apps Script. Колонки AQ:AT записываются им.
+    Logger.log('Продажи Ozon AQ:AT обновляет локальный ozon_fbo_fbs_sales_local.js.');
+  });
 }
 
 function updateOzonFBOSalesCore_() {

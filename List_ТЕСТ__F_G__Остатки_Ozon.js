@@ -86,7 +86,7 @@ function updateStockFBO_() {
       if (!response) {
         Logger.log(`❌ Не удалось получить FBO available_stock_count для батча ${i + 1}-${i + batch.length}`);
         batch.forEach(sku => failedSkus.add(sku));
-        continue;
+        break;
       }
 
       const json = JSON.parse(response.getContentText());
