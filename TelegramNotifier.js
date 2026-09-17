@@ -7,10 +7,10 @@ function sendTelegramMessageGAS(text, parseMode) {
   try {
     const token = (typeof TELEGRAM_CONFIG !== 'undefined' && TELEGRAM_CONFIG.BOT_TOKEN)
       ? TELEGRAM_CONFIG.BOT_TOKEN
-      : '8795048754:AAHXbXFhzTHa6ICvwyQ1sE2pBvb-ZgqZIac';
+      : '8657497257:AAFH9Sb6hNrKFL3WpDTuQd01FQbNB_I1-_o';
     const chatId = (typeof TELEGRAM_CONFIG !== 'undefined' && TELEGRAM_CONFIG.CHAT_ID)
       ? TELEGRAM_CONFIG.CHAT_ID
-      : '751491813';
+      : '-5465925742';
 
     if (!token || !chatId) return false;
 
