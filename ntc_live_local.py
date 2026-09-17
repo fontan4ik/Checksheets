@@ -49,7 +49,7 @@ def positive_integer(value, label: str, *, zero_allowed: bool = True) -> int:
 
 
 def read_sheet(stock: gspread.Worksheet) -> dict:
-    rows = stock.get("A1:L1000", value_render_option="UNFORMATTED_VALUE")
+    rows = stock.get("A1:K1000", value_render_option="UNFORMATTED_VALUE")
     headers = rows[0]
     if headers[0] != "Артикул продавца" or headers[5] != "Остаток склад по моделям" or \
             headers[10] != "Ручное списание штук":

@@ -13,14 +13,14 @@ class FakeSheet:
     def __init__(self):
         self.rows = [
             ["Артикул продавца", "Модель", "", "", "", "Остаток склад по моделям",
-             "", "Х", "", "", "Ручное списание штук", "L"],
-            ["M-5", "M", "", "", "", 100, "", 5, "", "", 2, "=F2"],
-            ["M-10", "M", "", "", "", 100, "", 10, "", "", "", "=F3"],
+             "", "Х", "", "", "Ручное списание штук"],
+            ["M-5", "M", "", "", "", 100, "", 5, "", "", 2],
+            ["M-10", "M", "", "", "", 100, "", 10, "", "", ""],
         ]
         self.updated_ranges = []
 
     def get(self, range_name, value_render_option=None):
-        if range_name == "A1:L1000":
+        if range_name == "A1:K1000":
             return self.rows
         raise AssertionError(range_name)
 
