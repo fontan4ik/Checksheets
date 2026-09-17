@@ -883,6 +883,33 @@ def flush_campaign_statuses(
     print(f"Статусы кампаний записаны: строк={len(updates)}")
 
 
+def sync_sheet_campaign_statuses(
+    worksheet: Any,
+    headers: list[str],
+    sheet_rows: list[SheetRow],
+    campaigns_by_id: dict[str, dict[str, Any]],
+) -> int:
+    """Refresh changed statuses for all rows, independent of report rotation."""
+    status_column = find_column(headers, ["статус"])
+    if status_column < 0:
+        print("Колонка 'Статус' не найдена — статусы кампаний не записаны")
+        return 0
+
+    updates: dict[int, str] = {}
+    for row in sheet_rows:
+        campaign = campaigns_by_id.get(row.campaign_id)
+        if campaign is None:
+            continue
+        label = campaign_status_label(campaign.get("state"))
+        current = str(row.values[status_column]).strip() if status_column < len(row.values) else ""
+        if current != label:
+            updates[row.row_number] = label
+
+    flush_campaign_statuses(worksheet, headers, updates)
+    print(f"Сверка статусов CPC: строк={len(sheet_rows)}, изменений={len(updates)}")
+    return len(updates)
+
+
 def write_sheet_daily_metrics(
     worksheet: Any,
     headers: list[str],
@@ -956,7 +983,6 @@ def write_sheet_metrics(
     }
     name_col = header_map.get("campain name")
     budget_col = header_map.get("бюджет")
-    status_col = header_map.get("статус")
 
     start_row = rows[0].row_number
     end_row = rows[-1].row_number
@@ -988,13 +1014,6 @@ def write_sheet_metrics(
     if budget_col:
         values = [[campaign_budget(campaigns_by_id.get(row.campaign_id))] for row in rows]
         queue_update(budget_col, values)
-
-    if status_col:
-        values = [
-            [campaign_status_label(campaigns_by_id[row.campaign_id].get("state")) if row.campaign_id in campaigns_by_id else "Компания выключена"]
-            for row in rows
-        ]
-        queue_update(status_col, values)
 
     if updates:
         batch_update_with_retry(worksheet, updates, "CPC batch metrics update")
@@ -1286,6 +1305,8 @@ def run(args: argparse.Namespace) -> int:
     session = create_session()
     token = TokenManager(session)
     campaigns_by_id = {normalize_id(campaign.get("id")): campaign for campaign in get_campaigns(session, token)}
+    if args.write_sheet:
+        sync_sheet_campaign_statuses(worksheet, headers, sheet_rows, campaigns_by_id)
     running_cpc_ids = {
         campaign_id
         for campaign_id, campaign in campaigns_by_id.items()

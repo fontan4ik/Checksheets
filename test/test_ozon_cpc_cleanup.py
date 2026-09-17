@@ -35,6 +35,7 @@ from ozon_cpc_cleanup import (
     rotation_advance_index,
     rotation_slice,
     run_lock,
+    sync_sheet_campaign_statuses,
     DailyReportLimitError,
     TokenManager,
     fetch_daily_sku_metrics,
@@ -475,7 +476,7 @@ class OzonCpcCleanupTests(unittest.TestCase):
             {
                 "G2:G2", "H2:H2", "I2:I2", "J2:J2", "K2:K2", "L2:L2", "M2:M2",
                 "N2:N2", "O2:O2", "P2:P2", "Q2:Q2", "R2:R2", "S2:S2", "T2:T2",
-                "U2:U2", "V2:V2", "W2:W2", "AC2:AC2",
+                "U2:U2", "V2:V2", "AC2:AC2",
             },
         )
         self.assertEqual(updates["G2:G2"], [["Кампания"]])
@@ -487,7 +488,7 @@ class OzonCpcCleanupTests(unittest.TestCase):
         self.assertEqual(updates["T2:T2"], [[12]])
         self.assertEqual(updates["U2:U2"], [[1500]])
         self.assertEqual(updates["V2:V2"], [[20]])
-        self.assertEqual(updates["W2:W2"], [["Компания активна"]])
+        self.assertNotIn("W2:W2", updates)
         self.assertEqual(updates["AC2:AC2"], [[1234.56]])
         self.assertNotIn("A2:Y2", updates)
 
@@ -515,6 +516,32 @@ class OzonCpcCleanupTests(unittest.TestCase):
                 {"range": "B2:B2", "values": [["Компания выключена"]]},
                 {"range": "B3:B3", "values": [["Компания активна"]]},
             ],
+        )
+
+    def test_status_sync_updates_only_changed_rows_and_skips_missing_campaigns(self):
+        class FakeWorksheet:
+            def __init__(self):
+                self.calls = []
+
+            def batch_update(self, data, **kwargs):
+                self.calls.append((data, kwargs))
+
+        headers = ["art", "Статус"]
+        rows = [
+            SheetRow(2, "a", "sku-1", "1", 0, 0, "1", ["a", "Компания выключена"]),
+            SheetRow(3, "b", "sku-2", "2", 0, 0, "1", ["b", "Компания выключена"]),
+            SheetRow(4, "c", "sku-3", "3", 0, 0, "1", ["c", "Компания активна"]),
+        ]
+        campaigns = {
+            "1": {"state": "CAMPAIGN_STATE_RUNNING"},
+            "2": {"state": "CAMPAIGN_STATE_INACTIVE"},
+        }
+        worksheet = FakeWorksheet()
+
+        self.assertEqual(sync_sheet_campaign_statuses(worksheet, headers, rows, campaigns), 1)
+        self.assertEqual(
+            worksheet.calls[0][0],
+            [{"range": "B2:B2", "values": [["Компания активна"]]}],
         )
 
     def test_incremental_batch_keeps_rows_when_day_metrics_are_empty(self):
