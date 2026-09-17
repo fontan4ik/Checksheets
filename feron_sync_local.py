@@ -9,7 +9,8 @@ from telegram_notifier import send_telegram_alert
 
 
 # Live Feron warehouse mapping confirmed from /offers/products/search and
-# /quantities/search.  StreamSupps keeps raw supplier quantities in H:K.
+# /quantities/search.  StreamSupps keeps raw supplier quantities in headers
+# «FER MSK», «FER SMR», «FER NSB», «FER EKB».
 FERON_WAREHOUSE_IDS = {
     "Самара": "67e4fb8a-6e27-11ef-96b6-a4bf0186f0c7",
     "Внуково": "de099cee-372a-11ef-96b6-a4bf0186f0c7",

@@ -47,7 +47,7 @@ const RS_WB_MAX_RETRIES = 3;
 
 /**
  * Подтягивает актуальные остатки из RS API и записывает сырой остаток в
- * StreamSupps!V ("RS SMR"). Производная трансляция находится в W.
+ * StreamSupps!«RS SMR». Производная трансляция находится в «РЕЗЕРВ».
  */
 function updateRSStocksInSheet() {
   Logger.log("=== ШАГ 1: ПОЛУЧЕНИЕ ОСТАТКОВ ИЗ RS API В ТАБЛИЦУ ===");

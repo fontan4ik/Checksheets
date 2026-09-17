@@ -42,7 +42,7 @@ for r in all_stream[1:]:
                 "sku": r[sku_s_idx] if len(r) > sku_s_idx else ""
             })
 
-print(f"Total positive Arlight items in StreamSupps!S: {len(positive_arlight)}")
+print(f"Total positive Arlight items in StreamSupps!«ЭТМ САМАРА»: {len(positive_arlight)}")
 for item in positive_arlight[:10]:
     print(f"  Art: {item['art']} | Stock: {item['stock']} | SKU in StreamSupps: {item['sku']}")
 

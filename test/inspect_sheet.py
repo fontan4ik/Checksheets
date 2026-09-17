@@ -64,11 +64,13 @@ for r in all_stream[1:]:
         x_val = r[x_idx] if len(r) > x_idx else ""
         print(f"  Art: {art} | CODES: '{c}' | ETM SMR: '{smr}' | X: '{x_val}' | ЭТМ САМАРА: '{sam}'")
 
-# Also check column S formula for row 2 to 10 in StreamSupps
+# Also check the formula for the header «ЭТМ САМАРА» in StreamSupps.
 ws_stream = sh.worksheet("StreamSupps")
-print("\nChecking formulas in StreamSupps!S (ЭТМ САМАРА):")
-formulas_s = ws_stream.get("S2:S10", value_render_option="FORMULA")
-print("S2:S10 formulas:", formulas_s)
+etm_samara_column = etm_samara_idx + 1
+etm_samara_letter = gspread.utils.rowcol_to_a1(1, etm_samara_column).rstrip("1")
+print(f"\nChecking formulas in StreamSupps!«ЭТМ САМАРА» ({etm_samara_letter}):")
+formulas_s = ws_stream.get(f"{etm_samara_letter}2:{etm_samara_letter}10", value_render_option="FORMULA")
+print("ЭТМ САМАРА formulas:", formulas_s)
 
 # Also check how column AL in ТЕСТ is calculated or populated!
 ws_test = sh.worksheet("ТЕСТ")

@@ -382,7 +382,7 @@ def sync_rs():
 
     update_errors = []
 
-    # Обновляем сырой остаток RS. Производные колонки StreamSupps!V и
+    # Обновляем сырой остаток RS. Производные колонки StreamSupps «РЕЗЕРВ» и
     # маркетплейсные трансляции заполняются отдельным контуром.
     try:
         gsheets_utils.clear_column(ws, "RS SMR")

@@ -42,7 +42,7 @@ for r in all_stream[1:]:
                 "codes": r[codes_idx]
             })
 
-print(f"Found {len(positive_arlight)} Arlight items with positive stock in StreamSupps!S")
+print(f"Found {len(positive_arlight)} Arlight items with positive stock in StreamSupps!«ЭТМ САМАРА»")
 
 # Check product info on Ozon via POST /v3/products/info/attributes or /v2/product/info/list
 # Let's test /v3/products/info/attributes for the first 10 offer_ids
