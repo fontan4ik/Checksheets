@@ -13,10 +13,10 @@ import requests
 try:
     import config
     BOT_TOKEN = getattr(config, "TELEGRAM_BOT_TOKEN", "8657497257:AAFH9Sb6hNrKFL3WpDTuQd01FQbNB_I1-_o")
-    CHAT_ID = getattr(config, "TELEGRAM_CHAT_ID", "-5465925742")
+    CHAT_ID = getattr(config, "TELEGRAM_CHAT_ID", "-1004398203333")
 except Exception:
     BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8657497257:AAFH9Sb6hNrKFL3WpDTuQd01FQbNB_I1-_o")
-    CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "-5465925742")
+    CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "-1004398203333")
 
 TELEGRAM_API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
 

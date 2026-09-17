@@ -137,5 +137,5 @@ const rsApiBaseUrl = () => 'https://holy-hall-9741.jilighyt4591667.workers.dev';
 
 const TELEGRAM_CONFIG = {
   BOT_TOKEN: '8657497257:AAFH9Sb6hNrKFL3WpDTuQd01FQbNB_I1-_o',
-  CHAT_ID: '-5465925742'
+  CHAT_ID: '-1004398203333'
 };

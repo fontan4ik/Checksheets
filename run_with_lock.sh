@@ -149,7 +149,7 @@ echo "[$(date)] $SCRIPT_NAME finished with exit code $EXIT_CODE" >> "$LOG_FILE"
 # Alert in Telegram if script failed
 if [ $EXIT_CODE -ne 0 ]; then
     BOT_TOKEN="8657497257:AAFH9Sb6hNrKFL3WpDTuQd01FQbNB_I1-_o"
-    CHAT_ID="-5465925742"
+    CHAT_ID="-1004398203333"
     DATE_STR=$(date '+%d.%m.%Y')
     TIME_STR=$(date '+%H:%M:%S')
     ERR_TAIL=$(tail -n 15 "$LOG_FILE" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
