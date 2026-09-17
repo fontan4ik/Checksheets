@@ -6,6 +6,9 @@
   <string>com.checksheets.ntc_live_local</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/scripts/run_with_telegram_alert.sh</string>
+    <string>ntc_live_local</string>
+    <string>--</string>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/.venv-etm-export/bin/python</string>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/ntc_live_local.py</string>
     <string>--apply</string>

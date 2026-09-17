@@ -4,7 +4,7 @@ const vm = require('vm');
 const { execFileSync } = require('child_process');
 
 const path = require('path');
-const sourcePath = path.join(__dirname, '..', 'Синхронизация остатков поставщиков в Яндекс.js');
+const sourcePath = path.join(__dirname, '..', 'Flow_UNIT_YNX__Остатки_поставщиков_Яндекс.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
 
 execFileSync(process.execPath, ['--check', sourcePath], { stdio: 'inherit' });

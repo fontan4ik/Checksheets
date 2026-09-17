@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const sourcePath = path.join(__dirname, '..', 'ОБОР формулы.js');
+const sourcePath = path.join(__dirname, '..', 'List_ОБОР__РасчетныеПоля__Сводка.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
 const context = {
   encodeURIComponent,

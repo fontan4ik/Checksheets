@@ -7,9 +7,9 @@ const path = require('path');
 const vm = require('vm');
 
 const root = path.join(__dirname, '..');
-const settingsSource = fs.readFileSync(path.join(root, 'settings.js'), 'utf8');
+const settingsSource = fs.readFileSync(path.join(root, 'Shared_Настройки.js'), 'utf8');
 const context = vm.createContext({});
-vm.runInContext(settingsSource, context, { filename: 'settings.js' });
+vm.runInContext(settingsSource, context, { filename: 'Shared_Настройки.js' });
 
 for (const [input, expected] of [
   [-1, 0], [0, 0], [1, 0], ['1', 0], [1.9, 0],
@@ -31,35 +31,36 @@ for (const [input, expected] of [[0, 0], [1, 1], [2, 2]]) {
 }
 
 const requiredUsage = {
-  'Синхронизация остатков RS.js': [
-    'const RS_COL_BRAND = 4;',
+  'Flow_StreamSupps__Остатки_RS_Маркетплейсы.js': [
+    'brand: "brand",',
+    'resolveStreamSuppsColumns(headers, RS_MARKETPLACE_SCHEMA, RS_SHEET_NAME)',
     'const stock = normalizeMarketplaceStock(originalStock, brand)',
     'wb_stock: normalizeMarketplaceStock(wbStockForUpload, brand)',
     'stock: item.stock',
     'amount: item.wb_stock',
   ],
-  'Синхронизация остатков ARL.js': [
+  'Flow_ARL_TR__Остатки_Маркетплейсы.js': [
     'const stock = normalizeMarketplaceStock(originalStock)',
     'stock: normalizeMarketplaceStock(item.stock)',
     'amount: normalizeMarketplaceStock(item.stock)',
   ],
-  'Синхронизация остатков поставщиков в Яндекс.js': [
-    'const SAMARA_SUPPLIER_YNX_SOURCE_BRAND_COLUMN = 4;',
+  'Flow_UNIT_YNX__Остатки_поставщиков_Яндекс.js': [
+    "const SAMARA_SUPPLIER_YNX_SOURCE_BRAND_HEADER = 'brand';",
     'count: normalizeMarketplaceStock(raw, brand)',
     'count: normalizeMarketplaceStock(item.count, item.brand)',
   ],
-  'Синхронизация остатков Ozon НТЦ в Яндекс.js': [
+  'Flow_UNIT_YNX__Остатки_НТЦ_Яндекс.js': [
     'count: normalizeMarketplaceStock(count)',
     'count: normalizeMarketplaceStock(item.count)',
   ],
   'sync-etm-stocks.js': [
-    'BRAND: 4',
+    'brand: STREAM_SUPPS_HEADERS.brand',
     'const stock = normalizeMarketplaceStock(originalStock, brand)',
     'const wb_stock = normalizeMarketplaceStock(row[colWbStock - 1], brand)',
     'stock: item.stock',
   ],
   'sync-feron-stocks.js': [
-    'const colBrand = 4;',
+    'brand: STREAM_SUPPS_HEADERS.brand',
     'stock_msk: normalizeMarketplaceStock(originalStockMsk, brand)',
     'stock_wb_voltmir: normalizeMarketplaceStock(wbVoltmirStock, brand)',
     'stock: item[colName]',

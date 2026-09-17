@@ -1,0 +1,1037 @@
+/**
+ * Расчёт показателей листа «ОБОР» без формул.
+ *
+ * Скрипт читает источники, агрегирует значения по базовому артикулу,
+ * учитывает числовой суффикс после последнего дефиса и записывает готовые
+ * значения в ОБОР в колонках с заголовками «Озон ост», «Уход месяц»,
+ * «Факт выкупа месяц», «ВБ всего», «ВБ ост», «ВБ Ух» и
+ * «ВБ факт выкуп месяц».
+ *
+ * Пример: 55222-10 и 55222-5 превращаются в 10 × значение и 5 × значение.
+ *
+ * Источники:
+ * - J «Озон ост»            ← ТЕСТ!F, Остаток ФБО ОЗОН
+ * - K «СДЭК Остаток»        ← ОТКЛЮЧЕНО (Ozon FBS API / склад «КГТ СДЭК»)
+ * - N «Уход месяц»          ← ТЕСТ!AQ+AR−BH, продажи Ozon FBO+FBS без отмен
+ * - O «Факт выкупа месяц»   ← UNIT API!M, UNIT ШТ
+ * - «ВБ всего»              ← WB Warehouses Inventory Report:
+ *                                 «Всего находится на складах» − «Склад WB РФ» = мёртвый остаток
+ * - «ВБ ост»                ← WB Warehouses Inventory Report:
+ *                                 «Склад WB РФ» = живой остаток
+ * - Y «ВБ Ух»               ← ТЕСТ!AV+AW, продажи WB FBO+FBS
+ * - Z «ВБ факт выкуп месяц» ← UNIT WB!AP, ВЫКУП ШТ API
+ *
+ * Основной ручной запуск: calculateOborValues().
+ * updateOborWbStockDirect() обновляет обе WB-колонки «ВБ всего» и «ВБ ост» из разных API-полей.
+ * updateOborSummary() оставлен как короткий совместимый алиас.
+ * Скрипт не создаёт триггеры.
+ */
+
+const OBOR_VALUES_TARGET_SHEET = "ОБОР";
+const OBOR_VALUES_SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
+const OBOR_VALUES_SOURCE_SHEET = "ТЕСТ";
+const OBOR_CDEK_WAREHOUSE_NAME = "КГТ СДЭК";
+const OBOR_CDEK_WAREHOUSE_ID = 1020002321437000;
+const OBOR_CDEK_STOCKS_URL = "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs";
+const OBOR_CDEK_BATCH_SIZE = 1000;
+const OBOR_CDEK_REQUEST_INTERVAL_MS = 1000;
+const OBOR_WB_ANALYTICS_PAGE_LIMIT = 1000;
+const OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS = 12000;
+// Для ручного WB-запуска колонки находятся по заголовкам, а не по буквам:
+// в текущем ОБОР «ВБ всего» = W, «ВБ ост» = Y; X занят «Сумм».
+const OBOR_WB_STOCK_TARGET_HEADERS = ["ВБ всего", "ВБ ост"];
+const OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME = "Склад WB РФ";
+const OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME = "Всего находится на складах";
+const OBOR_WB_WAREHOUSE_REPORT_POLL_INTERVAL_MS = 5000;
+const OBOR_WB_WAREHOUSE_REPORT_MAX_POLLS = 12;
+let OBOR_WB_PRODUCT_ITEMS_CACHE_ = null;
+let OBOR_WB_WAREHOUSE_REMAINS_CACHE_ = null;
+
+const OBOR_VALUE_CONFIG = [
+  {
+    key: "ozonStock",
+    targetHeader: "Озон ост",
+    sourceSheet: "ТЕСТ",
+    sourceArticleColumn: "A",
+    sourceValueColumns: ["F"],
+    subtractValueColumns: [],
+    note: "Остаток ФБО ОЗОН; отмены не участвуют"
+  },
+  /*
+  // Временно отключено по запросу: K «СДЭК Остаток» не рассчитывается.
+  {
+    key: "cdekStock",
+    targetHeader: "СДЭК Остаток",
+    sourceSheet: null,
+    sourceArticleColumn: null,
+    sourceValueColumns: [],
+    note: "Ozon FBS API / КГТ СДЭК"
+  },
+  */
+  {
+    key: "ozonMonthWithdrawal",
+    targetHeader: "Уход месяц",
+    sourceSheet: "ТЕСТ",
+    sourceArticleColumn: "A",
+    sourceValueColumns: ["AQ", "AR"],
+    subtractValueColumns: ["BH"],
+    note: "Продажи FBO + FBS ОЗОН − отмены"
+  },
+  {
+    key: "ozonMonthBuyout",
+    targetHeader: "Факт выкупа месяц",
+    sourceSheet: "UNIT API",
+    sourceArticleColumn: "A",
+    sourceValueColumns: ["M"],
+    subtractValueColumns: [],
+    note: "UNIT ШТ; фактические выкупы Ozon"
+  },
+  {
+    key: "wbStock",
+    targetHeader: "ВБ всего",
+    sourceType: "wbAnalyticsDeadStocks",
+    sourceMapKey: "wbStockDeadApi",
+    sourceSheet: null,
+    sourceArticleColumn: null,
+    sourceValueColumns: [],
+    subtractValueColumns: [],
+    note: "WB Warehouses Inventory Report: «Всего находится на складах» − «Склад WB РФ» = мёртвый остаток"
+  },
+  {
+    key: "wbStockObor",
+    targetHeader: "ВБ ост",
+    sourceType: "wbAnalyticsWarehouseStocks",
+    sourceMapKey: "wbStockWbRfApi",
+    sourceSheet: null,
+    sourceArticleColumn: null,
+    sourceValueColumns: [],
+    subtractValueColumns: [],
+    warehouseName: OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME,
+    note: "WB Warehouses Inventory Report: quantity по «Склад WB РФ»"
+  },
+  {
+    key: "wbMonthWithdrawal",
+    targetHeader: "ВБ Ух",
+    sourceSheet: "ТЕСТ",
+    sourceArticleColumn: "A",
+    sourceValueColumns: ["AV", "AW"],
+    subtractValueColumns: [],
+    note: "Продажи FBO + FBS ВБ без отмен"
+  },
+  {
+    key: "wbMonthBuyout",
+    targetHeader: "ВБ факт выкуп месяц",
+    sourceSheet: "UNIT WB",
+    sourceArticleColumn: "A",
+    sourceValueColumns: ["AP"],
+    subtractValueColumns: [],
+    note: "ВЫКУП ШТ API"
+  }
+];
+
+/**
+ * Полностью пересчитать и записать семь активных целевых показателей.
+ * Запись начинается только после успешного чтения всех источников и API.
+ */
+function calculateOborValues() {
+  OBOR_WB_WAREHOUSE_REMAINS_CACHE_ = null;
+  const spreadsheet = SpreadsheetApp.openById(OBOR_VALUES_SPREADSHEET_ID);
+  const targetSheet = spreadsheet.getSheetByName(OBOR_VALUES_TARGET_SHEET);
+  if (!targetSheet) throw new Error("Не найден лист: " + OBOR_VALUES_TARGET_SHEET);
+
+  const targetHeaderMap = getOborHeaderMap_(targetSheet);
+  validateOborTargetHeaders_(targetHeaderMap);
+  validateOborSources_(spreadsheet);
+
+  const sourceMaps = {};
+  const sourceBaseMaps = {};
+  const sourceMapCache = {};
+  OBOR_VALUE_CONFIG.forEach(item => {
+    if (item.sourceType === "wbAnalyticsDeadStocks" || item.sourceType === "wbAnalyticsWarehouseStocks") {
+      if (!Object.prototype.hasOwnProperty.call(sourceMapCache, "wbWarehouseRemains")) {
+        sourceMapCache.wbWarehouseRemains = fetchOborWbWarehouseRemainsMaps_();
+      }
+      if (item.sourceType === "wbAnalyticsDeadStocks") {
+        sourceMaps[item.key] = subtractOborWbStockMaps_(
+            sourceMapCache.wbWarehouseRemains.total,
+            sourceMapCache.wbWarehouseRemains.live
+          );
+        sourceBaseMaps[item.key] = subtractOborWbStockMaps_(
+          sourceMapCache.wbWarehouseRemains.totalByBase,
+          sourceMapCache.wbWarehouseRemains.liveByBase
+        );
+      } else {
+        sourceMaps[item.key] = sourceMapCache.wbWarehouseRemains.live;
+        sourceBaseMaps[item.key] = sourceMapCache.wbWarehouseRemains.liveByBase;
+      }
+      return;
+    }
+    if (item.sourceType === "wbAnalyticsStocks") {
+      const sourceMapKey = item.sourceMapKey || item.key;
+      if (!Object.prototype.hasOwnProperty.call(sourceMapCache, sourceMapKey)) {
+        sourceMapCache[sourceMapKey] = fetchOborWbStockByArticle_();
+      }
+      sourceMaps[item.key] = sourceMapCache[sourceMapKey];
+      return;
+    }
+    if (!item.sourceSheet) return;
+    sourceMaps[item.key] = buildOborValueMap_(spreadsheet, item);
+  });
+
+  // API читается до первой записи, чтобы ошибка API не оставила полурасчёт.
+  // Временно отключено по запросу: не вызывать Ozon FBS API для КГТ СДЭК.
+  // sourceMaps.cdekStock = fetchOborCdekStockByArticle_(spreadsheet);
+
+  const targetLastRow = targetSheet.getLastRow();
+  if (targetLastRow < 2) {
+    Logger.log("ОБОР: нет строк для записи");
+    return { rows: 0, nonZero: {} };
+  }
+
+  const targetArticles = targetSheet
+    .getRange(2, 1, targetLastRow - 1, 1)
+    .getValues();
+  const nonZero = {};
+
+  OBOR_VALUE_CONFIG.forEach(item => {
+    const valueMap = sourceMaps[item.key] || {};
+    const values = targetArticles.map(row => {
+      const article = normalizeOborArticle_(row[0]);
+      if (!article) return [""];
+      const isWarehouseReport = item.sourceType === "wbAnalyticsDeadStocks" ||
+        item.sourceType === "wbAnalyticsWarehouseStocks";
+      const parsed = parseOborArticle_(article);
+      const value = roundOborValue_(isWarehouseReport
+        ? resolveOborWbWarehouseReportValue_(valueMap, article, sourceBaseMaps[item.key])
+        : (valueMap[parsed.base] || 0));
+      if (Number(value) !== 0) nonZero[item.key] = (nonZero[item.key] || 0) + 1;
+      return [value];
+    });
+
+    const targetColumn = targetHeaderMap[normalizeOborHeader_(item.targetHeader)];
+    // Перезаписываем заголовок обычным текстом — это удаляет старую формулу из J1.
+    targetSheet.getRange(1, targetColumn).setValue(item.targetHeader);
+    targetSheet.getRange(2, targetColumn, values.length, 1).setValues(values);
+
+    const source = item.sourceType === "wbAnalyticsDeadStocks"
+      ? "WB Warehouse Inventory Report: «" + OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME + "» − «" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "»"
+      : item.sourceType === "wbAnalyticsStocks"
+        ? "WB Analytics products / metrics.stockCount («Всего находится на складах»)"
+        : item.sourceType === "wbAnalyticsWarehouseStocks"
+          ? "WB Warehouse Inventory Report / quantity («" + item.warehouseName + "»)"
+          : (item.sourceSheet || "Ozon FBS API");
+    Logger.log(
+      "Записано: " + item.targetHeader +
+      "; источник: " + source +
+      "; ненулевых строк: " + (nonZero[item.key] || 0) +
+      "; " + item.note
+    );
+  });
+
+  SpreadsheetApp.flush();
+  Logger.log(
+    "ОБОР: расчёт завершён; строк=" + (targetLastRow - 1) +
+    "; СДЭК Остаток отключён"
+  );
+  return { rows: targetLastRow - 1, nonZero: nonZero };
+}
+
+/**
+ * Обновить «ВБ всего» и «ВБ ост» прямой выгрузкой WB.
+ * Остальные колонки листа «ОБОР» не изменяются.
+ */
+function updateOborWbStockDirect() {
+  OBOR_WB_WAREHOUSE_REMAINS_CACHE_ = null;
+  const spreadsheet = SpreadsheetApp.openById(OBOR_VALUES_SPREADSHEET_ID);
+  const targetSheet = spreadsheet.getSheetByName(OBOR_VALUES_TARGET_SHEET);
+  if (!targetSheet) throw new Error("Не найден лист: " + OBOR_VALUES_TARGET_SHEET);
+
+  // «ВБ всего» и «ВБ ост» могут сдвигаться: в текущем листе это W и Y,
+  // поскольку X занят «Сумм». Находим их по фактическим заголовкам.
+  const targetHeaderMap = getOborHeaderMap_(targetSheet);
+  const targetColumns = OBOR_WB_STOCK_TARGET_HEADERS.map(header => {
+    const column = targetHeaderMap[normalizeOborHeader_(header)];
+    if (!column) throw new Error("ОБОР: не найден целевой заголовок «" + header + "»");
+    return column;
+  });
+
+  const warehouseRemains = fetchOborWbWarehouseRemainsMaps_();
+  const totalValueMap = warehouseRemains.total;
+  const warehouseValueMap = warehouseRemains.live;
+  const deadValueMap = subtractOborWbStockMaps_(totalValueMap, warehouseValueMap);
+  const totalBaseValueMap = warehouseRemains.totalByBase;
+  const warehouseBaseValueMap = warehouseRemains.liveByBase;
+  const deadBaseValueMap = subtractOborWbStockMaps_(totalBaseValueMap, warehouseBaseValueMap);
+  const targetLastRow = targetSheet.getLastRow();
+  if (targetLastRow < 2) return { rows: 0, nonZero: 0 };
+
+  const targetArticles = targetSheet
+    .getRange(2, 1, targetLastRow - 1, 1)
+    .getValues();
+  const valuesByColumn = [
+    { exact: deadValueMap, byBase: deadBaseValueMap },
+    { exact: warehouseValueMap, byBase: warehouseBaseValueMap }
+  ].map(maps => targetArticles.map(row => {
+    const article = normalizeOborArticle_(row[0]);
+    if (!article) return [""];
+    // Сначала точный vendorCode: 39171-1 не должен смешиваться с 39171-2.
+    // Базовая строка ОБОР без суффикса получает сумму всех её WB-вариантов.
+    return [roundOborValue_(resolveOborWbWarehouseReportValue_(maps.exact, article, maps.byBase))];
+  }));
+
+  targetColumns.forEach((targetColumn, index) => {
+    targetSheet.getRange(2, targetColumn, valuesByColumn[index].length, 1)
+      .setValues(valuesByColumn[index]);
+  });
+  SpreadsheetApp.flush();
+
+  const totalNonZero = valuesByColumn[0].filter(row => Number(row[0]) !== 0).length;
+  const warehouseNonZero = valuesByColumn[1].filter(row => Number(row[0]) !== 0).length;
+  const writtenDeadUnits = valuesByColumn[0].reduce((sum, row) => sum + parseOborNumber_(row[0]), 0);
+  const writtenLiveUnits = valuesByColumn[1].reduce((sum, row) => sum + parseOborNumber_(row[0]), 0);
+  const sourceDeadUnits = sumOborMapValues_(deadBaseValueMap);
+  const sourceLiveUnits = sumOborMapValues_(warehouseBaseValueMap);
+  Logger.log(
+    "ОБОР: «ВБ всего» (Warehouse Inventory Report: «" + OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME + "» − «" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») и «ВБ ост» (все WB-варианты базового артикула) обновлены" +
+    "; строк=" + valuesByColumn[0].length +
+    "; ненулевых «ВБ всего»=" + totalNonZero +
+    "; ненулевых «ВБ ост»=" + warehouseNonZero +
+    "; записано ед. «ВБ всего»=" + writtenDeadUnits +
+    "; записано ед. «ВБ ост»=" + writtenLiveUnits +
+    "; не найдено в ОБОР, ед.=" +
+      Math.max(0, sourceDeadUnits - writtenDeadUnits + sourceLiveUnits - writtenLiveUnits)
+  );
+  return {
+    rows: valuesByColumn[0].length,
+    nonZero: { total: totalNonZero, warehouse: warehouseNonZero }
+  };
+}
+
+/** Совместимый короткий запуск. Также считает только значения, не формулы. */
+function updateOborSummaryCore_() {
+  return calculateOborValues();
+}
+
+/** Старое имя оставлено для обратной совместимости, но формулы не устанавливает. */
+function installOborArrayFormulas() {
+  Logger.log("installOborArrayFormulas: legacy alias → расчёт значений без формул");
+  return calculateOborValues();
+}
+
+/** Проверка конфигурации без записи и без вызова API. */
+function previewOborValues() {
+  OBOR_VALUE_CONFIG.forEach(item => {
+    const source = item.sourceType === "wbAnalyticsDeadStocks"
+      ? "прямой WB Analytics: metrics.stockCount − warehouses[].quantity («" + OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME + "») = мёртвый остаток"
+      : item.sourceType === "wbAnalyticsStocks"
+        ? "прямой WB Analytics products / metrics.stockCount («Всего находится на складах»)"
+        : item.sourceType === "wbAnalyticsWarehouseStocks"
+          ? "прямой WB Warehouse Inventory Report / quantity («" + item.warehouseName + "»)"
+          : (item.sourceSheet || "Ozon FBS API");
+    Logger.log(
+      item.targetHeader +
+      ": " + source +
+      " / " + (item.sourceValueColumns.join("+") || OBOR_CDEK_WAREHOUSE_NAME) +
+      "; " + item.note
+    );
+  });
+  Logger.log("Расчёт выполняется скриптом; формулы не используются");
+}
+
+/** Старое имя preview оставлено только как совместимый алиас. */
+function previewOborArrayFormulas() {
+  return previewOborValues();
+}
+
+function buildOborValueMap_(spreadsheet, item) {
+  const sheet = spreadsheet.getSheetByName(item.sourceSheet);
+  if (!sheet) throw new Error("Не найден лист источника: " + item.sourceSheet);
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return {};
+
+  const maxColumn = Math.max(
+    columnToNumberObor_(item.sourceArticleColumn),
+    ...item.sourceValueColumns.map(columnToNumberObor_),
+    ...(item.subtractValueColumns || []).map(columnToNumberObor_)
+  );
+  const rows = sheet.getRange(2, 1, lastRow - 1, maxColumn).getValues();
+  const articleIndex = columnToNumberObor_(item.sourceArticleColumn) - 1;
+  const valueIndexes = item.sourceValueColumns.map(column => columnToNumberObor_(column) - 1);
+  const subtractIndexes = (item.subtractValueColumns || [])
+    .map(column => columnToNumberObor_(column) - 1);
+  const result = {};
+
+  rows.forEach(row => {
+    const article = normalizeOborArticle_(row[articleIndex]);
+    if (!article) return;
+
+    const parsed = parseOborArticle_(article);
+    const value = valueIndexes.reduce((sum, index) => {
+      return sum + parseOborNumber_(row[index]);
+    }, 0);
+    const subtractValue = subtractIndexes.reduce((sum, index) => {
+      return sum + parseOborNumber_(row[index]);
+    }, 0);
+    const multiplier = item.applyArticleMultiplier === false ? 1 : parsed.multiplier;
+    result[parsed.base] = (result[parsed.base] || 0)
+      + Math.max(0, value - subtractValue) * multiplier;
+  });
+
+  return result;
+}
+
+/**
+ * Получить официальную складскую детализацию WB одним асинхронным отчётом.
+ * В warehouses[] выбираются только два референсных показателя из кабинета WB:
+ * «Всего находится на складах» и «Склад WB РФ».
+ */
+function fetchOborWbWarehouseRemainsMaps_() {
+  if (OBOR_WB_WAREHOUSE_REMAINS_CACHE_) return OBOR_WB_WAREHOUSE_REMAINS_CACHE_;
+
+  const requestState = { lastRequestAt: 0 };
+  const createUrl = wbAnalyticsWarehouseRemainsURL() +
+    "?locale=ru&groupBySa=true&groupByNm=true";
+  const createResponse = fetchOborWbWarehousePage_(
+    createUrl,
+    { method: "get", headers: wbAnalyticsHeaders(), muteHttpExceptions: true },
+    requestState
+  );
+  const createPayload = parseOborWbWarehouseReportResponse_(createResponse, "создание отчёта");
+  const taskId = createPayload && createPayload.data && createPayload.data.taskId;
+  if (!taskId) throw new Error("WB warehouse report: в ответе создания нет taskId");
+
+  let statusPayload = null;
+  for (let poll = 0; poll < OBOR_WB_WAREHOUSE_REPORT_MAX_POLLS; poll++) {
+    Utilities.sleep(OBOR_WB_WAREHOUSE_REPORT_POLL_INTERVAL_MS);
+    const statusResponse = fetchOborWbWarehousePage_(
+      wbAnalyticsWarehouseRemainsURL() + "/tasks/" + encodeURIComponent(taskId) + "/status",
+      { method: "get", headers: wbAnalyticsHeaders(), muteHttpExceptions: true },
+      requestState
+    );
+    statusPayload = parseOborWbWarehouseReportResponse_(statusResponse, "проверка готовности");
+    if (statusPayload && statusPayload.data && statusPayload.data.status === "done") break;
+  }
+
+  if (!statusPayload || !statusPayload.data || statusPayload.data.status !== "done") {
+    throw new Error("WB warehouse report: не готов после " + OBOR_WB_WAREHOUSE_REPORT_MAX_POLLS + " проверок");
+  }
+
+  const downloadResponse = fetchOborWbWarehousePage_(
+    wbAnalyticsWarehouseRemainsURL() + "/tasks/" + encodeURIComponent(taskId) + "/download",
+    { method: "get", headers: wbAnalyticsHeaders(), muteHttpExceptions: true },
+    requestState
+  );
+  const rows = parseOborWbWarehouseReportResponse_(downloadResponse, "загрузка отчёта");
+  if (!Array.isArray(rows)) throw new Error("WB warehouse report: ожидался массив товаров");
+
+  const maps = aggregateOborWbWarehouseRemainsRows_(rows);
+  OBOR_WB_WAREHOUSE_REMAINS_CACHE_ = maps;
+  Logger.log(
+    "WB warehouse report: товаров=" + rows.length +
+    "; валидных артикулов=" + maps.validRows +
+    "; vendorCode=" + Object.keys(maps.total).length +
+    "; базовых артикулов=" + Object.keys(maps.totalByBase).length +
+    "; всего ед.=" + sumOborMapValues_(maps.totalByBase) +
+    "; склад WB РФ, ед.=" + sumOborMapValues_(maps.liveByBase) +
+    "; разница, ед.=" +
+      (sumOborMapValues_(maps.totalByBase) - sumOborMapValues_(maps.liveByBase))
+  );
+  return maps;
+}
+
+function parseOborWbWarehouseReportResponse_(response, action) {
+  if (!response) throw new Error("WB warehouse report: пустой ответ (" + action + ")");
+  const responseCode = response.getResponseCode();
+  const responseText = response.getContentText() || "";
+  if (responseCode < 200 || responseCode >= 300) {
+    throw new Error("WB warehouse report: HTTP " + responseCode + " (" + action + "): " + responseText.substring(0, 300));
+  }
+  try {
+    return JSON.parse(responseText);
+  } catch (error) {
+    throw new Error("WB warehouse report: ответ не является JSON (" + action + "): " + error.message);
+  }
+}
+
+function aggregateOborWbWarehouseRemainsRows_(rows) {
+  const total = {};
+  const live = {};
+  const totalByBase = {};
+  const liveByBase = {};
+  let validRows = 0;
+
+  (rows || []).forEach(row => {
+    const article = normalizeOborArticle_(row && (row.vendorCode || row.supplierArticle));
+    if (!article || !Array.isArray(row.warehouses)) return;
+
+    const totalValue = row.warehouses.reduce((sum, warehouse) => {
+      return warehouse && warehouse.warehouseName === OBOR_WB_STOCK_TOTAL_WAREHOUSE_NAME
+        ? sum + Math.max(0, parseOborNumber_(warehouse.quantity))
+        : sum;
+    }, 0);
+    const liveValue = row.warehouses.reduce((sum, warehouse) => {
+      return warehouse && warehouse.warehouseName === OBOR_WB_STOCK_SECOND_WAREHOUSE_NAME
+        ? sum + Math.max(0, parseOborNumber_(warehouse.quantity))
+        : sum;
+    }, 0);
+
+    // Суффикс vendorCode задаёт число штук в упаковке:
+    // 13517-10 × 5 упаковок = 50 штук, 13517-5 × 1 упаковка = 5 штук.
+    const multiplier = parseOborArticle_(article).multiplier;
+    const totalUnits = totalValue * multiplier;
+    const liveUnits = liveValue * multiplier;
+
+    // Точные vendorCode хранятся раздельно для суффиксных строк ОБОР.
+    // Параллельно суммируем их по базе для фактических базовых строк ОБОР.
+    total[article] = (total[article] || 0) + totalUnits;
+    live[article] = (live[article] || 0) + liveUnits;
+    const base = normalizeOborWbBaseArticle_(article);
+    totalByBase[base] = (totalByBase[base] || 0) + totalUnits;
+    liveByBase[base] = (liveByBase[base] || 0) + liveUnits;
+    validRows++;
+  });
+
+  return {
+    total: total,
+    live: live,
+    totalByBase: totalByBase,
+    liveByBase: liveByBase,
+    validRows: validRows
+  };
+}
+
+function resolveOborWbWarehouseReportValue_(valueMap, article, baseValueMap) {
+  const exact = normalizeOborArticle_(article);
+  if (Object.prototype.hasOwnProperty.call(valueMap || {}, exact)) return valueMap[exact];
+
+  const parsed = parseOborArticle_(exact);
+  const normalizedBase = normalizeOborWbBaseArticle_(exact);
+  if (exact === parsed.base && Object.prototype.hasOwnProperty.call(baseValueMap || {}, normalizedBase)) {
+    return baseValueMap[normalizedBase];
+  }
+  const baseValue = valueMap && valueMap[parsed.base];
+  if (baseValue !== undefined) return baseValue * parsed.multiplier;
+
+  // В ОБОР часть legacy-строк записана базовым артикулом без «-1».
+  // Если точного vendorCode и базовой строки WB нет, такая строка означает
+  // единичную упаковку `base-1`. Берём только её: `base-2` и другие варианты
+  // не суммируются и не могут повторно создать cross-aggregation.
+  if (exact === parsed.base) {
+    const unitVariant = exact + "-1";
+    if (Object.prototype.hasOwnProperty.call(valueMap || {}, unitVariant)) {
+      return valueMap[unitVariant];
+    }
+  }
+  return 0;
+}
+
+function normalizeOborWbBaseArticle_(article) {
+  const base = parseOborArticle_(normalizeOborArticle_(article)).base;
+  // Google Sheets превращает числовой артикул 04280 в 4280.
+  // Для смешанных артикулов нули значимы и не удаляются.
+  return /^\d+$/.test(base) ? base.replace(/^0+(?=\d)/, "") : base;
+}
+
+function sumOborMapValues_(valueMap) {
+  return Object.keys(valueMap || {}).reduce((sum, key) => {
+    return sum + parseOborNumber_(valueMap[key]);
+  }, 0);
+}
+
+/**
+ * Получить показатель «Всего находится на складах» через WB Analytics API
+ * и подготовить источник для «ВБ всего».
+ *
+ * В актуальном ответе WB: vendorCode = «Артикул продавца»,
+ * metrics.stockCount = «Всего находится на складах» при stockType="wb".
+ */
+function fetchOborWbStockByArticle_() {
+  const dateRange = getOborWbAnalyticsDateRange_();
+  const allItems = [];
+  let offset = 0;
+
+  while (true) {
+    const response = retryFetch(
+      wbAnalyticsStocksURL(),
+      {
+        method: "post",
+        headers: wbAnalyticsHeaders(),
+        contentType: "application/json",
+        payload: JSON.stringify({
+          nmIDs: [],
+          currentPeriod: {
+            start: dateRange.dateFrom,
+            end: dateRange.dateTo
+          },
+          stockType: "wb",
+          skipDeletedNm: false,
+          availabilityFilters: [],
+          orderBy: {
+            field: "ordersCount",
+            mode: "desc"
+          },
+          limit: OBOR_WB_ANALYTICS_PAGE_LIMIT,
+          offset: offset
+        }),
+        muteHttpExceptions: true
+      },
+      3
+    );
+
+    if (!response) {
+      throw new Error("WB Analytics stocks: пустой ответ API");
+    }
+
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText() || "";
+    if (responseCode < 200 || responseCode >= 300) {
+      throw new Error(
+        "WB Analytics stocks: HTTP " + responseCode + ": " +
+        responseText.substring(0, 300)
+      );
+    }
+
+    let payload;
+    try {
+      payload = JSON.parse(responseText);
+    } catch (error) {
+      throw new Error("WB Analytics stocks: ответ не является JSON: " + error.message);
+    }
+
+    const items = payload && payload.data && Array.isArray(payload.data.items)
+      ? payload.data.items
+      : null;
+    if (!items) {
+      throw new Error("WB Analytics stocks: в data.items ожидался массив");
+    }
+
+    allItems.push.apply(allItems, items);
+    if (items.length < OBOR_WB_ANALYTICS_PAGE_LIMIT) break;
+
+    offset += items.length;
+    Utilities.sleep(OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS);
+  }
+
+  OBOR_WB_PRODUCT_ITEMS_CACHE_ = allItems;
+  const aggregated = aggregateOborWbStockRows_(allItems);
+  Logger.log(
+    "WB Analytics stocks: товаров=" + allItems.length +
+    "; валидных артикулов=" + aggregated.validRows +
+    "; агрегированных артикулов=" + Object.keys(aggregated.values).length
+  );
+  return aggregated.values;
+}
+
+function fetchOborWbWarehousePage_(url, options, state) {
+  const maxAttempts = 4;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const elapsed = Date.now() - state.lastRequestAt;
+    if (elapsed < OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS) {
+      Utilities.sleep(OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS - elapsed);
+    }
+
+    const response = retryFetch(url, options, 1);
+    state.lastRequestAt = Date.now();
+    if (!response || response.getResponseCode() !== 429) return response;
+    if (attempt === maxAttempts) return response;
+
+    const headers = response.getHeaders ? response.getHeaders() : {};
+    const retryHeader = headers["X-RateLimit-Retry"] || headers["x-ratelimit-retry"];
+    const retrySeconds = Number(String(retryHeader || ""));
+    const retryMs = Number.isFinite(retrySeconds) && retrySeconds > 0
+      ? retrySeconds * 1000
+      : OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS;
+    const waitMs = Math.min(300000, Math.max(OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS, retryMs));
+    Logger.log("WB warehouse: HTTP 429; повтор через " + Math.ceil(waitMs / 1000) + " сек.");
+    Utilities.sleep(waitMs);
+  }
+  return null;
+}
+
+function fetchOborWbWarehouseStockByArticle_(warehouseName) {
+  if (!warehouseName) throw new Error("WB warehouse: не задано имя склада");
+
+  const productItems = OBOR_WB_PRODUCT_ITEMS_CACHE_ || (fetchOborWbStockByArticle_(), OBOR_WB_PRODUCT_ITEMS_CACHE_);
+  const articleByNmId = {};
+  (productItems || []).forEach(item => {
+    const nmId = item && (item.nmId || item.nmID);
+    const article = normalizeOborArticle_(item && (item.vendorCode || item.supplierArticle));
+    if (nmId && article) articleByNmId[String(nmId)] = article;
+  });
+
+  const nmIds = Object.keys(articleByNmId);
+  const stockRows = [];
+  const batchSize = 1000;
+  const requestState = { lastRequestAt: 0 };
+
+  for (let batchStart = 0; batchStart < nmIds.length; batchStart += batchSize) {
+    const batch = nmIds.slice(batchStart, batchStart + batchSize);
+    let offset = 0;
+
+    while (true) {
+      const response = fetchOborWbWarehousePage_(
+        wbAnalyticsWarehouseStocksURL(),
+        {
+          method: "post",
+          headers: wbAnalyticsHeaders(),
+          contentType: "application/json",
+          payload: JSON.stringify({
+            nmIds: batch.map(Number),
+            limit: OBOR_WB_ANALYTICS_PAGE_LIMIT,
+            offset: offset
+          }),
+          muteHttpExceptions: true
+        },
+        requestState
+      );
+
+      if (!response) throw new Error("WB warehouse: пустой ответ API");
+      const responseCode = response.getResponseCode();
+      const responseText = response.getContentText() || "";
+      if (responseCode < 200 || responseCode >= 300) {
+        throw new Error(
+          "WB warehouse: HTTP " + responseCode + ": " + responseText.substring(0, 300)
+        );
+      }
+
+      let payload;
+      try {
+        payload = JSON.parse(responseText);
+      } catch (error) {
+        throw new Error("WB warehouse: ответ не является JSON: " + error.message);
+      }
+
+      const items = payload && payload.data && Array.isArray(payload.data.items)
+        ? payload.data.items
+        : null;
+      if (!items) throw new Error("WB warehouse: в data.items ожидался массив");
+
+      items.forEach(item => {
+        const nmId = item && (item.nmId || item.nmID);
+        if (!nmId || item.warehouseName !== warehouseName) return;
+        const article = articleByNmId[String(nmId)];
+        if (!article) return;
+        stockRows.push({
+          vendorCode: article,
+          warehouses: [{ warehouseName: warehouseName, quantity: item.quantity }]
+        });
+      });
+
+      if (items.length < OBOR_WB_ANALYTICS_PAGE_LIMIT) break;
+      offset += items.length;
+      Utilities.sleep(OBOR_WB_ANALYTICS_REQUEST_INTERVAL_MS);
+    }
+  }
+
+  const aggregated = aggregateOborWbWarehouseStockRows_(stockRows, warehouseName);
+  Logger.log(
+    "WB warehouse: склад=" + warehouseName +
+    "; nmID-маппинг=" + nmIds.length +
+    "; строк=" + stockRows.length +
+    "; агрегированных артикулов=" + Object.keys(aggregated.values).length
+  );
+  return aggregated.values;
+}
+
+function getOborWbAnalyticsDateRange_() {
+  const dateTo = new Date();
+  dateTo.setDate(dateTo.getDate() - 1);
+  const dateFrom = new Date(dateTo);
+  dateFrom.setDate(dateFrom.getDate() - 30);
+  const timeZone = Session.getScriptTimeZone() || "Europe/Moscow";
+
+  return {
+    dateFrom: Utilities.formatDate(dateFrom, timeZone, "yyyy-MM-dd"),
+    dateTo: Utilities.formatDate(dateTo, timeZone, "yyyy-MM-dd")
+  };
+}
+
+/** Извлечь строки warehouse-отчёта из фактической оболочки WB groups. */
+function extractOborWbWarehouseRows_(payload) {
+  const data = payload && payload.data;
+  const candidates = [
+    data && data.items,
+    data && data.products,
+    data && data.groups,
+    Array.isArray(data) ? data : null,
+    payload && payload.items,
+    payload && payload.groups
+  ];
+
+  for (let index = 0; index < candidates.length; index++) {
+    if (!Array.isArray(candidates[index])) continue;
+    return flattenOborWbWarehouseRows_(candidates[index]);
+  }
+  return null;
+}
+
+function flattenOborWbWarehouseRows_(rows) {
+  const result = [];
+  (Array.isArray(rows) ? rows : []).forEach(row => {
+    if (!row || typeof row !== "object") return;
+    if (row.vendorCode || row.supplierArticle || row.nmId || row.warehouses) {
+      result.push(row);
+      return;
+    }
+    [row.items, row.products, row.groups].forEach(nested => {
+      if (Array.isArray(nested)) result.push.apply(result, flattenOborWbWarehouseRows_(nested));
+    });
+  });
+  return result;
+}
+
+/** Чистая агрегация WB-строк, вынесенная для локальной проверки без API. */
+function aggregateOborWbStockRows_(rows) {
+  const values = {};
+  let validRows = 0;
+
+  (Array.isArray(rows) ? rows : []).forEach(item => {
+    const article = normalizeOborArticle_(
+      item && (item.vendorCode || item.supplierArticle)
+    );
+    if (!article) return;
+
+    const parsed = parseOborArticle_(article);
+    const quantity = item && item.metrics &&
+      Object.prototype.hasOwnProperty.call(item.metrics, "stockCount")
+      ? item.metrics.stockCount
+      : item && item.quantity;
+    const stock = Math.max(0, parseOborNumber_(quantity));
+    values[parsed.base] = (values[parsed.base] || 0) + stock * parsed.multiplier;
+    validRows++;
+  });
+
+  return { values: values, validRows: validRows };
+}
+
+function aggregateOborWbWarehouseStockRows_(rows, warehouseName) {
+  const values = {};
+  let validRows = 0;
+
+  (Array.isArray(rows) ? rows : []).forEach(item => {
+    const article = normalizeOborArticle_(
+      item && (item.vendorCode || item.supplierArticle)
+    );
+    if (!article) return;
+
+    const parsed = parseOborArticle_(article);
+    const directWarehouses = item && Array.isArray(item.warehouses)
+      ? item.warehouses
+      : [];
+    const groupedWarehouses = item && Array.isArray(item.groups)
+      ? item.groups.reduce((all, group) => all.concat(
+        Array.isArray(group && group.warehouses) ? group.warehouses : []
+      ), [])
+      : [];
+    const warehouses = directWarehouses.length > 0
+      ? directWarehouses
+      : groupedWarehouses;
+    const stock = warehouses.reduce((sum, warehouse) => {
+      if (!warehouse || warehouse.warehouseName !== warehouseName) return sum;
+      return sum + Math.max(0, parseOborNumber_(warehouse.quantity));
+    }, 0);
+
+    values[parsed.base] = (values[parsed.base] || 0) + stock * parsed.multiplier;
+    validRows++;
+  });
+
+  return { values: values, validRows: validRows };
+}
+
+function subtractOborWbStockMaps_(totalMap, liveMap) {
+  const values = {};
+  const keys = {};
+  Object.keys(totalMap || {}).forEach(key => { keys[key] = true; });
+  Object.keys(liveMap || {}).forEach(key => { keys[key] = true; });
+
+  Object.keys(keys).forEach(key => {
+    values[key] = Math.max(0,
+      parseOborNumber_(totalMap && totalMap[key]) -
+      parseOborNumber_(liveMap && liveMap[key])
+    );
+  });
+  return values;
+}
+
+/**
+ * Собрать остаток КГТ СДЭК из Ozon FBS API и агрегировать по базовому артикулу.
+ * В API используется поле present, без reserved.
+ */
+function fetchOborCdekStockByArticle_(spreadsheet) {
+  const sourceSheet = spreadsheet.getSheetByName(OBOR_VALUES_SOURCE_SHEET);
+  if (!sourceSheet) throw new Error("Не найден лист: " + OBOR_VALUES_SOURCE_SHEET);
+
+  const lastRow = sourceSheet.getLastRow();
+  if (lastRow < 2) return {};
+
+  // A:V: артикул в A, SKU Ozon в V.
+  const rows = sourceSheet.getRange(2, 1, lastRow - 1, 22).getValues();
+  const skuEntries = [];
+  const seenSkus = {};
+
+  rows.forEach(row => {
+    const article = normalizeOborArticle_(row[0]);
+    const sku = normalizeOborSku_(row[21]);
+    if (!article || !sku || seenSkus[sku]) return;
+
+    const parsed = parseOborArticle_(article);
+    skuEntries.push({
+      sku: sku,
+      baseArticle: parsed.base,
+      multiplier: parsed.multiplier
+    });
+    seenSkus[sku] = true;
+  });
+
+  const stockBySku = {};
+  let requestCount = 0;
+  let lastRequestAt = 0;
+
+  for (let offset = 0; offset < skuEntries.length; offset += OBOR_CDEK_BATCH_SIZE) {
+    const batch = skuEntries.slice(offset, offset + OBOR_CDEK_BATCH_SIZE);
+    let cursor = "";
+    let hasNext = true;
+
+    while (hasNext) {
+      const payload = { sku: batch.map(item => item.sku), limit: 1000 };
+      if (cursor) payload.cursor = cursor;
+
+      const now = Date.now();
+      if (lastRequestAt && now - lastRequestAt < OBOR_CDEK_REQUEST_INTERVAL_MS) {
+        Utilities.sleep(OBOR_CDEK_REQUEST_INTERVAL_MS - (now - lastRequestAt));
+      }
+
+      const response = retryFetch(OBOR_CDEK_STOCKS_URL, {
+        method: "post",
+        contentType: "application/json",
+        headers: ozonHeaders(),
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      }, 3);
+      lastRequestAt = Date.now();
+      requestCount++;
+
+      if (!response) throw new Error("Ozon CDEK FBS: пустой ответ API");
+      const code = response.getResponseCode();
+      if (code < 200 || code >= 300) {
+        throw new Error(
+          "Ozon CDEK FBS: HTTP " + code + ": " +
+          response.getContentText().substring(0, 500)
+        );
+      }
+
+      const data = JSON.parse(response.getContentText() || "{}");
+      (data.products || []).forEach(product => {
+        if (String(product.warehouse_id) !== String(OBOR_CDEK_WAREHOUSE_ID)) return;
+        const sku = normalizeOborSku_(product.sku);
+        if (!sku) return;
+        stockBySku[sku] = (stockBySku[sku] || 0) + (Number(product.present) || 0);
+      });
+
+      cursor = data.cursor || "";
+      hasNext = data.has_next === true && !!cursor;
+    }
+  }
+
+  const result = {};
+  skuEntries.forEach(entry => {
+    const stock = stockBySku[entry.sku] || 0;
+    result[entry.baseArticle] =
+      (result[entry.baseArticle] || 0) + stock * entry.multiplier;
+  });
+
+  Logger.log(
+    "СДЭК API: warehouse_id=" + OBOR_CDEK_WAREHOUSE_ID +
+    "; запросов=" + requestCount +
+    "; SKU с остатком=" + Object.keys(stockBySku).length
+  );
+  return result;
+}
+
+function validateOborTargetHeaders_(targetHeaderMap) {
+  const missing = OBOR_VALUE_CONFIG
+    .filter(item => !targetHeaderMap[normalizeOborHeader_(item.targetHeader)])
+    .map(item => item.targetHeader);
+  if (missing.length) throw new Error("В ОБОР не найдены заголовки: " + missing.join(", "));
+}
+
+function validateOborSources_(spreadsheet) {
+  OBOR_VALUE_CONFIG.forEach(item => {
+    if (!item.sourceSheet) return;
+    const sheet = spreadsheet.getSheetByName(item.sourceSheet);
+    if (!sheet) throw new Error("Не найден лист источника: " + item.sourceSheet);
+    const required = [item.sourceArticleColumn]
+      .concat(item.sourceValueColumns)
+      .concat(item.subtractValueColumns || []);
+    required.forEach(column => {
+      if (columnToNumberObor_(column) > sheet.getLastColumn()) {
+        throw new Error(
+          "В " + item.sourceSheet + " нет колонки " + column +
+          " для " + item.targetHeader
+        );
+      }
+    });
+  });
+}
+
+function getOborHeaderMap_(sheet) {
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
+  const map = {};
+  headers.forEach((header, index) => {
+    const key = normalizeOborHeader_(header);
+    if (key && !map[key]) map[key] = index + 1;
+  });
+  return map;
+}
+
+function normalizeOborHeader_(value) {
+  return String(value == null ? "" : value).replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function normalizeOborArticle_(value) {
+  return String(value == null ? "" : value)
+    .replace(/[\s\u00a0]/g, "")
+    .trim();
+}
+
+function normalizeOborSku_(value) {
+  return String(value == null ? "" : value)
+    .replace(/[\s\u00a0]/g, "")
+    .replace(/\.0$/, "")
+    .trim();
+}
+
+function parseOborArticle_(article) {
+  const match = String(article).match(/^(.*)-([0-9]+)$/);
+  if (!match) return { base: article, multiplier: 1 };
+  return { base: match[1], multiplier: Number(match[2]) || 1 };
+}
+
+function parseOborNumber_(value) {
+  if (value === null || value === undefined || value === "") return 0;
+  if (typeof value === "number") return isFinite(value) ? value : 0;
+  const normalized = String(value)
+    .replace(/[\s\u00a0]/g, "")
+    .replace(/%/g, "")
+    .replace(/,/g, ".");
+  const parsed = Number(normalized);
+  return isFinite(parsed) ? parsed : 0;
+}
+
+function roundOborValue_(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function columnToNumberObor_(column) {
+  return String(column).toUpperCase().split("").reduce((number, letter) => {
+    return number * 26 + letter.charCodeAt(0) - 64;
+  }, 0);
+}
+
+function updateOborSummary() {
+  var args = arguments;
+  return runWithTelegramAlertGAS_('updateOborSummary', function() {
+    return updateOborSummaryCore_.apply(null, args);
+  });
+}

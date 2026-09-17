@@ -28,23 +28,23 @@ This project consists of a hybrid integration environment designed to synchroniz
 ### 1. Production Google Apps Script Files (.js)
 These are uploaded to the Google Spreadsheet Script Editor environment:
 
-*   **`Главные функции.js`** — Main entry points for automated time-driven and manual triggers.
-*   **`settings.js`** — Common configurations, API keys, endpoints, and custom rate limits (RPS).
-*   **`fetchapp.js`** — Core HTTP fetcher, rate limiting, and exponential retry logic.
-*   **`DIAGNOSTICS.js`** — Full system diagnostic routines (`runDiagnostics()`).
-*   **`Ozon обновить товары V2.js`** — Updates brand, model, and item categories from Ozon Seller API.
-*   **`Ozon Получить товары.js`** — Synchronizes Seller Offer IDs with Ozon Product IDs.
-*   **`Ozon остатки FBO.js`** & **`Ozon склад Москва.js`** — Updates Ozon FBO & FBS inventory stocks.
-*   **`Ozon продажи FBO FBS.js`** — Analytical month/quarter sales reporting via Analytics API.
-*   **`Ozon цена.js`** — Updates active Ozon prices and discounts.
-*   **`Huckster цены.js`** — Read-only выгрузка текущей и рекомендуемой цены Huckster в BN:BO и ручная запись цен из `ARL TR` в Huckster.
-*   **`Ozon заказы.js`** — Pulls orders and performance metrics from Ozon Seller API.
-*   **`Ozon реклама V3.js`** — Final optimized Ozon Performance Ads sync (Quantity, Revenue, Spend).
-*   **`WB Артикулы.js`** — Fills Wildberries nmId columns based on catalog mapping.
-*   **`WB Аналитика.js`** — Fills WB month/quarter analytics columns.
-*   **`WB Склады.js`** & **`ВБ остатки.js`** — Handles Wildberries warehouse mapping and stocks.
-*   **`ВБ.js`** & **`ВБ заказы.js`** — Main Wildberries stock updates and order synchronizations.
-*   **`Цены ВБ.js`** — Manages Wildberries catalog pricing.
+*   **`Flow_Триггеры__Основные.js`** — Main entry points for automated time-driven and manual triggers.
+*   **`Shared_Настройки.js`** — Common configurations, API keys, endpoints, and custom rate limits (RPS).
+*   **`Shared_HTTP.js`** — Core HTTP fetcher, rate limiting, and exponential retry logic.
+*   **`Diagnostic_Система.js`** — Full system diagnostic routines (`runDiagnostics()`).
+*   **`List_ТЕСТ__C_E_V_X_Y__Товары_Ozon.js`** — Updates brand, model, and item categories from Ozon Seller API.
+*   **`List_ТЕСТ__A_U__ProductId_Ozon.js`** — Synchronizes Seller Offer IDs with Ozon Product IDs.
+*   **`List_ТЕСТ__F_G__Остатки_Ozon.js`** & **`List_ТЕСТ__H__Склад_Москва_Ozon.js`** — Updates Ozon FBO & FBS inventory stocks.
+*   **`List_ТЕСТ__AQ_AT__Продажи_Ozon.js`** — Analytical month/quarter sales reporting via Analytics API.
+*   **`List_ТЕСТ__K_BR__Цена_Ozon.js`** — Updates active Ozon prices and discounts.
+*   **`Flow_ТЕСТ_ARL_TR__Цены_Huckster.js`** — Read-only выгрузка текущей и рекомендуемой цены Huckster в BN:BO и ручная запись цен из `ARL TR` в Huckster.
+*   **`List_ТЕСТ__I_J_L_AO__Заказы_Ozon.js`** — Pulls orders and performance metrics from Ozon Seller API.
+*   **`List_ТЕСТ__BA_BC__Реклама_Ozon_Performance.js`** — Final optimized Ozon Performance Ads sync (Quantity, Revenue, Spend).
+*   **`List_ТЕСТ__T__Артикулы_WB.js`** — Fills Wildberries nmId columns based on catalog mapping.
+*   **`List_ТЕСТ__R_S__Аналитика_WB.js`** — Fills WB month/quarter analytics columns.
+*   **`WB Склады.js`** & **`List_ТЕСТ__O__Остатки_WB_FBList_UNIT_API__РасчетныеПоля__Ozon.js`** — Handles Wildberries warehouse mapping and stocks.
+*   **`List_ТЕСТ__P_Q__Остатки_WB_FBS.js`** & **`List_ТЕСТ__N_AP__Заказы_WB.js`** — Main Wildberries stock updates and order synchronizations.
+*   **`List_ТЕСТ__M__Цена_WB.js`** — Manages Wildberries catalog pricing.
 *   **`Синхронизация остатков *.js`** — Specific inventory synchronizations for ETM TR, Feron, RS, ARL, ODC, and gaus sheets.
 
 ### 2. Local Python Synchronization Scripts (.py)
@@ -69,6 +69,9 @@ These run on local servers or machines to update Google Sheets via the API:
 4. `.claspignore` is the upload boundary: local Python, Node helpers, tests/runtime files, logs, service-account files, and unrelated credentials must not be uploaded to Apps Script. Keys used by this Google Sheets/Apps Script project may be part of the agreed Apps Script source/configuration and may be passed or tested there.
 5. When delivering changes, list the files changed and the functions that need a manual run, if any. Do not give the user manual file replacement instructions.
 6. Test changed behavior with a focused execution in the Google Apps Script IDE when safe, and inspect **Executions** or **View → Logs**.
+7. Name Apps Script files `List_<sheet>__<columns-or-field>__<purpose>.js` for direct sheet writers; use `Flow_`, `Shared_`, or `Diagnostic_` for cross-sheet processes, shared code, and diagnostics. Keep existing trigger function names unless their triggers are migrated.
+8. Resolve write destinations by visible header with `columnByHeader_()` (or the sheet's strict header resolver). Missing or duplicate headers must raise an error. Fixed service layouts and columns with missing or duplicate headers are documented exceptions; never silently fall back to a column number.
+9. Wrap trigger entrypoints and their scheduled continuations in `runWithTelegramAlertGAS_()`, keeping the current Telegram bot token and chat binding. Terminal failures caught inside a function must be rethrown or explicitly alerted; expected transient retries should not send alerts.
 
 ### Python Stock Synchronization Workflow:
 1. Python dependencies should be maintained in a virtual environment (`.venv-etm-export`).
@@ -89,35 +92,35 @@ These run on local servers or machines to update Google Sheets via the API:
 | :---: | :---: | :--- | :--- | :---: |
 | **1** | **A** | Артикул (offer_id) | **Primary Key** | ✅ |
 | **2** | **B** | Модель | Manual Formula — *DO NOT TOUCH* | ✅ |
-| **3** | **C** | Бренд | `updateProductsV2()` in `Ozon обновить товары V2.js` | ✅ |
-| **4** | **D** | Связка (model_name) | `updateProductsV2()` in `Ozon обновить товары V2.js` | ✅ |
-| **5** | **E** | Картинка | `updateProductsV2()` in `Ozon обновить товары V2.js` | ✅ |
-| **6** | **F** | Остаток ФБО ОЗОН | `updateStockFBO()` in `Ozon остатки FBO.js` | ✅ |
-| **7** | **G** | Остаток ФБС ОЗОН | `updateAllFBSStocks()` in `Ozon остатки FBO.js` | ✅ |
-| **8** | **H** | ОСТ ФБС МСК ОЗОН | `getStocksByWarehouseFBS()` in `Ozon склад Москва.js` | ✅ |
-| **9** | **I** | Уход Мес ОЗОН | `fetchAndWriteAnalytics()` in `Ozon заказы.js` | ✅ |
-| **10** | **J** | Уход КВ | `fetchAndWriteAnalytics()` in `Ozon заказы.js` | ✅ |
-| **11** | **K** | ЦЕНА ОЗОН | `getOzonPricesOptimized()` in `Ozon цена.js` | ✅ |
-| **12** | **L** | Сумма заказов Мес ОЗОН | `fetchAndWriteAnalytics()` in `Ozon заказы.js` | ✅ |
-| **13** | **M** | ЦЕНА ВБ | `updatePricesAndImages()` in `Цены ВБ.js` | ✅ |
-| **14** | **N** | Сумма заказов Мес ВБ | `updateOrdersSummaryV2()` in `ВБ заказы.js` | ✅ |
-| **15** | **O** | Остаток ФБО ВБ | `main()` in `ВБ.js` | ✅ |
-| **16** | **P** | Остаток ФБС ВБ | `main()` in `ВБ.js` | ✅ |
+| **3** | **C** | Бренд | `updateProductsV2()` in `List_ТЕСТ__C_E_V_X_Y__Товары_Ozon.js` | ✅ |
+| **4** | **D** | Связка (model_name) | `updateProductsV2()` in `List_ТЕСТ__C_E_V_X_Y__Товары_Ozon.js` | ✅ |
+| **5** | **E** | Картинка | `updateProductsV2()` in `List_ТЕСТ__C_E_V_X_Y__Товары_Ozon.js` | ✅ |
+| **6** | **F** | Остаток ФБО ОЗОН | `updateStockFBO()` in `List_ТЕСТ__F_G__Остатки_Ozon.js` | ✅ |
+| **7** | **G** | Остаток ФБС ОЗОН | `updateAllFBSStocks()` in `List_ТЕСТ__F_G__Остатки_Ozon.js` | ✅ |
+| **8** | **H** | ОСТ ФБС МСК ОЗОН | `getStocksByWarehouseFBS()` in `List_ТЕСТ__H__Склад_Москва_Ozon.js` | ✅ |
+| **9** | **I** | Уход Мес ОЗОН | `fetchAndWriteAnalytics()` in `List_ТЕСТ__I_J_L_AO__Заказы_Ozon.js` | ✅ |
+| **10** | **J** | Уход КВ | `fetchAndWriteAnalytics()` in `List_ТЕСТ__I_J_L_AO__Заказы_Ozon.js` | ✅ |
+| **11** | **K** | ЦЕНА ОЗОН | `getOzonPricesOptimized()` in `List_ТЕСТ__K_BR__Цена_Ozon.js` | ✅ |
+| **12** | **L** | Сумма заказов Мес ОЗОН | `fetchAndWriteAnalytics()` in `List_ТЕСТ__I_J_L_AO__Заказы_Ozon.js` | ✅ |
+| **13** | **M** | ЦЕНА ВБ | `updatePricesAndImages()` in `List_ТЕСТ__M__Цена_WB.js` | ✅ |
+| **14** | **N** | Сумма заказов Мес ВБ | `updateOrdersSummaryV2()` in `List_ТЕСТ__N_AP__Заказы_WB.js` | ✅ |
+| **15** | **O** | Остаток ФБО ВБ | `main()` in `List_ТЕСТ__P_Q__Остатки_WB_FBS.js` | ✅ |
+| **16** | **P** | Остаток ФБС ВБ | `main()` in `List_ТЕСТ__P_Q__Остатки_WB_FBS.js` | ✅ |
 | **17** | **Q** | ОСТ ФБС МСК ВБ | *NOT CURRENTLY IN USE* | ✅ |
-| **18** | **R** | Уход Мес ВБ | `updateWBAnalytics()` in `WB Аналитика.js` | ✅ |
-| **19** | **S** | Уход КВ ВБ | `updateWBAnalytics()` in `WB Аналитика.js` | ✅ |
-| **20** | **T** | Артикул ВБ | `updateWBArticles()` in `WB Артикулы.js` | ✅ |
-| **21** | **U** | Product_id Ozon | `syncOfferIdWithProductId()` in `Ozon Получить товары.js` | ✅ |
-| **22** | **V** | SKU Ozon | `updateProductsV2()` in `Ozon обновить товары V2.js` | ✅ |
-| **24** | **X** | Название модели | `updateProductsV2()` in `Ozon обновить товары V2.js` | ✅ |
-| **25** | **Y** | Категория товара | `updateProductsV2()` in `Ozon обновить товары V2.js` | ✅ |
-| **53** | **BA** | Реклама Количество | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |
-| **54** | **BB** | Реклама Стоимость | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |
-| **55** | **BC** | Реклама Расход | `updateOzonAdPerfFinal()` in `Ozon реклама V3.js` | ✅ |
-| **66** | **BN** | Текущая выставленная цена (Huckster `upload_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
-| **67** | **BO** | Цена по карте / РЦ для удержания (Huckster `market_card_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
-| **по заголовку** | — | Цена на витрине с картой Х (Huckster `market_card_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
-| **по заголовку** | — | Мин. цена продажи (или исторический заголовок Мин цена продажи Х) (Huckster `min_price`) | `updateHucksterPrices()` in `Huckster цены.js` | ✅ |
+| **18** | **R** | Уход Мес ВБ | `updateWBAnalytics()` in `List_ТЕСТ__R_S__Аналитика_WB.js` | ✅ |
+| **19** | **S** | Уход КВ ВБ | `updateWBAnalytics()` in `List_ТЕСТ__R_S__Аналитика_WB.js` | ✅ |
+| **20** | **T** | Артикул ВБ | `updateWBArticles()` in `List_ТЕСТ__T__Артикулы_WB.js` | ✅ |
+| **21** | **U** | Product_id Ozon | `syncOfferIdWithProductId()` in `List_ТЕСТ__A_U__ProductId_Ozon.js` | ✅ |
+| **22** | **V** | SKU Ozon | `updateProductsV2()` in `List_ТЕСТ__C_E_V_X_Y__Товары_Ozon.js` | ✅ |
+| **24** | **X** | Название модели | `updateProductsV2()` in `List_ТЕСТ__C_E_V_X_Y__Товары_Ozon.js` | ✅ |
+| **25** | **Y** | Категория товара | `updateProductsV2()` in `List_ТЕСТ__C_E_V_X_Y__Товары_Ozon.js` | ✅ |
+| **53** | **BA** | Реклама Количество | `updateOzonAdPerfFinal()` in `List_ТЕСТ__BA_BC__Реклама_Ozon_Performance.js` | ✅ |
+| **54** | **BB** | Реклама Стоимость | `updateOzonAdPerfFinal()` in `List_ТЕСТ__BA_BC__Реклама_Ozon_Performance.js` | ✅ |
+| **55** | **BC** | Реклама Расход | `updateOzonAdPerfFinal()` in `List_ТЕСТ__BA_BC__Реклама_Ozon_Performance.js` | ✅ |
+| **66** | **BN** | Текущая выставленная цена (Huckster `upload_price`) | `updateHucksterPrices()` in `Flow_ТЕСТ_ARL_TR__Цены_Huckster.js` | ✅ |
+| **67** | **BO** | Цена по карте / РЦ для удержания (Huckster `market_card_price`) | `updateHucksterPrices()` in `Flow_ТЕСТ_ARL_TR__Цены_Huckster.js` | ✅ |
+| **по заголовку** | — | Цена на витрине с картой Х (Huckster `market_card_price`) | `updateHucksterPrices()` in `Flow_ТЕСТ_ARL_TR__Цены_Huckster.js` | ✅ |
+| **по заголовку** | — | Мин. цена продажи (или исторический заголовок Мин цена продажи Х) (Huckster `min_price`) | `updateHucksterPrices()` in `Flow_ТЕСТ_ARL_TR__Цены_Huckster.js` | ✅ |
 
 ### ARL TR: Huckster price source columns
 
@@ -156,15 +159,15 @@ These run on local servers or machines to update Google Sheets via the API:
 - `StreamSupps` mapping for WB must remain explicit: `M → WB 1449484 (Москва)`; `AC = N + S + W → WB 798761 (ВольтМир)`. Never include M in AC and never send N, S, or W independently to warehouse 798761.
 
 ### Diagnostic Suite
-Use the functions inside **`DIAGNOSTICS.js`** to verify system stability:
+Use the functions inside **`Diagnostic_Система.js`** to verify system stability:
 *   `checkSheetData()` — Scans sheet columns, verifying populated ranges.
 *   `checkAPIKeys()` — Checks credentials availability.
 *   `testAPIConnections()` — Validates network and authentication states for both Ozon and WB endpoints.
 
 ### API Rate Limits
-*   **Ozon Seller API:** Hard throttle limit at 50 RPS. Shared queries are configured at **20 RPS** (`RPS()` in `settings.js`).
+*   **Ozon Seller API:** Hard throttle limit at 50 RPS. Shared queries are configured at **20 RPS** (`RPS()` in `Shared_Настройки.js`).
 *   **Ozon Analytics API:** Strict limit at ~1 query per 7 seconds. Uses custom wait times.
-*   **Wildberries API:** Configured at **2 RPS** (`WB_RPS()` in `settings.js`).
+*   **Wildberries API:** Configured at **2 RPS** (`WB_RPS()` in `Shared_Настройки.js`).
 
 ---
 

@@ -20,7 +20,7 @@ def test_local_feron_uses_wb_total_for_voltmir():
 
 def test_apps_script_writers_use_wb_total():
     etm = (PROJECT_ROOT / "Синхронизация остатков ETM TR.js").read_text(encoding="utf-8")
-    rs = (PROJECT_ROOT / "Синхронизация остатков RS.js").read_text(encoding="utf-8")
+    rs = (PROJECT_ROOT / "Flow_StreamSupps__Остатки_RS_Маркетплейсы.js").read_text(encoding="utf-8")
     assert "const ETM_COL_WB_STOCK = 29" in etm
     assert "amount: item.wb_stock" in etm
     assert "const RS_COL_WB_STOCK = 29" in rs

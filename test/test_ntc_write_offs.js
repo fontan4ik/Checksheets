@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-const source = fs.readFileSync('НТЦ списания.js', 'utf8');
+const source = fs.readFileSync('Flow_НТЦ_списания__FBS_резерв.js', 'utf8');
 const stockRows = [
   ['2851987-3', '2851987', '', '', '', 100, 33, 3],
   ['2851987-5', '2851987', '', '', '', 100, 20, 5]

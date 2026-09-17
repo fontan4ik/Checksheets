@@ -337,7 +337,7 @@ async function main() {
           api_overpayment_total: plan.apiOverpaymentTotal,
           planned_sheet_total: plan.newTotal,
           unmatched_action: plan.unmatchedAction,
-          sheet_value_sign: 'negative_expense_like_existing_O.js'
+          sheet_value_sign: 'negative_expense_like_existing_List_UNIT_API__РасчетныеПоля__Ozon.js'
         };
         if (args['write-sheet']) output.sheet_write = await writeAndReadBack(sheets, plan);
       }

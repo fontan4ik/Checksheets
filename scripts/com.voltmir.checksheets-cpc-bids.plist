@@ -6,6 +6,9 @@
   <string>com.voltmir.checksheets-cpc-bids</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/scripts/run_with_telegram_alert.sh</string>
+    <string>ozon-cpc-bids</string>
+    <string>--</string>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/.venv-etm-export/bin/python</string>
     <string>-u</string>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/set_cpc_bids.py</string>

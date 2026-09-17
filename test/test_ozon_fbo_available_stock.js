@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const sourcePath = path.join(__dirname, '..', 'Ozon остатки FBO.js');
+const sourcePath = path.join(__dirname, '..', 'List_ТЕСТ__F_G__Остатки_Ozon.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
 const context = {};
 vm.createContext(context);

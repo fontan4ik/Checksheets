@@ -6,6 +6,9 @@
     <string>com.voltmir.checksheets-github-sync</string>
     <key>ProgramArguments</key>
     <array>
+        <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/scripts/run_with_telegram_alert.sh</string>
+        <string>checksheets-github-sync</string>
+        <string>--</string>
         <string>/usr/bin/python3</string>
         <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/scripts/checksheets_github_sync.py</string>
         <string>--once</string>

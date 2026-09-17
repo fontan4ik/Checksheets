@@ -6,6 +6,9 @@
   <string>com.voltmir.checksheets-cpc-hourly</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/scripts/run_with_telegram_alert.sh</string>
+    <string>ozon-cpc-hourly</string>
+    <string>--</string>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/.venv-etm-export/bin/python</string>
     <string>-u</string>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/create_ozon_cpc_campaigns.py</string>

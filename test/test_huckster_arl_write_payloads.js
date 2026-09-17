@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const sourcePath = path.join(__dirname, '..', 'Huckster цены.js');
+const sourcePath = path.join(__dirname, '..', 'Flow_ТЕСТ_ARL_TR__Цены_Huckster.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
 const headers = Array(24).fill('');
 headers[0] = 'Артикул';

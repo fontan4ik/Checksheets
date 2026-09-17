@@ -22,7 +22,7 @@ const SERVICE_ACCOUNT_FILE = path.join(
   "..",
   "nomadic-bedrock-485314-b0-d7624dedd83c.json",
 );
-const SETTINGS_FILE = path.join(__dirname, "..", "settings.js");
+const SETTINGS_FILE = path.join(__dirname, "..", "Shared_Настройки.js");
 const OZON_WAREHOUSE_ID = 1020005000217829;
 const WB_WAREHOUSE_ID = 1449484;
 const BATCH_SIZE = 100;
@@ -52,7 +52,7 @@ function parseSettings() {
   const apiKey = source.match(/const apiKey = ['"]([^'"]+)['"]/s)?.[1];
   const authorization = source.match(/Authorization:\s*['"]Bearer\s+([^'"]+)['"]/s)?.[1];
   if (!clientId || !apiKey || !authorization) {
-    throw new Error("Не удалось безопасно прочитать Ozon/WB credentials из settings.js");
+    throw new Error("Не удалось безопасно прочитать Ozon/WB credentials из Shared_Настройки.js");
   }
   return { clientId, apiKey, authorization: `Bearer ${authorization}` };
 }

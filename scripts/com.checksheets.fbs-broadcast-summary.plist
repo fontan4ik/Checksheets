@@ -6,6 +6,9 @@
   <string>com.checksheets.fbs-broadcast-summary</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/scripts/run_with_telegram_alert.sh</string>
+    <string>fbs-broadcast-summary</string>
+    <string>--</string>
     <string>/opt/homebrew/bin/node</string>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/send-fbs-broadcast-summary.js</string>
   </array>
@@ -16,6 +19,11 @@
   <key>StandardErrorPath</key>
   <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/fbs_broadcast_summary_launchd.err</string>
   <key>StartCalendarInterval</key>
-  <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>0</integer></dict>
+  <array>
+    <dict><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>15</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Hour</key><integer>19</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
 </dict>
 </plist>

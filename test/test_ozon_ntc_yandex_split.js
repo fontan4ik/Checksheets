@@ -5,7 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 
-const sourcePath = require('path').join(__dirname, '..', 'Синхронизация остатков Ozon НТЦ в Яндекс.js');
+const sourcePath = require('path').join(__dirname, '..', 'Flow_UNIT_YNX__Остатки_НТЦ_Яндекс.js');
 const source = fs.readFileSync(sourcePath, 'utf8');
 
 const context = {

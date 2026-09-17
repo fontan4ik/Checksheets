@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 
-const sourcePath = path.join(__dirname, "..", "Ozon заказы.js");
+const sourcePath = path.join(__dirname, "..", "List_ТЕСТ__I_J_L_AO__Заказы_Ozon.js");
 const source = fs.readFileSync(sourcePath, "utf8");
 
 const properties = {};

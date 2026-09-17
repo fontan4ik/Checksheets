@@ -27,7 +27,7 @@ trap cleanup EXIT INT TERM
 
 cd "$ROOT" || exit 1
 printf '%s Ozon reviews: старт\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-"$NODE_BIN" "$SCRIPT"
+"$ROOT/scripts/run_with_telegram_alert.sh" ozon-reviews -- "$NODE_BIN" "$SCRIPT"
 EXIT_CODE=$?
 printf '%s Ozon reviews: завершение с кодом %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$EXIT_CODE"
 exit "$EXIT_CODE"
