@@ -1,11 +1,11 @@
 /**
- * ОСТ ФБС МСК ОЗОН (H, 8) + Остаток ФБС ОЗОН (G, 7)
+ * ОСТ ФБС МСК ОЗОН (H, 8)
  *
  * Использует v2 API stocks-by-warehouse/fbs, потому что v4 stocks не отдаёт warehouse_id.
  *
  * Логика:
- * - G (7): сумма ВСЕХ FBS складов (кроме конкретного склада Москва)
  * - H (8): остаток только на целевом складе (warehouse_id = ozonFBSWarehouseId)
+ * G (7) заполняет updateAllFBSStocks() суммой всех FBS складов.
  */
 function getStocksByWarehouseFBS() {
   const sheet = mainSheet();
@@ -36,7 +36,6 @@ function getStocksByWarehouseFBS() {
 
   // Словари для остатков
   const warehouseStockMap = {};  // Для склада Москва (H, 8)
-  const otherStockMap = {};      // Для всех остальных FBS складов (G, 7)
 
   let lastRequestTime = Date.now() - 1000 / customRps;
 
@@ -94,12 +93,8 @@ function getStocksByWarehouseFBS() {
           const present = item.present || 0;
 
           if (!(sku in warehouseStockMap)) warehouseStockMap[sku] = 0;
-          if (!(sku in otherStockMap)) otherStockMap[sku] = 0;
-
           if (whId === targetWarehouseId) {
             warehouseStockMap[sku] += present;
-          } else {
-            otherStockMap[sku] += present;
           }
         });
       }
@@ -121,18 +116,11 @@ function getStocksByWarehouseFBS() {
   const stocksForWarehouse = skuRaw.map(sku =>
     sku && sku !== "" && Number(sku) > 0 ? [warehouseStockMap[sku.toString().trim()] || 0] : [""]
   );
-  const stocksOtherWarehouses = skuRaw.map(sku =>
-    sku && sku !== "" && Number(sku) > 0 ? [otherStockMap[sku.toString().trim()] || 0] : [""]
-  );
-
   // Запись данных
-  sheet.getRange(2, 7, stocksOtherWarehouses.length, 1).setValues(stocksOtherWarehouses); // G (7) - Остаток ФБС ОЗОН
   sheet.getRange(2, 8, stocksForWarehouse.length, 1).setValues(stocksForWarehouse);       // H (8) - ОСТ ФБС МСК ОЗОН
 
   const withWarehouseStock = Object.keys(warehouseStockMap).filter(k => warehouseStockMap[k] > 0).length;
-  const withOtherStock = Object.keys(otherStockMap).filter(k => otherStockMap[k] > 0).length;
 
-  Logger.log(`✅ G (7) Остаток ФБС ОЗОН: ${withOtherStock} товаров с остатками`);
   Logger.log(`✅ H (8) ОСТ ФБС МСК ОЗОН: ${withWarehouseStock} товаров с остатками`);
   Logger.log("✅ Завершено");
 }

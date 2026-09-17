@@ -64,19 +64,12 @@ These run on local servers or machines to update Google Sheets via the API:
 ## 🚀 DEVELOPMENT & DEPLOYMENT WORKFLOW
 
 ### Google Apps Script Workflow:
-1. **Never edit Apps Script directly** in the browser. Always modify the local `.js` file in your repository first.
-2. The autonomous LaunchAgent `com.voltmir.checksheets-github-sync` polls GitHub `main` every 120 seconds, synchronizes the local checkout, commits stable local changes, pushes GitHub, and runs `clasp push` when an Apps Script file changed.
-3. `.claspignore` is the upload boundary: local Python, Node helpers, tests/runtime files, logs, service-account files, and unrelated credentials must not be uploaded to Apps Script. Keys used by this Google Sheets/Apps Script project may be part of the agreed Apps Script source/configuration and may be passed or tested there.
-4. The watcher verifies every Apps Script push by pulling into a temporary directory and comparing hashes; it does not overwrite the working tree during read-back.
-5. Provide upload instructions following this format when delivering changes:
-    ```text
-    📋 ФАЙЛЫ ДЛЯ ЗАГРУЗКИ В APPS SCRIPT:
-    ЗАМЕНИТЬ:
-    1. ИмяФайла.js — описание изменения
-    ВЫПОЛНИТЬ ПОСЛЕ ЗАГРУЗКИ:
-    functionName() — описание
-    ```
-3. Test your changes by triggering execution directly in the Google Apps Script IDE and monitoring logs under **View → Logs**.
+1. **Never edit Apps Script directly** in the browser. Codex edits the local `.js` files, verifies the changes, and uploads them to the bound project with `clasp push`; the user does not manually replace script files.
+2. Before pushing, inspect `clasp status` and `.claspignore`, preserve a backup, and verify the uploaded project by pulling it into a temporary directory and comparing the tracked files. Report the push and verification result to the user.
+3. The autonomous LaunchAgent `com.voltmir.checksheets-github-sync` still synchronizes the checkout with GitHub `main` and can perform an automatic `clasp push`. Coordinate with its lock/state so a direct push and a watcher run do not race.
+4. `.claspignore` is the upload boundary: local Python, Node helpers, tests/runtime files, logs, service-account files, and unrelated credentials must not be uploaded to Apps Script. Keys used by this Google Sheets/Apps Script project may be part of the agreed Apps Script source/configuration and may be passed or tested there.
+5. When delivering changes, list the files changed and the functions that need a manual run, if any. Do not give the user manual file replacement instructions.
+6. Test changed behavior with a focused execution in the Google Apps Script IDE when safe, and inspect **Executions** or **View → Logs**.
 
 ### Python Stock Synchronization Workflow:
 1. Python dependencies should be maintained in a virtual environment (`.venv-etm-export`).
