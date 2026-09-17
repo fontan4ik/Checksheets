@@ -21,6 +21,11 @@ const {
   sendFbsMultiWarehouseReport,
 } = require("./telegram_notifier");
 const { createWbStockAudit } = require("./wb_stock_audit");
+const {
+  STREAM_SUPPS_HEADERS,
+  normalizeStreamSuppsHeader,
+  resolveStreamSuppsColumns,
+} = require("./stream_supps_schema");
 
 const SPREADSHEET_ID = process.env.CHECKSHEETS_SPREADSHEET_ID ||
   "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
@@ -30,11 +35,11 @@ const RS_OZON_WAREHOUSE_ID = 1020005005049870;
 const RS_WB_WAREHOUSE_ID = 798761;
 
 const RS_COLUMNS = {
-  offer_id: { header: "Артикул продавца", fallback: 1 },
-  brand: { header: "бренд", fallback: 4 },
-  chrt_id: { headers: ["chrtid", "chrlid"], fallback: 7 },
-  stock: { header: "резерв", fallback: 23 },
-  wb_stock: { header: "wb вольтмир итог", fallback: 29 },
+  offer_id: STREAM_SUPPS_HEADERS.offerId,
+  brand: STREAM_SUPPS_HEADERS.brand,
+  chrt_id: STREAM_SUPPS_HEADERS.chrtId,
+  stock: STREAM_SUPPS_HEADERS.reserve,
+  wb_stock: STREAM_SUPPS_HEADERS.wbVoltmirTotal,
 };
 
 const OZON_API_URL = "https://api-seller.ozon.ru";
@@ -54,10 +59,6 @@ const POSTCHECK_RETRY_DELAY_MS = Number.isFinite(configuredPostcheckRetryDelay) 
 
 function text(value) {
   return String(value ?? "").trim();
-}
-
-function normalizeHeader(value) {
-  return text(value).toLowerCase().replace(/ё/g, "е");
 }
 
 function columnLetter(column) {
@@ -85,7 +86,7 @@ function log(message) {
 function normalizeMarketplaceStock(value, brand) {
   const stock = Math.trunc(Number(value));
   if (!Number.isFinite(stock) || stock < 0) return 0;
-  const isArlight = normalizeHeader(brand) === "arlight";
+  const isArlight = normalizeStreamSuppsHeader(brand) === "arlight";
   return stock === 1 && !isArlight ? 0 : stock;
 }
 
@@ -97,21 +98,10 @@ function normalizeChrtId(value) {
 }
 
 function resolveColumns(headers) {
-  const normalized = new Map();
-  headers.forEach((header, index) => {
-    const key = normalizeHeader(header);
-    if (key) normalized.set(key, (normalized.get(key) || []).concat(index + 1));
+  const result = resolveStreamSuppsColumns(headers, RS_COLUMNS, SHEET_NAME);
+  Object.entries(result).forEach(([field, column]) => {
+    log(`🔍 Схема RS: ${field} → ${columnLetter(column)}:${headers[column - 1]}`);
   });
-
-  const result = {};
-  for (const [field, definition] of Object.entries(RS_COLUMNS)) {
-    const candidates = (definition.headers || [definition.header])
-      .map(normalizeHeader)
-      .flatMap((header) => normalized.get(header) || []);
-    result[field] = candidates[0] || definition.fallback;
-    const visible = headers[result[field] - 1] || definition.header || definition.headers.join(" / ");
-    log(`🔍 Схема RS: ${field} → ${columnLetter(result[field])}:${visible}`);
-  }
   return result;
 }
 
@@ -172,8 +162,8 @@ async function readRsStocksFromSheet(sheets) {
     wb_stock: `${columnLetter(columns.wb_stock)}:${headers[columns.wb_stock - 1] || "WB ВОЛЬТМИР ИТОГ"}`,
   };
   log(`📊 Прочитано ${stocks.length} товаров из листа «${SHEET_NAME}»`);
-  log(`   Остаток 1 обнулён: ${stocks.filter((item) => item.original_stock === 1 && normalizeHeader(item.brand) !== "arlight").length}`);
-  log(`   Arlight с остатком 1 сохранён: ${stocks.filter((item) => item.original_stock === 1 && normalizeHeader(item.brand) === "arlight").length}`);
+  log(`   Остаток 1 обнулён: ${stocks.filter((item) => item.original_stock === 1 && normalizeStreamSuppsHeader(item.brand) !== "arlight").length}`);
+  log(`   Arlight с остатком 1 сохранён: ${stocks.filter((item) => item.original_stock === 1 && normalizeStreamSuppsHeader(item.brand) === "arlight").length}`);
   log(`   С chrtId: ${stocks.filter((item) => normalizeChrtId(item.chrt_id)).length}`);
   log(`🧾 WB snapshot: readAt=${stocks.snapshotReadAt}, sources=${JSON.stringify(stocks.wbSourceColumns)}`);
   return stocks;

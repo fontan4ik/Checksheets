@@ -4,6 +4,10 @@ const path = require("path");
 const crypto = require("crypto");
 const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsBroadcastReport } = require("./telegram_notifier");
 const { createWbStockAudit } = require("./wb_stock_audit");
+const {
+  STREAM_SUPPS_HEADERS,
+  resolveStreamSuppsColumns,
+} = require("./stream_supps_schema");
 
 const SHEET_NAME = "StreamSupps";
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
@@ -11,15 +15,13 @@ const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const ETM_TR_OZON_WAREHOUSE = 1020005000689690;
 const ETM_TR_WB_WAREHOUSE = 798761; // Updated to correct WB warehouse ID
 
-const ETM_TR_COLS = {
-  ARTICUL: 1,
-  BRAND: 4, // D — бренд; Arlight разрешено передавать с остатком 1
-  CHRLID: 7,
-  STOCK: 19, // S — ЭТМ САМАРА после добавления StreamSupps!H
-  WB_STOCK: 29, // AC — сумма N + S + W для WB «ВольтМир»
+const ETM_TR_SCHEMA = {
+  articul: STREAM_SUPPS_HEADERS.offerId,
+  brand: STREAM_SUPPS_HEADERS.brand,
+  chrlid: "chrlid",
+  stock: STREAM_SUPPS_HEADERS.etmSmr,
+  wbStock: STREAM_SUPPS_HEADERS.wbVoltmirTotal,
 };
-
-const WB_VOLTMIR_STOCK_HEADER = "WB ВОЛЬТМИР ИТОГ";
 
 function normalizeMarketplaceStock(value, brand) {
   const stock = Math.trunc(Number(value));
@@ -181,22 +183,19 @@ async function readETMTRPUStabilitySnapshot(auth) {
   const sheets = google.sheets({ version: "v4", auth });
   const response = await withGoogleSheetsRetry("снимок стабильности", () => sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A:${columnLetter(ETM_TR_COLS.WB_STOCK)}`,
+    range: `${SHEET_NAME}`,
     majorDimension: "ROWS",
     valueRenderOption: "UNFORMATTED_VALUE",
   }));
 
   const allRows = response.data.values || [];
-  const headers = (allRows[0] || []).map((value) => String(value || "").trim().toLowerCase());
-  const findCol = (name, fallback) => {
-    const index = headers.indexOf(name.toLowerCase());
-    return index >= 0 ? index + 1 : fallback;
-  };
-  const colArticul = findCol("артикул продавца", ETM_TR_COLS.ARTICUL);
-  const colBrand = findCol("бренд", ETM_TR_COLS.BRAND);
-  const colChrlid = findCol("chrlid", ETM_TR_COLS.CHRLID);
-  const colStock = findCol("этм самара", ETM_TR_COLS.STOCK);
-  const colWbStock = findCol(WB_VOLTMIR_STOCK_HEADER, ETM_TR_COLS.WB_STOCK);
+  const headers = allRows[0] || [];
+  const columns = resolveStreamSuppsColumns(headers, ETM_TR_SCHEMA, SHEET_NAME);
+  const colArticul = columns.articul;
+  const colBrand = columns.brand;
+  const colChrlid = columns.chrlid;
+  const colStock = columns.stock;
+  const colWbStock = columns.wbStock;
   const rows = allRows.slice(1);
   const hash = crypto.createHash("sha256");
   let rowCount = 0;
@@ -254,7 +253,7 @@ async function waitForETMTRPUStability(auth) {
   let attempt = 0;
 
   log(
-    `⏳ Ждём стабильности StreamSupps!S/AC: ${requiredReads} одинаковых снимка, интервал ${Math.round(intervalMs / 1000)} сек, максимум ${Math.round(maxWaitMs / 60000)} мин`,
+    `⏳ Ждём стабильности StreamSupps!«${ETM_TR_SCHEMA.stock}»/«${ETM_TR_SCHEMA.wbStock}»: ${requiredReads} одинаковых снимка, интервал ${Math.round(intervalMs / 1000)} сек, максимум ${Math.round(maxWaitMs / 60000)} мин`,
   );
 
   while (Date.now() <= deadline) {
@@ -280,7 +279,7 @@ async function waitForETMTRPUStability(auth) {
     );
 
     if (stableReads >= requiredReads) {
-      log("✅ StreamSupps!S/AC стабильны, начинаем синхронизацию маркетплейсов");
+      log(`✅ StreamSupps!«${ETM_TR_SCHEMA.stock}»/«${ETM_TR_SCHEMA.wbStock}» стабильны, начинаем синхронизацию маркетплейсов`);
       return snapshot;
     }
 
@@ -288,7 +287,7 @@ async function waitForETMTRPUStability(auth) {
   }
 
   throw new Error(
-    `StreamSupps!S/AC не стабилизировались за ${Math.round(maxWaitMs / 60000)} мин; marketplace sync остановлен`,
+    `StreamSupps!«${ETM_TR_SCHEMA.stock}»/«${ETM_TR_SCHEMA.wbStock}» не стабилизировались за ${Math.round(maxWaitMs / 60000)} мин; marketplace sync остановлен`,
   );
 }
 
@@ -307,31 +306,21 @@ async function readETMStocksFromSheet(auth) {
     return [];
   }
 
-  const headers = (headersResp.data.values?.[0] || []).map((h) =>
-    String(h).trim().toLowerCase(),
-  );
-
-  const findCol = (name, fallback) => {
-    const idx = headers.indexOf(name.toLowerCase());
-    return idx >= 0 ? idx + 1 : fallback;
-  };
-
-  const colArticul = findCol("артикул продавца", ETM_TR_COLS.ARTICUL);
-  const colBrand = findCol("бренд", ETM_TR_COLS.BRAND);
-  const colChrlid = findCol("chrlid", ETM_TR_COLS.CHRLID);
-  // После вставки StreamSupps!H трансляция «ЭТМ САМАРА» находится в S.
-  const colStock = findCol("этм самара", ETM_TR_COLS.STOCK);
-  const colWbStock = findCol(WB_VOLTMIR_STOCK_HEADER, ETM_TR_COLS.WB_STOCK);
+  const headers = headersResp.data.values?.[0] || [];
+  const columns = resolveStreamSuppsColumns(headers, ETM_TR_SCHEMA, SHEET_NAME);
+  const colArticul = columns.articul;
+  const colBrand = columns.brand;
+  const colChrlid = columns.chrlid;
+  const colStock = columns.stock;
+  const colWbStock = columns.wbStock;
 
   log(
-    `🔍 Колонки: Артикул=${columnLetter(colArticul)}(${colArticul}), Бренд=${columnLetter(colBrand)}(${colBrand}), chrlid=${columnLetter(colChrlid)}(${colChrlid}), ЭТМ САМАРА=${columnLetter(colStock)}(${colStock}), ${WB_VOLTMIR_STOCK_HEADER}=${columnLetter(colWbStock)}(${colWbStock})`,
+    `🔍 Колонки: Артикул=${columnLetter(colArticul)}(${colArticul}), Бренд=${columnLetter(colBrand)}(${colBrand}), chrlid=${columnLetter(colChrlid)}(${colChrlid}), ЭТМ САМАРА=${columnLetter(colStock)}(${colStock}), ${ETM_TR_SCHEMA.wbStock}=${columnLetter(colWbStock)}(${colWbStock})`,
   );
-
-  const maxCol = Math.max(colArticul, colBrand, colChrlid, colStock, colWbStock);
 
   const dataResp = await withGoogleSheetsRetry("чтение остатков", () => sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A:${columnLetter(maxCol)}`,
+    range: `${SHEET_NAME}`,
     majorDimension: "ROWS",
   }));
 
@@ -376,7 +365,7 @@ async function readETMStocksFromSheet(auth) {
   log(`   С chrlid: ${stocks.filter((s) => s.chrlid).length}`);
 
   stocks.snapshotReadAt = new Date().toISOString();
-  stocks.wbSourceColumn = `${columnLetter(colWbStock)}:${headers[colWbStock - 1] || WB_VOLTMIR_STOCK_HEADER}`;
+  stocks.wbSourceColumn = `${columnLetter(colWbStock)}:${headers[colWbStock - 1] || ETM_TR_SCHEMA.wbStock}`;
   log(`🧾 WB snapshot: readAt=${stocks.snapshotReadAt}, source=${stocks.wbSourceColumn}`);
 
   return stocks;

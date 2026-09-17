@@ -57,11 +57,12 @@ def test_etm_writer_no_longer_targets_legacy_feron_column():
 def test_wb_ekb_target_is_configured_for_feron_translation():
     source = SYNC_FERON_JS.read_text(encoding="utf-8")
     assert 'const SHEET_NAME = "StreamSupps"' in source
-    assert 'marketplace_stock_msk: "ПОДОРОЖНИК ФБС"' in source
-    assert 'marketplace_stock_smr: "ФЕРОН ФБС"' in source
-    assert 'marketplace_stock_nsb: "НОВОСИБИРСК ФЕРОН"' in source
-    assert 'marketplace_stock_ekb: "ЕКБ Ферон"' in source
-    assert 'wb_voltmir_stock: "WB ВОЛЬТМИР ИТОГ"' in source
+    assert 'marketplace_stock_msk: STREAM_SUPPS_HEADERS.podorozhnikFbs' in source
+    assert 'marketplace_stock_smr: STREAM_SUPPS_HEADERS.feronFbs' in source
+    assert 'marketplace_stock_nsb: STREAM_SUPPS_HEADERS.feronNsbFbs' in source
+    assert 'marketplace_stock_ekb: STREAM_SUPPS_HEADERS.feronEkbFbs' in source
+    assert 'wb_voltmir_stock: STREAM_SUPPS_HEADERS.wbVoltmirTotal' in source
+    assert 'resolveStreamSuppsColumns(headers, FERON_TR_SCHEMA, SHEET_NAME)' in source
     assert "EKB: 1860503" in source
     assert 'name: "Екатеринбург"' in source
     assert 'col: "stock_ekb"' in source

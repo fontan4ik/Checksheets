@@ -1,6 +1,10 @@
 const { google } = require("googleapis");
 const axios = require("axios");
 const path = require("path");
+const {
+  STREAM_SUPPS_HEADERS,
+  resolveStreamSuppsColumns,
+} = require("./stream_supps_schema");
 
 const SHEET_NAME = "StreamSupps";
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
@@ -8,9 +12,9 @@ const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const ETM_TR_OZON_WAREHOUSE = 1020005000689690;
 const ETM_TR_WB_WAREHOUSE = 798761;
 
-const ETM_TR_COLS = {
-  ARTICUL: 1,
-  CHRLID: 7,
+const ETM_TR_SCHEMA = {
+  articul: STREAM_SUPPS_HEADERS.offerId,
+  chrlid: "chrlid",
 };
 
 const RPS = 10;
@@ -74,22 +78,14 @@ async function readETMItemsFromSheet(auth) {
     valueRenderOption: "UNFORMATTED_VALUE",
   });
 
-  const headers = (headersResp.data.values?.[0] || []).map((h) =>
-    String(h).trim().toLowerCase(),
-  );
-
-  const findCol = (name, fallback) => {
-    const idx = headers.indexOf(name.toLowerCase());
-    return idx >= 0 ? idx + 1 : fallback;
-  };
-
-  const colArticul = findCol("артикул продавца", ETM_TR_COLS.ARTICUL);
-  const colChrlid = findCol("chrlid", ETM_TR_COLS.CHRLID);
-  const maxCol = Math.max(colArticul, colChrlid);
+  const headers = headersResp.data.values?.[0] || [];
+  const columns = resolveStreamSuppsColumns(headers, ETM_TR_SCHEMA, SHEET_NAME);
+  const colArticul = columns.articul;
+  const colChrlid = columns.chrlid;
 
   const dataResp = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A:${String.fromCharCode(64 + maxCol)}`,
+    range: `${SHEET_NAME}`,
     majorDimension: "ROWS",
   });
 

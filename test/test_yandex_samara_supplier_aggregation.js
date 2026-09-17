@@ -44,8 +44,9 @@ assert.throws(() => sandbox.parseSamaraSupplierYnxStock_('1.5', 'TEST', 'A'));
 
 const sourceBrandSheet = {
   getLastRow() { return 3; },
+  getLastColumn() { return 4; },
   getRange() {
-    return { getDisplayValues() { return [['A', '', '', 'Arlight'], ['B', '', '', 'Feron']]; } };
+    return { getDisplayValues() { return [['Артикул продавца', '', '', 'brand'], ['A', '', '', 'Arlight'], ['B', '', '', 'Feron']]; } };
   },
 };
 assert.deepStrictEqual(
@@ -70,9 +71,12 @@ assert.deepStrictEqual(
   ],
 );
 
-assert(source.includes("{ sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 14 }"));
-assert(source.includes("{ sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 19 }"));
-assert(source.includes("{ sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 23 }"));
+assert(source.includes("const SAMARA_SUPPLIER_YNX_SOURCE_KEY_HEADER = 'Артикул продавца';"));
+assert(source.includes("const SAMARA_SUPPLIER_YNX_SOURCE_BRAND_HEADER = 'brand';"));
+assert(!source.includes('keyColumn: 1'));
+assert(!source.includes('stockColumn: 14'));
+assert(!source.includes('stockColumn: 19'));
+assert(!source.includes('stockColumn: 23'));
 assert(source.includes('SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGN_NAME'));
 assert(!source.includes('SAMARA_SUPPLIER_YNX_CAMPAIGN_NAME_FOR_LOG_'));
 assert(source.includes('58480133'));

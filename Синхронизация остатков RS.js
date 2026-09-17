@@ -21,17 +21,17 @@ const RS_OZON_WAREHOUSE_ID = 1020005005049870;  // Резерв
 const RS_WB_WAREHOUSE_ID = 798761;              // ВольтМир
 
 
-// Фоллбек колонки (если заголовки не найдены)
-const RS_COL_VENDOR_CODE = 2; // B - Модель
-const RS_COL_ARTICUL = 1;     // A - Артикул (offer_id Ozon)
-const RS_COL_BRAND = 4;       // D - Бренд; Arlight разрешено передавать с остатком 1
-const RS_COL_CHRT_ID = 7;     // G - chrlid (WB)
-const RS_API_COL_MODEL = 2;   // B - Артикул производителя (formula)
-const RS_API_COL_STOCK = 22;  // V - RS SMR после добавления StreamSupps!H
-const RS_COL_STOCK_API = 6;   // F - legacy Остаток АПИ
-const RS_COL_COOLING = 7;     // G - Охлад
-const RS_COL_ROUNDED = 23;    // W - РЕЗЕРВ (Stock для выгрузки)
-const RS_COL_WB_STOCK = 29;   // AC - WB ВОЛЬТМИР ИТОГ (N + S + W)
+const RS_API_SCHEMA = {
+  model: "Артикул производителя",
+  stockApi: "RS SMR",
+};
+const RS_MARKETPLACE_SCHEMA = {
+  offerId: "Артикул продавца",
+  brand: "brand",
+  chrtId: "chrlid",
+  reserve: "РЕЗЕРВ",
+  wbStock: "WB ВОЛЬТМИР ИТОГ",
+};
 
 // Задержки пост-проверки Ozon (из sync-etm-stocks.js)
 const RS_OZON_POSTCHECK_DELAY_MS = 30000;       // 30 сек перед первой пост-проверкой
@@ -63,26 +63,10 @@ function updateRSStocksInSheet() {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return;
 
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn())
-    .getValues()[0]
-    .map(value => String(value || "").trim().toLowerCase());
-  const findRequiredApiCol = name => {
-    const normalizedName = name.toLowerCase();
-    const matches = headers
-      .map((header, index) => header === normalizedName ? index + 1 : 0)
-      .filter(Boolean);
-    if (matches.length !== 1) {
-      throw new Error(
-        `Лист "${RS_API_SHEET_NAME}": заголовок "${name}" должен быть ровно один; найдено ${matches.length}`
-      );
-    }
-    return matches[0];
-  };
-  const colModel = findRequiredApiCol("артикул производителя");
-  const colStockApi = findRequiredApiCol("rs smr");
-  if (headers[colStockApi - 1] === "fr") {
-    throw new Error(`Лист "${RS_API_SHEET_NAME}": колонка FR доступна только для чтения`);
-  }
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const apiColumns = resolveStreamSuppsColumns(headers, RS_API_SCHEMA, RS_API_SHEET_NAME);
+  const colModel = apiColumns.model;
+  const colStockApi = apiColumns.stockApi;
 
   const models = sheet.getRange(2, colModel, lastRow - 1, 1).getValues().flat();
 
@@ -175,21 +159,15 @@ function readRSStocksFromSheet() {
     return [];
   }
 
-  // Динамически ищем колонки по заголовкам (1-я строка)
+  // Все логические колонки StreamSupps разрешаются только по заголовкам.
   const lastCol = sheet.getLastColumn();
-  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
-
-  // Функция для поиска колонки (возвращает 1-based индекс, или fallback)
-  const findCol = (name, fallback) => {
-    const idx = headers.indexOf(name.toLowerCase());
-    return idx >= 0 ? idx + 1 : fallback;
-  };
-
-  const dynamicColOfferId = findCol("артикул продавца", RS_COL_ARTICUL);
-  const dynamicColBrand = findCol("бренд", RS_COL_BRAND);
-  const dynamicColChrtId = findCol("chrtid", RS_COL_CHRT_ID) || findCol("chrlid", RS_COL_CHRT_ID);
-  const dynamicColStock = findCol("резерв", RS_COL_ROUNDED);
-  const dynamicColWbStock = findCol("wb вольтмир итог", RS_COL_WB_STOCK);
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const columns = resolveStreamSuppsColumns(headers, RS_MARKETPLACE_SCHEMA, RS_SHEET_NAME);
+  const dynamicColOfferId = columns.offerId;
+  const dynamicColBrand = columns.brand;
+  const dynamicColChrtId = columns.chrtId;
+  const dynamicColStock = columns.reserve;
+  const dynamicColWbStock = columns.wbStock;
 
   Logger.log(`🔍 Колонки: Артикул=${dynamicColOfferId}, Бренд=${dynamicColBrand}, chrtId=${dynamicColChrtId}, Остаток=${dynamicColStock}, WB ВОЛЬТМИР ИТОГ=${dynamicColWbStock}`);
 

@@ -12,7 +12,7 @@ const ZERO_OUT_SHEET_NAME = "StreamSupps";
 const ZERO_OUT_OZON_WH_NAME = "ФЕРОН ФБС"; // Целевой склад Ozon для обнуления
 
 // Фоллбек колонки (если заголовки не найдены)
-const ZERO_OUT_COL_OFFER_ID = 1;     // A - Артикул (offer_id Ozon)
+const ZERO_OUT_OFFER_ID_HEADER = "Артикул продавца";
 
 // ============================================
 // ОСНОВНАЯ ФУНКЦИЯ ОБНУЛЕНИЯ ОСТАТКОВ
@@ -38,9 +38,13 @@ function zeroOutOzonStocks() {
     return;
   }
 
-  // Динамический поиск колонки Артикул
-  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h).trim().toLowerCase());
-  const colOfferId = headers.indexOf("артикул продавца") + 1 || ZERO_OUT_COL_OFFER_ID;
+  // Строгое сопоставление по заголовку; fallback по номеру колонки запрещён.
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const colOfferId = resolveStreamSuppsColumns(
+    headers,
+    { offerId: ZERO_OUT_OFFER_ID_HEADER },
+    ZERO_OUT_SHEET_NAME,
+  ).offerId;
 
   const offerIds = sheet.getRange(2, colOfferId, lastRow - 1, 1).getValues().flat();
 

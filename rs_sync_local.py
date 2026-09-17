@@ -385,8 +385,8 @@ def sync_rs():
     # Обновляем сырой остаток RS. Производные колонки StreamSupps!V и
     # маркетплейсные трансляции заполняются отдельным контуром.
     try:
-        gsheets_utils.clear_column_at_index(ws, columns["stock_api"])
-        gsheets_utils.update_column(ws, columns["stock_api"], results_stock)
+        gsheets_utils.clear_column(ws, "RS SMR")
+        gsheets_utils.update_column_by_header(ws, "RS SMR", results_stock)
         print("Stock API updated successfully!")
     except Exception as e:
         update_errors.append(f"stock column: {e}")
@@ -409,4 +409,3 @@ if __name__ == "__main__":
         except Exception:
             pass
         raise SystemExit(1)
-

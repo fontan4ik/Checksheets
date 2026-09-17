@@ -2,9 +2,9 @@
  * Самарские остатки поставщиков → UNIT YNX → Яндекс Маркет «ВольтМир FBS».
  *
  * Источники:
- * - StreamSupps!N: ФЕРОН ФБС;
- * - StreamSupps!S: ЭТМ САМАРА;
- * - StreamSupps!W: РЕЗЕРВ.
+ * - StreamSupps!«ФЕРОН ФБС»;
+ * - StreamSupps!«ЭТМ САМАРА»;
+ * - StreamSupps!«РЕЗЕРВ».
  *
  * Результат:
  * - UNIT YNX: новый контрольный столбец «TR YA FBS»;
@@ -22,20 +22,14 @@
 const SAMARA_SUPPLIER_YNX_SPREADSHEET_ID = '15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI';
 const SAMARA_SUPPLIER_YNX_TARGET_SHEET = 'UNIT YNX';
 const SAMARA_SUPPLIER_YNX_SOURCE_SHEET = 'StreamSupps';
-const SAMARA_SUPPLIER_YNX_SOURCE_KEY_COLUMN = 1;   // A — артикул
-const SAMARA_SUPPLIER_YNX_SOURCE_BRAND_COLUMN = 4; // D — бренд
+const SAMARA_SUPPLIER_YNX_SOURCE_KEY_HEADER = 'Артикул продавца';
+const SAMARA_SUPPLIER_YNX_SOURCE_BRAND_HEADER = 'brand';
 const SAMARA_SUPPLIER_YNX_TARGET_KEY_HEADER = 'art';
 const SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER = 'TR YA FBS';
 const SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGN_ID = 58480133;
 const SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGN_NAME = 'ВольтМир FBS';
 const SAMARA_SUPPLIER_YNX_YANDEX_CAMPAIGNS_URL = 'https://api.partner.market.yandex.ru/v2/campaigns';
 const SAMARA_SUPPLIER_YNX_YANDEX_BATCH_SIZE = 2000;
-
-const SAMARA_SUPPLIER_YNX_SOURCES = [
-  { sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 14 }, // N — ФЕРОН ФБС
-  { sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 19 }, // S — ЭТМ САМАРА
-  { sheetName: 'StreamSupps', keyColumn: 1, stockColumn: 23 }  // W — РЕЗЕРВ
-];
 
 function verifyYandexSamaraSupplierConfiguration() {
   const apiKey = YANDEX_MARKET_API_KEY();
@@ -178,7 +172,7 @@ function readSamaraSupplierYnxFormulaSummary_(sheet) {
   if (sheet.getLastRow() < 2) throw new Error('UNIT YNX: нет строк для формульного остатка.');
 
   const formula = String(sheet.getRange(2, stockColumn).getFormula() || '');
-  const formulaMarkers = ['ARRAYFORMULA', 'SUMIF', 'StreamSupps', '$N$2:$N', '$S$2:$S', '$W$2:$W'];
+  const formulaMarkers = ['ARRAYFORMULA', 'SUMIF', 'StreamSupps'];
   if (!formula || formulaMarkers.some(function(marker) { return formula.indexOf(marker) === -1; })) {
     throw new Error('UNIT YNX!«' + SAMARA_SUPPLIER_YNX_TARGET_STOCK_HEADER +
       '»: в первой строке данных нет ожидаемой формулы поставщиков.');
@@ -255,13 +249,17 @@ function aggregateSamaraSupplierMaps_(targetKeys, feronMap, etmMap, rsMap) {
 function readSamaraSupplierYnxBrandMap_(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return {};
-  const width = Math.max(SAMARA_SUPPLIER_YNX_SOURCE_KEY_COLUMN, SAMARA_SUPPLIER_YNX_SOURCE_BRAND_COLUMN);
-  const values = sheet.getRange(2, 1, lastRow - 1, width).getDisplayValues();
+  const lastColumn = Math.max(1, sheet.getLastColumn());
+  const values = sheet.getRange(1, 1, lastRow, lastColumn).getDisplayValues();
+  const columns = {
+    key: findSamaraSupplierYnxHeader_(values[0], SAMARA_SUPPLIER_YNX_SOURCE_KEY_HEADER),
+    brand: findSamaraSupplierYnxHeader_(values[0], SAMARA_SUPPLIER_YNX_SOURCE_BRAND_HEADER),
+  };
   const result = {};
-  values.forEach(function(row) {
-    const sku = String(row[SAMARA_SUPPLIER_YNX_SOURCE_KEY_COLUMN - 1] || '').trim();
+  values.slice(1).forEach(function(row) {
+    const sku = String(row[columns.key - 1] || '').trim();
     if (!sku) return;
-    result[sku] = String(row[SAMARA_SUPPLIER_YNX_SOURCE_BRAND_COLUMN - 1] || '').trim();
+    result[sku] = String(row[columns.brand - 1] || '').trim();
   });
   return result;
 }

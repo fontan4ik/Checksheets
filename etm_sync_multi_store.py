@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 from xml.etree import ElementTree as ET
 
-import gspread
 import requests
 
 import config
@@ -1469,13 +1468,6 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
     etm_columns = gsheets_utils.resolve_header_columns(
         all_data[0], ETM_TR_SCHEMA, STREAM_SUPPS_SHEET_NAME
     )
-    col_stock_nsb = etm_columns["stock_nsb"]
-    col_stock_smr = etm_columns["stock_smr"]
-    # FR is an input-only column.  Validate the resolved targets immediately
-    # before any direct gspread update so a future schema change cannot hit it.
-    gsheets_utils.assert_writable_column(ws, col_stock_nsb)
-    gsheets_utils.assert_writable_column(ws, col_stock_smr)
-
     computed = compute_sheet_values(
         all_data, etm_columns["etm_code"], nsb_bundle, smr_bundle
     )
@@ -1500,11 +1492,9 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
 
     wrote_any = False
     if nsb_bundle["records"] > 0:
-        nsb_range = (
-            f"{gspread.utils.rowcol_to_a1(2, col_stock_nsb)}:"
-            f"{gspread.utils.rowcol_to_a1(1 + len(computed['nsb_results']), col_stock_nsb)}"
+        gsheets_utils.update_column_by_header(
+            ws, ETM_TR_SCHEMA["stock_nsb"], computed["nsb_results"]
         )
-        update_sheet_range_with_retry(ws, nsb_range, computed["nsb_results"])
         state["nsb"] = {
             "files": nsb_files,
             "processed_at": datetime.now(timezone.utc).isoformat(),
@@ -1514,11 +1504,9 @@ def sync(process_mode=FTP_PROCESS_MODE, dry_run=False, force=False):
         logging.info("Novosibirsk values were not written because no records were parsed")
 
     if smr_bundle["records"] > 0:
-        smr_range = (
-            f"{gspread.utils.rowcol_to_a1(2, col_stock_smr)}:"
-            f"{gspread.utils.rowcol_to_a1(1 + len(computed['smr_results']), col_stock_smr)}"
+        gsheets_utils.update_column_by_header(
+            ws, ETM_TR_SCHEMA["stock_smr"], computed["smr_results"]
         )
-        update_sheet_range_with_retry(ws, smr_range, computed["smr_results"])
         state["smr"] = {
             "files": smr_files,
             "processed_at": datetime.now(timezone.utc).isoformat(),

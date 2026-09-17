@@ -4,6 +4,10 @@ const fs = require("fs");
 const path = require("path");
 const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsMultiWarehouseReport, sendFbsBroadcastReport } = require("./telegram_notifier");
 const { createWbStockAudit } = require("./wb_stock_audit");
+const {
+  STREAM_SUPPS_HEADERS,
+  resolveStreamSuppsColumns,
+} = require("./stream_supps_schema");
 
 const SHEET_NAME = "StreamSupps";
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
@@ -24,13 +28,14 @@ const FERON_TR_WB_WAREHOUSE = {
 };
 
 const FERON_TR_SCHEMA = {
-  vendor_code: "Артикул продавца",
-  ozon_sku: "SKU OZON",
-  marketplace_stock_msk: "ПОДОРОЖНИК ФБС",
-  marketplace_stock_smr: "ФЕРОН ФБС",
-  marketplace_stock_nsb: "НОВОСИБИРСК ФЕРОН",
-  marketplace_stock_ekb: "ЕКБ Ферон",
-  wb_voltmir_stock: "WB ВОЛЬТМИР ИТОГ",
+  vendor_code: STREAM_SUPPS_HEADERS.offerId,
+  brand: STREAM_SUPPS_HEADERS.brand,
+  ozon_sku: STREAM_SUPPS_HEADERS.ozonSku,
+  marketplace_stock_msk: STREAM_SUPPS_HEADERS.podorozhnikFbs,
+  marketplace_stock_smr: STREAM_SUPPS_HEADERS.feronFbs,
+  marketplace_stock_nsb: STREAM_SUPPS_HEADERS.feronNsbFbs,
+  marketplace_stock_ekb: STREAM_SUPPS_HEADERS.feronEkbFbs,
+  wb_voltmir_stock: STREAM_SUPPS_HEADERS.wbVoltmirTotal,
   chrt_id: "chrlid",
 };
 
@@ -100,31 +105,13 @@ async function readFeronStocksFromSheet(auth) {
     return [];
   }
 
-  const normalizeHeader = (value) => String(value || "")
-    .trim().toLowerCase().replaceAll("ё", "е");
-  const headerColumns = new Map();
-  headers.forEach((header, index) => {
-    const normalized = normalizeHeader(header);
-    if (!normalized) return;
-    const columns = headerColumns.get(normalized) || [];
-    columns.push(index + 1);
-    headerColumns.set(normalized, columns);
+  const columns = resolveStreamSuppsColumns(headers, FERON_TR_SCHEMA, SHEET_NAME);
+  Object.entries(columns).forEach(([field, column]) => {
+    log(`🔍 Схема: ${field} → '${headers[column - 1]}' → колонка ${column}`);
   });
-  const columns = {};
-  for (const [field, header] of Object.entries(FERON_TR_SCHEMA)) {
-    const matches = headerColumns.get(normalizeHeader(header)) || [];
-    if (matches.length === 0) {
-      throw new Error(`Лист ${SHEET_NAME}: заголовок '${header}' (${field}) не найден`);
-    }
-    if (matches.length !== 1) {
-      throw new Error(`Лист ${SHEET_NAME}: заголовок '${header}' (${field}) повторяется в колонках ${matches.join(", ")}`);
-    }
-    columns[field] = matches[0];
-    log(`🔍 Схема: ${field} → '${header}' → колонка ${matches[0]}`);
-  }
 
   const colVendor = columns.vendor_code;
-  const colBrand = 4; // StreamSupps!D — бренд
+  const colBrand = columns.brand;
   const colOzonSku = columns.ozon_sku;
   const colStockMsk = columns.marketplace_stock_msk;
   const colStockSmr = columns.marketplace_stock_smr;

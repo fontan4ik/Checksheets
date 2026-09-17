@@ -345,7 +345,6 @@ def sync_feron():
     total_non_zero_across_all = 0
     for wh_name, wh_id in warehouse_ids.items():
         field_name = FERON_STOCK_FIELD_BY_WAREHOUSE[wh_name]
-        col_num = columns[field_name]
             
         print(f"\nProcessing warehouse: {wh_name} (ID: {wh_id})")
         
@@ -375,8 +374,10 @@ def sync_feron():
         
         try:
             print(f"  - Updating Google Sheet header '{FERON_TR_SCHEMA[field_name]}' ({wh_name})...")
-            gsheets_utils.clear_column_at_index(ws, col_num)
-            gsheets_utils.update_column(ws, col_num, formatted_results)
+            gsheets_utils.clear_column(ws, FERON_TR_SCHEMA[field_name])
+            gsheets_utils.update_column_by_header(
+                ws, FERON_TR_SCHEMA[field_name], formatted_results
+            )
             print(f"  - OK: Warehouse {wh_name} updated successfully.")
         except Exception as e:
             print(f"  - ERROR: Failed to update {wh_name}: {e}")
@@ -403,4 +404,3 @@ if __name__ == "__main__":
         except Exception:
             pass
         raise SystemExit(1)
-

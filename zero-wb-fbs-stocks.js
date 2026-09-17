@@ -1,6 +1,7 @@
 const { google } = require("googleapis");
 const axios = require("axios");
 const path = require("path");
+const { resolveStreamSuppsColumns } = require("./stream_supps_schema");
 
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const BATCH_SIZE = 1000;
@@ -40,12 +41,12 @@ async function readChrtIds(sheets, source) {
     majorDimension: "ROWS",
   });
   const rows = response.data.values || [];
-  const headers = (rows[0] || []).map((value) => String(value || "")
-    .trim().toLowerCase().replaceAll("ё", "е"));
-  const column = headers.indexOf(source.chrtHeader);
-  if (column < 0) {
-    throw new Error(`${source.sheet}: не найден заголовок '${source.chrtHeader}'.`);
-  }
+  const headers = rows[0] || [];
+  const column = resolveStreamSuppsColumns(
+    headers,
+    { chrtId: source.chrtHeader },
+    source.sheet,
+  ).chrtId - 1;
   const ids = new Set();
   for (const row of rows.slice(1)) {
     const id = Number(row[column]);
