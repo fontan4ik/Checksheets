@@ -72,7 +72,10 @@ def resolve_header_columns(headers, schema, sheet_name="worksheet"):
 
     ``schema`` maps internal field names to their visible sheet headers.  A
     missing or duplicated header is an unsafe sheet layout, so this function
-    raises before any caller can clear or write data.
+    raises before any caller can clear or write data.  A duplicated header may
+    be selected only with an explicit ``{"header": name, "occurrence": N}``
+    definition; this keeps the exception visible and prevents silent selection
+    of the wrong duplicate.
     """
     normalized_to_columns = {}
     for column, header in enumerate(headers, start=1):

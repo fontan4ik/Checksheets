@@ -154,12 +154,14 @@ class EtmFtpFallbackTests(unittest.TestCase):
         self.assertEqual(etm.FTP_TIMEOUT, 300)
         self.assertEqual(etm.FTP_WAREHOUSE_RETRIES, 3)
 
-    def test_second_warehouse_maps_ftp_16_to_nsb_column(self):
-        self.assertEqual(etm.ETM_TR_SCHEMA["stock_nsb"], "ETM NSB")
+    def test_second_warehouse_maps_ftp_14_to_first_msk_column(self):
+        self.assertEqual(etm.ETM_TR_SCHEMA["stock_msk"]["header"], "ETM MSK")
+        self.assertEqual(etm.ETM_TR_SCHEMA["stock_msk"]["occurrence"], 1)
         self.assertEqual(etm.ETM_TR_SCHEMA["stock_smr"], "ETM SMR")
-        self.assertEqual(etm.WAREHOUSE_DIRS["nsb"]["remote_dir"], "/from_etm/16")
-        self.assertEqual(etm.WAREHOUSE_DIRS["nsb"]["header"], "stocks nsb")
-        self.assertEqual(etm.WAREHOUSE_DIRS["nsb"]["label"], "Novosibirsk")
+        self.assertEqual(etm.WAREHOUSE_DIRS["msk"]["remote_dir"], "/from_etm/14")
+        self.assertEqual(etm.WAREHOUSE_DIRS["msk"]["header"], "stocks msk")
+        self.assertEqual(etm.WAREHOUSE_DIRS["msk"]["label"], "Moscow")
+        self.assertNotIn("nsb", etm.WAREHOUSE_DIRS)
 
 
 if __name__ == "__main__":

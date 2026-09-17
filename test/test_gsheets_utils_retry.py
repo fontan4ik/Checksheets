@@ -101,6 +101,15 @@ class GSheetsRetryTests(unittest.TestCase):
                 "test",
             )
 
+    def test_explicit_duplicate_occurrence_resolves_requested_column(self):
+        columns = gsheets_utils.resolve_header_columns(
+            ["Артикул", "ETM MSK", "CODES", "ETM MSK"],
+            {"stock_msk": {"header": "ETM MSK", "occurrence": 1}},
+            "StreamSupps",
+        )
+
+        self.assertEqual(columns["stock_msk"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

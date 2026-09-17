@@ -50,7 +50,7 @@ def test_etm_writer_no_longer_targets_legacy_feron_column():
     source = ETM_SYNC_PY.read_text(encoding="utf-8")
     assert '"etm_code": "CODES"' in source
     assert '"stock_smr": "ETM SMR"' in source
-    assert '"stock_nsb": "ETM NSB"' in source
+    assert '"stock_msk": {"header": "ETM MSK", "occurrence": 1}' in source
     assert "stock_etm" not in source
 
 
