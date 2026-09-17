@@ -1,4 +1,4 @@
-"""Synchronize Arlight API stock into ``ARL TR!AC``.
+"""Synchronize Arlight API stock into ``ARL TR!F``.
 
 The supplier portal uses a login session rather than a permanent API token.
 The password is read from ``ARLIGHT_ASSETS_PASSWORD`` or from the macOS
@@ -31,9 +31,9 @@ ARLIGHT_KEYCHAIN_SERVICE = "checksheets-arlight-assets"
 
 SHEET_NAME = "ARL TR"
 ARTICLE_HEADER = "Артикул производителя"
-STOCK_HEADER = "Остаток АПИ"
+STOCK_HEADER = "Остаток"
 ARTICLE_COLUMN = 2  # B
-STOCK_COLUMN = 29  # AC
+STOCK_COLUMN = 6  # F
 
 MIN_API_ITEMS = max(1, int(os.getenv("ARLIGHT_MIN_API_ITEMS", "10000")))
 MIN_MATCH_RATE = float(os.getenv("ARLIGHT_MIN_MATCH_RATE", "0.90"))
@@ -241,7 +241,7 @@ def fetch_arlight_stocks() -> dict[str, int | float]:
 def build_stock_values(
     articles: list[Any], stock_by_article: dict[str, int | float]
 ) -> tuple[list[list[int | float | str]], MatchStats]:
-    """Build row-aligned AC values; missing API articles safely become zero."""
+    """Build row-aligned F values; missing API articles safely become zero."""
     values: list[list[int | float | str]] = []
     nonempty = matched = not_found = positive = zero = 0
 
@@ -284,14 +284,14 @@ def sync_arlight(*, dry_run: bool = False) -> MatchStats:
     worksheet = gsheets_utils.get_worksheet(SHEET_NAME)
     columns = gsheets_utils.get_header_columns(
         worksheet,
-        {"article": ARTICLE_HEADER, "stock_api": STOCK_HEADER},
+        {"article": ARTICLE_HEADER, "stock": STOCK_HEADER},
         SHEET_NAME,
     )
-    if columns["article"] != ARTICLE_COLUMN or columns["stock_api"] != STOCK_COLUMN:
+    if columns["article"] != ARTICLE_COLUMN or columns["stock"] != STOCK_COLUMN:
         raise RuntimeError(
             f"Unsafe ARL TR layout: expected {ARTICLE_HEADER!r} in B and "
-            f"{STOCK_HEADER!r} in AC, got columns "
-            f"{columns['article']} and {columns['stock_api']}. Sheet write aborted."
+            f"{STOCK_HEADER!r} in F, got columns "
+            f"{columns['article']} and {columns['stock']}. Sheet write aborted."
         )
 
     row_count = int(worksheet.row_count)
@@ -322,23 +322,23 @@ def sync_arlight(*, dry_run: bool = False) -> MatchStats:
         )
 
     if dry_run:
-        print("DRY RUN: AC was not changed")
+        print("DRY RUN: F was not changed")
         return stats
 
     gsheets_utils.update_column(
         worksheet,
-        columns["stock_api"],
+        columns["stock"],
         values,
         start_row=2,
     )
-    print(f"Updated {SHEET_NAME}!AC2:AC{row_count}")
+    print(f"Updated {SHEET_NAME}!F2:F{row_count}")
     print("ARLIGHT API STOCK SYNCHRONIZATION COMPLETED")
     return stats
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Synchronize Arlight API stock to ARL TR column AC"
+        description="Synchronize Arlight API stock to ARL TR column F"
     )
     parser.add_argument(
         "--dry-run",

@@ -54,6 +54,10 @@ class ParsePricePayloadTests(unittest.TestCase):
 
 
 class BuildStockValuesTests(unittest.TestCase):
+    def test_writes_to_the_regular_stock_column(self):
+        self.assertEqual(arlight_sync_local.STOCK_HEADER, "Остаток")
+        self.assertEqual(arlight_sync_local.STOCK_COLUMN, 6)
+
     def test_preserves_row_alignment_and_zeros_missing_articles(self):
         values, stats = arlight_sync_local.build_stock_values(
             ["A-1", "", " A-2 ", "OLD"],
