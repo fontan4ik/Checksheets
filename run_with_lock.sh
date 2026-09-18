@@ -41,9 +41,8 @@ fi
 # Create lock file
 echo $$ > "$LOCK_FILE"
 
-# ETM, Feron, RS and CDEK write marketplace stocks and must never overlap.
-# Unlike the per-job lock above, this shared lock waits instead of skipping,
-# so concurrently triggered launchd jobs form a sequential queue.
+# Legacy supplier upload entrypoints share a lock. The scheduled marketplace
+# workers use their own per-marketplace locks and do not enter this queue.
 case "$SCRIPT_NAME" in
     sync_etm_stocks|sync_feron_stocks|sync_rs_stocks)
         WAIT_LOGGED=0
@@ -96,7 +95,7 @@ case "$SCRIPT_NAME" in
     etm_sync)
         /opt/homebrew/bin/python3 etm_sync_multi_store.py >> "$LOG_FILE" 2>&1
         EXIT_CODE=$?
-        echo "[$(date)] etm_sync finished with exit code $EXIT_CODE. sync_etm_stocks remains on its own hourly launchd schedule." >> "$LOG_FILE"
+        echo "[$(date)] etm_sync finished with exit code $EXIT_CODE. Marketplace uploads run on their twice-daily schedules." >> "$LOG_FILE"
         ;;
     sync_etm_codes)
         echo "[$(date)] sync_etm_codes disabled: CODES are no longer written" >> "$LOG_FILE"
