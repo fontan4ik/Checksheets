@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.checksheets.etm_sync</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/run_with_lock.sh</string>
+		<string>etm_sync</string>
+	</array>
+	<key>StandardErrorPath</key>
+	<string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/etm_sync_launchd.err</string>
+	<key>StandardOutPath</key>
+	<string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/etm_sync_launchd.log</string>
+	<key>StartCalendarInterval</key>
+	<array>
+		<dict>
+			<key>Hour</key>
+			<integer>11</integer>
+			<key>Minute</key>
+			<integer>10</integer>
+		</dict>
+		<dict>
+			<key>Hour</key>
+			<integer>12</integer>
+			<key>Minute</key>
+			<integer>10</integer>
+		</dict>
+		<dict>
+			<key>Hour</key>
+			<integer>13</integer>
+			<key>Minute</key>
+			<integer>10</integer>
+		</dict>
+		<dict>
+			<key>Hour</key>
+			<integer>14</integer>
+			<key>Minute</key>
+			<integer>10</integer>
+		</dict>
+		<dict>
+			<key>Hour</key>
+			<integer>22</integer>
+			<key>Minute</key>
+			<integer>55</integer>
+		</dict>
+	</array>
+</dict>
+</plist>
