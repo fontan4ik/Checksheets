@@ -124,6 +124,11 @@ case "$SCRIPT_NAME" in
             FIRST_EXIT_CODE=$?
             echo "[$(date)] sync-cdek-stocks.js finished with exit code $FIRST_EXIT_CODE"
 
+            if [ "$FIRST_EXIT_CODE" -ne 0 ]; then
+                echo "[$(date)] CDEK source refresh failed; marketplace upload skipped"
+                exit 1
+            fi
+
             echo "[$(date)] Waiting 60 seconds before sync-cdek-ozon-stocks.js"
             /bin/sleep 60
 

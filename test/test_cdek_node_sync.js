@@ -96,6 +96,32 @@ async function testOzonRetry() {
   assert.strictEqual(sentStock, 1);
 }
 
+async function testYandexWarehouseAndUpload() {
+  const calls = [];
+  const httpClient = { post: async (url, body) => {
+    calls.push({ url, body });
+    if (url.endsWith('/warehouses')) {
+      return { data: { result: { warehouses: [
+        { id: 2456454, name: 'СДЭК МО', models: [{ placementType: 'DBS', apiAvailability: 'AVAILABLE' }] },
+      ] } } };
+    }
+    return { data: { status: 'OK' } };
+  }};
+  await ozon.verifyYandexWarehouse({}, httpClient);
+  assert.strictEqual(await ozon.uploadYandexStocks([
+    { offer_id: '022770-1', stock: 1 }, { offer_id: '022771-1', stock: 0 },
+  ], {}, httpClient), 2);
+  assert.strictEqual(calls[1].url, 'https://api.partner.market.yandex.ru/v3/businesses/813165/offers/stocks/update');
+  assert.deepStrictEqual(calls[1].body, { skuItems: [
+    { sku: '022770-1', partnerWarehouseId: 2456454, count: 1 },
+    { sku: '022771-1', partnerWarehouseId: 2456454, count: 0 },
+  ] });
+  await assert.rejects(ozon.verifyYandexWarehouse({}, { post: async () => ({ data: { result: { warehouses: [] } } }) }), /недоступен/);
+  await assert.rejects(ozon.uploadYandexStocks([{ offer_id: 'a', stock: 1 }], {}, {
+    post: async () => ({ data: { status: 'ERROR' } }),
+  }), /не принят/);
+}
+
 (async () => {
   await testCdekStockCalculation();
   testCdekBypassInterface();
@@ -104,6 +130,7 @@ async function testOzonRetry() {
   await testSheetInputValidation();
   testLegacyOzonCredentials();
   await testOzonRetry();
+  await testYandexWarehouseAndUpload();
   console.log("PASS test_cdek_node_sync");
 })().catch((error) => {
   console.error(error.stack || error.message);

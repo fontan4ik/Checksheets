@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /*
- * Локальная синхронизация «СДЕК TR» → Ozon FBS/rFBS склад «КГТ СДЭК».
+ * Локальная синхронизация «СДЕК TR» → Ozon «КГТ СДЭК» и Яндекс «СДЭК МО».
  *
  * Секреты передаются только окружением процесса:
  *   OZON_CLIENT_ID
  *   OZON_API_KEY
+ *   YANDEX_MARKET_API_KEY (или ключ из Shared_Настройки.js)
  */
 
 const path = require("path");
@@ -19,6 +20,12 @@ const SHEET_NAME = "СДЕК TR";
 const WAREHOUSE_ID = 1020002321437000;
 const WAREHOUSE_NAME = "КГТ СДЭК";
 const OZON_API_URL = "https://api-seller.ozon.ru";
+const YANDEX_BUSINESS_ID = 813165;
+const YANDEX_CAMPAIGN_ID = 149274319;
+const YANDEX_WAREHOUSE_ID = 2456454;
+const YANDEX_WAREHOUSE_NAME = "СДЭК МО";
+const YANDEX_API_URL = "https://api.partner.market.yandex.ru";
+const YANDEX_BATCH_SIZE = 2000;
 const BATCH_SIZE = 100;
 const REQUEST_INTERVAL_MS = 120;
 const MAX_RETRIES = 3;
@@ -76,6 +83,52 @@ function ozonHeaders() {
     "Client-Id": clientId,
     "Api-Key": apiKey,
   };
+}
+
+function yandexHeaders() {
+  let apiKey = text(process.env.YANDEX_MARKET_API_KEY);
+  if (!apiKey) {
+    const settings = fs.readFileSync(path.join(__dirname, "Shared_Настройки.js"), "utf8");
+    apiKey = text(settings.match(/const YANDEX_MARKET_API_KEY_VALUE\s*=\s*['"]([^'"]+)['"]/)?.[1]);
+  }
+  if (!apiKey) throw new Error("Не задан YANDEX_MARKET_API_KEY");
+  return { "Api-Key": apiKey, "Content-Type": "application/json" };
+}
+
+async function verifyYandexWarehouse(headers, httpClient = axios) {
+  const response = await postWithRetry(
+    `${YANDEX_API_URL}/v3/businesses/${YANDEX_BUSINESS_ID}/warehouses`,
+    {}, headers, 0, httpClient,
+  );
+  const matches = (response.data?.result?.warehouses || []).filter((warehouse) =>
+    Number(warehouse.id) === YANDEX_WAREHOUSE_ID && warehouse.name === YANDEX_WAREHOUSE_NAME,
+  );
+  if (matches.length !== 1 || !matches[0].models?.some((model) =>
+    model.placementType === "DBS" && model.apiAvailability === "AVAILABLE",
+  )) {
+    throw new Error(`Яндекс: склад «${YANDEX_WAREHOUSE_NAME}» (${YANDEX_WAREHOUSE_ID}) недоступен для DBS`);
+  }
+}
+
+async function uploadYandexStocks(stocks, headers, httpClient = axios) {
+  let uploaded = 0;
+  for (let start = 0; start < stocks.length; start += YANDEX_BATCH_SIZE) {
+    const batch = stocks.slice(start, start + YANDEX_BATCH_SIZE);
+    const response = await postWithRetry(
+      `${YANDEX_API_URL}/v3/businesses/${YANDEX_BUSINESS_ID}/offers/stocks/update`,
+      { skuItems: batch.map((item) => ({
+        sku: item.offer_id,
+        partnerWarehouseId: YANDEX_WAREHOUSE_ID,
+        count: numberStock(item.stock),
+      })) },
+      headers, 0, httpClient,
+    );
+    if (response.data?.status !== "OK") {
+      throw new Error(`Яндекс: батч ${Math.floor(start / YANDEX_BATCH_SIZE) + 1} не принят: ${JSON.stringify(response.data).slice(0, 300)}`);
+    }
+    uploaded += batch.length;
+  }
+  return uploaded;
 }
 
 function resolveColumns(headers) {
@@ -203,7 +256,6 @@ async function fetchOzonStocks(stocks, headers, httpClient = axios) {
 
 async function main() {
   const startedAt = Date.now();
-  const headers = ozonHeaders();
   const sheets = await createSheetsClient();
   const sourceStocks = await readCdekStocks(sheets);
   const zeroMode = process.argv.includes("--zero");
@@ -218,6 +270,8 @@ async function main() {
       mode: zeroMode ? "zero" : "sync",
       warehouse: WAREHOUSE_NAME,
       warehouseId: WAREHOUSE_ID,
+      yandexWarehouse: YANDEX_WAREHOUSE_NAME,
+      yandexWarehouseId: YANDEX_WAREHOUSE_ID,
       rows: stocks.length,
       positive,
       total,
@@ -225,12 +279,16 @@ async function main() {
     return;
   }
 
+  const headers = ozonHeaders();
+  const marketHeaders = yandexHeaders();
+  await verifyYandexWarehouse(marketHeaders);
   const updated = await uploadStocks(stocks, headers);
   await sleep(POSTCHECK_DELAY_MS);
   const actual = await fetchOzonStocks(stocks, headers);
   const mismatches = stocks.filter(
     (item) => (actual.get(item.offer_id) || 0) !== item.stock,
   );
+  const yandexUploaded = await uploadYandexStocks(stocks, marketHeaders);
 
   console.log(JSON.stringify({
     status: mismatches.length ? "partial" : "ok",
@@ -241,6 +299,9 @@ async function main() {
     positive,
     total,
     updated,
+    yandexWarehouse: YANDEX_WAREHOUSE_NAME,
+    yandexCampaignId: YANDEX_CAMPAIGN_ID,
+    yandexUploaded,
     mismatches: mismatches.length,
     durationSec: Math.round((Date.now() - startedAt) / 1000),
   }));
@@ -267,7 +328,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(async (error) => {
-    console.error(`CDEK → Ozon stock sync failed: HTTP ${error.response?.status || 0} ${error.message}`);
+    console.error(`CDEK → marketplaces stock sync failed: HTTP ${error.response?.status || 0} ${error.message}`);
     try {
       await sendTelegramAlert("sync-cdek-ozon-stocks", error.message, error.stack);
     } catch (tgErr) {
@@ -287,4 +348,6 @@ module.exports = {
   resolveColumns,
   uploadBatch,
   uploadStocks,
+  uploadYandexStocks,
+  verifyYandexWarehouse,
 };
