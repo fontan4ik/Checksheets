@@ -889,6 +889,8 @@ async function updateFeronStocksWB(stocks) {
 }
 
 async function main() {
+  const marketplace = process.argv.find((arg) => arg.startsWith("--marketplace="))?.split("=")[1] || "all";
+  if (!["all", "ozon", "wb"].includes(marketplace)) throw new Error(`Unknown marketplace: ${marketplace}`);
   console.log("============================================");
   console.log("🔄 СИНХРОНИЗАЦИЯ ОСТАТКОВ FERON (LOCAL)");
   console.log("============================================");
@@ -947,12 +949,13 @@ async function main() {
 
   log(``);
   log(`🟠 Шаг 2: Обновление остатков Ozon...`);
-  const { pendingChecks: ozonPendingChecks, ozonWarehouseStats } =
-    await updateFeronStocksOzon(stocks);
+  const { pendingChecks: ozonPendingChecks, ozonWarehouseStats } = marketplace !== "wb"
+    ? await updateFeronStocksOzon(stocks)
+    : { pendingChecks: [], ozonWarehouseStats: [] };
 
   log(``);
   log(`🟣 Шаг 3: Обновление остатков WB...`);
-  const wbWarehouseStats = await updateFeronStocksWB(stocks);
+  const wbWarehouseStats = marketplace !== "ozon" ? await updateFeronStocksWB(stocks) : [];
 
   if (ozonPendingChecks.length > 0) {
     log(``);
@@ -994,7 +997,7 @@ async function main() {
     const totalSku = stocks.length;
 
     // 1. Отчет по Ozon (Ферон)
-    await sendFbsMultiWarehouseReport({
+    if (marketplace !== "wb") await sendFbsMultiWarehouseReport({
       supplier: "Ферон",
       marketplace: "Ozon",
       totalSku,
@@ -1010,7 +1013,7 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 600));
 
     // 2. Отчет по WB (Ферон)
-    await sendFbsMultiWarehouseReport({
+    if (marketplace !== "ozon") await sendFbsMultiWarehouseReport({
       supplier: "Ферон",
       marketplace: "ВБ",
       totalSku,

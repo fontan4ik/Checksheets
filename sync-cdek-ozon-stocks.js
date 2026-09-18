@@ -257,6 +257,8 @@ async function fetchOzonStocks(stocks, headers, httpClient = axios) {
 }
 
 async function main() {
+  const marketplace = process.argv.find((arg) => arg.startsWith("--marketplace="))?.split("=")[1] || "all";
+  if (!["all", "ozon", "yandex"].includes(marketplace)) throw new Error(`Unknown marketplace: ${marketplace}`);
   const startedAt = Date.now();
   const sheets = await createSheetsClient();
   const sourceStocks = await readCdekStocks(sheets);
@@ -282,15 +284,18 @@ async function main() {
     return;
   }
 
-  const headers = ozonHeaders();
-  const updated = await uploadStocks(stocks, headers);
-  await sleep(POSTCHECK_DELAY_MS);
-  const actual = await fetchOzonStocks(stocks, headers);
-  const mismatches = stocks.filter(
-    (item) => (actual.get(item.offer_id) || 0) !== item.stock,
-  );
+  let updated = 0;
+  let actual = new Map();
+  let mismatches = [];
+  if (marketplace !== "yandex") {
+    const headers = ozonHeaders();
+    updated = await uploadStocks(stocks, headers);
+    await sleep(POSTCHECK_DELAY_MS);
+    actual = await fetchOzonStocks(stocks, headers);
+    mismatches = stocks.filter((item) => (actual.get(item.offer_id) || 0) !== item.stock);
+  }
   let yandexUploaded = 0;
-  if (YANDEX_SYNC_ENABLED) {
+  if (YANDEX_SYNC_ENABLED && marketplace !== "ozon") {
     const marketHeaders = yandexHeaders();
     await verifyYandexWarehouse(marketHeaders);
     yandexUploaded = await uploadYandexStocks(stocks, marketHeaders);
@@ -316,7 +321,7 @@ async function main() {
   try {
     const marketplaceStockSku = [...actual.values()].filter((v) => v > 0).length;
     const marketplaceTotalPieces = [...actual.values()].reduce((sum, v) => sum + v, 0);
-    await sendFbsWarehouseReport({
+    if (marketplace !== "yandex") await sendFbsWarehouseReport({
       marketplace: "Ozon",
       warehouseName: WAREHOUSE_NAME,
       totalSku: stocks.length,

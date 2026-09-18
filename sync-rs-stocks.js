@@ -473,7 +473,8 @@ async function updateRsStocksWb(stocks) {
   return { activeSku: valid.filter((item) => item.wb_stock > 0).length, successCount, skippedCount, errorCount };
 }
 
-async function main({ dryRun = false, skipPostcheck = false } = {}) {
+async function main({ dryRun = false, skipPostcheck = false, marketplace = "all" } = {}) {
+  if (!["all", "ozon", "wb"].includes(marketplace)) throw new Error(`Unknown marketplace: ${marketplace}`);
   const startedAt = Date.now();
   log("============================================");
   log("🔄 СИНХРОНИЗАЦИЯ ОСТАТКОВ RS (LOCAL)");
@@ -499,15 +500,15 @@ async function main({ dryRun = false, skipPostcheck = false } = {}) {
     return;
   }
 
-  const ozonStats = await updateRsStocksOzon(stocks);
-  const ozonMoscowStats = await updateRsStocksOzon(stocks, {
+  const ozonStats = marketplace !== "wb" ? await updateRsStocksOzon(stocks) : null;
+  const ozonMoscowStats = marketplace !== "wb" ? await updateRsStocksOzon(stocks, {
     warehouseId: RS_OZON_MOSCOW_WAREHOUSE_ID,
     stockField: "stock_moscow",
     label: "Ozon RS Москва",
-  });
-  const wbStats = await updateRsStocksWb(stocks);
+  }) : null;
+  const wbStats = marketplace !== "ozon" ? await updateRsStocksWb(stocks) : null;
   let postcheck = { mismatches: [], stats: { sheetPositiveCount: stocks.filter((item) => item.stock > 0).length, marketplacePositiveCount: null, marketplaceTotalPieces: null } };
-  if (!skipPostcheck) {
+  if (!skipPostcheck && marketplace !== "wb") {
     log(`⏳ Ожидание ${POSTCHECK_DELAY_MS / 1000} сек перед Ozon post-check...`);
     await sleep(POSTCHECK_DELAY_MS);
     postcheck = await verifyRsOzonStocks(stocks);
@@ -520,7 +521,7 @@ async function main({ dryRun = false, skipPostcheck = false } = {}) {
 
   const durationSec = Math.round((Date.now() - startedAt) / 1000);
   try {
-    await sendFbsMultiWarehouseReport({
+    if (marketplace !== "wb") await sendFbsMultiWarehouseReport({
       supplier: "RS",
       marketplace: "Ozon",
       totalSku: stocks.length,
@@ -530,7 +531,7 @@ async function main({ dryRun = false, skipPostcheck = false } = {}) {
       ],
       durationSec,
     });
-    await sendFbsMultiWarehouseReport({
+    if (marketplace !== "ozon") await sendFbsMultiWarehouseReport({
       supplier: "RS",
       marketplace: "ВБ",
       totalSku: stocks.length,
@@ -540,14 +541,15 @@ async function main({ dryRun = false, skipPostcheck = false } = {}) {
   } catch (error) {
     log(`⚠️ Не удалось поставить сводку RS в Telegram: ${error.message || error}`);
   }
-  log(`✅ RS local sync завершён за ${durationSec} сек. Ozon RS: ${ozonStats.successCount} ok, Ozon Москва: ${ozonMoscowStats.successCount} ok, WB: ${wbStats.successCount} ok`);
+  log(`✅ RS local sync завершён за ${durationSec} сек. Ozon RS: ${ozonStats?.successCount ?? "-"} ok, Ozon Москва: ${ozonMoscowStats?.successCount ?? "-"} ok, WB: ${wbStats?.successCount ?? "-"} ok`);
   return { stocks, ozonStats, ozonMoscowStats, wbStats, postcheck, durationSec };
 }
 
 if (require.main === module) {
   const dryRun = process.argv.includes("--dry-run");
   const skipPostcheck = process.argv.includes("--skip-postcheck");
-  main({ dryRun, skipPostcheck }).catch(async (error) => {
+  const marketplace = process.argv.find((arg) => arg.startsWith("--marketplace="))?.split("=")[1] || "all";
+  main({ dryRun, skipPostcheck, marketplace }).catch(async (error) => {
     console.error(`❌ Ошибка RS local sync: ${error.stack || error}`);
     try {
       await sendTelegramAlert("sync_rs_stocks", error.message || String(error), error.stack || null);

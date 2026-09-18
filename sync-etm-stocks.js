@@ -1270,6 +1270,8 @@ async function repairETMWBMismatches(stocks, initialMismatches) {
 }
 
 async function main() {
+  const marketplace = process.argv.find((arg) => arg.startsWith("--marketplace="))?.split("=")[1] || "all";
+  if (!["all", "ozon", "wb"].includes(marketplace)) throw new Error(`Unknown marketplace: ${marketplace}`);
   console.log("============================================");
   console.log("🔄 СИНХРОНИЗАЦИЯ ОСТАТКОВ ETM ИЗ StreamSupps (LOCAL)");
   console.log("============================================");
@@ -1330,13 +1332,16 @@ async function main() {
 
   log("");
   log("🟠 Шаг 2: Обновление остатков Ozon (ЭТМ САМАРА)...");
-  const ozonPendingMismatches = await updateETMStocksOzon(stocks);
+  const ozonPendingMismatches = marketplace !== "wb" ? await updateETMStocksOzon(stocks) : [];
 
   log("");
   log("🟣 Шаг 3: Обновление остатков WB (ВольтМир)...");
-  await updateETMStocksWB(stocks);
+  if (marketplace !== "ozon") await updateETMStocksWB(stocks);
 
   log("");
+  let ozonStats;
+  let wbStats;
+  if (marketplace !== "wb") {
   log(
     `🟠 Шаг 4: Финальная полная перепроверка Ozon после завершения WB; первичных расхождений было ${ozonPendingMismatches.length}`,
   );
@@ -1348,14 +1353,17 @@ async function main() {
   );
   const finalOzonMismatches = await verifyETMOzonStocks(stocks);
   const remainingOzonMismatches = await repairETMOzonMismatches(stocks, finalOzonMismatches);
-  const ozonStats = remainingOzonMismatches?.stats || finalOzonMismatches?.stats;
+  ozonStats = remainingOzonMismatches?.stats || finalOzonMismatches?.stats;
+  }
 
   log("");
+  if (marketplace !== "ozon") {
   log("🟣 Шаг 5: Ожидание 15 минут перед финальным WB post-check...");
   await new Promise((resolve) => setTimeout(resolve, 15 * 60 * 1000));
   const finalWBMismatches = await verifyETMWBStocks(stocks);
   const remainingWBMismatches = await repairETMWBMismatches(stocks, finalWBMismatches);
-  const wbStats = remainingWBMismatches?.stats || finalWBMismatches?.stats;
+  wbStats = remainingWBMismatches?.stats || finalWBMismatches?.stats;
+  }
 
   const endTime = new Date();
   const duration = Math.round((endTime - startTime) / 1000);
@@ -1372,7 +1380,7 @@ async function main() {
     const wbActive = wbStats?.sheetPositiveCount ?? stocks.filter((s) => s.chrlid && s.wb_stock > 0).length;
 
     // 1. Отчет по Ozon (склад «ЭТМ САМАРА»)
-    await sendFbsWarehouseReport({
+    if (marketplace !== "wb") await sendFbsWarehouseReport({
       marketplace: "Ozon",
       warehouseName: "ЭТМ САМАРА",
       totalSku,
@@ -1385,7 +1393,7 @@ async function main() {
     await new Promise((resolve) => setTimeout(resolve, 600));
 
     // 2. Отчет по WB (склад «ВольтМир»)
-    await sendFbsWarehouseReport({
+    if (marketplace !== "ozon") await sendFbsWarehouseReport({
       marketplace: "ВБ",
       warehouseName: "ВольтМир",
       totalSku,

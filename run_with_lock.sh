@@ -45,7 +45,7 @@ echo $$ > "$LOCK_FILE"
 # Unlike the per-job lock above, this shared lock waits instead of skipping,
 # so concurrently triggered launchd jobs form a sequential queue.
 case "$SCRIPT_NAME" in
-    sync_etm_stocks|sync_feron_stocks|sync_rs_stocks|cdek_hourly_sync)
+    sync_etm_stocks|sync_feron_stocks|sync_rs_stocks)
         WAIT_LOGGED=0
         while ! mkdir "$MARKETPLACE_LOCK_DIR" 2>/dev/null; do
             MARKETPLACE_PID=""
@@ -115,32 +115,7 @@ case "$SCRIPT_NAME" in
         EXIT_CODE=$?
         ;;
     cdek_hourly_sync)
-        (
-            FIRST_EXIT_CODE=0
-            SECOND_EXIT_CODE=0
-
-            echo "[$(date)] Starting sync-cdek-stocks.js"
-            /opt/homebrew/bin/node sync-cdek-stocks.js
-            FIRST_EXIT_CODE=$?
-            echo "[$(date)] sync-cdek-stocks.js finished with exit code $FIRST_EXIT_CODE"
-
-            if [ "$FIRST_EXIT_CODE" -ne 0 ]; then
-                echo "[$(date)] CDEK source refresh failed; marketplace upload skipped"
-                exit 1
-            fi
-
-            echo "[$(date)] Waiting 60 seconds before sync-cdek-ozon-stocks.js"
-            /bin/sleep 60
-
-            echo "[$(date)] Starting sync-cdek-ozon-stocks.js"
-            /opt/homebrew/bin/node sync-cdek-ozon-stocks.js
-            SECOND_EXIT_CODE=$?
-            echo "[$(date)] sync-cdek-ozon-stocks.js finished with exit code $SECOND_EXIT_CODE"
-
-            if [ "$FIRST_EXIT_CODE" -ne 0 ] || [ "$SECOND_EXIT_CODE" -ne 0 ]; then
-                exit 1
-            fi
-        ) >> "$LOG_FILE" 2>&1
+        /opt/homebrew/bin/node sync-cdek-stocks.js >> "$LOG_FILE" 2>&1
         EXIT_CODE=$?
         ;;
     *)
