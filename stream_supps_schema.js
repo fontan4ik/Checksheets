@@ -39,7 +39,16 @@ function resolveStreamSuppsColumns(headers, schema, sheetName = "StreamSupps") {
   const columns = {};
 
   Object.entries(schema).forEach(([field, definition]) => {
-    const names = Array.isArray(definition) ? definition : [definition];
+    const isOccurrenceDefinition = definition && !Array.isArray(definition) && typeof definition === "object";
+    const names = isOccurrenceDefinition
+      ? [definition.header]
+      : (Array.isArray(definition) ? definition : [definition]);
+    const occurrence = isOccurrenceDefinition ? Number(definition.occurrence || 1) : null;
+    if (occurrence !== null && (!Number.isInteger(occurrence) || occurrence < 1)) {
+      throw new Error(
+        `Лист "${sheetName}": для поля "${field}" указано некорректное occurrence: ${definition.occurrence}`,
+      );
+    }
     const wanted = new Set(names.map(normalizeStreamSuppsHeader));
     const matches = normalizedHeaders
       .map((header, index) => wanted.has(header) ? index + 1 : 0)
@@ -49,6 +58,16 @@ function resolveStreamSuppsColumns(headers, schema, sheetName = "StreamSupps") {
       throw new Error(
         `Лист "${sheetName}": для поля "${field}" не найден заголовок "${names.join(" / ")}"`,
       );
+    }
+    if (occurrence !== null) {
+      if (matches.length < occurrence) {
+        throw new Error(
+          `Лист "${sheetName}": заголовок для поля "${field}" найден ${matches.length} раз(а), ` +
+          `но требуется occurrence ${occurrence}`,
+        );
+      }
+      columns[field] = matches[occurrence - 1];
+      return;
     }
     if (matches.length !== 1) {
       throw new Error(

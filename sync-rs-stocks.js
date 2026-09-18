@@ -40,7 +40,9 @@ const RS_COLUMNS = {
   brand: STREAM_SUPPS_HEADERS.brand,
   chrt_id: STREAM_SUPPS_HEADERS.chrtId,
   stock: STREAM_SUPPS_HEADERS.reserve,
-  stock_moscow: "РУССКИЙ СВЕТ МОСКВА",
+  // В StreamSupps есть legacy-дубликат этого заголовка в AE; X — заполненная
+  // формулами колонка, поэтому выбираем её явно как первое вхождение.
+  stock_moscow: { header: "РУССКИЙ СВЕТ МОСКВА", occurrence: 1 },
   wb_stock: STREAM_SUPPS_HEADERS.wbVoltmirTotal,
 };
 
