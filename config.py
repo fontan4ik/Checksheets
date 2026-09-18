@@ -14,6 +14,7 @@ RS_LOGIN = "ntc-es1"
 RS_PASSWORD = "4XK69YO0"
 RS_BASE_URL = "https://cdis.russvet.ru/rs"
 RS_WAREHOUSE_ID = 287
+RS_MSK_WAREHOUSE_ID = 14030
 # Feron API Settings
 FERON_API_KEY = "server ZjA5MDg3MTAtNjQ5ZS00ODU5LWJjNjktY2NkY2E1ZDdlNjUx"
 FERON_BASE_URL = "https://api.feron.ru"

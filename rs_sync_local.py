@@ -288,6 +288,7 @@ def sync_rs():
             {
                 "model": "Артикул производителя",
                 "stock_api": "RS SMR",
+                "stock_msk": "RS MSK",
             },
             config.RS_SHEET_NAME,
         )
@@ -296,7 +297,7 @@ def sync_rs():
         return
 
     models = ws.col_values(columns["model"])[1:]  # Пропускаем заголовок
-    print(f"Found {len(models)} models in header 'Модель'")
+    print(f"Found {len(models)} models in header 'Артикул производителя'")
 
     # Покажем несколько первых моделей для понимания формата
     print(f"First 10 models: {models[:10]}")
@@ -304,9 +305,15 @@ def sync_rs():
     # Получаем карту кодов и остатки
     code_map = fetch_rs_code_map(config.RS_WAREHOUSE_ID)
     all_stocks = fetch_all_rs_stocks(config.RS_WAREHOUSE_ID)
+    msk_code_map = fetch_rs_code_map(config.RS_MSK_WAREHOUSE_ID)
+    msk_stocks = fetch_all_rs_stocks(config.RS_MSK_WAREHOUSE_ID)
+
+    if not code_map or not all_stocks or not msk_code_map or not msk_stocks:
+        raise RuntimeError("RS API returned an empty catalog or stock response; sheet was not updated")
 
     # Подготовим результаты
     results_stock = []
+    results_msk_stock = []
 
     # Счетчики для отладки
     total_processed = 0
@@ -319,6 +326,7 @@ def sync_rs():
 
         if not model:
             results_stock.append([0])
+            results_msk_stock.append([0])
             continue
 
         stock = 0
@@ -339,6 +347,9 @@ def sync_rs():
             if variant in code_map:
                 rs_code = code_map[variant]
                 break
+
+        msk_code = next((msk_code_map[variant] for variant in search_variants if variant in msk_code_map), None)
+        results_msk_stock.append([msk_stocks.get(msk_code, 0) if msk_code else 0])
 
         if rs_code:
             stock = all_stocks.get(rs_code, 0)
@@ -387,7 +398,9 @@ def sync_rs():
     try:
         gsheets_utils.clear_column(ws, "RS SMR")
         gsheets_utils.update_column_by_header(ws, "RS SMR", results_stock)
-        print("Stock API updated successfully!")
+        gsheets_utils.clear_column(ws, "RS MSK")
+        gsheets_utils.update_column_by_header(ws, "RS MSK", results_msk_stock)
+        print("RS SMR and RS MSK updated successfully!")
     except Exception as e:
         update_errors.append(f"stock column: {e}")
         print(f"Error updating stock column after retries: {e}")
