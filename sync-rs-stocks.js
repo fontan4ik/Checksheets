@@ -6,8 +6,8 @@
  * Получение сырого остатка RS (колонка «RS SMR») остаётся в
  * rs_sync_local.py. Этот скрипт переносит marketplace-часть
  * «Синхронизация остатков RS.js» по образцу sync-feron-stocks.js:
- * он читает рассчитанные колонки «РЕЗЕРВ» и «WB ВОЛЬТМИР ИТОГ» и
- * выгружает их на фиксированные склады RS.
+ * он читает рассчитанные колонки «РЕЗЕРВ», «РУССКИЙ СВЕТ МОСКВА» и
+ * «WB ВОЛЬТМИР ИТОГ» и выгружает их на фиксированные склады RS.
  */
 
 const path = require("path");
@@ -32,6 +32,7 @@ const SPREADSHEET_ID = process.env.CHECKSHEETS_SPREADSHEET_ID ||
 const SHEET_NAME = "StreamSupps";
 
 const RS_OZON_WAREHOUSE_ID = 1020005005049870;
+const RS_OZON_MOSCOW_WAREHOUSE_ID = 1020005030719640;
 const RS_WB_WAREHOUSE_ID = 798761;
 
 const RS_COLUMNS = {
@@ -39,6 +40,7 @@ const RS_COLUMNS = {
   brand: STREAM_SUPPS_HEADERS.brand,
   chrt_id: STREAM_SUPPS_HEADERS.chrtId,
   stock: STREAM_SUPPS_HEADERS.reserve,
+  stock_moscow: "РУССКИЙ СВЕТ МОСКВА",
   wb_stock: STREAM_SUPPS_HEADERS.wbVoltmirTotal,
 };
 
@@ -145,14 +147,17 @@ async function readRsStocksFromSheet(sheets) {
 
     const brand = text(row[columns.brand - 1]);
     const originalStock = Math.max(0, Math.trunc(Number(row[columns.stock - 1]) || 0));
+    const originalMoscowStock = Math.max(0, Math.trunc(Number(row[columns.stock_moscow - 1]) || 0));
     const originalWbStock = Math.max(0, Math.trunc(Number(row[columns.wb_stock - 1]) || 0));
     stocks.push({
       offer_id: offerId,
       brand,
       chrt_id: row[columns.chrt_id - 1],
       stock: normalizeMarketplaceStock(originalStock, brand),
+      stock_moscow: normalizeMarketplaceStock(originalMoscowStock, brand),
       wb_stock: normalizeMarketplaceStock(originalWbStock, brand),
       original_stock: originalStock,
+      original_moscow_stock: originalMoscowStock,
       original_wb_stock: originalWbStock,
     });
   }
@@ -163,6 +168,7 @@ async function readRsStocksFromSheet(sheets) {
   };
   log(`📊 Прочитано ${stocks.length} товаров из листа «${SHEET_NAME}»`);
   log(`   Остаток 1 обнулён: ${stocks.filter((item) => item.original_stock === 1 && normalizeStreamSuppsHeader(item.brand) !== "arlight").length}`);
+  log(`   RS Москва с остатком > 0: ${stocks.filter((item) => item.stock_moscow > 0).length}`);
   log(`   Arlight с остатком 1 сохранён: ${stocks.filter((item) => item.original_stock === 1 && normalizeStreamSuppsHeader(item.brand) === "arlight").length}`);
   log(`   С chrtId: ${stocks.filter((item) => normalizeChrtId(item.chrt_id)).length}`);
   log(`🧾 WB snapshot: readAt=${stocks.snapshotReadAt}, sources=${JSON.stringify(stocks.wbSourceColumns)}`);
@@ -223,21 +229,25 @@ async function sendOzonStocksBatch(batch, warehouseId, retry = 0) {
   }
 }
 
-async function updateRsStocksOzon(stocks) {
+async function updateRsStocksOzon(
+  stocks,
+  { warehouseId = RS_OZON_WAREHOUSE_ID, stockField = "stock", label = "Ozon RS" } = {},
+) {
   const valid = stocks.filter((item) => item.offer_id);
   const batches = Math.ceil(valid.length / BATCH_SIZE_OZON);
   let lastRequestAt = Date.now() - 1000 / OZON_RPS;
   let successCount = 0;
   let errorCount = 0;
 
-  log(`🟠 Ozon RS: ${valid.length} товаров, склад ${RS_OZON_WAREHOUSE_ID}`);
+  log(`🟠 ${label}: ${valid.length} товаров, склад ${warehouseId}`);
   for (let index = 0; index < batches; index += 1) {
     lastRequestAt = await rateLimit(lastRequestAt, OZON_RPS);
-    const batch = valid.slice(index * BATCH_SIZE_OZON, (index + 1) * BATCH_SIZE_OZON);
-    const result = await sendOzonStocksBatch(batch, RS_OZON_WAREHOUSE_ID);
+    const batch = valid.slice(index * BATCH_SIZE_OZON, (index + 1) * BATCH_SIZE_OZON)
+      .map((item) => ({ ...item, stock: item[stockField] }));
+    const result = await sendOzonStocksBatch(batch, warehouseId);
     if (!result.ok) {
       errorCount += batch.length;
-      log(`❌ Ozon RS: ошибка пачки ${index + 1}/${batches}: ${result.code} ${result.text || ""}`);
+      log(`❌ ${label}: ошибка пачки ${index + 1}/${batches}: ${result.code} ${result.text || ""}`);
       continue;
     }
 
@@ -251,9 +261,9 @@ async function updateRsStocksOzon(stocks) {
         else errorCount += 1;
       }
     }
-    log(`✅ Ozon RS: пачка ${index + 1}/${batches} обработана (${batch.length} товаров)`);
+    log(`✅ ${label}: пачка ${index + 1}/${batches} обработана (${batch.length} товаров)`);
   }
-  log(`🟠 Ozon RS: ✅ ${successCount} обновлено, ❌ ${errorCount} ошибок`);
+  log(`🟠 ${label}: ✅ ${successCount} обновлено, ❌ ${errorCount} ошибок`);
   return { successCount, errorCount };
 }
 
@@ -283,10 +293,15 @@ async function fetchOzonStocksByOfferIds(offerIds, warehouseId, retry = 0) {
   }
 }
 
-async function verifyRsOzonStocks(stocks) {
-  const expected = stocks.filter((item) => item.offer_id);
+async function verifyRsOzonStocks(
+  stocks,
+  { warehouseId = RS_OZON_WAREHOUSE_ID, stockField = "stock", label = "RS" } = {},
+) {
+  const expected = stocks
+    .filter((item) => item.offer_id)
+    .map((item) => ({ ...item, stock: item[stockField] }));
   if (!expected.length) return { mismatches: [], stats: { sheetPositiveCount: 0, marketplacePositiveCount: 0, marketplaceTotalPieces: 0 } };
-  const actual = await fetchOzonStocksByOfferIds(expected.map((item) => item.offer_id), RS_OZON_WAREHOUSE_ID);
+  const actual = await fetchOzonStocksByOfferIds(expected.map((item) => item.offer_id), warehouseId);
   const mismatches = [];
   let marketplacePositiveCount = 0;
   let marketplaceTotalPieces = 0;
@@ -306,9 +321,9 @@ async function verifyRsOzonStocks(stocks) {
     marketplaceTotalPieces,
   };
   if (!mismatches.length) {
-    log(`✅ Ozon post-check RS: расхождений не найдено (${marketplacePositiveCount} SKU, ${marketplaceTotalPieces} шт.)`);
+    log(`✅ Ozon post-check ${label}: расхождений не найдено (${marketplacePositiveCount} SKU, ${marketplaceTotalPieces} шт.)`);
   } else {
-    log(`⚠️ Ozon post-check RS: найдено ${mismatches.length} расхождений`);
+    log(`⚠️ Ozon post-check ${label}: найдено ${mismatches.length} расхождений`);
     mismatches.slice(0, 10).forEach((item) => log(`   - ${item.offer_id}: sheet=${item.expected}, ozon=${item.actual}`));
   }
   return { mismatches, stats };
@@ -483,6 +498,11 @@ async function main({ dryRun = false, skipPostcheck = false } = {}) {
   }
 
   const ozonStats = await updateRsStocksOzon(stocks);
+  const ozonMoscowStats = await updateRsStocksOzon(stocks, {
+    warehouseId: RS_OZON_MOSCOW_WAREHOUSE_ID,
+    stockField: "stock_moscow",
+    label: "Ozon RS Москва",
+  });
   const wbStats = await updateRsStocksWb(stocks);
   let postcheck = { mismatches: [], stats: { sheetPositiveCount: stocks.filter((item) => item.stock > 0).length, marketplacePositiveCount: null, marketplaceTotalPieces: null } };
   if (!skipPostcheck) {
@@ -502,7 +522,10 @@ async function main({ dryRun = false, skipPostcheck = false } = {}) {
       supplier: "RS",
       marketplace: "Ozon",
       totalSku: stocks.length,
-      warehouses: [{ warehouseName: "RS (резерв)", activeSku: postcheck.stats.sheetPositiveCount, marketplaceStockSku: postcheck.stats.marketplacePositiveCount, marketplaceTotalPieces: postcheck.stats.marketplaceTotalPieces }],
+      warehouses: [
+        { warehouseName: "RS (резерв)", activeSku: postcheck.stats.sheetPositiveCount, marketplaceStockSku: postcheck.stats.marketplacePositiveCount, marketplaceTotalPieces: postcheck.stats.marketplaceTotalPieces },
+        { warehouseName: "РУССКИЙ СВЕТ МОСКВА", activeSku: stocks.filter((item) => item.stock_moscow > 0).length, marketplaceStockSku: null, marketplaceTotalPieces: null },
+      ],
       durationSec,
     });
     await sendFbsMultiWarehouseReport({
@@ -515,8 +538,8 @@ async function main({ dryRun = false, skipPostcheck = false } = {}) {
   } catch (error) {
     log(`⚠️ Не удалось поставить сводку RS в Telegram: ${error.message || error}`);
   }
-  log(`✅ RS local sync завершён за ${durationSec} сек. Ozon: ${ozonStats.successCount} ok, WB: ${wbStats.successCount} ok`);
-  return { stocks, ozonStats, wbStats, postcheck, durationSec };
+  log(`✅ RS local sync завершён за ${durationSec} сек. Ozon RS: ${ozonStats.successCount} ok, Ozon Москва: ${ozonMoscowStats.successCount} ok, WB: ${wbStats.successCount} ok`);
+  return { stocks, ozonStats, ozonMoscowStats, wbStats, postcheck, durationSec };
 }
 
 if (require.main === module) {
@@ -537,6 +560,7 @@ module.exports = {
   BATCH_SIZE_OZON,
   BATCH_SIZE_WB,
   RS_OZON_WAREHOUSE_ID,
+  RS_OZON_MOSCOW_WAREHOUSE_ID,
   RS_WB_WAREHOUSE_ID,
   normalizeMarketplaceStock,
   normalizeChrtId,
