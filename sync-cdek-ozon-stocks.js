@@ -26,6 +26,8 @@ const YANDEX_WAREHOUSE_ID = 2456454;
 const YANDEX_WAREHOUSE_NAME = "СДЭК МО";
 const YANDEX_API_URL = "https://api.partner.market.yandex.ru";
 const YANDEX_BATCH_SIZE = 2000;
+// Временная пауза по запросу владельца. Включать только после его указания.
+const YANDEX_SYNC_ENABLED = false;
 const BATCH_SIZE = 100;
 const REQUEST_INTERVAL_MS = 120;
 const MAX_RETRIES = 3;
@@ -272,6 +274,7 @@ async function main() {
       warehouseId: WAREHOUSE_ID,
       yandexWarehouse: YANDEX_WAREHOUSE_NAME,
       yandexWarehouseId: YANDEX_WAREHOUSE_ID,
+      yandexSyncEnabled: YANDEX_SYNC_ENABLED,
       rows: stocks.length,
       positive,
       total,
@@ -280,15 +283,18 @@ async function main() {
   }
 
   const headers = ozonHeaders();
-  const marketHeaders = yandexHeaders();
-  await verifyYandexWarehouse(marketHeaders);
   const updated = await uploadStocks(stocks, headers);
   await sleep(POSTCHECK_DELAY_MS);
   const actual = await fetchOzonStocks(stocks, headers);
   const mismatches = stocks.filter(
     (item) => (actual.get(item.offer_id) || 0) !== item.stock,
   );
-  const yandexUploaded = await uploadYandexStocks(stocks, marketHeaders);
+  let yandexUploaded = 0;
+  if (YANDEX_SYNC_ENABLED) {
+    const marketHeaders = yandexHeaders();
+    await verifyYandexWarehouse(marketHeaders);
+    yandexUploaded = await uploadYandexStocks(stocks, marketHeaders);
+  }
 
   console.log(JSON.stringify({
     status: mismatches.length ? "partial" : "ok",
@@ -301,6 +307,7 @@ async function main() {
     updated,
     yandexWarehouse: YANDEX_WAREHOUSE_NAME,
     yandexCampaignId: YANDEX_CAMPAIGN_ID,
+    yandexSyncEnabled: YANDEX_SYNC_ENABLED,
     yandexUploaded,
     mismatches: mismatches.length,
     durationSec: Math.round((Date.now() - startedAt) / 1000),
