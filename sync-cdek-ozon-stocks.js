@@ -26,8 +26,8 @@ const YANDEX_WAREHOUSE_ID = 2456454;
 const YANDEX_WAREHOUSE_NAME = "СДЭК МО";
 const YANDEX_API_URL = "https://api.partner.market.yandex.ru";
 const YANDEX_BATCH_SIZE = 2000;
-// Временная пауза по запросу владельца. Включать только после его указания.
-const YANDEX_SYNC_ENABLED = false;
+// Передача на Яндекс «СДЭК МО» включена по запросу владельца.
+const YANDEX_SYNC_ENABLED = true;
 const BATCH_SIZE = 100;
 const REQUEST_INTERVAL_MS = 120;
 const MAX_RETRIES = 3;
