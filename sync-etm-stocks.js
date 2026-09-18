@@ -1343,7 +1343,7 @@ async function main() {
   let wbStats;
   if (marketplace !== "wb") {
   log(
-    `🟠 Шаг 4: Финальная полная перепроверка Ozon после завершения WB; первичных расхождений было ${ozonPendingMismatches.length}`,
+    `🟠 Шаг 4: Финальная полная перепроверка Ozon; первичных расхождений было ${ozonPendingMismatches.length}`,
   );
   log(
     `⏳ Дополнительное ожидание ${OZON_POSTCHECK_RETRY_DELAY_MS / 1000} сек перед финальным Ozon post-check...`,

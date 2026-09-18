@@ -515,7 +515,10 @@ async function main({ dryRun = false, skipPostcheck = false, marketplace = "all"
     if (postcheck.mismatches.length) {
       log(`⏳ Ожидание ${POSTCHECK_RETRY_DELAY_MS / 1000} сек перед повторной проверкой...`);
       await sleep(POSTCHECK_RETRY_DELAY_MS);
-      await verifyRsOzonStocks(stocks);
+      postcheck = await verifyRsOzonStocks(stocks);
+      if (postcheck.mismatches.length) {
+        throw new Error(`Ozon RS: после повторной проверки осталось ${postcheck.mismatches.length} расхождений`);
+      }
     }
   }
 
