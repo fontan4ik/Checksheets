@@ -60,7 +60,11 @@ const configuredPostcheckDelay = Number(process.env.RS_OZON_POSTCHECK_DELAY_MS |
 const configuredPostcheckRetryDelay = Number(process.env.RS_OZON_POSTCHECK_RETRY_DELAY_MS || 60000);
 const POSTCHECK_DELAY_MS = Number.isFinite(configuredPostcheckDelay) ? Math.max(0, configuredPostcheckDelay) : 30000;
 const POSTCHECK_RETRY_DELAY_MS = Number.isFinite(configuredPostcheckRetryDelay) ? Math.max(0, configuredPostcheckRetryDelay) : 60000;
-const OZON_TERMINAL_PRODUCT_ERRORS = new Set(["NOT_FOUND_ERROR", "NOT_PASS_MODERATION"]);
+const OZON_TERMINAL_PRODUCT_ERRORS = new Set([
+  "NOT_FOUND_ERROR",
+  "NOT_PASS_MODERATION",
+  "PRODUCT_IS_NOT_CREATED",
+]);
 
 function text(value) {
   return String(value ?? "").trim();
