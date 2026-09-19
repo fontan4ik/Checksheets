@@ -269,18 +269,24 @@ async function updateRsStocksOzon(
   return { successCount, errorCount };
 }
 
-async function fetchOzonStocksByOfferIds(offerIds, warehouseId, retry = 0) {
+async function fetchOzonStocksByOfferIds(offerIds, warehouseId, retry = 0, httpClient = axios) {
   const result = new Map();
   try {
-    for (let offset = 0; offset < offerIds.length; offset += 500) {
-      const response = await axios.post(
+    // Ozon can return several warehouse rows per offer even with warehouse_id.
+    // Keep chunks small enough that limit=1000 cannot truncate requested offers.
+    for (let offset = 0; offset < offerIds.length; offset += 100) {
+      const response = await httpClient.post(
         `${OZON_API_URL}/v2/product/info/stocks-by-warehouse/fbs`,
-        { offer_id: offerIds.slice(offset, offset + 500), warehouse_id: warehouseId, limit: 1000 },
+        { offer_id: offerIds.slice(offset, offset + 100), warehouse_id: warehouseId, limit: 1000 },
         { headers: ozonHeaders(), timeout: 30000 },
       );
       for (const item of Array.isArray(response.data?.products) ? response.data.products : []) {
         if (String(item.warehouse_id) !== String(warehouseId)) continue;
-        result.set(String(item.offer_id), (Number(item.present) || 0) + (Number(item.reserved) || 0));
+        result.set(String(item.offer_id), {
+          freeStock: Number(item.free_stock) || 0,
+          present: Number(item.present) || 0,
+          reserved: Number(item.reserved) || 0,
+        });
       }
     }
     return result;
@@ -289,7 +295,7 @@ async function fetchOzonStocksByOfferIds(offerIds, warehouseId, retry = 0) {
       const delay = OZON_BASE_DELAY_MS * 2 ** retry;
       log(`⏳ Ozon post-check ${error.response?.status || "transport"}: retry ${retry + 1}/${MAX_RETRIES} через ${delay / 1000} сек.`);
       await sleep(delay);
-      return fetchOzonStocksByOfferIds(offerIds, warehouseId, retry + 1);
+      return fetchOzonStocksByOfferIds(offerIds, warehouseId, retry + 1, httpClient);
     }
     throw error;
   }
@@ -297,24 +303,31 @@ async function fetchOzonStocksByOfferIds(offerIds, warehouseId, retry = 0) {
 
 async function verifyRsOzonStocks(
   stocks,
-  { warehouseId = RS_OZON_WAREHOUSE_ID, stockField = "stock", label = "RS" } = {},
+  { warehouseId = RS_OZON_WAREHOUSE_ID, stockField = "stock", label = "RS", httpClient = axios } = {},
 ) {
   const expected = stocks
     .filter((item) => item.offer_id)
     .map((item) => ({ ...item, stock: item[stockField] }));
   if (!expected.length) return { mismatches: [], stats: { sheetPositiveCount: 0, marketplacePositiveCount: 0, marketplaceTotalPieces: 0 } };
-  const actual = await fetchOzonStocksByOfferIds(expected.map((item) => item.offer_id), warehouseId);
+  const actual = await fetchOzonStocksByOfferIds(expected.map((item) => item.offer_id), warehouseId, 0, httpClient);
   const mismatches = [];
   let marketplacePositiveCount = 0;
   let marketplaceTotalPieces = 0;
   for (const item of expected) {
-    const actualStock = actual.get(item.offer_id) || 0;
+    const marketplace = actual.get(item.offer_id);
+    const actualStock = marketplace?.freeStock ?? 0;
     if (actualStock > 0) {
       marketplacePositiveCount += 1;
       marketplaceTotalPieces += actualStock;
     }
     if (actualStock !== item.stock) {
-      mismatches.push({ offer_id: item.offer_id, expected: item.stock, actual: actualStock });
+      mismatches.push({
+        offer_id: item.offer_id,
+        expected: item.stock,
+        actual: actualStock,
+        present: marketplace?.present ?? 0,
+        reserved: marketplace?.reserved ?? 0,
+      });
     }
   }
   const stats = {
@@ -326,7 +339,9 @@ async function verifyRsOzonStocks(
     log(`✅ Ozon post-check ${label}: расхождений не найдено (${marketplacePositiveCount} SKU, ${marketplaceTotalPieces} шт.)`);
   } else {
     log(`⚠️ Ozon post-check ${label}: найдено ${mismatches.length} расхождений`);
-    mismatches.slice(0, 10).forEach((item) => log(`   - ${item.offer_id}: sheet=${item.expected}, ozon=${item.actual}`));
+    mismatches.slice(0, 10).forEach((item) => log(
+      `   - ${item.offer_id}: sheet=${item.expected}, free=${item.actual}, present=${item.present}, reserved=${item.reserved}`,
+    ));
   }
   return { mismatches, stats };
 }
@@ -574,6 +589,7 @@ module.exports = {
   resolveColumns,
   isWbCargoRestrictionError,
   readRsStocksFromSheet,
+  fetchOzonStocksByOfferIds,
   updateRsStocksOzon,
   updateRsStocksWb,
   verifyRsOzonStocks,
