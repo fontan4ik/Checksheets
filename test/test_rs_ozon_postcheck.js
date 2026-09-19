@@ -36,8 +36,13 @@ async function run() {
     calls.length = 0;
     const result = await verifyRsOzonStocks([
       { offer_id: "A", stock: 7 },
-      { offer_id: "B", stock: 0 },
-    ], { warehouseId: 10, label: "test", httpClient });
+      { offer_id: "B", stock: 3 },
+    ], {
+      warehouseId: 10,
+      label: "test",
+      httpClient,
+      ignoredOfferIds: new Set(["B"]),
+    });
     assert.strictEqual(result.mismatches.length, 0, "free_stock must be compared with the sent stock");
     console.log("RS Ozon post-check regression test: OK");
 }

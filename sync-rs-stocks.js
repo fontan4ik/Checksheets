@@ -60,6 +60,7 @@ const configuredPostcheckDelay = Number(process.env.RS_OZON_POSTCHECK_DELAY_MS |
 const configuredPostcheckRetryDelay = Number(process.env.RS_OZON_POSTCHECK_RETRY_DELAY_MS || 60000);
 const POSTCHECK_DELAY_MS = Number.isFinite(configuredPostcheckDelay) ? Math.max(0, configuredPostcheckDelay) : 30000;
 const POSTCHECK_RETRY_DELAY_MS = Number.isFinite(configuredPostcheckRetryDelay) ? Math.max(0, configuredPostcheckRetryDelay) : 60000;
+const OZON_TERMINAL_PRODUCT_ERRORS = new Set(["NOT_FOUND_ERROR", "NOT_PASS_MODERATION"]);
 
 function text(value) {
   return String(value ?? "").trim();
@@ -240,6 +241,8 @@ async function updateRsStocksOzon(
   let lastRequestAt = Date.now() - 1000 / OZON_RPS;
   let successCount = 0;
   let errorCount = 0;
+  let skippedCount = 0;
+  const skippedOfferIds = new Set();
 
   log(`🟠 ${label}: ${valid.length} товаров, склад ${warehouseId}`);
   for (let index = 0; index < batches; index += 1) {
@@ -258,15 +261,27 @@ async function updateRsStocksOzon(
       successCount += batch.length;
     } else {
       for (const item of items) {
-        const hasTooManyRequests = (item.errors || []).some((error) => error.code === "TOO_MANY_REQUESTS");
-        if (item.updated || hasTooManyRequests) successCount += 1;
-        else errorCount += 1;
+        const errors = Array.isArray(item.errors) ? item.errors : [];
+        if (item.updated) {
+          successCount += 1;
+          continue;
+        }
+        const terminal = errors.length > 0 && errors.every((error) => OZON_TERMINAL_PRODUCT_ERRORS.has(error.code));
+        const details = errors.map((error) => `${error.code}: ${error.message}`).join("; ") || "unknown item error";
+        if (terminal) {
+          skippedCount += 1;
+          skippedOfferIds.add(String(item.offer_id));
+          log(`⏸️ ${label}: ${item.offer_id} пропущен — ${details}`);
+        } else {
+          errorCount += 1;
+          log(`❌ ${label}: ${item.offer_id} не обновлён — ${details}`);
+        }
       }
     }
     log(`✅ ${label}: пачка ${index + 1}/${batches} обработана (${batch.length} товаров)`);
   }
-  log(`🟠 ${label}: ✅ ${successCount} обновлено, ❌ ${errorCount} ошибок`);
-  return { successCount, errorCount };
+  log(`🟠 ${label}: ✅ ${successCount} обновлено, ⏸️ ${skippedCount} недоступно, ❌ ${errorCount} ошибок`);
+  return { successCount, skippedCount, errorCount, skippedOfferIds };
 }
 
 async function fetchOzonStocksByOfferIds(offerIds, warehouseId, retry = 0, httpClient = axios) {
@@ -303,10 +318,16 @@ async function fetchOzonStocksByOfferIds(offerIds, warehouseId, retry = 0, httpC
 
 async function verifyRsOzonStocks(
   stocks,
-  { warehouseId = RS_OZON_WAREHOUSE_ID, stockField = "stock", label = "RS", httpClient = axios } = {},
+  {
+    warehouseId = RS_OZON_WAREHOUSE_ID,
+    stockField = "stock",
+    label = "RS",
+    httpClient = axios,
+    ignoredOfferIds = new Set(),
+  } = {},
 ) {
   const expected = stocks
-    .filter((item) => item.offer_id)
+    .filter((item) => item.offer_id && !ignoredOfferIds.has(String(item.offer_id)))
     .map((item) => ({ ...item, stock: item[stockField] }));
   if (!expected.length) return { mismatches: [], stats: { sheetPositiveCount: 0, marketplacePositiveCount: 0, marketplaceTotalPieces: 0 } };
   const actual = await fetchOzonStocksByOfferIds(expected.map((item) => item.offer_id), warehouseId, 0, httpClient);
@@ -521,20 +542,49 @@ async function main({ dryRun = false, skipPostcheck = false, marketplace = "all"
     stockField: "stock_moscow",
     label: "Ozon RS Москва",
   }) : null;
+  if ((ozonStats?.errorCount || 0) + (ozonMoscowStats?.errorCount || 0) > 0) {
+    throw new Error(
+      `Ozon RS: необработанных ошибок записи ${(ozonStats?.errorCount || 0) + (ozonMoscowStats?.errorCount || 0)}`,
+    );
+  }
   const wbStats = marketplace !== "ozon" ? await updateRsStocksWb(stocks) : null;
   let postcheck = { mismatches: [], stats: { sheetPositiveCount: stocks.filter((item) => item.stock > 0).length, marketplacePositiveCount: null, marketplaceTotalPieces: null } };
+  let moscowPostcheck = { mismatches: [], stats: { sheetPositiveCount: stocks.filter((item) => item.stock_moscow > 0).length, marketplacePositiveCount: null, marketplaceTotalPieces: null } };
   if (!skipPostcheck && marketplace !== "wb") {
     log(`⏳ Ожидание ${POSTCHECK_DELAY_MS / 1000} сек перед Ozon post-check...`);
     await sleep(POSTCHECK_DELAY_MS);
-    postcheck = await verifyRsOzonStocks(stocks);
-    if (postcheck.mismatches.length) {
+    const checks = [
+      {
+        name: "RS",
+        options: { ignoredOfferIds: ozonStats.skippedOfferIds },
+        result: null,
+      },
+      {
+        name: "RS Москва",
+        options: {
+          warehouseId: RS_OZON_MOSCOW_WAREHOUSE_ID,
+          stockField: "stock_moscow",
+          label: "RS Москва",
+          ignoredOfferIds: ozonMoscowStats.skippedOfferIds,
+        },
+        result: null,
+      },
+    ];
+    for (const check of checks) check.result = await verifyRsOzonStocks(stocks, check.options);
+    if (checks.some((check) => check.result.mismatches.length)) {
       log(`⏳ Ожидание ${POSTCHECK_RETRY_DELAY_MS / 1000} сек перед повторной проверкой...`);
       await sleep(POSTCHECK_RETRY_DELAY_MS);
-      postcheck = await verifyRsOzonStocks(stocks);
-      if (postcheck.mismatches.length) {
-        throw new Error(`Ozon RS: после повторной проверки осталось ${postcheck.mismatches.length} расхождений`);
+      for (const check of checks) {
+        if (check.result.mismatches.length) check.result = await verifyRsOzonStocks(stocks, check.options);
+      }
+      const failed = checks.filter((check) => check.result.mismatches.length);
+      if (failed.length) {
+        throw new Error(
+          `Ozon RS: после повторной проверки остались расхождения: ${failed.map((check) => `${check.name}=${check.result.mismatches.length}`).join(", ")}`,
+        );
       }
     }
+    [postcheck, moscowPostcheck] = checks.map((check) => check.result);
   }
 
   const durationSec = Math.round((Date.now() - startedAt) / 1000);
@@ -545,7 +595,7 @@ async function main({ dryRun = false, skipPostcheck = false, marketplace = "all"
       totalSku: stocks.length,
       warehouses: [
         { warehouseName: "RS (резерв)", activeSku: postcheck.stats.sheetPositiveCount, marketplaceStockSku: postcheck.stats.marketplacePositiveCount, marketplaceTotalPieces: postcheck.stats.marketplaceTotalPieces },
-        { warehouseName: "РУССКИЙ СВЕТ МОСКВА", activeSku: stocks.filter((item) => item.stock_moscow > 0).length, marketplaceStockSku: null, marketplaceTotalPieces: null },
+        { warehouseName: "РУССКИЙ СВЕТ МОСКВА", activeSku: moscowPostcheck.stats.sheetPositiveCount, marketplaceStockSku: moscowPostcheck.stats.marketplacePositiveCount, marketplaceTotalPieces: moscowPostcheck.stats.marketplaceTotalPieces },
       ],
       durationSec,
     });
