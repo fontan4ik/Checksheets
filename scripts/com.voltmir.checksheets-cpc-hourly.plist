@@ -13,7 +13,7 @@
     <string>-u</string>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/create_ozon_cpc_campaigns.py</string>
     <string>--analytics-rotation-batches</string>
-    <string>2</string>
+    <string>1</string>
     <string>--analytics-write-sheet</string>
     <string>--analytics-stop-on-filter</string>
   </array>

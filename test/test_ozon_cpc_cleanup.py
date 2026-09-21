@@ -1,8 +1,9 @@
 import io
 import pathlib
+import tempfile
 import sys
 import requests
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, cast
 from unittest.mock import ANY, patch
 import unittest
@@ -23,9 +24,11 @@ from ozon_cpc_cleanup import (
     campaign_budget,
     campaign_status_label,
     create_statistics_report,
+    daily_report_limit_reached,
     contiguous_row_groups,
     flush_campaign_statuses,
     get_campaigns,
+    mark_daily_report_limit,
     parse_report,
     parse_report_block,
     period_range,
@@ -67,6 +70,13 @@ class FakeSession:
 
 
 class OzonCpcCleanupTests(unittest.TestCase):
+    def test_daily_report_limit_marker_is_scoped_to_moscow_day(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            marker = pathlib.Path(tmp) / "limit.json"
+            mark_daily_report_limit("HTTP 429", date(2026, 9, 22), marker)
+            self.assertTrue(daily_report_limit_reached(date(2026, 9, 22), marker))
+            self.assertFalse(daily_report_limit_reached(date(2026, 9, 23), marker))
+
     @patch("ozon_cpc_cleanup.request_json")
     def test_get_campaigns_forwards_timeout(self, mocked_request_json):
         mocked_request_json.return_value = {

@@ -62,6 +62,7 @@ from network_bypass import SourceAddressAdapter
 LOCK_FILE = Path(__file__).resolve().parent / "logs" / "cpc-hourly.lock"
 PROGRESS_FILE = Path(__file__).resolve().parent / "logs" / "cpc-progress.json"
 ROTATION_FILE = Path(__file__).resolve().parent / "logs" / "cpc-rotation.json"
+DAILY_REPORT_LIMIT_FILE = Path(__file__).resolve().parent / "logs" / "cpc-daily-limit.json"
 
 
 def _load_progress() -> dict[str, float]:
@@ -142,6 +143,42 @@ MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 REPORT_MAX_ATTEMPTS = int(os.getenv("OZON_CPC_REPORT_MAX_ATTEMPTS", "180"))
 REPORT_SLEEP_SECONDS = int(os.getenv("OZON_CPC_REPORT_SLEEP_SECONDS", "5"))
 TRANSIENT_STATUSES = {408, 409, 425, 429, 500, 502, 503, 504}
+
+
+def daily_report_limit_reached(
+    today: date | None = None,
+    path: Path = DAILY_REPORT_LIMIT_FILE,
+) -> bool:
+    """Return whether Ozon already rejected a report on the current Moscow day."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    current = today or datetime.now(MOSCOW_TZ).date()
+    return isinstance(data, dict) and data.get("date") == current.isoformat()
+
+
+def mark_daily_report_limit(
+    reason: str,
+    today: date | None = None,
+    path: Path = DAILY_REPORT_LIMIT_FILE,
+) -> None:
+    current = today or datetime.now(MOSCOW_TZ).date()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(
+            {
+                "date": current.isoformat(),
+                "reason": "ozon_daily_report_limit",
+                "details": reason[:500],
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    temporary.replace(path)
 
 
 class DailyReportLimitError(RuntimeError):
@@ -1395,7 +1432,13 @@ def run(args: argparse.Namespace) -> int:
             print(f"Ошибка дневной SKU-аналитики: {exc}; недельно-месячная ротация продолжается")
     else:
         print("Нет кампаний из листа СРС в Ozon; дневная SKU-выгрузка не создаётся")
-    if report_campaign_ids:
+    report_quota_blocked = bool(report_campaign_ids) and daily_report_limit_reached()
+    if report_quota_blocked:
+        print(
+            "Недельно-месячный отчёт пропущен: дневная квота Ozon уже исчерпана; "
+            "дневные метрики и статусы продолжили обновляться"
+        )
+    if report_campaign_ids and not report_quota_blocked:
         try:
             if args.apply:
                 products_by_campaign = {
@@ -1475,6 +1518,7 @@ def run(args: argparse.Namespace) -> int:
             for period in PERIODS:
                 print(f"Период {period}: SKU/кампания пар={len(metrics_by_period[period])}")
         except DailyReportLimitError as exc:
+            mark_daily_report_limit(str(exc))
             if args.write_sheet and flush_write_buffer is not None:
                 flush_write_buffer()
             print(f"Сбор остановлен ответом Ozon API по квоте: {exc}; следующий запуск будет по расписанию")
@@ -1484,7 +1528,7 @@ def run(args: argparse.Namespace) -> int:
             if args.write_sheet and flush_write_buffer is not None:
                 flush_write_buffer()
             print(f"Ошибка сбора метрик: {exc}; продолжаем с пустыми метриками (фильтры не применяются, но toggle выполнится)")
-    else:
+    elif not report_campaign_ids:
         print("Нет кампаний из листа СРС в Ozon; отчёты не создаются")
 
     candidates: list[Candidate] = []
