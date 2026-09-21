@@ -4,16 +4,16 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_local_etm_reads_wb_voltmir_total_from_ac():
+def test_local_etm_reads_wb_voltmir_total_by_header():
     source = (PROJECT_ROOT / "sync-etm-stocks.js").read_text(encoding="utf-8")
-    assert 'WB_STOCK: 29' in source
-    assert 'WB_VOLTMIR_STOCK_HEADER = "WB ВОЛЬТМИР ИТОГ"' in source
+    assert 'wbStock: STREAM_SUPPS_HEADERS.wbVoltmirTotal' in source
+    assert '"AB:WB ВОЛЬТМИР ИТОГ"' in source
     assert "const colWbStock = colStock" not in source
 
 
 def test_local_feron_uses_wb_total_for_voltmir():
     source = (PROJECT_ROOT / "sync-feron-stocks.js").read_text(encoding="utf-8")
-    assert 'wb_voltmir_stock: "WB ВОЛЬТМИР ИТОГ"' in source
+    assert 'wb_voltmir_stock: STREAM_SUPPS_HEADERS.wbVoltmirTotal' in source
     assert 'id: FERON_TR_WB_WAREHOUSE.SMR' in source
     assert 'col: "stock_wb_voltmir"' in source
 
@@ -25,10 +25,16 @@ def test_local_feron_uses_ac_total_for_feron_moscow():
     assert 'col: "stock_wb_feron_moscow"' in source
 
 
-def test_apps_script_writers_use_wb_total():
-    etm = (PROJECT_ROOT / "Синхронизация остатков ETM TR.js").read_text(encoding="utf-8")
+def test_direct_arl_wb_stock_writer_is_disabled():
+    source = (PROJECT_ROOT / "Flow_ARL_TR__Остатки_Маркетплейсы.js").read_text(encoding="utf-8")
+    assert "const ARL_DIRECT_WB_STOCK_UPLOAD_ENABLED = false" in source
+    assert "if (!ARL_DIRECT_WB_STOCK_UPLOAD_ENABLED)" in source
+
+
+def test_rs_writers_use_wb_total():
+    local_rs = (PROJECT_ROOT / "sync-rs-stocks.js").read_text(encoding="utf-8")
     rs = (PROJECT_ROOT / "Flow_StreamSupps__Остатки_RS_Маркетплейсы.js").read_text(encoding="utf-8")
-    assert "const ETM_COL_WB_STOCK = 29" in etm
-    assert "amount: item.wb_stock" in etm
-    assert "const RS_COL_WB_STOCK = 29" in rs
+    assert 'wb_stock: STREAM_SUPPS_HEADERS.wbVoltmirTotal' in local_rs
+    assert '"AB:WB ВОЛЬТМИР ИТОГ"' in local_rs
+    assert 'wbStock: "WB ВОЛЬТМИР ИТОГ"' in rs
     assert rs.count("amount: item.wb_stock") >= 2

@@ -471,7 +471,7 @@ async function updateRsStocksWb(stocks) {
     const payload = audit.recordPayload({
       warehouseId: RS_WB_WAREHOUSE_ID,
       warehouseName: "ВольтМир (RS)",
-      sourceColumn: stocks.wbSourceColumns?.wb_stock || "AC:WB ВОЛЬТМИР ИТОГ",
+      sourceColumn: stocks.wbSourceColumns?.wb_stock || "AB:WB ВОЛЬТМИР ИТОГ",
       batchIndex: index + 1,
       totalBatches: batches,
       items: prepared,

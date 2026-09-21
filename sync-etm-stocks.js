@@ -997,7 +997,7 @@ async function updateETMStocksWB(stocks) {
     const auditPayload = audit.recordPayload({
       warehouseId: ETM_TR_WB_WAREHOUSE,
       warehouseName: "ВольтМир",
-      sourceColumn: stocks.wbSourceColumn || "AC:WB ВОЛЬТМИР ИТОГ",
+      sourceColumn: stocks.wbSourceColumn || "AB:WB ВОЛЬТМИР ИТОГ",
       batchIndex: i + 1,
       totalBatches: batches,
       items: auditItems,
