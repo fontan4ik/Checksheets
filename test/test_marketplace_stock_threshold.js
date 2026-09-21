@@ -63,6 +63,7 @@ const requiredUsage = {
     'brand: STREAM_SUPPS_HEADERS.brand',
     'stock_msk: normalizeMarketplaceStock(originalStockMsk, brand)',
     'stock_wb_voltmir: normalizeMarketplaceStock(wbVoltmirStock, brand)',
+    'stock_wb_feron_moscow: normalizeMarketplaceStock(wbFeronMoscowStock, brand)',
     'stock: item[colName]',
   ],
   'sync-cdek-ozon-stocks.js': [

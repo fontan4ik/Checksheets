@@ -36,6 +36,7 @@ const FERON_TR_SCHEMA = {
   marketplace_stock_nsb: STREAM_SUPPS_HEADERS.feronNsbFbs,
   marketplace_stock_ekb: STREAM_SUPPS_HEADERS.feronEkbFbs,
   wb_voltmir_stock: STREAM_SUPPS_HEADERS.wbVoltmirTotal,
+  wb_feron_moscow_stock: STREAM_SUPPS_HEADERS.wbFeronMoscowTotal,
   chrt_id: "chrlid",
 };
 
@@ -118,10 +119,11 @@ async function readFeronStocksFromSheet(auth) {
   const colStockNsb = columns.marketplace_stock_nsb;
   const colStockEkb = columns.marketplace_stock_ekb;
   const colWbVoltmirStock = columns.wb_voltmir_stock;
+  const colWbFeronMoscowStock = columns.wb_feron_moscow_stock;
   const colChrtId = columns.chrt_id;
 
   log(
-    `🔍 Колонки: offer_id=${colVendor}, sku_ozon=${colOzonSku}, MSK=${colStockMsk}, SMR=${colStockSmr}, NSB=${colStockNsb}, EKB=${colStockEkb}, WB ВольтМир итог=${colWbVoltmirStock}, chrtId=${colChrtId}`,
+    `🔍 Колонки: offer_id=${colVendor}, sku_ozon=${colOzonSku}, MSK=${colStockMsk}, SMR=${colStockSmr}, NSB=${colStockNsb}, EKB=${colStockEkb}, WB ВольтМир итог=${colWbVoltmirStock}, WB ФБС ФЕРОН МОСКВА=${colWbFeronMoscowStock}, chrtId=${colChrtId}`,
   );
 
   const maxCol = Math.max(
@@ -133,6 +135,7 @@ async function readFeronStocksFromSheet(auth) {
     colStockNsb,
     colStockEkb,
     colWbVoltmirStock,
+    colWbFeronMoscowStock,
     colChrtId,
   );
 
@@ -162,6 +165,7 @@ async function readFeronStocksFromSheet(auth) {
     const originalStockNsb = parseInt(row[colStockNsb - 1]) || 0;
     const originalStockEkb = parseInt(row[colStockEkb - 1]) || 0;
     const wbVoltmirStock = Number(row[colWbVoltmirStock - 1]) || 0;
+    const wbFeronMoscowStock = Number(row[colWbFeronMoscowStock - 1]) || 0;
     const chrtId = row[colChrtId - 1];
 
     if (!vendorCode) continue;
@@ -179,6 +183,7 @@ async function readFeronStocksFromSheet(auth) {
       stock_nsb: normalizeMarketplaceStock(originalStockNsb, brand),
       stock_ekb: normalizeMarketplaceStock(originalStockEkb, brand),
       stock_wb_voltmir: normalizeMarketplaceStock(wbVoltmirStock, brand),
+      stock_wb_feron_moscow: normalizeMarketplaceStock(wbFeronMoscowStock, brand),
       original_stock_msk: originalStockMsk,
       original_stock_smr: originalStockSmr,
       original_stock_nsb: originalStockNsb,
@@ -192,7 +197,7 @@ async function readFeronStocksFromSheet(auth) {
 
   stocks.snapshotReadAt = new Date().toISOString();
   stocks.wbSourceColumns = {
-    stock_msk: `${columnLetter(colStockMsk)}:${headers[colStockMsk - 1]}`,
+    stock_wb_feron_moscow: `${columnLetter(colWbFeronMoscowStock)}:${headers[colWbFeronMoscowStock - 1]}`,
     stock_wb_voltmir: `${columnLetter(colWbVoltmirStock)}:${headers[colWbVoltmirStock - 1]}`,
     stock_nsb: `${columnLetter(colStockNsb)}:${headers[colStockNsb - 1]}`,
     stock_ekb: `${columnLetter(colStockEkb)}:${headers[colStockEkb - 1]}`,
@@ -709,9 +714,9 @@ async function updateFeronStocksWB(stocks) {
   const warehouses = [
     {
       key: "MSK",
-      name: "Подорожник (МСК)",
+      name: "ФБС ФЕРОН МОСКВА",
       id: FERON_TR_WB_WAREHOUSE.MSK,
-      col: "stock_msk",
+      col: "stock_wb_feron_moscow",
     },
     {
       key: "SMR",

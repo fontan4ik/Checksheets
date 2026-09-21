@@ -62,9 +62,12 @@ def test_wb_ekb_target_is_configured_for_feron_translation():
     assert 'marketplace_stock_nsb: STREAM_SUPPS_HEADERS.feronNsbFbs' in source
     assert 'marketplace_stock_ekb: STREAM_SUPPS_HEADERS.feronEkbFbs' in source
     assert 'wb_voltmir_stock: STREAM_SUPPS_HEADERS.wbVoltmirTotal' in source
+    assert 'wb_feron_moscow_stock: STREAM_SUPPS_HEADERS.wbFeronMoscowTotal' in source
     assert 'resolveStreamSuppsColumns(headers, FERON_TR_SCHEMA, SHEET_NAME)' in source
     assert "EKB: 1860503" in source
     assert 'name: "Екатеринбург"' in source
     assert 'col: "stock_ekb"' in source
     assert 'col: "stock_wb_voltmir"' in source
+    assert 'name: "ФБС ФЕРОН МОСКВА"' in source
+    assert 'col: "stock_wb_feron_moscow"' in source
     assert "WB FBS (4 склада)" in source

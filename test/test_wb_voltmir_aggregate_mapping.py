@@ -18,6 +18,13 @@ def test_local_feron_uses_wb_total_for_voltmir():
     assert 'col: "stock_wb_voltmir"' in source
 
 
+def test_local_feron_uses_ac_total_for_feron_moscow():
+    source = (PROJECT_ROOT / "sync-feron-stocks.js").read_text(encoding="utf-8")
+    assert 'wb_feron_moscow_stock: STREAM_SUPPS_HEADERS.wbFeronMoscowTotal' in source
+    assert 'id: FERON_TR_WB_WAREHOUSE.MSK' in source
+    assert 'col: "stock_wb_feron_moscow"' in source
+
+
 def test_apps_script_writers_use_wb_total():
     etm = (PROJECT_ROOT / "Синхронизация остатков ETM TR.js").read_text(encoding="utf-8")
     rs = (PROJECT_ROOT / "Flow_StreamSupps__Остатки_RS_Маркетплейсы.js").read_text(encoding="utf-8")

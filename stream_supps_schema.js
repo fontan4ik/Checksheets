@@ -25,6 +25,7 @@ const STREAM_SUPPS_HEADERS = Object.freeze({
   rsSmr: "RS SMR",
   reserve: "РЕЗЕРВ",
   wbVoltmirTotal: "WB ВОЛЬТМИР ИТОГ",
+  wbFeronMoscowTotal: "ФБС ФЕРОН МОСКВА",
 });
 
 function normalizeStreamSuppsHeader(value) {

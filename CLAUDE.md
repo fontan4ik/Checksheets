@@ -154,7 +154,7 @@ These run on local servers or machines to update Google Sheets via the API:
   rg 'АРТИКУЛ_ИЛИ_CHRTID' logs/wb_stock_payload_audit_*.jsonl
   ```
 - Distinguish the source-read time from the WB-send time. A long-running process can resend an old in-memory value after the sheet and Ozon have already changed.
-- `StreamSupps` mapping for WB must remain explicit: `M → WB 1449484 (Москва)`; `AC = N + S + W → WB 798761 (ВольтМир)`. Never include M in AC and never send N, S, or W independently to warehouse 798761.
+- `StreamSupps` mapping for WB must remain explicit: `AB = N + S + V → WB 798761 (ВольтМир)`; `AC = M + X → WB 1449484 (ФБС ФЕРОН МОСКВА)`. `M` already combines Feron Moscow with Arlight from `ARL TR`; `X` adds «РУССКИЙ СВЕТ МОСКВА». Warehouse 1449484 must have a single regular writer: `sync-feron-stocks.js` reading `AC`; direct ARL→WB writes are disabled.
 
 ### Diagnostic Suite
 Use the functions inside **`Diagnostic_Система.js`** to verify system stability:

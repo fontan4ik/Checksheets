@@ -24,6 +24,9 @@
 const ARL_SHEET_NAME = "ARL TR";
 const ARL_OZON_WAREHOUSE_ID = 1020005000217829;  // ПОДОРОЖНИК ФБС
 const ARL_WB_WAREHOUSE_ID = 1449484;               // ФБС ФЕРОН МОСКВА
+// WB-складом 1449484 владеет единый агрегатор StreamSupps!AC.
+// Прямая выгрузка ARL сюда отключена, чтобы не перетирать Feron + Arlight + RS.
+const ARL_DIRECT_WB_STOCK_UPLOAD_ENABLED = false;
 
 // Колонки в листе "ARL TR"
 const COL_VENDOR_CODE = 1;   // A - Артикул продавца (offer_id)
@@ -495,6 +498,10 @@ function processARLWBConflictIndividually(validBatch, warehouseId, batchLabel) {
  * @param {number} warehouseId - ID склада
  */
 function updateARLStocksWB(stocks, warehouseId) {
+  if (!ARL_DIRECT_WB_STOCK_UPLOAD_ENABLED) {
+    Logger.log('⏭️ Прямая выгрузка ARL в WB отключена: склад 1449484 получает итог из StreamSupps!AC.');
+    return;
+  }
   Logger.log(`🟣 Обновление остатков WB FBS (склад ID: ${warehouseId})...`);
 
   // Фильтруем товары с chrt_id
@@ -1315,6 +1322,10 @@ function testWBPriceUpload() {
  * Использует chrtId из колонки J
  */
 function testWBFBSUpload() {
+  if (!ARL_DIRECT_WB_STOCK_UPLOAD_ENABLED) {
+    Logger.log('⏭️ Тестовая прямая выгрузка ARL в WB отключена: используйте StreamSupps!AC и sync-feron-stocks.js.');
+    return;
+  }
   Logger.log("============================================");
   Logger.log("🧪 ТЕСТ ВЫГРУЗКИ НА WB FBS");
   Logger.log("============================================");
