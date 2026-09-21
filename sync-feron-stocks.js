@@ -948,7 +948,7 @@ async function main() {
   log(`📋 Примеры данных (первые 5):`);
   stocks.slice(0, 5).forEach((s) => {
     log(
-      `  - ${s.offer_id} | MSK: ${s.stock_msk} | SMR: ${s.stock_smr} | NSB: ${s.stock_nsb} | chrtId: ${s.chrt_id || "(нет)"}`,
+      `  - ${s.offer_id} | Ozon MSK: ${s.stock_msk} | WB Москва итог: ${s.stock_wb_feron_moscow} | SMR: ${s.stock_smr} | NSB: ${s.stock_nsb} | chrtId: ${s.chrt_id || "(нет)"}`,
     );
   });
 
