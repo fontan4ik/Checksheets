@@ -3,17 +3,22 @@
 
 Each non-empty bid is read as rubles (``8``, ``16`` or ``8,50``), converted to
 microrubles, sent to the matching campaign/SKU only if it differs, and then
-verified with ``GET /v2/products``. The default mode only prints the plan;
-``--apply`` is required to change Ozon.
+verified with ``GET /v2/products``.  Scheduled runs check changed sheet values
+immediately and audit a small rotating batch, instead of spending one API
+request on every campaign every 15 minutes. The default mode only prints the
+plan; ``--apply`` is required to change Ozon.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from typing import Any
 
 import gsheets_utils
 import requests
@@ -28,6 +33,8 @@ from ozon_cpc_cleanup import (
 
 
 MAX_ATTEMPTS = 5
+BID_STATE_FILE = Path(__file__).resolve().parent / "logs" / "cpc-bids-state.json"
+DEFAULT_AUDIT_BATCH_SIZE = 20
 
 
 class BidReadError(RuntimeError):
@@ -40,6 +47,78 @@ class BidRow:
     campaign_id: str
     sku: str
     bid_microrubles: int
+
+
+def bid_row_key(row: BidRow) -> str:
+    return f"{row.campaign_id}:{row.sku}"
+
+
+def load_bid_state(path: Path = BID_STATE_FILE) -> dict[str, Any]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_bid_state(state: dict[str, Any], path: Path = BID_STATE_FILE) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    temporary.replace(path)
+
+
+def select_bid_rows(
+    rows: list[BidRow],
+    state: dict[str, Any],
+    audit_batch_size: int = DEFAULT_AUDIT_BATCH_SIZE,
+    full_audit: bool = False,
+) -> tuple[list[BidRow], dict[str, int], int]:
+    """Select changed/failed rows plus a rotating audit slice.
+
+    On the first cache-backed run the current sheet is used as the baseline and
+    only the audit slice is queried. Previous full logs establish that baseline;
+    subsequent sheet changes are detected by comparing desired values.
+    """
+    if not rows:
+        return [], {}, 0
+
+    desired = {bid_row_key(row): row.bid_microrubles for row in rows}
+    if full_audit:
+        return list(rows), desired, 0
+
+    initialized = state.get("initialized") is True
+    previous_desired = state.get("desired") if isinstance(state.get("desired"), dict) else {}
+    failed_keys = set(state.get("failed", [])) if isinstance(state.get("failed"), list) else set()
+    row_by_key = {bid_row_key(row): row for row in rows}
+
+    priority_keys: list[str] = []
+    if initialized:
+        priority_keys.extend(
+            key for key, value in desired.items() if previous_desired.get(key) != value
+        )
+    priority_keys.extend(key for key in failed_keys if key in row_by_key)
+
+    batch_size = min(len(rows), max(0, audit_batch_size))
+    cursor = max(0, int(state.get("audit_cursor", 0) or 0)) % len(rows)
+    audit_rows = [rows[(cursor + offset) % len(rows)] for offset in range(batch_size)]
+    next_cursor = (cursor + batch_size) % len(rows) if batch_size else cursor
+
+    selected: list[BidRow] = []
+    seen: set[str] = set()
+    for key in priority_keys:
+        if key not in seen:
+            selected.append(row_by_key[key])
+            seen.add(key)
+    for row in audit_rows:
+        key = bid_row_key(row)
+        if key not in seen:
+            selected.append(row)
+            seen.add(key)
+    return selected, desired, next_cursor
 
 
 def parse_bid_microrubles(value: object) -> int | None:
@@ -124,15 +203,21 @@ def put_bid(
     session, token: str, campaign_id: str, sku: str, bid_microrubles: int
 ) -> tuple[bool, int]:
     for attempt in range(1, MAX_ATTEMPTS + 1):
-        r = session.put(
-            f"{BASE_URL}/api/client/campaign/{campaign_id}/products",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-            },
-            json={"bids": [{"sku": sku, "bid": str(bid_microrubles)}]},
-            timeout=60,
-        )
+        try:
+            r = session.put(
+                f"{BASE_URL}/api/client/campaign/{campaign_id}/products",
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Content-Type": "application/json",
+                },
+                json={"bids": [{"sku": sku, "bid": str(bid_microrubles)}]},
+                timeout=60,
+            )
+        except requests.RequestException:
+            if attempt < MAX_ATTEMPTS:
+                time.sleep(min(2 ** attempt, 15))
+                continue
+            return False, attempt
         if r.status_code == 200:
             return True, attempt
         if r.status_code in (429, 500, 502, 503, 504) and attempt < MAX_ATTEMPTS:
@@ -144,11 +229,28 @@ def put_bid(
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--workers", type=int, default=6)
+    parser.add_argument("--workers", type=int, default=1)
     parser.add_argument(
         "--apply",
         action="store_true",
         help="Записать ставки в Ozon. Без флага только показать план.",
+    )
+    parser.add_argument(
+        "--audit-batch-size",
+        type=int,
+        default=DEFAULT_AUDIT_BATCH_SIZE,
+        help="Сколько неизменённых ставок перепроверять за один запуск.",
+    )
+    parser.add_argument(
+        "--full-audit",
+        action="store_true",
+        help="Проверить все ставки (только для редкого ручного запуска).",
+    )
+    parser.add_argument(
+        "--state-file",
+        type=Path,
+        default=BID_STATE_FILE,
+        help=argparse.SUPPRESS,
     )
     args = parser.parse_args()
 
@@ -164,7 +266,37 @@ def main() -> int:
         print("Нет ставок для синхронизации")
         return 0
 
-    workers = max(1, args.workers)
+    state = load_bid_state(args.state_file)
+    selected_rows, desired, next_cursor = select_bid_rows(
+        rows,
+        state,
+        audit_batch_size=max(0, args.audit_batch_size),
+        full_audit=args.full_audit,
+    )
+    changed_count = 0
+    if state.get("initialized") is True and isinstance(state.get("desired"), dict):
+        changed_count = sum(
+            1 for key, value in desired.items() if state["desired"].get(key) != value
+        )
+    print(
+        f"К проверке Ozon: {len(selected_rows)} из {len(rows)}; "
+        f"изменено в таблице={changed_count}; следующий audit cursor={next_cursor}"
+    )
+    if not selected_rows:
+        if args.apply:
+            save_bid_state(
+                {
+                    "initialized": True,
+                    "desired": desired,
+                    "failed": [],
+                    "audit_cursor": next_cursor,
+                    "updated_at": int(time.time()),
+                },
+                args.state_file,
+            )
+        return 0
+
+    workers = max(1, min(args.workers, len(selected_rows)))
     pool = [create_session() for _ in range(workers)]
     tokens = [get_token(s) for s in pool]
 
@@ -197,7 +329,7 @@ def main() -> int:
     planned = 0
     failed: list[tuple[BidRow, str, int]] = []
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        futs = [ex.submit(process, (i, row)) for i, row in enumerate(rows)]
+        futs = [ex.submit(process, (i, row)) for i, row in enumerate(selected_rows)]
         done = 0
         for f in as_completed(futs):
             row, status, attempts, _ = f.result()
@@ -211,9 +343,9 @@ def main() -> int:
             else:
                 failed.append((row, status, attempts))
             done += 1
-            if done % 50 == 0 or done == len(rows):
+            if done % 50 == 0 or done == len(selected_rows):
                 print(
-                    f"[{done}/{len(rows)}] updated={ok} already={already} "
+                    f"[{done}/{len(selected_rows)}] updated={ok} already={already} "
                     f"planned={planned} failed={len(failed)}",
                     flush=True,
                 )
@@ -227,6 +359,23 @@ def main() -> int:
         print(
             f"  row={row.row_number} campaign={row.campaign_id} sku={row.sku}: "
             f"{status} (attempts={attempts})"
+        )
+    if args.apply:
+        previous_failed = (
+            set(state.get("failed", [])) if isinstance(state.get("failed"), list) else set()
+        )
+        processed_keys = {bid_row_key(row) for row in selected_rows}
+        failed_keys = {bid_row_key(row) for row, _, _ in failed}
+        remaining_failed = (previous_failed - processed_keys) | failed_keys
+        save_bid_state(
+            {
+                "initialized": True,
+                "desired": desired,
+                "failed": sorted(key for key in remaining_failed if key in desired),
+                "audit_cursor": next_cursor,
+                "updated_at": int(time.time()),
+            },
+            args.state_file,
         )
     return 0 if not failed else 1
 

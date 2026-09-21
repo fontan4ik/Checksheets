@@ -13,7 +13,9 @@
     <string>-u</string>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/set_cpc_bids.py</string>
     <string>--workers</string>
-    <string>2</string>
+    <string>1</string>
+    <string>--audit-batch-size</string>
+    <string>20</string>
     <string>--apply</string>
   </array>
   <key>WorkingDirectory</key>

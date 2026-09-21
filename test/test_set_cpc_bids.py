@@ -5,7 +5,14 @@ from unittest.mock import Mock
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
-from set_cpc_bids import BidReadError, get_bid, parse_bid_microrubles, read_bid_rows
+from set_cpc_bids import (
+    BidReadError,
+    BidRow,
+    get_bid,
+    parse_bid_microrubles,
+    read_bid_rows,
+    select_bid_rows,
+)
 
 
 class SetCpcBidsTests(unittest.TestCase):
@@ -42,6 +49,32 @@ class SetCpcBidsTests(unittest.TestCase):
             [(2, "201", "101", 8_000_000), (4, "203", "103", 16_500_000)],
         )
         self.assertEqual(invalid, [(5, "wrong")])
+
+    def test_first_cached_run_only_audits_rotating_batch(self):
+        rows = [BidRow(i + 2, str(i), str(100 + i), 8_000_000) for i in range(5)]
+        selected, desired, cursor = select_bid_rows(rows, {}, audit_batch_size=2)
+        self.assertEqual([row.campaign_id for row in selected], ["0", "1"])
+        self.assertEqual(len(desired), 5)
+        self.assertEqual(cursor, 2)
+
+    def test_changed_and_failed_rows_are_prioritized_without_duplicates(self):
+        rows = [BidRow(i + 2, str(i), str(100 + i), 8_000_000) for i in range(5)]
+        state = {
+            "initialized": True,
+            "desired": {f"{i}:{100 + i}": 8_000_000 for i in range(5)},
+            "failed": ["3:103"],
+            "audit_cursor": 2,
+        }
+        rows[1] = BidRow(3, "1", "101", 16_000_000)
+        selected, _, cursor = select_bid_rows(rows, state, audit_batch_size=2)
+        self.assertEqual([row.campaign_id for row in selected], ["1", "3", "2"])
+        self.assertEqual(cursor, 4)
+
+    def test_full_audit_selects_every_row(self):
+        rows = [BidRow(i + 2, str(i), str(100 + i), 8_000_000) for i in range(3)]
+        selected, _, cursor = select_bid_rows(rows, {}, audit_batch_size=1, full_audit=True)
+        self.assertEqual(selected, rows)
+        self.assertEqual(cursor, 0)
 
 
 if __name__ == "__main__":

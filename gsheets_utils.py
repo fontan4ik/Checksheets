@@ -24,6 +24,8 @@ TRANSIENT_ERROR_TEXT = (
 )
 GSHEETS_MAX_ATTEMPTS = max(1, int(os.getenv("GSHEETS_MAX_ATTEMPTS", "9")))
 GSHEETS_RETRY_BASE_DELAY = max(0.0, float(os.getenv("GSHEETS_RETRY_BASE_DELAY", "5")))
+GSHEETS_CONNECT_TIMEOUT = max(1.0, float(os.getenv("GSHEETS_CONNECT_TIMEOUT", "15")))
+GSHEETS_READ_TIMEOUT = max(1.0, float(os.getenv("GSHEETS_READ_TIMEOUT", "90")))
 
 # Calculated/outbound stock columns are inputs for marketplace synchronizers
 # only. Supplier/API loaders may read them, but every shared write/clear helper
@@ -188,7 +190,11 @@ def _retry_gsheet_call(
 def get_gsheet_client():
     scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     creds = Credentials.from_service_account_file(config.GSHEETS_CREDS_FILE, scopes=scopes)
-    return gspread.authorize(creds)
+    client = gspread.authorize(creds)
+    # gspread defaults to no timeout.  A half-open TLS connection would then
+    # keep a LaunchAgent alive forever and prevent all later scheduled runs.
+    client.http_client.set_timeout((GSHEETS_CONNECT_TIMEOUT, GSHEETS_READ_TIMEOUT))
+    return client
 
 
 def get_worksheet(sheet_name):

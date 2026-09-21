@@ -188,7 +188,12 @@ def main() -> int:
         action="store_true",
         help="Реально дёргать activate/deactivate (по умолчанию dry-run).",
     )
-    parser.add_argument("--workers", type=int, default=2)
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Ozon разрешает только один активный запрос для этого клиента.",
+    )
     parser.add_argument(
         "--status-timeout",
         type=int,
