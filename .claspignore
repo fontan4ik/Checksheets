@@ -14,6 +14,7 @@ ozon_reviews_local.js
 ozon_fbo_fbs_sales_local.js
 zero-wb-fbs-stocks.js
 telegram_notifier.js
+stock_sync_report.js
 send-fbs-broadcast-summary.js
 wb_stock_audit.js
 stream_supps_schema.js
