@@ -692,7 +692,8 @@ async function updateETMStocksOzon(stocks) {
     );
 
     if (result.ok && result.data?.result) {
-      result.data.result.forEach((r) => {
+      const itemResults = result.data.result;
+      itemResults.forEach((r) => {
         if (r.errors && r.errors.length > 0) {
           const terminal = r.errors.every((e) => OZON_TERMINAL_PRODUCT_ERRORS.has(e.code));
           if (!terminal) {
@@ -708,8 +709,16 @@ async function updateETMStocksOzon(stocks) {
           }
         } else if (r.updated) {
           successCount++;
+        } else {
+          errorCount++;
+          log(`❌ Ozon не подтвердил ${r.offer_id || "(без offer_id)"}: нет updated и нет terminal-ошибки`);
         }
       });
+      if (itemResults.length < batch.length) {
+        const missing = batch.length - itemResults.length;
+        errorCount += missing;
+        log(`❌ Ozon вернул неполный результат пачки ${i + 1}/${batches}: без статуса ${missing} SKU`);
+      }
       log(`✅ Пачка ${i + 1}/${batches} обработана (${batch.length} товаров)`);
     } else {
       log(

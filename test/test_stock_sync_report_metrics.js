@@ -34,6 +34,11 @@ assert.deepStrictEqual(
   { sourcePositiveSku: 8, attemptedSku: 10, acceptedSku: 8, skippedSku: 2, errorSku: 0, verifiedPositiveSku: 8, verifiedPieces: 22, mismatchSku: 0, verificationStatus: "verified" },
 );
 assert.strictEqual(stockSyncFailure(clean), null);
+assert.strictEqual(
+  stockSyncFailure(buildStockReport({ marketplace: "Ozon", skippedSku: 3, verification: { status: "verified" } })),
+  null,
+  "terminal Ozon product errors are expected skips, not a failed run",
+);
 
 const transportFailure = buildStockReport({ marketplace: "ВБ", warehouseName: "ВольтМир", errorSku: 10 });
 assert.match(stockSyncFailure(transportFailure), /10/);
