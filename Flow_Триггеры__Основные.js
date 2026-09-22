@@ -204,7 +204,6 @@ function all(){
   OzonMain();
   WbMain();
   OzonSKUAndAnalytic();
-  updateExternalAPIStocks(); // ✅ НОВОЕ: Feron и ETM API
 }
 
 /**
@@ -231,24 +230,6 @@ function runOzonOnly(){
 function runWbOnly(){
   Logger.log("🚀 Запуск Wildberries функций...");
   WbMain();
-}
-
-/**
- * updateExternalAPIStocks() - Запустить только внешние API (Feron, ETM)
- * Заполняет колонки AI (35), AJ (36), AK (37), AL (38)
- */
-function updateExternalAPIStocks(){
-  try {
-    Logger.log("🚀 Запуск внешних API (Feron, ETM)...");
-    updateFeronStocks();       // AI, AJ, AK: Ферон склады
-    updateETMStocksTrigger();   // AL: ЭТМ Самара (с автоперезапуском через триггеры)
-  } catch (err) {
-    Logger.log("❌ Ошибка в updateExternalAPIStocks: " + err);
-    if (typeof sendTelegramAlertGAS === "function") {
-      sendTelegramAlertGAS("updateExternalAPIStocks", err.message || String(err), err.stack || null);
-    }
-    throw err;
-  }
 }
 
 function OzonMain() {

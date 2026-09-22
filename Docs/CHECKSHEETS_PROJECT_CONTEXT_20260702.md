@@ -222,7 +222,7 @@ Runtime `/opt/homebrew/bin/python3`:
 
 | Группа | Файлы / функции | Логика |
 | --- | --- | --- |
-| Orchestration | `Главные функции.gs` (`OzonMain`, `WbMain`, `all`, `runOzonOnly`, `runWbOnly`, `updateExternalAPIStocks`) | Главные ручные/триггерные entrypoints. |
+| Orchestration | `Главные функции.gs` (`OzonMain`, `WbMain`, `all`, `runOzonOnly`, `runWbOnly`) | Главные ручные/триггерные entrypoints. |
 | Core settings/utils | `settings.gs`, `utils.gs`, `fetchapp.gs` | API config, sheet accessor, retry/rate limit helpers. |
 | Ozon product data | `Ozon обновить товары V2.gs`, `Ozon Получить товары.gs`, `Ozon Запись SKU.gs`, `Ozon цена.gs`, `Ozon цена по карте.gs`, `Ozon индекс.gs` | Product IDs/SKU, brand/model/category, prices, price index. |
 | Ozon stocks/orders/analytics | `Ozon остатки FBO.gs`, `Ozon склад Москва.gs`, `Ozon заказы.gs`, `Ozon продажи FBO FBS.gs`, `Ozon возвраты и отмены\.gs`, `Ozon отзывы.gs`, `Ozon платное хранение.gs` | Stocks, orders, cancellations/returns, review count, storage cost. |

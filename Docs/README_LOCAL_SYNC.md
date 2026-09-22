@@ -44,7 +44,7 @@ node sync-rs-stocks.js
 
 Для проверки чтения без записи используйте `node sync-rs-stocks.js --dry-run`; для запуска без ожидания Ozon post-check — `--skip-postcheck`.
 Для запуска через общий lock-скрипт используйте `./run_with_lock.sh sync_rs_stocks`.
-Шаблон launchd для запуска после обновления сырого RS (`10:30`/`22:30`) находится в `scripts/com.checksheets.sync_rs_stocks.plist` (`11:00`/`23:00`).
+Устаревший launchd-шаблон RS удалён из репозитория; локальный `sync-rs-stocks.js` остаётся единственным writer'ом RS для Ozon/WB.
 
 ### Обновление Feron (лист "ТЕСТ"):
 ```bash

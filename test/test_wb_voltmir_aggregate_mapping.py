@@ -25,16 +25,27 @@ def test_local_feron_uses_ac_total_for_feron_moscow():
     assert 'col: "stock_wb_feron_moscow"' in source
 
 
-def test_direct_arl_wb_stock_writer_is_disabled():
-    source = (PROJECT_ROOT / "Flow_ARL_TR__Остатки_Маркетплейсы.js").read_text(encoding="utf-8")
-    assert "const ARL_DIRECT_WB_STOCK_UPLOAD_ENABLED = false" in source
-    assert "if (!ARL_DIRECT_WB_STOCK_UPLOAD_ENABLED)" in source
+def test_legacy_apps_script_supplier_writers_are_removed():
+    for legacy_path in (
+        "Flow_ARL_TR__Остатки_Маркетплейсы.js",
+        "Flow_StreamSupps__Остатки_RS_Маркетплейсы.js",
+        "Flow_StreamSupps__Обнуление_RS_Ozon.js",
+        "scripts/com.checksheets.sync_rs_stocks.plist",
+    ):
+        assert not (PROJECT_ROOT / legacy_path).exists(), legacy_path
 
 
-def test_rs_writers_use_wb_total():
+def test_local_rs_writer_uses_wb_total():
     local_rs = (PROJECT_ROOT / "sync-rs-stocks.js").read_text(encoding="utf-8")
-    rs = (PROJECT_ROOT / "Flow_StreamSupps__Остатки_RS_Маркетплейсы.js").read_text(encoding="utf-8")
     assert 'wb_stock: STREAM_SUPPS_HEADERS.wbVoltmirTotal' in local_rs
     assert '"AB:WB ВОЛЬТМИР ИТОГ"' in local_rs
-    assert 'wbStock: "WB ВОЛЬТМИР ИТОГ"' in rs
-    assert rs.count("amount: item.wb_stock") >= 2
+
+
+def test_main_flow_does_not_call_removed_external_api_writer():
+    source = (PROJECT_ROOT / "Flow_Триггеры__Основные.js").read_text(encoding="utf-8")
+    for removed_entrypoint in (
+        "updateExternalAPIStocks(",
+        "syncRSStocks(",
+        "syncARLStocks(",
+    ):
+        assert removed_entrypoint not in source, removed_entrypoint

@@ -31,19 +31,6 @@ for (const [input, expected] of [[0, 0], [1, 1], [2, 2]]) {
 }
 
 const requiredUsage = {
-  'Flow_StreamSupps__Остатки_RS_Маркетплейсы.js': [
-    'brand: "brand",',
-    'resolveStreamSuppsColumns(headers, RS_MARKETPLACE_SCHEMA, RS_SHEET_NAME)',
-    'const stock = normalizeMarketplaceStock(originalStock, brand)',
-    'wb_stock: normalizeMarketplaceStock(wbStockForUpload, brand)',
-    'stock: item.stock',
-    'amount: item.wb_stock',
-  ],
-  'Flow_ARL_TR__Остатки_Маркетплейсы.js': [
-    'const stock = normalizeMarketplaceStock(originalStock)',
-    'stock: normalizeMarketplaceStock(item.stock)',
-    'amount: normalizeMarketplaceStock(item.stock)',
-  ],
   'Flow_UNIT_YNX__Остатки_поставщиков_Яндекс.js': [
     "const SAMARA_SUPPLIER_YNX_SOURCE_BRAND_HEADER = 'brand';",
     'count: normalizeMarketplaceStock(raw, brand)',

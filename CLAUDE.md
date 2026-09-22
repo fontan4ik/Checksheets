@@ -45,7 +45,7 @@ These are uploaded to the Google Spreadsheet Script Editor environment:
 *   **`List_ТЕСТ__Z_AA__Склады_WB.js`** & **`List_ТЕСТ__O__Остатки_WB_FBO.js`** — Handles Wildberries warehouse mapping and stocks.
 *   **`List_ТЕСТ__P_Q__Остатки_WB_FBS.js`** & **`List_ТЕСТ__N_AP__Заказы_WB.js`** — Main Wildberries stock updates and order synchronizations.
 *   **`List_ТЕСТ__M__Цена_WB.js`** — Manages Wildberries catalog pricing.
-*   **`Flow_StreamSupps__Остатки_RS_Маркетплейсы.js`** and **`Flow_ARL_TR__Остатки_Маркетплейсы.js`** — Supplier stock synchronization flows.
+*   **`sync-rs-stocks.js`**, **`sync-etm-stocks.js`** and **`sync-feron-stocks.js`** — local supplier stock writers; duplicate Apps Script writers are intentionally absent.
 
 ### 2. Local Python Synchronization Scripts (.py)
 These run on local servers or machines to update Google Sheets via the API:

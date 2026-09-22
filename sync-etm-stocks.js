@@ -4,6 +4,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsBroadcastReport } = require("./telegram_notifier");
 const { createWbStockAudit } = require("./wb_stock_audit");
+const { buildStockReport, throwOnStockSyncFailures } = require("./stock_sync_report");
 const {
   STREAM_SUPPS_HEADERS,
   resolveStreamSuppsColumns,
@@ -36,6 +37,11 @@ const WB_RPS = 0.12; // ~14 per minute = 1 req per 4.3 sec
 const OZON_BASE_DELAY = 1000;
 const WB_BASE_DELAY = 3000;
 const OZON_MAX_RETRIES = 3;
+const OZON_TERMINAL_PRODUCT_ERRORS = new Set([
+  "NOT_FOUND_ERROR",
+  "NOT_PASS_MODERATION",
+  "PRODUCT_IS_NOT_CREATED",
+]);
 const WB_MAX_RETRIES = 3; // 14 = 3 retries + 1 original = 4 total
 const OZON_POSTCHECK_DELAY_MS = 30000;
 const OZON_POSTCHECK_RETRY_DELAY_MS = 60000;
@@ -671,6 +677,7 @@ async function updateETMStocksOzon(stocks) {
   const batches = Math.ceil(validStocks.length / batchSize);
 
   let successCount = 0;
+  let skippedCount = 0;
   let errorCount = 0;
   let loggedOzonErrors = 0;
 
@@ -687,8 +694,8 @@ async function updateETMStocksOzon(stocks) {
     if (result.ok && result.data?.result) {
       result.data.result.forEach((r) => {
         if (r.errors && r.errors.length > 0) {
-          const isError = !r.errors.some((e) => e.code === "TOO_MANY_REQUESTS");
-          if (isError) {
+          const terminal = r.errors.every((e) => OZON_TERMINAL_PRODUCT_ERRORS.has(e.code));
+          if (!terminal) {
             errorCount++;
             if (loggedOzonErrors < 20) {
               log(
@@ -697,7 +704,7 @@ async function updateETMStocksOzon(stocks) {
               loggedOzonErrors++;
             }
           } else {
-            successCount++;
+            skippedCount++;
           }
         } else if (r.updated) {
           successCount++;
@@ -712,7 +719,7 @@ async function updateETMStocksOzon(stocks) {
     }
   }
 
-  log(`🟠 Ozon: ✅ ${successCount} обновлено, ❌ ${errorCount} ошибок`);
+  log(`🟠 Ozon: ✅ ${successCount} обновлено, ⏸️ ${skippedCount} terminal-пропусков, ❌ ${errorCount} ошибок`);
   log(
     `⏳ Ожидание ${OZON_POSTCHECK_DELAY_MS / 1000} сек перед промежуточным Ozon post-check...`,
   );
@@ -724,6 +731,13 @@ async function updateETMStocksOzon(stocks) {
       `ℹ️ Промежуточные расхождения по Ozon будут перепроверены в конце скрипта после WB: ${mismatches.length}`,
     );
   }
+  mismatches.syncStats = {
+    sourcePositiveSku: validStocks.filter((item) => Number(item.stock) > 0).length,
+    attemptedSku: validStocks.length,
+    acceptedSku: successCount,
+    skippedSku: skippedCount,
+    errorSku: errorCount,
+  };
   return mismatches;
 }
 
@@ -1083,6 +1097,16 @@ async function updateETMStocksWB(stocks) {
   log(
     `🟣 WB: ✅ ${successCount} обновлено, ⏸️ ${skippedCount} пропущено ODC/CD+, ❌ ${errorCount} ошибок`,
   );
+  return {
+    sourcePositiveSku: validStocks.filter((item) => Number(item.wb_stock) > 0).length,
+    attemptedSku: validStocks.length,
+    acceptedSku: successCount,
+    skippedSku: skippedCount,
+    errorSku: errorCount,
+    runId: audit.runId,
+    snapshotReadAt: stocks.snapshotReadAt || null,
+    snapshotSources: { wb_stock: stocks.wbSourceColumn || "AB:WB ВОЛЬТМИР ИТОГ" },
+  };
 }
 
 async function fetchETMWBStocks(warehouseId, chrtIds) {
@@ -1333,14 +1357,17 @@ async function main() {
   log("");
   log("🟠 Шаг 2: Обновление остатков Ozon (ЭТМ САМАРА)...");
   const ozonPendingMismatches = marketplace !== "wb" ? await updateETMStocksOzon(stocks) : [];
+  const ozonSyncStats = ozonPendingMismatches.syncStats || null;
 
   log("");
   log("🟣 Шаг 3: Обновление остатков WB (ВольтМир)...");
-  if (marketplace !== "ozon") await updateETMStocksWB(stocks);
+  const wbSyncStats = marketplace !== "ozon" ? await updateETMStocksWB(stocks) : null;
 
   log("");
   let ozonStats;
   let wbStats;
+  let remainingOzonMismatches = [];
+  let remainingWBMismatches = [];
   if (marketplace !== "wb") {
   log(
     `🟠 Шаг 4: Финальная полная перепроверка Ozon; первичных расхождений было ${ozonPendingMismatches.length}`,
@@ -1352,7 +1379,7 @@ async function main() {
     setTimeout(resolve, OZON_POSTCHECK_RETRY_DELAY_MS),
   );
   const finalOzonMismatches = await verifyETMOzonStocks(stocks);
-  const remainingOzonMismatches = await repairETMOzonMismatches(stocks, finalOzonMismatches);
+  remainingOzonMismatches = await repairETMOzonMismatches(stocks, finalOzonMismatches);
   ozonStats = remainingOzonMismatches?.stats || finalOzonMismatches?.stats;
   }
 
@@ -1361,7 +1388,7 @@ async function main() {
   log("🟣 Шаг 5: Ожидание 15 минут перед финальным WB post-check...");
   await new Promise((resolve) => setTimeout(resolve, 15 * 60 * 1000));
   const finalWBMismatches = await verifyETMWBStocks(stocks);
-  const remainingWBMismatches = await repairETMWBMismatches(stocks, finalWBMismatches);
+  remainingWBMismatches = await repairETMWBMismatches(stocks, finalWBMismatches);
   wbStats = remainingWBMismatches?.stats || finalWBMismatches?.stats;
   }
 
@@ -1374,6 +1401,7 @@ async function main() {
   console.log("============================================");
 
   // Отправка итоговой сводки трансляции ФБС в Telegram (отдельно для Ozon и WB)
+  const reports = [];
   try {
     const totalSku = stocks.length;
     const ozonActive = ozonStats?.sheetPositiveCount ?? stocks.filter((s) => s.stock > 0).length;
@@ -1388,6 +1416,20 @@ async function main() {
       marketplaceStockSku: ozonStats?.marketplacePositiveCount ?? null,
       marketplaceTotalPieces: ozonStats?.marketplaceTotalPieces ?? null,
       durationSec: duration,
+      ...buildStockReport({
+        sourcePositiveSku: ozonSyncStats?.sourcePositiveSku ?? ozonActive,
+        attemptedSku: ozonSyncStats?.attemptedSku ?? 0,
+        acceptedSku: ozonSyncStats?.acceptedSku ?? 0,
+        skippedSku: ozonSyncStats?.skippedSku ?? 0,
+        errorSku: ozonSyncStats?.errorSku ?? 0,
+        verification: {
+          status: remainingOzonMismatches.length ? "mismatch" : "verified",
+          positiveSku: ozonStats?.marketplacePositiveCount ?? null,
+          pieces: ozonStats?.marketplaceTotalPieces ?? null,
+          mismatchSku: remainingOzonMismatches.length,
+        },
+        snapshotReadAt: stocks.snapshotReadAt,
+      }),
     });
 
     await new Promise((resolve) => setTimeout(resolve, 600));
@@ -1401,10 +1443,48 @@ async function main() {
       marketplaceStockSku: wbStats?.marketplacePositiveCount ?? null,
       marketplaceTotalPieces: wbStats?.marketplaceTotalPieces ?? null,
       durationSec: duration,
+      ...buildStockReport({
+        sourcePositiveSku: wbSyncStats?.sourcePositiveSku ?? wbActive,
+        attemptedSku: wbSyncStats?.attemptedSku ?? 0,
+        acceptedSku: wbSyncStats?.acceptedSku ?? 0,
+        skippedSku: wbSyncStats?.skippedSku ?? 0,
+        errorSku: wbSyncStats?.errorSku ?? 0,
+        verification: {
+          status: wbStats?.excludedCount > 0 ? "incomplete" : remainingWBMismatches.length ? "mismatch" : "verified",
+          positiveSku: wbStats?.marketplacePositiveCount ?? null,
+          pieces: wbStats?.marketplaceTotalPieces ?? null,
+          mismatchSku: remainingWBMismatches.length,
+        },
+        runId: wbSyncStats?.runId,
+        snapshotReadAt: wbSyncStats?.snapshotReadAt,
+        snapshotSources: wbSyncStats?.snapshotSources,
+      }),
     });
   } catch (repErr) {
     console.error("Не удалось отправить сводку в Telegram:", repErr);
   }
+  if (marketplace !== "wb") reports.push(buildStockReport({
+    marketplace: "Ozon", warehouseName: "ЭТМ САМАРА",
+    sourcePositiveSku: ozonSyncStats?.sourcePositiveSku ?? 0,
+    attemptedSku: ozonSyncStats?.attemptedSku ?? 0,
+    acceptedSku: ozonSyncStats?.acceptedSku ?? 0,
+    skippedSku: ozonSyncStats?.skippedSku ?? 0,
+    errorSku: ozonSyncStats?.errorSku ?? 0,
+    verification: { status: remainingOzonMismatches.length ? "mismatch" : "verified", mismatchSku: remainingOzonMismatches.length },
+  }));
+  if (marketplace !== "ozon") reports.push(buildStockReport({
+    marketplace: "ВБ", warehouseName: "ВольтМир",
+    sourcePositiveSku: wbSyncStats?.sourcePositiveSku ?? 0,
+    attemptedSku: wbSyncStats?.attemptedSku ?? 0,
+    acceptedSku: wbSyncStats?.acceptedSku ?? 0,
+    skippedSku: wbSyncStats?.skippedSku ?? 0,
+    errorSku: wbSyncStats?.errorSku ?? 0,
+    verification: { status: wbStats?.excludedCount > 0 ? "incomplete" : remainingWBMismatches.length ? "mismatch" : "verified", mismatchSku: remainingWBMismatches.length },
+    runId: wbSyncStats?.runId,
+    snapshotReadAt: wbSyncStats?.snapshotReadAt,
+    snapshotSources: wbSyncStats?.snapshotSources,
+  }));
+  throwOnStockSyncFailures(reports);
 }
 
 main().catch(async (err) => {
