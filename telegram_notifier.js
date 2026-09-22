@@ -185,12 +185,25 @@ function queueFbsBroadcastReport(report) {
   catch (err) { console.error(`[telegram_notifier] Failed to queue FBS report: ${err.message}`); return false; }
 }
 
-async function sendFbsWarehouseReport({ marketplace = "Ozon", warehouseName = "Склад", totalSku = 0, activeSku = 0, marketplaceStockSku = null, marketplaceTotalPieces = null, durationSec = null, historyKey = null }) {
-  return queueFbsBroadcastReport({ marketplace, warehouseName, totalSku, activeSku, marketplaceStockSku, marketplaceTotalPieces, durationSec, historyKey });
+async function sendFbsWarehouseReport({ marketplace = "Ozon", warehouseName = "Склад", totalSku = 0, activeSku = 0, marketplaceStockSku = null, marketplaceTotalPieces = null, durationSec = null, historyKey = null, ...syncReport }) {
+  return queueFbsBroadcastReport({ marketplace, warehouseName, totalSku, activeSku, marketplaceStockSku, marketplaceTotalPieces, durationSec, historyKey, ...syncReport });
 }
 async function sendFbsMultiWarehouseReport({ supplier = "Ферон", marketplace = "Ozon", totalSku = 0, warehouses = [], durationSec = null }) {
   const result = [];
-  for (const warehouse of warehouses) result.push(queueFbsBroadcastReport({ supplier, marketplace, warehouseName: warehouse.warehouseName || warehouse.name || "Склад", totalSku, activeSku: warehouse.activeSku, marketplaceStockSku: warehouse.marketplaceStockSku, marketplaceTotalPieces: warehouse.marketplaceTotalPieces, durationSec }));
+  for (const warehouse of warehouses) {
+    const { warehouseName, name, activeSku, marketplaceStockSku, marketplaceTotalPieces, ...syncReport } = warehouse;
+    result.push(queueFbsBroadcastReport({
+      supplier,
+      marketplace,
+      warehouseName: warehouseName || name || "Склад",
+      totalSku,
+      activeSku,
+      marketplaceStockSku,
+      marketplaceTotalPieces,
+      durationSec,
+      ...syncReport,
+    }));
+  }
   return result.every(Boolean);
 }
 function formatFbsReportBlock(report) {
@@ -201,7 +214,23 @@ function formatFbsReportBlock(report) {
   const market = escapeTelegramHtml(truncate(report.marketplace || "Маркетплейс", 400));
   const supplier = report.supplier ? `, ${escapeTelegramHtml(truncate(report.supplier, 400))}` : "";
   const warehouse = escapeTelegramHtml(truncate(report.warehouseName || "Склад", 1000));
-  const lines = [`🏪 <b>${market}${supplier} — ${warehouse}</b>`, `⏰ Трансляция завершена: <code>${date} ${time}</code>`, `Транслировалось: <b>${Number(report.activeSku || 0).toLocaleString("ru-RU")}</b> из <b>${Number(report.totalSku || 0).toLocaleString("ru-RU")}</b> SKU`];
+  const sourcePositiveSku = Number(report.sourcePositiveSku);
+  const acceptedSku = Number(report.acceptedSku);
+  const skippedSku = Number(report.skippedSku);
+  const errorSku = Number(report.errorSku);
+  const mismatchSku = Number(report.mismatchSku);
+  const hasDeliveryCounters = [sourcePositiveSku, acceptedSku, skippedSku, errorSku].some(Number.isFinite);
+  const lines = [`🏪 <b>${market}${supplier} — ${warehouse}</b>`, `⏰ Трансляция завершена: <code>${date} ${time}</code>`];
+  if (hasDeliveryCounters) {
+    lines.push(`В источнике с остатком: <b>${Number.isFinite(sourcePositiveSku) ? sourcePositiveSku.toLocaleString("ru-RU") : "—"}</b> из <b>${Number(report.totalSku || 0).toLocaleString("ru-RU")}</b> SKU`);
+    lines.push(`Подтверждено отправкой: <b>${Number.isFinite(acceptedSku) ? acceptedSku.toLocaleString("ru-RU") : "—"}</b> SKU`);
+    if (Number.isFinite(skippedSku) && skippedSku > 0) lines.push(`Пропущено (ожидаемые terminal-статусы): <b>${skippedSku.toLocaleString("ru-RU")}</b> SKU`);
+    if (Number.isFinite(errorSku) && errorSku > 0) lines.push(`⚠️ Ошибки отправки: <b>${errorSku.toLocaleString("ru-RU")}</b> SKU`);
+  } else {
+    lines.push(`Транслировалось: <b>${Number(report.activeSku || 0).toLocaleString("ru-RU")}</b> из <b>${Number(report.totalSku || 0).toLocaleString("ru-RU")}</b> SKU`);
+  }
+  if (report.verificationStatus === "verified") lines.push("Post-check: <b>подтверждён</b>");
+  if (report.verificationStatus === "mismatch" || report.verificationStatus === "incomplete") lines.push(`⚠️ Post-check: <b>${report.verificationStatus === "incomplete" ? "неполный" : "есть расхождения"}</b>${Number.isFinite(mismatchSku) && mismatchSku > 0 ? ` (${mismatchSku.toLocaleString("ru-RU")} SKU)` : ""}`);
   if (report.marketplaceStockSku !== null && report.marketplaceStockSku !== undefined) {
     const stock = Number(report.marketplaceStockSku || 0).toLocaleString("ru-RU");
     const pieces = Number(report.marketplaceTotalPieces || 0).toLocaleString("ru-RU");
