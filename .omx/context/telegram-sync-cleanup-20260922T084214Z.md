@@ -1,0 +1,27 @@
+# Ralph context: Telegram sync cleanup
+
+- Task statement: fix the Telegram notification, stock-summary, false-success, RS synchronization, and Google Apps Script duplication problems identified in `.omx/plans/telegram-sync-errors-and-apps-script-cleanup.md`; delete obsolete scripts.
+- Desired outcome: trustworthy summaries and exit statuses, durable Telegram delivery/queueing, one regular writer per supplier/warehouse, obsolete Apps Script stock writers removed without breaking retained reporting or emergency behavior.
+- Known evidence:
+  - `telegram_notifier.js` formats source-positive `activeSku` as `Транслировалось` and uses a shared read/write/unlink JSON queue.
+  - `logs/marketplace_wb_20260921.log` shows 21 mismatches and 10 transport errors followed by exit code 0.
+  - `logs/fbs_broadcast_summary_launchd.*` shows Telegram 400, 401, and TLS failures.
+  - `Flow_StreamSupps__Остатки_RS_Маркетплейсы.js` duplicates local RS jobs; its public entrypoint is already a no-op.
+  - `Flow_ARL_TR__Остатки_Маркетплейсы.js` duplicates local stock uploads but also contains legacy price helpers.
+  - `Flow_Триггеры__Основные.js:updateExternalAPIStocks` calls missing Apps Script functions.
+- Constraints:
+  - Preserve Telegram chat binding.
+  - Preserve user changes and unrelated dirty files.
+  - Use `wb_stock_audit.js` for local WB writes.
+  - Apps Script deployment requires `.claspignore` inspection, backup, push, pull-and-compare verification.
+  - Do not delete report-only marketplace readers or Yandex/UNIT YNX routes.
+- Unknowns/open questions:
+  - Full Telegram chat export and complete Apps Script trigger ownership are not available locally.
+  - `clasp` command is not currently on PATH; deployment may require the repository's configured sync route or an available package runner.
+- Likely touchpoints:
+  - `telegram_notifier.js`, `send-fbs-broadcast-summary.js`
+  - `sync-etm-stocks.js`, `sync-feron-stocks.js`, `sync-rs-stocks.js`
+  - tests under `test/`
+  - `Flow_Триггеры__Основные.js`
+  - removal/splitting of `Flow_StreamSupps__Остатки_RS_Маркетплейсы.js` and `Flow_ARL_TR__Остатки_Маркетплейсы.js`
+  - legacy `scripts/com.checksheets.sync_rs_stocks.plist`
