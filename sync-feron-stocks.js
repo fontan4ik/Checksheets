@@ -278,8 +278,14 @@ async function fetchOzonWarehouseStocksBySku(items, warehouseId) {
   return stockMap;
 }
 
-async function verifyFeronOzonWarehouse(stocks, warehouse) {
-  const expected = stocks.filter((s) => s.offer_id);
+async function verifyFeronOzonWarehouse(
+  stocks,
+  warehouse,
+  { ignoredOfferIds = new Set() } = {},
+) {
+  const expected = stocks.filter(
+    (item) => item.offer_id && !ignoredOfferIds.has(String(item.offer_id)),
+  );
   if (expected.length === 0) return [];
 
   const actualMap = await fetchOzonWarehouseStocksBySku(expected, warehouse.id);
@@ -442,6 +448,7 @@ async function updateFeronStocksOzon(stocks) {
     let warehouseSuccess = 0;
     let warehouseSkipped = 0;
     let warehouseError = 0;
+    const skippedOfferIds = new Set();
 
     for (let i = 0; i < batches; i++) {
       lastRequestTime = await rateLimitRPS(lastRequestTime, RPS);
@@ -455,12 +462,14 @@ async function updateFeronStocksOzon(stocks) {
       if (result.ok && result.data?.result) {
         const itemResults = result.data.result;
         itemResults.forEach((r) => {
-          if (r.errors && r.errors.length > 0) {
-            const terminal = r.errors.every((e) => OZON_TERMINAL_PRODUCT_ERRORS.has(e.code));
-            if (terminal) warehouseSkipped++;
-            else warehouseError++;
-          } else if (r.updated) {
+          if (r.updated) {
             warehouseSuccess++;
+          } else if (r.errors && r.errors.length > 0) {
+            const terminal = r.errors.every((e) => OZON_TERMINAL_PRODUCT_ERRORS.has(e.code));
+            if (terminal) {
+              warehouseSkipped++;
+              if (r.offer_id) skippedOfferIds.add(String(r.offer_id));
+            } else warehouseError++;
           } else {
             warehouseError++;
             log(`❌ Ozon ${wh.name}: ${r.offer_id || "(без offer_id)"} без updated и без terminal-ошибки`);
@@ -487,7 +496,7 @@ async function updateFeronStocksOzon(stocks) {
       `⏳ Ожидание ${OZON_POSTCHECK_DELAY_MS / 1000} сек перед промежуточным Ozon post-check ${wh.name}...`,
     );
     await new Promise((resolve) => setTimeout(resolve, OZON_POSTCHECK_DELAY_MS));
-    const mismatches = await verifyFeronOzonWarehouse(validStocks, wh);
+    const mismatches = await verifyFeronOzonWarehouse(validStocks, wh, { ignoredOfferIds: skippedOfferIds });
     ozonWarehouseStats.push({
       ...(mismatches.stats || {
         warehouseName: wh.name,
@@ -501,6 +510,7 @@ async function updateFeronStocksOzon(stocks) {
       acceptedSku: warehouseSuccess,
       skippedSku: warehouseSkipped,
       errorSku: warehouseError,
+      skippedOfferIds,
       mismatchSku: mismatches.length,
       verificationStatus: mismatches.length ? "pending" : "verified",
       snapshotReadAt: stocks.snapshotReadAt || null,
@@ -509,7 +519,7 @@ async function updateFeronStocksOzon(stocks) {
       log(
         `ℹ️ Промежуточные расхождения Ozon ${wh.name} будут перепроверены в конце скрипта после WB: ${mismatches.length}`,
       );
-      pendingChecks.push({ warehouse: wh, mismatches });
+      pendingChecks.push({ warehouse: wh, mismatches, skippedOfferIds });
     }
     totalSuccess += warehouseSuccess;
     totalSkipped += warehouseSkipped;
@@ -1014,6 +1024,7 @@ async function main() {
       const rechecked = await verifyFeronOzonWarehouse(
         stocks.filter((item) => pendingOfferIds.has(String(item.offer_id))),
         pending.warehouse,
+        { ignoredOfferIds: pending.skippedOfferIds },
       );
       if (rechecked?.stats) {
         const idx = ozonWarehouseStats.findIndex(

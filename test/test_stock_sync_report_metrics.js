@@ -1,6 +1,8 @@
 "use strict";
 
 const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
 const {
   buildStockReport,
   stockSyncFailure,
@@ -52,4 +54,10 @@ assert.throws(
   () => throwOnStockSyncFailures([buildStockReport({ marketplace: "ВБ", verification: { status: "incomplete" } })]),
   /неполностью/,
 );
+
+for (const scriptName of ["sync-etm-stocks.js", "sync-feron-stocks.js"]) {
+  const source = fs.readFileSync(path.join(__dirname, "..", scriptName), "utf8");
+  assert.match(source, /ignoredOfferIds/, `${scriptName} must exclude terminal Ozon SKU from post-check`);
+  assert.match(source, /if \(r\.updated\)[\s\S]{0,240}else if \(r\.errors/, `${scriptName} must prefer updated over a co-reported error`);
+}
 console.log("stock sync report metrics/exit policy: OK");

@@ -475,11 +475,16 @@ async function fetchOzonWarehouseStocksByOfferIds(offerIds, warehouseId) {
   return stockMap;
 }
 
-async function verifyETMOzonStocks(stocks) {
-  const expected = stocks.filter((s) => s.offer_id);
+async function verifyETMOzonStocks(
+  stocks,
+  { ignoredOfferIds = new Set(), fetchStocks = fetchOzonWarehouseStocksByOfferIds } = {},
+) {
+  const expected = stocks.filter(
+    (item) => item.offer_id && !ignoredOfferIds.has(String(item.offer_id)),
+  );
   if (expected.length === 0) return [];
 
-  const actualMap = await fetchOzonWarehouseStocksByOfferIds(
+  const actualMap = await fetchStocks(
     expected.map((s) => String(s.offer_id)),
     ETM_TR_OZON_WAREHOUSE,
   );
@@ -540,7 +545,7 @@ async function verifyETMOzonStocks(stocks) {
   return mismatches;
 }
 
-async function repairETMOzonMismatches(stocks, initialMismatches) {
+async function repairETMOzonMismatches(stocks, initialMismatches, verifyOptions = {}) {
   let mismatches = initialMismatches || [];
   const attempts = Math.max(0, STOCK_REPAIR_ATTEMPTS);
 
@@ -567,15 +572,15 @@ async function repairETMOzonMismatches(stocks, initialMismatches) {
 
       if (result.ok && result.data?.result) {
         result.data.result.forEach((r) => {
-          if (r.errors && r.errors.length > 0) {
+          if (r.updated) {
+            updated++;
+          } else if (r.errors && r.errors.length > 0) {
             const isError = !r.errors.some((e) => e.code === "TOO_MANY_REQUESTS");
             if (isError) {
               errors++;
             } else {
               updated++;
             }
-          } else if (r.updated) {
-            updated++;
           }
         });
       } else {
@@ -587,7 +592,7 @@ async function repairETMOzonMismatches(stocks, initialMismatches) {
       `🛠️ Ozon repair ${attempt}/${attempts}: ✅ ${updated}, ❌ ${errors}; ждём ${Math.round(STOCK_REPAIR_DELAY_MS / 1000)} сек и перепроверяем`,
     );
     await sleep(STOCK_REPAIR_DELAY_MS);
-    mismatches = await verifyETMOzonStocks(stocks);
+    mismatches = await verifyETMOzonStocks(stocks, verifyOptions);
   }
 
   return mismatches;
@@ -680,6 +685,7 @@ async function updateETMStocksOzon(stocks) {
   let skippedCount = 0;
   let errorCount = 0;
   let loggedOzonErrors = 0;
+  const skippedOfferIds = new Set();
 
   for (let i = 0; i < batches; i++) {
     lastRequestTime = await rateLimitRPS(lastRequestTime, RPS);
@@ -694,7 +700,9 @@ async function updateETMStocksOzon(stocks) {
     if (result.ok && result.data?.result) {
       const itemResults = result.data.result;
       itemResults.forEach((r) => {
-        if (r.errors && r.errors.length > 0) {
+        if (r.updated) {
+          successCount++;
+        } else if (r.errors && r.errors.length > 0) {
           const terminal = r.errors.every((e) => OZON_TERMINAL_PRODUCT_ERRORS.has(e.code));
           if (!terminal) {
             errorCount++;
@@ -706,9 +714,8 @@ async function updateETMStocksOzon(stocks) {
             }
           } else {
             skippedCount++;
+            if (r.offer_id) skippedOfferIds.add(String(r.offer_id));
           }
-        } else if (r.updated) {
-          successCount++;
         } else {
           errorCount++;
           log(`❌ Ozon не подтвердил ${r.offer_id || "(без offer_id)"}: нет updated и нет terminal-ошибки`);
@@ -734,7 +741,7 @@ async function updateETMStocksOzon(stocks) {
   );
   await new Promise((resolve) => setTimeout(resolve, OZON_POSTCHECK_DELAY_MS));
 
-  const mismatches = await verifyETMOzonStocks(validStocks);
+  const mismatches = await verifyETMOzonStocks(validStocks, { ignoredOfferIds: skippedOfferIds });
   if (mismatches.length > 0) {
     log(
       `ℹ️ Промежуточные расхождения по Ozon будут перепроверены в конце скрипта после WB: ${mismatches.length}`,
@@ -746,6 +753,7 @@ async function updateETMStocksOzon(stocks) {
     acceptedSku: successCount,
     skippedSku: skippedCount,
     errorSku: errorCount,
+    skippedOfferIds,
   };
   return mismatches;
 }
@@ -1387,8 +1395,15 @@ async function main() {
   await new Promise((resolve) =>
     setTimeout(resolve, OZON_POSTCHECK_RETRY_DELAY_MS),
   );
-  const finalOzonMismatches = await verifyETMOzonStocks(stocks);
-  remainingOzonMismatches = await repairETMOzonMismatches(stocks, finalOzonMismatches);
+  const ozonVerifyOptions = {
+    ignoredOfferIds: ozonSyncStats?.skippedOfferIds || new Set(),
+  };
+  const finalOzonMismatches = await verifyETMOzonStocks(stocks, ozonVerifyOptions);
+  remainingOzonMismatches = await repairETMOzonMismatches(
+    stocks,
+    finalOzonMismatches,
+    ozonVerifyOptions,
+  );
   ozonStats = remainingOzonMismatches?.stats || finalOzonMismatches?.stats;
   }
 
