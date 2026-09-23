@@ -52,7 +52,10 @@ function normalizeMarketplaceStock(value, brand) {
 // Установи false, чтобы вернуть обычный расчёт остатков.
 const FORCE_ZERO_WB_EKB = true;
 
-const RPS = 10;
+const configuredOzonStocksRps = Number(process.env.FERON_OZON_STOCKS_RPS || 1);
+const OZON_STOCKS_RPS = Number.isFinite(configuredOzonStocksRps)
+  ? Math.max(0.1, configuredOzonStocksRps)
+  : 1;
 const WB_RPS = 0.1;
 
 const OZON_BASE_DELAY = 1000;
@@ -67,7 +70,7 @@ const WB_MAX_RETRIES = 3;
 const OZON_POSTCHECK_DELAY_MS = 30000;
 const OZON_POSTCHECK_RETRY_DELAY_MS = 60000;
 
-let lastRequestTime = Date.now() - 1000 / RPS;
+let lastRequestTime = Date.now() - 1000 / OZON_STOCKS_RPS;
 
 function rateLimitRPS(lastTime, rps) {
   const minInterval = 1000 / rps;
@@ -79,6 +82,15 @@ function rateLimitRPS(lastTime, rps) {
     ).then(() => Date.now());
   }
   return Promise.resolve(Date.now());
+}
+
+function retryAfterMs(headers) {
+  const value = headers?.["retry-after"];
+  if (value === undefined || value === null) return 0;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds > 0) return seconds * 1000;
+  const timestamp = Date.parse(String(value));
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
 }
 
 function log(msg) {
@@ -241,17 +253,26 @@ const ozonHeaders = () => ({
   "Api-Key": "fe539630-170b-4b48-b222-8ba092907a63",
 });
 
-async function fetchOzonWarehouseStocksBySku(items, warehouseId) {
+async function fetchOzonWarehouseStocksByOfferId(
+  items,
+  warehouseId,
+  httpClient = axios,
+) {
   const stockMap = new Map();
-  const validItems = items.filter((item) => Number(item.ozon_sku) > 0);
-  const chunkSize = 500;
+  const offerIds = [...new Set(
+    items.map((item) => String(item.offer_id || "").trim()).filter(Boolean),
+  )];
+  // Ozon may return several warehouse rows per offer_id even if warehouse_id
+  // is supplied. Keep chunks below the response limit to avoid silently
+  // truncating rows and treating omitted products as zero stock.
+  const chunkSize = 100;
 
-  for (let i = 0; i < validItems.length; i += chunkSize) {
-    const chunk = validItems.slice(i, i + chunkSize);
-    const response = await axios.post(
+  for (let i = 0; i < offerIds.length; i += chunkSize) {
+    const chunk = offerIds.slice(i, i + chunkSize);
+    const response = await httpClient.post(
       "https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs",
       {
-        sku: chunk.map((item) => Number(item.ozon_sku)),
+        offer_id: chunk,
         warehouse_id: warehouseId,
         limit: 1000,
       },
@@ -267,7 +288,9 @@ async function fetchOzonWarehouseStocksBySku(items, warehouseId) {
 
     products.forEach((item) => {
       if (String(item.warehouse_id) !== String(warehouseId)) return;
-      stockMap.set(String(item.sku), {
+      const offerId = String(item.offer_id || "").trim();
+      if (!offerId) return;
+      stockMap.set(offerId, {
         present: Number(item.present) || 0,
         reserved: Number(item.reserved) || 0,
         free_stock: Number(item.free_stock) || 0,
@@ -281,14 +304,18 @@ async function fetchOzonWarehouseStocksBySku(items, warehouseId) {
 async function verifyFeronOzonWarehouse(
   stocks,
   warehouse,
-  { ignoredOfferIds = new Set() } = {},
+  { ignoredOfferIds = new Set(), httpClient = axios } = {},
 ) {
   const expected = stocks.filter(
     (item) => item.offer_id && !ignoredOfferIds.has(String(item.offer_id)),
   );
   if (expected.length === 0) return [];
 
-  const actualMap = await fetchOzonWarehouseStocksBySku(expected, warehouse.id);
+  const actualMap = await fetchOzonWarehouseStocksByOfferId(
+    expected,
+    warehouse.id,
+    httpClient,
+  );
 
   const mismatches = [];
   const samples = [];
@@ -298,11 +325,8 @@ async function verifyFeronOzonWarehouse(
 
   expected.forEach((item) => {
     const expectedStock = Number(item[warehouse.col]) || 0;
-    if (!Number(item.ozon_sku)) {
-      return;
-    }
-    const actual = actualMap.get(String(item.ozon_sku));
-    const actualStock = actual ? actual.present + actual.reserved : 0;
+    const actual = actualMap.get(String(item.offer_id));
+    const actualStock = actual?.free_stock ?? 0;
     const freeStock = actual?.free_stock ?? 0;
 
     if (expectedStock > 0) sheetPositiveCount++;
@@ -320,8 +344,9 @@ async function verifyFeronOzonWarehouse(
         free: freeStock,
       });
       if (samples.length < 10) {
+        const skuLabel = item.ozon_sku ? ` [sku=${item.ozon_sku}]` : "";
         samples.push(
-          `${item.offer_id} [sku=${item.ozon_sku}]: sheet=${expectedStock}, ozon=${actualStock}, free=${actual?.free_stock ?? 0}`,
+          `${item.offer_id}${skuLabel}: sheet=${expectedStock}, ozon=${actualStock}, free=${actual?.free_stock ?? 0}`,
         );
       }
     }
@@ -372,9 +397,13 @@ async function updateFeronStocksOzonWithRetry(
     return { ok: true, data: response.data };
   } catch (err) {
     const code = err.response?.status;
+    const errorDetails = err.response?.data || err.message;
 
     if (code === 429 && retryCount < OZON_MAX_RETRIES) {
-      const delay = OZON_BASE_DELAY * Math.pow(2, retryCount);
+      const delay = Math.max(
+        retryAfterMs(err.response?.headers),
+        OZON_BASE_DELAY * Math.pow(2, retryCount),
+      );
       log(
         "⏳ Ozon 429: ожидание " +
         delay / 1000 +
@@ -390,10 +419,10 @@ async function updateFeronStocksOzonWithRetry(
 
     if (code === 429) {
       log("⏭️ Ozon 429: пропуск после " + OZON_MAX_RETRIES + " попыток");
-      return { ok: false, error: "MAX_RETRIES_EXCEEDED", code };
+      return { ok: false, error: errorDetails, code };
     }
 
-    return { ok: false, error: err.response?.data || err.message, code };
+    return { ok: false, error: errorDetails, code };
   }
 }
 
@@ -451,7 +480,7 @@ async function updateFeronStocksOzon(stocks) {
     const skippedOfferIds = new Set();
 
     for (let i = 0; i < batches; i++) {
-      lastRequestTime = await rateLimitRPS(lastRequestTime, RPS);
+      lastRequestTime = await rateLimitRPS(lastRequestTime, OZON_STOCKS_RPS);
 
       const batch = validStocks.slice(i * batchSize, (i + 1) * batchSize);
 
@@ -469,7 +498,12 @@ async function updateFeronStocksOzon(stocks) {
             if (terminal) {
               warehouseSkipped++;
               if (r.offer_id) skippedOfferIds.add(String(r.offer_id));
-            } else warehouseError++;
+            } else {
+              warehouseError++;
+              log(
+                `❌ Ozon ${wh.name}: ${r.offer_id || "(без offer_id)"}: ${JSON.stringify(r.errors).slice(0, 1000)}`,
+              );
+            }
           } else {
             warehouseError++;
             log(`❌ Ozon ${wh.name}: ${r.offer_id || "(без offer_id)"} без updated и без terminal-ошибки`);
@@ -483,7 +517,7 @@ async function updateFeronStocksOzon(stocks) {
         log(`✅ Пачка ${i + 1}/${batches} обработана`);
       } else {
         log(
-          `❌ Ошибка API (пачка ${i + 1}/${batches}): ${result.code || result.error}`,
+          `❌ Ошибка API (пачка ${i + 1}/${batches}): ${JSON.stringify(result.error || result.code).slice(0, 1000)}`,
         );
         warehouseError += batch.length;
       }
@@ -1122,16 +1156,23 @@ async function main() {
   throwOnStockSyncFailures(reports);
 }
 
-main().catch(async (err) => {
-  console.error("❌ Ошибка:", err);
-  try {
-    await sendTelegramAlert(
-      "sync_feron_stocks",
-      err.message || String(err),
-      err.stack || null,
-    );
-  } catch (tgErr) {
-    console.error("Не удалось отправить Telegram алерт:", tgErr);
-  }
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch(async (err) => {
+    console.error("❌ Ошибка:", err);
+    try {
+      await sendTelegramAlert(
+        "sync_feron_stocks",
+        err.message || String(err),
+        err.stack || null,
+      );
+    } catch (tgErr) {
+      console.error("Не удалось отправить Telegram алерт:", tgErr);
+    }
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  fetchOzonWarehouseStocksByOfferId,
+  verifyFeronOzonWarehouse,
+};
