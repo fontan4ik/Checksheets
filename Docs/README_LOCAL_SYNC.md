@@ -55,6 +55,17 @@ python feron_sync_local.py
 - **AJ**: Ферон Внуково
 - **AK**: Ферон Новосибирск
 
+### Обновление IEK (лист "ТЕСТ"):
+```bash
+.venv-etm-export/bin/python iek_stock_sync_local.py
+```
+Скрипт сопоставляет строки с брендом **IEK** по колонке **МОДЕЛЬ**, получает поле
+`available` из пакетных файлов остатков API IEK и пишет его в крайнюю колонку
+**Остаток IEK**. API-ключ читается из macOS Keychain (`checksheets-iek-api`, account
+`ticket`); пароль личного кабинета для API не подходит. Расписание хранится в
+LaunchAgent `com.checksheets.iek_stock_sync`; после настройки ключа задание будет
+запускаться каждый час на :52.
+
 ### Выгрузка WB техданных (лист "ТЕХ данные wb"):
 ```bash
 python wb_tech_data_sync_local.py

@@ -92,6 +92,10 @@ case "$SCRIPT_NAME" in
         .venv-etm-export/bin/python -u arlight_sync_local.py >> "$LOG_FILE" 2>&1
         EXIT_CODE=$?
         ;;
+    iek_stock_sync)
+        .venv-etm-export/bin/python -u iek_stock_sync_local.py >> "$LOG_FILE" 2>&1
+        EXIT_CODE=$?
+        ;;
     etm_sync)
         /opt/homebrew/bin/python3 etm_sync_multi_store.py >> "$LOG_FILE" 2>&1
         EXIT_CODE=$?
