@@ -31,7 +31,10 @@ function normalizeMarketplaceStock(value, brand) {
   return stock === 1 && !isArlight ? 0 : stock;
 }
 
-const RPS = 10;
+const configuredOzonStocksRps = Number(process.env.ETM_OZON_STOCKS_RPS || 1);
+const OZON_STOCKS_RPS = Number.isFinite(configuredOzonStocksRps)
+  ? Math.max(0.1, configuredOzonStocksRps)
+  : 1;
 const WB_RPS = 0.12; // ~14 per minute = 1 req per 4.3 sec
 
 const OZON_BASE_DELAY = 1000;
@@ -82,7 +85,7 @@ const GOOGLE_SHEETS_RETRY_BASE_MS = parseInt(
 // Individual marketplace requests already have their own axios timeouts.
 google.options({ timeout: GOOGLE_SHEETS_TIMEOUT_MS });
 
-let lastRequestTime = Date.now() - 1000 / RPS;
+let lastRequestTime = Date.now() - 1000 / OZON_STOCKS_RPS;
 
 function rateLimitRPS(lastTime, rps) {
   const minInterval = 1000 / rps;
@@ -94,6 +97,15 @@ function rateLimitRPS(lastTime, rps) {
     ).then(() => Date.now());
   }
   return Promise.resolve(Date.now());
+}
+
+function retryAfterMs(headers) {
+  const value = headers?.["retry-after"];
+  if (value === undefined || value === null) return 0;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds > 0) return seconds * 1000;
+  const timestamp = Date.parse(String(value));
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
 }
 
 function log(msg) {
@@ -629,7 +641,10 @@ async function updateETMStocksOzonWithRetry(
       : err.message;
 
     if (code === 429 && retryCount < OZON_MAX_RETRIES) {
-      const delay = OZON_BASE_DELAY * Math.pow(2, retryCount);
+      const delay = Math.max(
+        retryAfterMs(err.response?.headers),
+        OZON_BASE_DELAY * Math.pow(2, retryCount),
+      );
       log(
         "⏳ Ozon 429: ожидание " +
           delay / 1000 +
@@ -645,7 +660,7 @@ async function updateETMStocksOzonWithRetry(
 
     if (code === 429) {
       log("⏭️ Ozon 429: пропуск после " + OZON_MAX_RETRIES + " попыток");
-      return { ok: false, error: "MAX_RETRIES_EXCEEDED", code };
+      return { ok: false, error: errorText, code };
     }
 
     if (isTransportError(code || 0, errorText) && retryCount < OZON_MAX_RETRIES) {
@@ -688,7 +703,7 @@ async function updateETMStocksOzon(stocks) {
   const skippedOfferIds = new Set();
 
   for (let i = 0; i < batches; i++) {
-    lastRequestTime = await rateLimitRPS(lastRequestTime, RPS);
+      lastRequestTime = await rateLimitRPS(lastRequestTime, OZON_STOCKS_RPS);
 
     const batch = validStocks.slice(i * batchSize, (i + 1) * batchSize);
 
@@ -727,10 +742,10 @@ async function updateETMStocksOzon(stocks) {
         log(`❌ Ozon вернул неполный результат пачки ${i + 1}/${batches}: без статуса ${missing} SKU`);
       }
       log(`✅ Пачка ${i + 1}/${batches} обработана (${batch.length} товаров)`);
-    } else {
-      log(
-        `❌ Ошибка API (пачка ${i + 1}/${batches}): ${result.code || result.error}`,
-      );
+      } else {
+        log(
+          `❌ Ошибка API (пачка ${i + 1}/${batches}): ${JSON.stringify(result.error || result.code).slice(0, 1000)}`,
+        );
       errorCount += batch.length;
     }
   }

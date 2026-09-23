@@ -49,7 +49,10 @@ const RS_COLUMNS = {
 
 const OZON_API_URL = "https://api-seller.ozon.ru";
 const WB_API_URL = "https://marketplace-api.wildberries.ru";
-const OZON_RPS = 10;
+const configuredOzonRps = Number(process.env.RS_OZON_STOCKS_RPS || 1);
+const OZON_RPS = Number.isFinite(configuredOzonRps)
+  ? Math.max(0.1, configuredOzonRps)
+  : 1;
 const configuredWbRps = Number(process.env.RS_WB_RPS || 2);
 const WB_RPS = Number.isFinite(configuredWbRps) ? Math.max(0.1, configuredWbRps) : 2;
 const BATCH_SIZE_OZON = 100;
@@ -214,6 +217,15 @@ async function rateLimit(lastRequestAt, rps) {
   return Date.now();
 }
 
+function retryAfterMs(headers) {
+  const value = headers?.["retry-after"];
+  if (value === undefined || value === null) return 0;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds > 0) return seconds * 1000;
+  const timestamp = Date.parse(String(value));
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
+}
+
 async function sendOzonStocksBatch(batch, warehouseId, retry = 0) {
   try {
     const response = await axios.post(
@@ -224,7 +236,10 @@ async function sendOzonStocksBatch(batch, warehouseId, retry = 0) {
     return { ok: true, code: response.status, data: response.data };
   } catch (error) {
     if (isRetryable(error) && retry < MAX_RETRIES) {
-      const delay = OZON_BASE_DELAY_MS * 2 ** retry;
+      const delay = Math.max(
+        retryAfterMs(error.response?.headers),
+        OZON_BASE_DELAY_MS * 2 ** retry,
+      );
       log(`⏳ Ozon ${error.response?.status || "transport"}: retry ${retry + 1}/${MAX_RETRIES} через ${delay / 1000} сек.`);
       await sleep(delay);
       return sendOzonStocksBatch(batch, warehouseId, retry + 1);
@@ -262,25 +277,30 @@ async function updateRsStocksOzon(
     }
 
     const items = Array.isArray(result.data?.result) ? result.data.result : [];
-    if (!items.length) {
-      successCount += batch.length;
-    } else {
-      for (const item of items) {
-        const errors = Array.isArray(item.errors) ? item.errors : [];
-        if (item.updated) {
-          successCount += 1;
-          continue;
-        }
-        const terminal = errors.length > 0 && errors.every((error) => OZON_TERMINAL_PRODUCT_ERRORS.has(error.code));
-        const details = errors.map((error) => `${error.code}: ${error.message}`).join("; ") || "unknown item error";
-        if (terminal) {
-          skippedCount += 1;
-          skippedOfferIds.add(String(item.offer_id));
-          log(`⏸️ ${label}: ${item.offer_id} пропущен — ${details}`);
-        } else {
-          errorCount += 1;
-          log(`❌ ${label}: ${item.offer_id} не обновлён — ${details}`);
-        }
+    const resultsByOfferId = new Map(
+      items.filter((item) => item.offer_id).map((item) => [String(item.offer_id), item]),
+    );
+    for (const requested of batch) {
+      const item = resultsByOfferId.get(String(requested.offer_id));
+      if (!item) {
+        errorCount += 1;
+        log(`❌ ${label}: ${requested.offer_id} отсутствует в ответе Ozon`);
+        continue;
+      }
+      const errors = Array.isArray(item.errors) ? item.errors : [];
+      if (item.updated) {
+        successCount += 1;
+        continue;
+      }
+      const terminal = errors.length > 0 && errors.every((error) => OZON_TERMINAL_PRODUCT_ERRORS.has(error.code));
+      const details = errors.map((error) => `${error.code}: ${error.message}`).join("; ") || "unknown item error";
+      if (terminal) {
+        skippedCount += 1;
+        skippedOfferIds.add(String(item.offer_id));
+        log(`⏸️ ${label}: ${item.offer_id} пропущен — ${details}`);
+      } else {
+        errorCount += 1;
+        log(`❌ ${label}: ${item.offer_id} не обновлён — ${details}`);
       }
     }
     log(`✅ ${label}: пачка ${index + 1}/${batches} обработана (${batch.length} товаров)`);

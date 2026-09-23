@@ -29,7 +29,10 @@ const YANDEX_BATCH_SIZE = 2000;
 // Передача на Яндекс «СДЭК МО» включена по запросу владельца.
 const YANDEX_SYNC_ENABLED = true;
 const BATCH_SIZE = 100;
-const REQUEST_INTERVAL_MS = 120;
+const configuredRequestIntervalMs = Number(process.env.CDEK_OZON_REQUEST_INTERVAL_MS || 1000);
+const REQUEST_INTERVAL_MS = Number.isFinite(configuredRequestIntervalMs)
+  ? Math.max(1000, configuredRequestIntervalMs)
+  : 1000;
 const MAX_RETRIES = 3;
 const POSTCHECK_DELAY_MS = 30000;
 const SERVICE_ACCOUNT_FILE =
@@ -50,6 +53,15 @@ function quoteSheetName(name) {
 
 function sleep(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function retryAfterMs(headers) {
+  const value = headers?.["retry-after"];
+  if (value === undefined || value === null) return 0;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds > 0) return seconds * 1000;
+  const timestamp = Date.parse(String(value));
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
 }
 
 function numberStock(value) {
@@ -196,7 +208,11 @@ async function postWithRetry(url, body, headers, retry = 0, httpClient = axios) 
     return await httpClient.post(url, body, { headers, timeout: 30000 });
   } catch (error) {
     if (isRetryable(error) && retry < MAX_RETRIES) {
-      await sleep(1000 * 2 ** retry);
+      const delay = Math.max(
+        retryAfterMs(error.response?.headers),
+        1000 * 2 ** retry,
+      );
+      await sleep(delay);
       return postWithRetry(url, body, headers, retry + 1, httpClient);
     }
     throw error;
@@ -218,12 +234,22 @@ async function uploadBatch(batch, headers, httpClient = axios) {
     httpClient,
   );
   const results = Array.isArray(response.data?.result) ? response.data.result : [];
-  const errors = results.filter((result) => Array.isArray(result.errors) && result.errors.length > 0);
-  if (errors.length) {
-    const sample = errors[0];
-    throw new Error(`Ozon не принял ${errors.length} позиций; пример offer_id «${sample.offer_id || "?"}»`);
+  const resultsByOfferId = new Map(
+    results.filter((result) => result.offer_id).map((result) => [String(result.offer_id), result]),
+  );
+  const failures = batch.flatMap((requested) => {
+    const result = resultsByOfferId.get(String(requested.offer_id));
+    if (!result) return [`${requested.offer_id}: отсутствует в ответе`];
+    if (result.updated) return [];
+    const details = Array.isArray(result.errors) && result.errors.length
+      ? result.errors.map((error) => `${error.code || "error"}: ${error.message || error.detail || ""}`).join("; ")
+      : "нет поля updated=true и нет описания ошибки";
+    return [`${requested.offer_id}: ${details}`];
+  });
+  if (failures.length) {
+    throw new Error(`Ozon не подтвердил ${failures.length}/${batch.length} позиций: ${failures.slice(0, 10).join(" | ")}`);
   }
-  return results.filter((result) => result.updated).length;
+  return batch.length;
 }
 
 async function uploadStocks(stocks, headers, httpClient = axios) {
