@@ -456,8 +456,8 @@ def sync() -> None:
     gsheets_utils._retry_gsheet_call(
         "write IEK stocks",
         lambda: worksheet.update(
-            range_name,
-            values,
+            values=values,
+            range_name=range_name,
             value_input_option="RAW",
         ),
     )
