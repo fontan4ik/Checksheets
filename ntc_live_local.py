@@ -151,12 +151,50 @@ def verify_written(stock: gspread.Worksheet, target_f: dict) -> None:
 
 
 def write_sheet(stock: gspread.Worksheet, target_f: dict, model_rows: dict,
-                row_count: int) -> None:
-    by_row = {row: target_f[model] for model, numbers in model_rows.items() for row in numbers}
-    requests = [{"range": f"F2:F{row_count + 1}",
-                 "values": [[by_row[row]] for row in range(2, row_count + 2)]}]
+                row_count: int, current_f: dict | None = None) -> None:
+    row_models = {
+        row: model
+        for model, numbers in model_rows.items()
+        for row in numbers
+    }
+    changed_rows = [
+        (row, target_f[model])
+        for row, model in sorted(row_models.items())
+        if row <= row_count + 1 and (current_f is None or current_f.get(model) != target_f[model])
+    ]
+    if not changed_rows:
+        return
+
+    requests = []
+    group_start = previous_row = changed_rows[0][0]
+    group_values = [[changed_rows[0][1]]]
+    for row, value in changed_rows[1:]:
+        if row == previous_row + 1:
+            group_values.append([value])
+        else:
+            requests.append({
+                "range": f"F{group_start}:F{previous_row}",
+                "values": group_values,
+            })
+            group_start = row
+            group_values = [[value]]
+        previous_row = row
+    requests.append({
+        "range": f"F{group_start}:F{previous_row}",
+        "values": group_values,
+    })
+
     stock.batch_update(requests, value_input_option="USER_ENTERED")
-    verify_written(stock, target_f)
+    if current_f is None:
+        # Keep the helper's old standalone behavior for callers without a snapshot.
+        verify_written(stock, target_f)
+        return
+
+    for request in requests:
+        actual = stock.get(request["range"], value_render_option="UNFORMATTED_VALUE")
+        expected = request["values"]
+        if actual != expected:
+            raise RuntimeError(f"НТЦ: F read-back differs in {request['range']}")
 
 
 def recover_pending(stock: gspread.Worksheet) -> None:
@@ -168,9 +206,9 @@ def recover_pending(stock: gspread.Worksheet) -> None:
     if pending.get("migration"):
         raise RuntimeError("НТЦ: unfinished old column migration needs manual recovery")
     if current == pending["old_f"]:
-        write_sheet(stock, pending["new_f"], snapshot["model_rows"], snapshot["row_count"])
+        write_sheet(stock, pending["new_f"], snapshot["model_rows"], snapshot["row_count"], current)
     elif current == pending["new_f"]:
-        verify_written(stock, pending["new_f"])
+        pass
     else:
         raise RuntimeError("НТЦ: interrupted write and F no longer matches old/new plan")
     save_json(STATE_PATH, pending["new_state"])
@@ -219,7 +257,13 @@ def run(*, apply: bool) -> None:
     pending = {"old_f": snapshot["stock_by_model"], "new_f": result["F_by_model"],
                "new_state": new_state}
     save_json(PENDING_PATH, pending)
-    write_sheet(stock, result["F_by_model"], snapshot["model_rows"], snapshot["row_count"])
+    write_sheet(
+        stock,
+        result["F_by_model"],
+        snapshot["model_rows"],
+        snapshot["row_count"],
+        snapshot["stock_by_model"],
+    )
     save_json(STATE_PATH, new_state)
     PENDING_PATH.unlink()
 
