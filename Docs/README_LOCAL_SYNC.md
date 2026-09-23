@@ -63,8 +63,8 @@ python feron_sync_local.py
 `available` из пакетных файлов остатков API IEK и пишет его в крайнюю колонку
 **Остаток IEK**. API-ключ читается из macOS Keychain (`checksheets-iek-api`, account
 `ticket`); пароль личного кабинета для API не подходит. Расписание хранится в
-LaunchAgent `com.checksheets.iek_stock_sync`; после настройки ключа задание будет
-запускаться каждый час на :52.
+LaunchAgent `com.checksheets.iek_stock_sync`; задание запускается ежедневно в
+08:52 и 20:52 по локальному времени Mac.
 
 ### Выгрузка WB техданных (лист "ТЕХ данные wb"):
 ```bash

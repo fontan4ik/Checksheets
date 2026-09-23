@@ -12,10 +12,20 @@
     <key>WorkingDirectory</key>
     <string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets</string>
     <key>StartCalendarInterval</key>
-    <dict>
-        <key>Minute</key>
-        <integer>52</integer>
-    </dict>
+    <array>
+        <dict>
+            <key>Hour</key>
+            <integer>8</integer>
+            <key>Minute</key>
+            <integer>52</integer>
+        </dict>
+        <dict>
+            <key>Hour</key>
+            <integer>20</integer>
+            <key>Minute</key>
+            <integer>52</integer>
+        </dict>
+    </array>
     <key>RunAtLoad</key>
     <false/>
     <key>ProcessType</key>

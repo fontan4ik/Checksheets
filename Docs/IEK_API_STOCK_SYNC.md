@@ -46,7 +46,7 @@ API-ключ читается из macOS Keychain: service `checksheets-iek-api`
 `ticket`. Переменная `IEK_API_KEY` предусмотрена как временный runtime fallback;
 ключ не записывается в файлы проекта и не попадает в логи.
 
-План запуска — каждый час в :52 через LaunchAgent
+План запуска — ежедневно в 08:52 и 20:52 по локальному времени Mac через LaunchAgent
 `com.checksheets.iek_stock_sync`, по принятому в проекте шаблону `launchd`.
 Cron не используется для задач Checksheets. Агент не следует загружать до того,
 как в Keychain появится API-ключ: пароль входа в личный кабинет API-ключом не
