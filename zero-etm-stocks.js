@@ -17,7 +17,7 @@ const ETM_TR_SCHEMA = {
   chrlid: "chrlid",
 };
 
-const RPS = 10;
+const RPS = 1;
 const WB_RPS = 0.12;
 
 const OZON_BASE_DELAY = 1000;
@@ -37,6 +37,15 @@ function rateLimitRPS(lastTime, rps) {
     ).then(() => Date.now());
   }
   return Promise.resolve(Date.now());
+}
+
+function retryAfterMs(headers) {
+  const value = headers?.["retry-after"] ?? headers?.["Retry-After"];
+  if (value === undefined || value === null) return 0;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds > 0) return seconds * 1000;
+  const timestamp = Date.parse(String(value));
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
 }
 
 function log(msg) {
@@ -159,7 +168,10 @@ async function updateETMStocksOzonWithRetry(
       : err.message;
 
     if (code === 429 && retryCount < OZON_MAX_RETRIES) {
-      const delay = OZON_BASE_DELAY * Math.pow(2, retryCount);
+      const delay = Math.max(
+        retryAfterMs(err.response?.headers),
+        OZON_BASE_DELAY * Math.pow(2, retryCount),
+      );
       log(
         `⏳ Ozon 429: ожидание ${delay / 1000} сек перед retry ${retryCount + 1}/${OZON_MAX_RETRIES}...`,
       );
@@ -209,20 +221,33 @@ async function updateETMStocksOzon(items) {
     );
 
     if (result.ok && result.data?.result) {
-      result.data.result.forEach((row) => {
-        if (row.errors && row.errors.length > 0) {
+      const resultByOfferId = new Map(
+        result.data.result
+          .filter((row) => row.offer_id)
+          .map((row) => [String(row.offer_id), row]),
+      );
+      for (const requested of batch) {
+        const row = resultByOfferId.get(String(requested.offer_id));
+        if (!row) {
           errorCount++;
-          return;
+          log(`❌ Ozon не подтвердил ${requested.offer_id}: товар отсутствует в ответе пачки ${i + 1}/${batches}`);
+          continue;
         }
         if (row.updated) {
           successCount++;
+        } else {
+          errorCount++;
+          const details = Array.isArray(row.errors) && row.errors.length
+            ? JSON.stringify(row.errors).slice(0, 1000)
+            : "нет updated=true и нет описания ошибки";
+          log(`❌ Ozon не обнулил ${row.offer_id}: ${details}`);
         }
-      });
+      }
       log(`✅ Ozon пачка ${i + 1}/${batches} обработана (${batch.length} товаров)`);
     } else {
       errorCount += batch.length;
       log(
-        `❌ Ozon ошибка API (пачка ${i + 1}/${batches}): ${result.code || result.error}`,
+        `❌ Ozon ошибка API (пачка ${i + 1}/${batches}): ${JSON.stringify(result.error || result.code).slice(0, 1000)}`,
       );
     }
   }

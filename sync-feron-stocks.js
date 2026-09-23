@@ -85,7 +85,7 @@ function rateLimitRPS(lastTime, rps) {
 }
 
 function retryAfterMs(headers) {
-  const value = headers?.["retry-after"];
+  const value = headers?.["retry-after"] ?? headers?.["Retry-After"];
   if (value === undefined || value === null) return 0;
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds > 0) return seconds * 1000;

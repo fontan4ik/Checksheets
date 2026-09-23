@@ -218,7 +218,7 @@ async function rateLimit(lastRequestAt, rps) {
 }
 
 function retryAfterMs(headers) {
-  const value = headers?.["retry-after"];
+  const value = headers?.["retry-after"] ?? headers?.["Retry-After"];
   if (value === undefined || value === null) return 0;
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds > 0) return seconds * 1000;
@@ -226,9 +226,9 @@ function retryAfterMs(headers) {
   return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
 }
 
-async function sendOzonStocksBatch(batch, warehouseId, retry = 0) {
+async function sendOzonStocksBatch(batch, warehouseId, retry = 0, httpClient = axios) {
   try {
-    const response = await axios.post(
+    const response = await httpClient.post(
       `${OZON_API_URL}/v2/products/stocks`,
       { stocks: batch.map((item) => ({ offer_id: item.offer_id, stock: item.stock, warehouse_id: warehouseId })) },
       { headers: ozonHeaders(), timeout: 30000 },
@@ -242,7 +242,7 @@ async function sendOzonStocksBatch(batch, warehouseId, retry = 0) {
       );
       log(`⏳ Ozon ${error.response?.status || "transport"}: retry ${retry + 1}/${MAX_RETRIES} через ${delay / 1000} сек.`);
       await sleep(delay);
-      return sendOzonStocksBatch(batch, warehouseId, retry + 1);
+      return sendOzonStocksBatch(batch, warehouseId, retry + 1, httpClient);
     }
     return {
       ok: false,
@@ -254,7 +254,7 @@ async function sendOzonStocksBatch(batch, warehouseId, retry = 0) {
 
 async function updateRsStocksOzon(
   stocks,
-  { warehouseId = RS_OZON_WAREHOUSE_ID, stockField = "stock", label = "Ozon RS" } = {},
+  { warehouseId = RS_OZON_WAREHOUSE_ID, stockField = "stock", label = "Ozon RS", httpClient = axios } = {},
 ) {
   const valid = stocks.filter((item) => item.offer_id);
   const batches = Math.ceil(valid.length / BATCH_SIZE_OZON);
@@ -269,7 +269,7 @@ async function updateRsStocksOzon(
     lastRequestAt = await rateLimit(lastRequestAt, OZON_RPS);
     const batch = valid.slice(index * BATCH_SIZE_OZON, (index + 1) * BATCH_SIZE_OZON)
       .map((item) => ({ ...item, stock: item[stockField] }));
-    const result = await sendOzonStocksBatch(batch, warehouseId);
+    const result = await sendOzonStocksBatch(batch, warehouseId, 0, httpClient);
     if (!result.ok) {
       errorCount += batch.length;
       log(`❌ ${label}: ошибка пачки ${index + 1}/${batches}: ${result.code} ${result.text || ""}`);

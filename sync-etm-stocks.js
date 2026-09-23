@@ -100,7 +100,7 @@ function rateLimitRPS(lastTime, rps) {
 }
 
 function retryAfterMs(headers) {
-  const value = headers?.["retry-after"];
+  const value = headers?.["retry-after"] ?? headers?.["Retry-After"];
   if (value === undefined || value === null) return 0;
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds > 0) return seconds * 1000;
@@ -437,8 +437,7 @@ async function fetchOzonWarehouseStocksChunkWithRetry(
       throw err;
     }
 
-    const retryAfter =
-      Number(err?.response?.headers?.["retry-after"] || 0) * 1000;
+    const retryAfter = retryAfterMs(err?.response?.headers);
     const delay = Math.max(
       retryAfter,
       OZON_BASE_DELAY * Math.pow(2, retryCount),
