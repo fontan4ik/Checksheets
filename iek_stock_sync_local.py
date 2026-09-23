@@ -193,9 +193,8 @@ def login(session: requests.Session, api_key: str) -> None:
     )
     if payload.get("status", 200) not in (200, "200"):
         raise RuntimeError("IEK API authentication failed")
-    required_cookies = ("kc-access", "kc-state")
-    missing = [name for name in required_cookies if not session.cookies.get(name)]
-    if missing:
+    cookie_pairs = (("kc-access", "kc-state"), ("bp-access", "bp-state"))
+    if not any(all(session.cookies.get(name) for name in pair) for pair in cookie_pairs):
         raise RuntimeError(
             "IEK API authentication did not establish the documented session cookies; "
             "check the API key and client API access."

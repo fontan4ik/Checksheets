@@ -7,7 +7,9 @@
 - Корень API: `https://bp.iek.ru`.
 - Авторизация: `POST /oauth/login`, форма `application/x-www-form-urlencoded`,
   `username=ticket`, `password=<API-ключ>`. Успешный запрос устанавливает куки
-  `kc-access` и `kc-state`.
+  `kc-access` и `kc-state` согласно спецификации. При фактическом запросе IEK
+  вернул `bp-access` и `bp-state`; скрипт принимает обе пары и не сохраняет
+  токены из тела ответа.
 - `GET /api/catalog/v1/client/catalog` возвращает список верхнеуровневых
   категорий с `slug`.
 - `GET /api/catalog/v1/client/category/{slug}/balances-json` возвращает дату
