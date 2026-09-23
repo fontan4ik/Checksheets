@@ -37,8 +37,10 @@ BRAND_HEADER = "Бренд"
 ARTICLE_HEADER = "МОДЕЛЬ"
 STOCK_HEADER = "Остаток IEK"
 HTTP_ATTEMPTS = max(1, int(os.getenv("IEK_HTTP_ATTEMPTS", "4")))
-HTTP_TIMEOUT = max(5.0, float(os.getenv("IEK_HTTP_TIMEOUT", "60")))
+HTTP_TIMEOUT = max(5.0, float(os.getenv("IEK_HTTP_TIMEOUT", "30")))
 RETRY_BASE_SECONDS = max(0.0, float(os.getenv("IEK_RETRY_BASE_SECONDS", "2")))
+CATEGORY_REQUEST_INTERVAL = max(0.0, float(os.getenv("IEK_CATEGORY_REQUEST_INTERVAL", "0.25")))
+DETAIL_REQUEST_INTERVAL = max(0.0, float(os.getenv("IEK_DETAIL_REQUEST_INTERVAL", "0.5")))
 
 logger = logging.getLogger("iek_stock_sync")
 
@@ -122,7 +124,8 @@ def request_json(
     *,
     data: dict[str, str] | None = None,
     expect_json: bool = True,
-) -> dict[str, Any]:
+    allow_not_found: bool = False,
+) -> dict[str, Any] | None:
     transient_statuses = {408, 425, 429, 500, 502, 503, 504}
     for attempt in range(1, HTTP_ATTEMPTS + 1):
         try:
@@ -164,6 +167,8 @@ def request_json(
             time.sleep(delay)
             continue
 
+        if allow_not_found and response.status_code == 404:
+            return None
         if not response.ok:
             raise RuntimeError(
                 f"IEK API returned HTTP {response.status_code} for {method} {url}"
@@ -232,6 +237,8 @@ def fetch_catalog_stocks(session: requests.Session) -> tuple[dict[str, int | flo
         slug = str(category["slug"])
         url = BALANCES_URL.format(slug=quote(slug, safe=""))
         balances = request_json(session, "GET", url)
+        if balances is None:
+            raise RuntimeError(f"IEK balances response for category '{slug}' was empty")
         products = balances.get("products")
         if not isinstance(products, list):
             raise RuntimeError(
@@ -255,6 +262,8 @@ def fetch_catalog_stocks(session: requests.Session) -> tuple[dict[str, int | flo
                 )
             stock_by_article[normalized] = stock
             total_products += 1
+        if CATEGORY_REQUEST_INTERVAL:
+            time.sleep(CATEGORY_REQUEST_INTERVAL)
 
     if category_snapshots:
         logger.info(
@@ -268,6 +277,71 @@ def fetch_catalog_stocks(session: requests.Session) -> tuple[dict[str, int | flo
         len(stock_by_article),
     )
     return stock_by_article, len(categories)
+
+
+def fetch_missing_product_stocks(
+    session: requests.Session,
+    worksheet,
+    stock_by_article: dict[str, int | float | None],
+) -> tuple[int, int]:
+    """Use the single-product endpoint for IEK rows omitted by bulk balances."""
+    headers = worksheet.row_values(1)
+    columns = gsheets_utils.resolve_header_columns(
+        headers,
+        {"brand": BRAND_HEADER, "article": ARTICLE_HEADER},
+        worksheet.title,
+    )
+    first_column = min(columns.values())
+    last_column = max(columns.values())
+    source_range = (
+        f"{column_letter(first_column)}1:"
+        f"{column_letter(last_column)}{worksheet.row_count}"
+    )
+    rows = worksheet.get(source_range, value_render_option="UNFORMATTED_VALUE")
+    brand_offset = columns["brand"] - first_column
+    article_offset = columns["article"] - first_column
+    missing: dict[str, str] = {}
+    for row in rows[1:]:
+        brand = row[brand_offset] if brand_offset < len(row) else ""
+        article_value = row[article_offset] if article_offset < len(row) else ""
+        if gsheets_utils.normalize_header(brand) != "iek":
+            continue
+        article = str(article_value or "").strip()
+        normalized = normalize_article(article)
+        if article and normalized not in stock_by_article:
+            missing.setdefault(normalized, article)
+
+    loaded = 0
+    not_found: list[str] = []
+    for normalized, article in missing.items():
+        if DETAIL_REQUEST_INTERVAL:
+            time.sleep(DETAIL_REQUEST_INTERVAL)
+        url = f"{BASE_URL}/api/catalog/v1/client/products/{quote(article, safe='')}"
+        product = request_json(session, "GET", url, allow_not_found=True)
+        if product is None:
+            not_found.append(article)
+            continue
+        returned_article = str(product.get("article", "")).strip()
+        if normalize_article(returned_article) != normalized:
+            raise RuntimeError(
+                f"IEK product endpoint returned a mismatched article for {article}"
+            )
+        stock_by_article[normalized] = validate_stock(product.get("available"), article)
+        loaded += 1
+
+    if missing:
+        logger.info(
+            "IEK detail fallback: %d recovered from product endpoint, %d not found",
+            loaded,
+            len(not_found),
+        )
+        if not_found:
+            logger.warning(
+                "%d IEK article(s) are absent from both endpoints; those rows will be blank. Examples: %s",
+                len(not_found),
+                ", ".join(not_found[:10]),
+            )
+    return loaded, len(not_found)
 
 
 def column_letter(column: int) -> str:
@@ -345,12 +419,10 @@ def build_sheet_values(worksheet, stock_by_article: dict[str, int | float | None
         matched_rows += 1
 
     if missing_articles:
-        sample = "; ".join(missing_articles[:10])
-        extra = len(missing_articles) - min(len(missing_articles), 10)
-        suffix = f"; and {extra} more" if extra else ""
-        raise RuntimeError(
-            f"IEK catalog did not match {len(missing_articles)} sheet article(s); "
-            f"stock column was not changed. Examples: {sample}{suffix}"
+        logger.warning(
+            "%d IEK sheet row(s) have no API article and will be written blank. Examples: %s",
+            len(missing_articles),
+            "; ".join(missing_articles[:10]),
         )
     if matched_rows == 0:
         raise RuntimeError("No IEK product rows were found on the target sheet")
@@ -367,16 +439,17 @@ def build_sheet_values(worksheet, stock_by_article: dict[str, int | float | None
 def sync() -> None:
     started = datetime.now(timezone.utc)
     api_key = get_api_key()
+    spreadsheet = gsheets_utils.get_gsheet_client().open_by_key(config.SPREADSHEET_ID)
+    worksheet = spreadsheet.worksheet(SHEET_NAME)
+    ensure_stock_header(worksheet)
     session = create_session()
     try:
         login(session, api_key)
         stock_by_article, _ = fetch_catalog_stocks(session)
+        fetch_missing_product_stocks(session, worksheet, stock_by_article)
     finally:
         session.close()
 
-    spreadsheet = gsheets_utils.get_gsheet_client().open_by_key(config.SPREADSHEET_ID)
-    worksheet = spreadsheet.worksheet(SHEET_NAME)
-    ensure_stock_header(worksheet)
     stock_column, values = build_sheet_values(worksheet, stock_by_article)
     last_row = len(values) + 1
     range_name = f"{column_letter(stock_column)}2:{column_letter(stock_column)}{last_row}"
