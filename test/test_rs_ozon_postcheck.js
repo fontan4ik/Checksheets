@@ -4,6 +4,7 @@ const assert = require("assert");
 const {
   fetchOzonStocksByOfferIds,
   verifyRsOzonStocks,
+  updateRsStocksOzon,
 } = require("../sync-rs-stocks");
 
 async function run() {
@@ -44,6 +45,18 @@ async function run() {
       ignoredOfferIds: new Set(["B"]),
     });
     assert.strictEqual(result.mismatches.length, 0, "free_stock must be compared with the sent stock");
+
+    const rejectedMissingResult = await updateRsStocksOzon(
+      [{ offer_id: "MISSING-RESULT", stock: 4 }],
+      {
+        warehouseId: 10,
+        label: "test missing result",
+        httpClient: { post: async () => ({ status: 200, data: { result: [] } }) },
+      },
+    );
+    assert.strictEqual(rejectedMissingResult.acceptedSku, 0, "an empty item result must not count as accepted");
+    assert.strictEqual(rejectedMissingResult.errorSku, 1, "a missing item result is a write error");
+
     console.log("RS Ozon post-check regression test: OK");
 }
 

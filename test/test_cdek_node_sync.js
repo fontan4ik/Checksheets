@@ -53,6 +53,14 @@ async function testOzonUploadAndVerification() {
   assert.strictEqual(actual.get("a"), 7);
   assert.strictEqual(actual.get("b"), 0);
   assert.strictEqual(calls.length, 2);
+
+  await assert.rejects(
+    ozon.uploadBatch([{ offer_id: "missing" }], {}, {
+      post: async () => ({ data: { result: [] } }),
+    }),
+    /отсутствует в ответе/,
+    "a missing item result must not be reported as a successful upload",
+  );
 }
 
 async function testSheetInputValidation() {
