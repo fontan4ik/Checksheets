@@ -11,10 +11,14 @@ import argparse
 import fcntl
 import json
 import os
+import random
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import gspread
+import requests
+from gspread.exceptions import APIError
 
 from ntc_f_stage import advance
 from ntc_fbs_reserve_sync import (
@@ -26,6 +30,35 @@ from ntc_fbs_reserve_sync import (
 STATE_PATH = ROOT / "logs" / "ntc_live_state.json"
 PENDING_PATH = ROOT / "logs" / "ntc_live_pending.json"
 LOCK_PATH = ROOT / "logs" / "ntc_live.lock"
+GOOGLE_RETRY_ATTEMPTS = 8
+GOOGLE_RETRY_BASE_SECONDS = 5
+GOOGLE_RETRY_MAX_SECONDS = 60
+
+
+def is_retryable_google_error(error: Exception) -> bool:
+    if isinstance(error, (requests.exceptions.ConnectionError, requests.exceptions.Timeout,
+                          TimeoutError, ConnectionError)):
+        return True
+    if isinstance(error, APIError):
+        response = getattr(error, "response", None)
+        status = getattr(response, "status_code", None)
+        return status in (429, 500, 502, 503, 504)
+    return False
+
+
+def with_google_retry(label: str, operation, *, sleep_fn=time.sleep, jitter_fn=random.random):
+    """Retry transient Sheets/API transport failures with capped exponential backoff."""
+    for attempt in range(GOOGLE_RETRY_ATTEMPTS):
+        try:
+            return operation()
+        except Exception as error:
+            if attempt + 1 >= GOOGLE_RETRY_ATTEMPTS or not is_retryable_google_error(error):
+                raise
+            delay = min(GOOGLE_RETRY_BASE_SECONDS * (2 ** attempt), GOOGLE_RETRY_MAX_SECONDS)
+            delay += jitter_fn()
+            print(f"Google Sheets временная ошибка ({label}); retry {attempt + 1}/"
+                  f"{GOOGLE_RETRY_ATTEMPTS - 1} через {delay:.1f} сек: {error}", flush=True)
+            sleep_fn(delay)
 
 
 def save_json(path: Path, value: dict) -> None:
@@ -49,7 +82,8 @@ def positive_integer(value, label: str, *, zero_allowed: bool = True) -> int:
 
 
 def read_sheet(stock: gspread.Worksheet) -> dict:
-    rows = stock.get("A1:K1000", value_render_option="UNFORMATTED_VALUE")
+    rows = with_google_retry(
+        "чтение таблицы", lambda: stock.get("A1:K1000", value_render_option="UNFORMATTED_VALUE"))
     headers = rows[0]
     if headers[0] != "Артикул продавца" or headers[5] != "Остаток склад по моделям" or \
             headers[10] != "Ручное списание штук":
@@ -184,14 +218,16 @@ def write_sheet(stock: gspread.Worksheet, target_f: dict, model_rows: dict,
         "values": group_values,
     })
 
-    stock.batch_update(requests, value_input_option="USER_ENTERED")
+    with_google_retry("запись F", lambda: stock.batch_update(requests, value_input_option="USER_ENTERED"))
     if current_f is None:
         # Keep the helper's old standalone behavior for callers without a snapshot.
         verify_written(stock, target_f)
         return
 
     for request in requests:
-        actual = stock.get(request["range"], value_render_option="UNFORMATTED_VALUE")
+        actual = with_google_retry(
+            f"проверка {request['range']}",
+            lambda: stock.get(request["range"], value_render_option="UNFORMATTED_VALUE"))
         expected = request["values"]
         if actual != expected:
             raise RuntimeError(f"НТЦ: F read-back differs in {request['range']}")
@@ -217,8 +253,8 @@ def recover_pending(stock: gspread.Worksheet) -> None:
 
 def run(*, apply: bool) -> None:
     client = gspread.service_account(filename=str(ROOT / "nomadic-bedrock-485314-b0-d7624dedd83c.json"))
-    book = client.open_by_key(SPREADSHEET_ID)
-    stock = book.worksheet(SHEET_NAME)
+    book = with_google_retry("открытие таблицы", lambda: client.open_by_key(SPREADSHEET_ID))
+    stock = with_google_retry("получение листа", lambda: book.worksheet(SHEET_NAME))
     if apply:
         recover_pending(stock)
     snapshot = read_sheet(stock)

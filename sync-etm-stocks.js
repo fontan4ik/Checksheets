@@ -108,6 +108,14 @@ function retryAfterMs(headers) {
   return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
 }
 
+function wbRetryDelayMs(headers, fallbackMs) {
+  const raw = headers?.["x-ratelimit-retry"] ?? headers?.["X-Ratelimit-Retry"];
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds >= 0
+    ? Math.max(fallbackMs, seconds * 1000)
+    : fallbackMs;
+}
+
 function log(msg) {
   const localTime = new Date().toLocaleTimeString("ru-RU", { hour12: false });
   const ms = String(new Date().getMilliseconds()).padStart(3, "0");
@@ -574,7 +582,7 @@ async function repairETMOzonMismatches(stocks, initialMismatches, verifyOptions 
     );
 
     for (let i = 0; i < repairItems.length; i += batchSize) {
-      lastRequestTime = await rateLimitRPS(lastRequestTime, RPS);
+      lastRequestTime = await rateLimitRPS(lastRequestTime, OZON_STOCKS_RPS);
       const batch = repairItems.slice(i, i + batchSize);
       const result = await updateETMStocksOzonWithRetry(
         batch,
@@ -817,7 +825,7 @@ async function sendETMStocksBatch(batch, warehouseId, retryCount = 0) {
     const text = JSON.stringify(response.data || {});
 
     if (code === 429 && retryCount < WB_MAX_RETRIES) {
-      const delay = WB_BASE_DELAY * Math.pow(2, retryCount);
+      const delay = wbRetryDelayMs(response.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
       log(
         "⏳ WB 429: ожидание " +
           delay / 1000 +
@@ -849,7 +857,7 @@ async function sendETMStocksBatch(batch, warehouseId, retryCount = 0) {
       : err.message;
 
     if (code === 429 && retryCount < WB_MAX_RETRIES) {
-      const delay = WB_BASE_DELAY * Math.pow(2, retryCount);
+      const delay = wbRetryDelayMs(err.response?.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
       log(
         "⏳ WB 429: ожидание " +
           delay / 1000 +
@@ -1143,28 +1151,48 @@ async function updateETMStocksWB(stocks) {
 async function fetchETMWBStocks(warehouseId, chrtIds) {
   const stockMap = new Map();
   const failedChrtIds = new Set();
-  const chunkSize = 1000;
+  // Smaller verification pages avoid repeating the observed 20s timeout on 1,000 IDs.
+  const chunkSize = 250;
   
   for (let i = 0; i < chrtIds.length; i += chunkSize) {
     const chunk = chrtIds.slice(i, i + chunkSize);
     
     if (i > 0) await new Promise((resolve) => setTimeout(resolve, 550));
     
-    try {
-      const response = await axios.post(
-        `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`,
-        { chrtIds: chunk },
-        { headers: wbHeaders(), timeout: 20000 }
-      );
-      
-      const stocks = Array.isArray(response.data?.stocks) ? response.data.stocks : [];
-      stocks.forEach((item) => {
-        stockMap.set(Number(item.chrtId), Number(item.amount) || 0);
-      });
-    } catch (err) {
-      chunk.forEach((chrtId) => failedChrtIds.add(Number(chrtId)));
-      log(`❌ Ошибка API при запросе остатков склада ${warehouseId}: ${err.response ? JSON.stringify(err.response.data) : err.message}`);
+    let response = null;
+    let lastError = null;
+    for (let attempt = 0; attempt <= WB_MAX_RETRIES; attempt += 1) {
+      try {
+        response = await axios.post(
+          `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`,
+          { chrtIds: chunk },
+          { headers: wbHeaders(), timeout: 30000 }
+        );
+        lastError = null;
+        break;
+      } catch (err) {
+        lastError = err;
+        const status = err.response?.status || 0;
+        const retryable = status === 429 || status >= 500 || !status ||
+          /timeout|timed out|socket|network/i.test(String(err.message || ""));
+        if (!retryable || attempt >= WB_MAX_RETRIES) break;
+        const fallback = WB_BASE_DELAY * 2 ** attempt;
+        const delay = status === 429 ? wbRetryDelayMs(err.response?.headers, fallback) : fallback;
+        log(`⏳ WB post-check ${status || "transport"}: retry ${attempt + 1}/${WB_MAX_RETRIES} через ${delay / 1000} сек.`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
+
+    if (lastError || !response) {
+      chunk.forEach((chrtId) => failedChrtIds.add(Number(chrtId)));
+      log(`❌ Ошибка API при запросе остатков склада ${warehouseId}: ${lastError?.response ? JSON.stringify(lastError.response.data) : lastError?.message || "empty response"}`);
+      continue;
+    }
+
+    const stocks = Array.isArray(response.data?.stocks) ? response.data.stocks : [];
+    stocks.forEach((item) => {
+      stockMap.set(Number(item.chrtId), Number(item.amount) || 0);
+    });
   }
   
   return { stockMap, failedChrtIds };

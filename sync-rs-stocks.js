@@ -226,6 +226,14 @@ function retryAfterMs(headers) {
   return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
 }
 
+function wbRetryDelayMs(headers, fallbackMs) {
+  const raw = headers?.["x-ratelimit-retry"] ?? headers?.["X-Ratelimit-Retry"];
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds >= 0
+    ? Math.max(fallbackMs, seconds * 1000)
+    : fallbackMs;
+}
+
 async function sendOzonStocksBatch(batch, warehouseId, retry = 0, httpClient = axios) {
   try {
     const response = await httpClient.post(
@@ -428,7 +436,8 @@ async function sendRsWbStocksBatch(batch, retry = 0) {
     const code = error.response?.status || 0;
     const responseText = error.response?.data ? JSON.stringify(error.response.data) : error.message;
     if (isRetryable(error) && retry < MAX_RETRIES) {
-      const delay = WB_BASE_DELAY_MS * 2 ** retry;
+      const fallback = WB_BASE_DELAY_MS * 2 ** retry;
+      const delay = code === 429 ? wbRetryDelayMs(error.response?.headers, fallback) : fallback;
       log(`⏳ WB ${code || "transport"}: retry ${retry + 1}/${MAX_RETRIES} через ${delay / 1000} сек.`);
       await sleep(delay);
       return sendRsWbStocksBatch(batch, retry + 1);
@@ -686,6 +695,7 @@ module.exports = {
   normalizeChrtId,
   resolveColumns,
   isWbCargoRestrictionError,
+  wbRetryDelayMs,
   readRsStocksFromSheet,
   fetchOzonStocksByOfferIds,
   updateRsStocksOzon,

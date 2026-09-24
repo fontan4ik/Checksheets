@@ -5,9 +5,14 @@ const {
   fetchOzonStocksByOfferIds,
   verifyRsOzonStocks,
   updateRsStocksOzon,
+  wbRetryDelayMs,
 } = require("../sync-rs-stocks");
 
 async function run() {
+  assert.strictEqual(wbRetryDelayMs({ "x-ratelimit-retry": "7" }, 3000), 7000,
+    "WB 429 retry must respect the official retry header");
+  assert.strictEqual(wbRetryDelayMs({}, 3000), 3000,
+    "WB retry uses exponential fallback when no retry header is present");
   const calls = [];
   const httpClient = { post: async (_url, body) => {
     calls.push(body.offer_id);

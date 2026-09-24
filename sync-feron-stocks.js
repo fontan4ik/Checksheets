@@ -93,6 +93,14 @@ function retryAfterMs(headers) {
   return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : 0;
 }
 
+function wbRetryDelayMs(headers, fallbackMs) {
+  const raw = headers?.["x-ratelimit-retry"] ?? headers?.["X-Ratelimit-Retry"];
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds >= 0
+    ? Math.max(fallbackMs, seconds * 1000)
+    : fallbackMs;
+}
+
 function log(msg) {
   const localTime = new Date().toLocaleTimeString("ru-RU", { hour12: false });
   const ms = String(new Date().getMilliseconds()).padStart(3, "0");
@@ -609,7 +617,7 @@ async function sendFeronWBStocksBatch(batch, warehouseId, retryCount = 0) {
     const text = JSON.stringify(response.data || {});
 
     if (code === 429 && retryCount < WB_MAX_RETRIES) {
-      const delay = WB_BASE_DELAY * Math.pow(2, retryCount);
+      const delay = wbRetryDelayMs(response.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
       log(
         "⏳ WB 429: ожидание " +
         delay / 1000 +
@@ -641,7 +649,7 @@ async function sendFeronWBStocksBatch(batch, warehouseId, retryCount = 0) {
       : err.message;
 
     if (code === 429 && retryCount < WB_MAX_RETRIES) {
-      const delay = WB_BASE_DELAY * Math.pow(2, retryCount);
+      const delay = wbRetryDelayMs(err.response?.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
       log(
         "⏳ WB 429: ожидание " +
         delay / 1000 +

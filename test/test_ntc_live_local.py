@@ -5,8 +5,11 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
+import requests
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from ntc_live_local import fetch_returns, normalize_postings, read_sheet, write_sheet  # noqa: E402
+from ntc_live_local import (fetch_returns, normalize_postings, read_sheet, with_google_retry,
+                            write_sheet)  # noqa: E402
 
 
 class FakeSheet:
@@ -34,6 +37,33 @@ class FakeSheet:
 
 
 class LocalConnectorTests(unittest.TestCase):
+    def test_retries_transient_google_connection_errors_with_backoff(self):
+        attempts = []
+        delays = []
+
+        def operation():
+            attempts.append(1)
+            if len(attempts) < 3:
+                raise requests.exceptions.ConnectionError("remote closed connection")
+            return "ok"
+
+        result = with_google_retry("test", operation, sleep_fn=delays.append, jitter_fn=lambda: 0)
+        self.assertEqual(result, "ok")
+        self.assertEqual(len(attempts), 3)
+        self.assertEqual(delays, [5, 10])
+
+    def test_does_not_retry_non_transient_errors(self):
+        attempts = []
+
+        def operation():
+            attempts.append(1)
+            raise ValueError("bad input")
+
+        with self.assertRaisesRegex(ValueError, "bad input"):
+            with_google_retry("test", operation,
+                              sleep_fn=lambda _delay: self.fail("must not sleep"))
+        self.assertEqual(len(attempts), 1)
+
     def test_reads_model_once_and_writes_only_f(self):
         sheet = FakeSheet()
         snapshot = read_sheet(sheet)
