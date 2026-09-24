@@ -81,6 +81,7 @@ const OZON_REPORT65_REQUIRED_HEADERS = [
 
 const OZON_REPORT65_COMMON_COSTS_KEY = "__ozon_report65_common_costs__";
 
+// Apps Script evaluates project files in its global runtime; Node-only CommonJS helpers must stay excluded.
 function updateOzonReport65() {
   const range = getOzonReport65DefaultDateRange_();
   updateOzonReport65ForDates(range.from, range.to);
