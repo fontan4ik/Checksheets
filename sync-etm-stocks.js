@@ -828,9 +828,12 @@ async function sendETMStocksBatch(batch, warehouseId, retryCount = 0) {
     const code = response.status;
     const text = JSON.stringify(response.data || {});
     await wbRequestLimiter.chargeResponse(code);
+    const rateLimitDelay = code === 429
+      ? await wbRequestLimiter.deferForRateLimit(response.headers, WB_BASE_DELAY * 2 ** retryCount)
+      : null;
 
     if (code === 429 && retryCount < WB_MAX_RETRIES) {
-      const delay = await wbRequestLimiter.deferForRateLimit(response.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
+      const delay = rateLimitDelay;
       log(
         "⏳ WB 429: ожидание " +
           delay / 1000 +
@@ -861,9 +864,12 @@ async function sendETMStocksBatch(batch, warehouseId, retryCount = 0) {
       ? JSON.stringify(err.response.data)
       : err.message;
     await wbRequestLimiter.chargeResponse(code);
+    const rateLimitDelay = code === 429
+      ? await wbRequestLimiter.deferForRateLimit(err.response?.headers, WB_BASE_DELAY * 2 ** retryCount)
+      : null;
 
     if (code === 429 && retryCount < WB_MAX_RETRIES) {
-      const delay = await wbRequestLimiter.deferForRateLimit(err.response?.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
+      const delay = rateLimitDelay;
       log(
         "⏳ WB 429: ожидание " +
           delay / 1000 +
@@ -1174,13 +1180,14 @@ async function fetchETMWBStocks(warehouseId, chrtIds) {
         lastError = err;
         const status = err.response?.status || 0;
         await wbRequestLimiter.chargeResponse(status);
+        const rateLimitDelay = status === 429
+          ? await wbRequestLimiter.deferForRateLimit(err.response?.headers, WB_BASE_DELAY * 2 ** attempt)
+          : null;
         const retryable = status === 429 || status >= 500 || !status ||
           /timeout|timed out|socket|network/i.test(String(err.message || ""));
         if (!retryable || attempt >= WB_MAX_RETRIES) break;
         const fallback = WB_BASE_DELAY * 2 ** attempt;
-        const delay = status === 429
-          ? await wbRequestLimiter.deferForRateLimit(err.response?.headers, fallback)
-          : fallback;
+        const delay = rateLimitDelay ?? fallback;
         log(`⏳ WB post-check ${status || "transport"}: retry ${attempt + 1}/${WB_MAX_RETRIES} через ${delay / 1000} сек.`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }

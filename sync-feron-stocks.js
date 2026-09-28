@@ -620,9 +620,12 @@ async function sendFeronWBStocksBatch(batch, warehouseId, retryCount = 0) {
     const code = response.status;
     const text = JSON.stringify(response.data || {});
     await wbRequestLimiter.chargeResponse(code);
+    const rateLimitDelay = code === 429
+      ? await wbRequestLimiter.deferForRateLimit(response.headers, WB_BASE_DELAY * 2 ** retryCount)
+      : null;
 
     if (code === 429 && retryCount < WB_MAX_RETRIES) {
-      const delay = await wbRequestLimiter.deferForRateLimit(response.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
+      const delay = rateLimitDelay;
       log(
         "⏳ WB 429: ожидание " +
         delay / 1000 +
@@ -653,9 +656,12 @@ async function sendFeronWBStocksBatch(batch, warehouseId, retryCount = 0) {
       ? JSON.stringify(err.response.data)
       : err.message;
     await wbRequestLimiter.chargeResponse(code);
+    const rateLimitDelay = code === 429
+      ? await wbRequestLimiter.deferForRateLimit(err.response?.headers, WB_BASE_DELAY * 2 ** retryCount)
+      : null;
 
     if (code === 429 && retryCount < WB_MAX_RETRIES) {
-      const delay = await wbRequestLimiter.deferForRateLimit(err.response?.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
+      const delay = rateLimitDelay;
       log(
         "⏳ WB 429: ожидание " +
         delay / 1000 +

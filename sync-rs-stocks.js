@@ -439,11 +439,12 @@ async function sendRsWbStocksBatch(batch, retry = 0) {
     const code = error.response?.status || 0;
     const responseText = error.response?.data ? JSON.stringify(error.response.data) : error.message;
     await wbRequestLimiter.chargeResponse(code);
+    const fallback = WB_BASE_DELAY_MS * 2 ** retry;
+    const rateLimitDelay = code === 429
+      ? await wbRequestLimiter.deferForRateLimit(error.response?.headers, fallback)
+      : null;
     if (isRetryable(error) && retry < MAX_RETRIES) {
-      const fallback = WB_BASE_DELAY_MS * 2 ** retry;
-      const delay = code === 429
-        ? await wbRequestLimiter.deferForRateLimit(error.response?.headers, fallback)
-        : fallback;
+      const delay = rateLimitDelay ?? fallback;
       log(`⏳ WB ${code || "transport"}: retry ${retry + 1}/${MAX_RETRIES} через ${delay / 1000} сек.`);
       await sleep(delay);
       return sendRsWbStocksBatch(batch, retry + 1);
