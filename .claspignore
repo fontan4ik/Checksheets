@@ -17,4 +17,5 @@ telegram_notifier.js
 stock_sync_report.js
 send-fbs-broadcast-summary.js
 wb_stock_audit.js
+wb_stock_rate_limiter.js
 stream_supps_schema.js
