@@ -21,6 +21,7 @@ const {
   sendFbsMultiWarehouseReport,
 } = require("./telegram_notifier");
 const { createWbStockAudit } = require("./wb_stock_audit");
+const { createWbStockRateLimiter } = require("./wb_stock_rate_limiter");
 const { buildStockReport, throwOnStockSyncFailures } = require("./stock_sync_report");
 const {
   STREAM_SUPPS_HEADERS,
@@ -53,8 +54,9 @@ const configuredOzonRps = Number(process.env.RS_OZON_STOCKS_RPS || 1);
 const OZON_RPS = Number.isFinite(configuredOzonRps)
   ? Math.max(0.1, configuredOzonRps)
   : 1;
-const configuredWbRps = Number(process.env.RS_WB_RPS || 2);
-const WB_RPS = Number.isFinite(configuredWbRps) ? Math.max(0.1, configuredWbRps) : 2;
+const configuredWbRps = Number(process.env.WB_STOCKS_RPS || process.env.RS_WB_RPS || 5);
+const WB_RPS = Number.isFinite(configuredWbRps) ? Math.max(0.1, configuredWbRps) : 5;
+const wbRequestLimiter = createWbStockRateLimiter({ requestsPerSecond: WB_RPS });
 const BATCH_SIZE_OZON = 100;
 const BATCH_SIZE_WB = 200;
 const MAX_RETRIES = 3;
@@ -425,6 +427,7 @@ function isWbCargoRestrictionError(responseText) {
 }
 
 async function sendRsWbStocksBatch(batch, retry = 0) {
+  await wbRequestLimiter.waitTurn();
   try {
     const response = await axios.put(
       `${WB_API_URL}/api/v3/stocks/${RS_WB_WAREHOUSE_ID}`,
@@ -435,9 +438,12 @@ async function sendRsWbStocksBatch(batch, retry = 0) {
   } catch (error) {
     const code = error.response?.status || 0;
     const responseText = error.response?.data ? JSON.stringify(error.response.data) : error.message;
+    await wbRequestLimiter.chargeResponse(code);
     if (isRetryable(error) && retry < MAX_RETRIES) {
       const fallback = WB_BASE_DELAY_MS * 2 ** retry;
-      const delay = code === 429 ? wbRetryDelayMs(error.response?.headers, fallback) : fallback;
+      const delay = code === 429
+        ? await wbRequestLimiter.deferForRateLimit(error.response?.headers, fallback)
+        : fallback;
       log(`⏳ WB ${code || "transport"}: retry ${retry + 1}/${MAX_RETRIES} через ${delay / 1000} сек.`);
       await sleep(delay);
       return sendRsWbStocksBatch(batch, retry + 1);
@@ -457,7 +463,6 @@ async function processRsWbConflictIndividually(batch, audit, batchIndex) {
   let errorCount = 0;
   const itemsByChrtId = new Map(batch.map((item) => [item.chrtId, item]));
   for (let index = 0; index < batch.length; index += 1) {
-    if (index > 0 && index % 5 === 0) await sleep(3000);
     const item = batch[index];
     const result = await sendRsWbStocksBatch([item]);
     const auditItem = itemsByChrtId.get(item.chrtId);
@@ -494,14 +499,12 @@ async function updateRsStocksWb(stocks) {
     sourceReadAt: stocks.snapshotReadAt,
   });
   log(`🧾 WB payload audit: ${audit.filePath} (runId=${audit.runId})`);
-  let lastRequestAt = Date.now() - 1000 / WB_RPS;
   let successCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
   const batches = Math.ceil(valid.length / BATCH_SIZE_WB);
 
   for (let index = 0; index < batches; index += 1) {
-    lastRequestAt = await rateLimit(lastRequestAt, WB_RPS);
     const sourceBatch = valid.slice(index * BATCH_SIZE_WB, (index + 1) * BATCH_SIZE_WB);
     const prepared = sourceBatch.map((item) => ({
       offerId: item.offer_id,

@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsMultiWarehouseReport, sendFbsBroadcastReport } = require("./telegram_notifier");
 const { createWbStockAudit } = require("./wb_stock_audit");
+const { createWbStockRateLimiter } = require("./wb_stock_rate_limiter");
 const { buildStockReport, throwOnStockSyncFailures } = require("./stock_sync_report");
 const {
   STREAM_SUPPS_HEADERS,
@@ -56,7 +57,9 @@ const configuredOzonStocksRps = Number(process.env.FERON_OZON_STOCKS_RPS || 1);
 const OZON_STOCKS_RPS = Number.isFinite(configuredOzonStocksRps)
   ? Math.max(0.1, configuredOzonStocksRps)
   : 1;
-const WB_RPS = 0.1;
+const configuredWbStocksRps = Number(process.env.WB_STOCKS_RPS || 5);
+const WB_RPS = Number.isFinite(configuredWbStocksRps) ? Math.max(0.1, configuredWbStocksRps) : 5;
+const wbRequestLimiter = createWbStockRateLimiter({ requestsPerSecond: WB_RPS });
 
 const OZON_BASE_DELAY = 1000;
 const WB_BASE_DELAY = 3000;
@@ -608,6 +611,7 @@ async function sendFeronWBStocksBatch(batch, warehouseId, retryCount = 0) {
   const url = `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`;
 
   try {
+    await wbRequestLimiter.waitTurn();
     const response = await axios.put(url, body, {
       headers: wbHeaders(),
       timeout: 30000,
@@ -615,9 +619,10 @@ async function sendFeronWBStocksBatch(batch, warehouseId, retryCount = 0) {
 
     const code = response.status;
     const text = JSON.stringify(response.data || {});
+    await wbRequestLimiter.chargeResponse(code);
 
     if (code === 429 && retryCount < WB_MAX_RETRIES) {
-      const delay = wbRetryDelayMs(response.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
+      const delay = await wbRequestLimiter.deferForRateLimit(response.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
       log(
         "⏳ WB 429: ожидание " +
         delay / 1000 +
@@ -647,9 +652,10 @@ async function sendFeronWBStocksBatch(batch, warehouseId, retryCount = 0) {
     const text = err.response?.data
       ? JSON.stringify(err.response.data)
       : err.message;
+    await wbRequestLimiter.chargeResponse(code);
 
     if (code === 429 && retryCount < WB_MAX_RETRIES) {
-      const delay = wbRetryDelayMs(err.response?.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
+      const delay = await wbRequestLimiter.deferForRateLimit(err.response?.headers, WB_BASE_DELAY * Math.pow(2, retryCount));
       log(
         "⏳ WB 429: ожидание " +
         delay / 1000 +
@@ -692,10 +698,6 @@ async function processFeronWBConflictIndividually(
   );
 
   for (let j = 0; j < validBatch.length; j++) {
-    if (j > 0 && j % 5 === 0) {
-      await new Promise((r) => setTimeout(r, 3000));
-    }
-
     const item = validBatch[j];
     const result = await sendFeronWBStocksBatch([item], warehouseId);
     const auditItem = auditContext?.itemsByChrtId.get(Number(item.chrtId));
@@ -814,7 +816,6 @@ async function updateFeronStocksWB(stocks) {
     },
   ];
 
-  lastRequestTime = Date.now() - 1000 / WB_RPS;
   let totalSuccess = 0;
   let totalSkipped = 0;
   let totalError = 0;
@@ -856,8 +857,6 @@ async function updateFeronStocksWB(stocks) {
     let warehouseError = 0;
 
     for (let i = 0; i < batches; i++) {
-      lastRequestTime = rateLimitRPS(lastRequestTime, WB_RPS);
-
       const batch = validStocks.slice(i * batchSize, (i + 1) * batchSize);
 
       const validBatch = [];
