@@ -56,12 +56,16 @@ SHEET_FIELDS = (
     {"key": "ozonMonthWithdrawal", "header": "Уход месяц", "sheet": "ТЕСТ", "values": ("AQ", "AR"), "subtract": ("BH",)},
     {"key": "ozonMonthBuyout", "header": "Факт выкупа месяц", "sheet": "UNIT API", "values": ("M",), "subtract": ()},
     {"key": "wbMonthWithdrawal", "header": "ВБ Ух", "sheet": "ТЕСТ", "values": ("AV", "AW"), "subtract": ()},
-    {"key": "wbMonthBuyout", "header": "ВБ факт выкуп месяц", "sheet": "UNIT WB", "values": ("AP",), "subtract": ()},
+    {"key": "wbMonthBuyout", "header": "ВБ факт выкуп месяц", "sheet": "UNIT WB", "values": (), "valueHeaders": ("ВЫКУП ШТ API",), "subtract": ()},
 )
 
 
 def normalize_article(value) -> str:
     return re.sub(r"[\s\u00a0]", "", "" if value is None else str(value)).strip()
+
+
+def normalize_source_header(value) -> str:
+    return re.sub(r"\s+", " ", "" if value is None else str(value)).strip().casefold()
 
 
 def parse_article(article: str) -> tuple[str, int]:
@@ -383,13 +387,35 @@ def updateOborSummary(dry_run: bool = False) -> dict:
                 f"открытие листа {field['sheet']}",
                 lambda name=field["sheet"]: spreadsheet.worksheet(name),
             )
+
+    resolved_fields = []
     for field in SHEET_FIELDS:
         worksheet = source_sheets[field["sheet"]]
-        required = ["A", *field["values"], *field["subtract"]]
+        value_columns = list(field["values"])
+        if field.get("valueHeaders"):
+            source_headers = retry_read(
+                f"чтение заголовков {field['sheet']}",
+                lambda: worksheet.row_values(1),
+            )
+            for expected_header in field["valueHeaders"]:
+                matches = [
+                    index + 1 for index, actual in enumerate(source_headers)
+                    if normalize_source_header(actual) == normalize_source_header(expected_header)
+                ]
+                if len(matches) != 1:
+                    raise RuntimeError(
+                        f"{field['sheet']}: заголовок «{expected_header}» "
+                        f"найден {len(matches)} раз; колонки={matches}"
+                    )
+                value_columns.append(column_letter(matches[0]))
+
+        resolved_field = {**field, "values": tuple(value_columns)}
+        required = ["A", *resolved_field["values"], *resolved_field["subtract"]]
         if worksheet.col_count < max(column_number(column) for column in required):
             raise RuntimeError(
                 f"В {field['sheet']} отсутствуют нужные колонки для «{field['header']}»"
             )
+        resolved_fields.append(resolved_field)
 
     article_column = column_letter(target_columns["article"])
     target_articles = retry_read(
@@ -404,7 +430,7 @@ def updateOborSummary(dry_run: bool = False) -> dict:
 
     source_maps = {
         field["key"]: build_source_map(source_sheets[field["sheet"]], field)
-        for field in SHEET_FIELDS
+        for field in resolved_fields
     }
     wb_rows = WbWarehouseReport(get_wb_api_token()).fetch()
     wb_maps = aggregate_wb_rows(wb_rows)
@@ -419,7 +445,7 @@ def updateOborSummary(dry_run: bool = False) -> dict:
     }
     output = {}
     non_zero = {}
-    for field in SHEET_FIELDS:
+    for field in resolved_fields:
         value_map = source_maps[field["key"]]
         values = []
         for article_value in articles:
