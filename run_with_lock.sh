@@ -101,6 +101,10 @@ case "$SCRIPT_NAME" in
         EXIT_CODE=$?
         echo "[$(date)] etm_sync finished with exit code $EXIT_CODE. Marketplace uploads run on their twice-daily schedules." >> "$LOG_FILE"
         ;;
+    obor_summary)
+        /Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/scripts/run_with_telegram_alert.sh obor-summary -- /opt/homebrew/bin/node /Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/obor_summary_local.js >> "$LOG_FILE" 2>&1
+        EXIT_CODE=$?
+        ;;
     sync_etm_codes)
         echo "[$(date)] sync_etm_codes disabled: CODES are no longer written" >> "$LOG_FILE"
         EXIT_CODE=0

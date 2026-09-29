@@ -178,6 +178,7 @@ class WbWarehouseReport:
             if elapsed < WB_REQUEST_INTERVAL_SECONDS:
                 time.sleep(WB_REQUEST_INTERVAL_SECONDS - elapsed)
             try:
+                self.last_request_at = time.monotonic()
                 response = self.session.get(
                     url, headers=self.headers, timeout=(15, 90)
                 )
