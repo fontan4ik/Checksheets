@@ -152,10 +152,9 @@ function processTransistorData(data, sheetName) {
   Logger.log(`📊 Обработка данных...`);
 
   if (!Array.isArray(data)) {
-    Logger.log(`❌ Неверный формат данных: ожидается массив`);
-    Logger.log(`   Получен тип: ${typeof data}`);
-    return;
+    throw new Error(`Неверный формат данных Transistor API: ожидается массив, получен ${typeof data}`);
   }
+  if (data.length === 0) throw new Error("Transistor API вернул пустой список; таблица не обновлена");
 
   Logger.log(`✅ Получено товаров: ${data.length}`);
 
@@ -167,21 +166,25 @@ function processTransistorData(data, sheetName) {
   let withStock = 0;
 
   for (const item of data) {
-    const article = item.article;
-
-    if (!article) {
-      continue;
+    const article = String(item?.article ?? "").trim();
+    if (!article || !Array.isArray(item?.instock)) {
+      throw new Error("Transistor API вернул товар без артикула или массива instock; таблица не обновлена");
     }
-
-    // Извлекаем остаток
-    let stock = 0;
-    if (item.instock && Array.isArray(item.instock)) {
-      const freeStock = item.instock.find(s => s.type === 'free');
-      if (freeStock) {
-        stock = parseInt(freeStock.stock) || 0;
-      }
+    const freeStocks = item.instock.filter(stock => stock?.type === "free");
+    if (freeStocks.length !== 1) {
+      throw new Error(`Transistor API вернул неполный остаток free для артикула ${article}`);
     }
-
+    const rawStock = String(freeStocks[0].stock ?? "").trim();
+    if (!/^\d+$/.test(rawStock)) {
+      throw new Error(`Transistor API вернул некорректный остаток для артикула ${article}`);
+    }
+    const stock = Number(rawStock);
+    if (!Number.isSafeInteger(stock)) {
+      throw new Error(`Transistor API вернул остаток вне допустимого диапазона для артикула ${article}`);
+    }
+    if (Object.prototype.hasOwnProperty.call(stockMap, article) && stockMap[article] !== stock) {
+      throw new Error(`Transistor API вернул разные остатки по артикулу ${article}`);
+    }
     stockMap[article] = stock;
 
     if (stock > 0) {
@@ -224,19 +227,19 @@ function processTransistorData(data, sheetName) {
   let matched = 0;
   let notFound = 0;
 
-  const valuesToWrite = articles.map(article => {
+  const writeMask = articles.map(article => {
+    const art = article?.toString().trim();
+    return Boolean(art && Object.prototype.hasOwnProperty.call(stockMap, art));
+  });
+  const valuesToWrite = articles.map((article, index) => {
     const art = article?.toString().trim();
 
-    if (!art) {
-      return [""];
-    }
-
-    if (stockMap.hasOwnProperty(art)) {
+    if (writeMask[index]) {
       matched++;
       return [stockMap[art]];
     } else {
-      notFound++;
-      return [0];
+      if (art) notFound++;
+      return [""];
     }
   });
 
@@ -248,13 +251,18 @@ function processTransistorData(data, sheetName) {
   Logger.log(``);
   Logger.log(`💾 Запись в колонку «Остаток»...`);
 
-  sheet.getRange(2, columnByHeader_(sheet, 'Остаток'), valuesToWrite.length, 1).setValues(valuesToWrite);
+  const written = writeMaskedColumnValues_(
+    sheet,
+    columnByHeader_(sheet, 'Остаток'),
+    valuesToWrite,
+    writeMask,
+  );
 
   Logger.log(``);
   Logger.log("╔════════════════════════════════════════════════════════════╗");
   Logger.log("║   ✅ ИМПОРТ ЗАВЕРШЁН                                        ║");
   Logger.log("╚════════════════════════════════════════════════════════════╝");
-  Logger.log(`📦 Обработано строк: ${valuesToWrite.length}`);
+  Logger.log(`📦 Обработано строк: ${written}`);
   Logger.log(`✅ Найдено совпадений: ${matched}`);
   Logger.log(`❌ Не найдено: ${notFound}`);
   Logger.log(`════════════════════════════════════════════════════════════`);

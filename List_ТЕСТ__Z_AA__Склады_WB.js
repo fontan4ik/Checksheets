@@ -267,33 +267,33 @@ function updateWBWarehousesByName() {
 
       try {
         const response = retryFetch(url, options);
-
-        if (!response) {
-          Logger.log(`   ❌ Не удалось получить остатки склада ${warehouse.name}`);
-          return;
-        }
+        if (!response) throw new Error(`WB не вернул остатки склада ${warehouse.name}`);
 
         const responseCode = response.getResponseCode();
-
-        if (responseCode === 200) {
-          const data = JSON.parse(response.getContentText());
-
-          if (data.stocks && Array.isArray(data.stocks)) {
-            data.stocks.forEach(stock => {
-              if (stock.chrtId && stock.amount > 0) {
-                results[targetKey][stock.chrtId.toString()] = stock.amount;
-              }
-            });
-          }
-
-          totalChecked += chunk.length;
-        } else {
-          Logger.log(`   ❌ Код: ${responseCode}`);
-          return;
+        if (responseCode !== 200) throw new Error(`WB HTTP ${responseCode} для склада ${warehouse.name}`);
+        const data = JSON.parse(response.getContentText());
+        if (!data || !Array.isArray(data.stocks)) {
+          throw new Error(`WB вернул неполную структуру остатков склада ${warehouse.name}`);
         }
+
+        const requested = new Set(chunk.map(String));
+        const seen = new Set();
+        data.stocks.forEach(stock => {
+          const chrtId = Number(stock?.chrtId);
+          const amount = Number(stock?.amount);
+          const key = String(chrtId);
+          if (!Number.isSafeInteger(chrtId) || chrtId <= 0 || !requested.has(key) ||
+              seen.has(key) || !Number.isSafeInteger(amount) || amount < 0) {
+            throw new Error(`WB вернул неполный или неожиданный chrtId/остаток: ${JSON.stringify(stock).substring(0, 200)}`);
+          }
+          seen.add(key);
+          results[targetKey][key] = amount;
+        });
+
+        totalChecked += chunk.length;
       } catch (e) {
         Logger.log(`   ❌ Ошибка: ${e.message}`);
-        return;
+        throw e;
       }
     }
 
@@ -312,8 +312,10 @@ function updateWBWarehousesByName() {
   Logger.log("\n=== ШАГ 6: Запись в таблицу ===");
 
   // Подготавливаем массивы значений
-  const feronValues = new Array(articles.length).fill([0]);
-  const voltValues = new Array(articles.length).fill([0]);
+  const feronValues = new Array(articles.length).fill(null).map(() => [""]);
+  const voltValues = new Array(articles.length).fill(null).map(() => [""]);
+  const feronWriteMask = new Array(articles.length).fill(false);
+  const voltWriteMask = new Array(articles.length).fill(false);
 
   let feronCount = 0;
   let voltCount = 0;
@@ -323,32 +325,34 @@ function updateWBWarehousesByName() {
     const rows = nmIdToRows[nmId];
     const chrtIds = nmIdToChrtIds[nmId];
 
-    let feronQty = 0;
-    let voltQty = 0;
-
-    chrtIds.forEach(chrtId => {
-      const chrtIdStr = chrtId.toString();
-      if (results.feron[chrtIdStr]) feronQty += results.feron[chrtIdStr];
-      if (results.volt[chrtIdStr]) voltQty += results.volt[chrtIdStr];
-    });
+    const chrtIdKeys = chrtIds.map(String);
+    const feronComplete = chrtIdKeys.every(key => Object.prototype.hasOwnProperty.call(results.feron, key));
+    const voltComplete = chrtIdKeys.every(key => Object.prototype.hasOwnProperty.call(results.volt, key));
+    const feronQty = feronComplete ? chrtIdKeys.reduce((sum, key) => sum + results.feron[key], 0) : null;
+    const voltQty = voltComplete ? chrtIdKeys.reduce((sum, key) => sum + results.volt[key], 0) : null;
 
     // Записываем во все строки с этим nmId
     rows.forEach(rowIdx => {
       const arrIdx = rowIdx - 2; // array index (0-based)
-      feronValues[arrIdx] = [feronQty];
-      voltValues[arrIdx] = [voltQty];
+      if (feronComplete) {
+        feronValues[arrIdx] = [feronQty];
+        feronWriteMask[arrIdx] = true;
+      }
+      if (voltComplete) {
+        voltValues[arrIdx] = [voltQty];
+        voltWriteMask[arrIdx] = true;
+      }
 
-      if (feronQty > 0) feronCount++;
-      if (voltQty > 0) voltCount++;
+      if (feronComplete && feronQty > 0) feronCount++;
+      if (voltComplete && voltQty > 0) voltCount++;
     });
   }
 
-  // Записываем в таблицу
-  sheet.getRange(2, feronStockColumn, feronValues.length, 1).setValues(feronValues);
-  Logger.log(`✅ Z (26) ФЕРОН МОСКВА: ${feronCount} товаров с остатками`);
+  const feronWritten = writeMaskedColumnValues_(sheet, feronStockColumn, feronValues, feronWriteMask);
+  Logger.log(`✅ Z (26) ФЕРОН МОСКВА: ${feronCount} товаров с остатками; записано полных строк ${feronWritten}`);
 
-  sheet.getRange(2, voltStockColumn, voltValues.length, 1).setValues(voltValues);
-  Logger.log(`✅ AA (27) ВольтМир: ${voltCount} товаров с остатками`);
+  const voltWritten = writeMaskedColumnValues_(sheet, voltStockColumn, voltValues, voltWriteMask);
+  Logger.log(`✅ AA (27) ВольтМир: ${voltCount} товаров с остатками; записано полных строк ${voltWritten}`);
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // ИТОГИ

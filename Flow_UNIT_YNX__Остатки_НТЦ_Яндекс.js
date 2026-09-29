@@ -305,6 +305,7 @@ function fetchOzonNtcStocks_(unitRows, warehouseId) {
   const uniqueOfferIds = [];
   const seen = {};
   const warehouseKey = String(warehouseId);
+  const seenTargetPairs = new Set();
 
   unitRows.forEach(function(row) {
     const offerId = String(row.offerId || '').trim();
@@ -339,47 +340,58 @@ function fetchOzonNtcStocks_(unitRows, warehouseId) {
       if (code < 200 || code >= 300) throw new Error('Ozon: остатки завершились HTTP ' + code + ' на батче offer_id ' + batchNumber + '.');
 
       const data = JSON.parse(response.getContentText());
-      const result = Array.isArray(data.products) ? data.products : [];
-      result.forEach(function(item) {
+      if (!data || !Array.isArray(data.products) || typeof data.has_next !== 'boolean') {
+        throw new Error('Ozon: ответ по остаткам не содержит products/has_next на батче offer_id ' + batchNumber + '.');
+      }
+      const requested = new Set(chunk);
+      data.products.forEach(function(item) {
+        const offerId = String(item && item.offer_id || '').trim();
+        const present = Number(item && item.present);
+        const reserved = Number(item && item.reserved);
+        if (!offerId || !requested.has(offerId) ||
+            !Number.isSafeInteger(present) || present < 0 ||
+            !Number.isSafeInteger(reserved) || reserved < 0 ||
+            item.warehouse_id === undefined || item.warehouse_id === null) {
+          throw new Error('Ozon: получена неполная или неожиданная запись по остатку на батче offer_id ' + batchNumber + '.');
+        }
         if (String(item.warehouse_id) !== warehouseKey) return;
-        const offerId = String(item.offer_id || '').trim();
-        if (!offerId) return;
-        const present = Math.max(0, Number(item.present) || 0);
-        const reserved = Math.max(0, Number(item.reserved) || 0);
-        stockByOfferId[offerId] = Math.trunc(present + reserved);
+        if (seenTargetPairs.has(offerId)) {
+          throw new Error('Ozon: повторная запись склада для offer_id ' + offerId + '.');
+        }
+        seenTargetPairs.add(offerId);
+        stockByOfferId[offerId] = present + reserved;
       });
 
-      cursor = String(data.cursor || '').trim();
+      const nextCursor = String(data.cursor || '').trim();
       hasNext = data.has_next === true;
-      if (hasNext && !cursor) {
+      if (hasNext && (!nextCursor || nextCursor === cursor || data.products.length === 0)) {
         throw new Error('Ozon: получен has_next без cursor на батче offer_id ' + batchNumber + '.');
       }
+      cursor = nextCursor;
       Logger.log('Ozon: offer_id батч ' + batchNumber + '/' + Math.ceil(uniqueOfferIds.length / OZON_NTC_YNX_OZON_BATCH_SIZE) + ', страница ' + page + ', offer_id: ' + chunk.length + '.');
     }
   }
 
-  uniqueOfferIds.forEach(function(offerId) {
-    if (!Object.prototype.hasOwnProperty.call(stockByOfferId, offerId)) stockByOfferId[offerId] = 0;
-  });
   return stockByOfferId;
 }
 
 function writeOzonNtcYnxStocks_(sheet, unitData, freshByOfferId) {
   const offerIdByRowNumber = {};
+  const values = unitData.stockValues.map(function(row) { return [row[0]]; });
+  const writeMask = values.map(function() { return false; });
   unitData.rows.forEach(function(item) {
     offerIdByRowNumber[item.rowNumber] = item.offerId;
   });
 
-  const values = unitData.stockValues.map(function(row, index) {
+  values.forEach(function(row, index) {
     const offerId = offerIdByRowNumber[index + 2];
-    if (!offerId) return row;
-    return Object.prototype.hasOwnProperty.call(freshByOfferId, offerId)
-      ? [freshByOfferId[offerId]]
-      : row;
+    if (!offerId || !Object.prototype.hasOwnProperty.call(freshByOfferId, offerId)) return;
+    row[0] = freshByOfferId[offerId];
+    writeMask[index] = true;
   });
 
   if (values.length) {
-    sheet.getRange(2, unitData.stockColumn, values.length, 1).setValues(values);
+    writeMaskedColumnValues_(sheet, unitData.stockColumn, values, writeMask);
   }
 }
 
