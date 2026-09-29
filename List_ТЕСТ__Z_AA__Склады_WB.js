@@ -47,34 +47,33 @@ function updateWBWarehousesByName() {
   try {
     const response = retryFetch(warehousesUrl, warehouseOptions);
 
-    if (!response) {
-      Logger.log(`❌ Не удалось получить список складов`);
-      return;
-    }
+    if (!response) throw new Error("WB API не вернул список складов; таблица не обновлена");
 
     const responseCode = response.getResponseCode();
 
     if (responseCode === 200) {
       warehouses = JSON.parse(response.getContentText());
+      if (!Array.isArray(warehouses)) throw new Error("WB API вернул некорректный список складов");
       Logger.log(`✅ Складов: ${warehouses.length}`);
     } else {
-      Logger.log(`❌ Ошибка: ${responseCode}`);
-      return;
+      throw new Error(`WB API список складов HTTP ${responseCode}; таблица не обновлена`);
     }
   } catch (e) {
     Logger.log(`❌ Исключение: ${e.message}`);
-    return;
+    throw e;
   }
 
   // Находим целевые склады
-  const feron = warehouses.find(wh => wh.name.includes("ФЕРОН") && wh.name.includes("МОСКВА"));
-  const volt = warehouses.find(wh => wh.name.includes("Вольт"));
+  const feronMatches = warehouses.filter(wh => String(wh?.name || "").includes("ФЕРОН") && String(wh?.name || "").includes("МОСКВА"));
+  const voltMatches = warehouses.filter(wh => String(wh?.name || "").includes("Вольт"));
+  const feron = feronMatches.length === 1 ? feronMatches[0] : null;
+  const volt = voltMatches.length === 1 ? voltMatches[0] : null;
 
   if (!feron || !volt) {
     Logger.log(`❌ Целевые склады не найдены!`);
     Logger.log(`   ФЕРОН МОСКВА: ${feron ? "✅" : "❌"}`);
     Logger.log(`   ВольтМир: ${volt ? "✅" : "❌"}`);
-    return;
+    throw new Error("WB целевые склады не найдены однозначно; таблица не обновлена");
   }
 
   Logger.log(`\n🎯 Целевые склады:`);
@@ -123,98 +122,90 @@ function updateWBWarehousesByName() {
   Logger.log(`Загружаем карточки для ${uniqueNmIds.length} nmId...`);
 
   const nmIdToChrtIds = {}; // nmId -> [chrtId]
+  const requestedNmIdSet = new Set(uniqueNmIds.map(String));
   let foundCards = 0;
   let totalChrtIds = 0;
+  let cursor = null;
+  let pageCount = 0;
+  const pageSize = 100;
 
-  // Разбиваем на батчи по 100 nmId (limit API)
-  const batchSize = 100;
-  const totalBatches = Math.ceil(uniqueNmIds.length / batchSize);
-
-  for (let i = 0; i < uniqueNmIds.length; i += batchSize) {
-    const batchNmIds = uniqueNmIds.slice(i, i + batchSize);
-    const batchNum = Math.floor(i / batchSize) + 1;
-
-    if (batchNum === 1 || batchNum % 10 === 0) {
-      Logger.log(`   Батч ${batchNum}/${totalBatches}...`);
+  while (true) {
+    const cursorPayload = { limit: pageSize };
+    if (cursor) {
+      cursorPayload.updatedAt = cursor.updatedAt;
+      cursorPayload.nmID = cursor.nmID;
     }
-
     const payload = {
-      "settings": {
-        "sort": { "ascending": true },
-        "cursor": { "limit": 100 }
+      settings: {
+        sort: { ascending: true },
+        cursor: cursorPayload,
+        filter: { withPhoto: -1 },
       },
-      "filter": {
-        "withPhoto": -1
-      }
     };
-
     const options = {
       method: "post",
       contentType: "application/json",
       headers: headers,
       payload: JSON.stringify(payload),
-      muteHttpExceptions: true
+      muteHttpExceptions: true,
     };
 
-    try {
-      const response = retryFetch(contentUrl + "/content/v2/get/cards/list", options);
-
-      if (!response) {
-        Logger.log(`   ❌ Не удалось получить карточки (network error)`);
-        continue;
-      }
-
-      const responseCode = response.getResponseCode();
-
-      if (responseCode === 200) {
-        const data = JSON.parse(response.getContentText());
-
-        if (data && data.cards && Array.isArray(data.cards)) {
-          // Создаём Set для быстрого поиска
-          const batchNmIdSet = new Set(batchNmIds.map(id => parseInt(id)));
-
-          data.cards.forEach(card => {
-            const nmId = (card.nmID || card.nmId).toString();
-
-            // Если эта карточка из нашего батча
-            if (batchNmIdSet.has(parseInt(nmId))) {
-              if (!nmIdToChrtIds[nmId]) {
-                nmIdToChrtIds[nmId] = [];
-              }
-
-              // Извлекаем все chrtId из размеров
-              if (card.sizes && card.sizes.length > 0) {
-                card.sizes.forEach(size => {
-                  if (size.chrtID) {
-                    nmIdToChrtIds[nmId].push(size.chrtID);
-                    totalChrtIds++;
-                  }
-                });
-              }
-
-              foundCards++;
-            }
-          });
-
-          // Пагинация - если есть cursor, продолжаем
-          if (data.cursor && data.cursor.updatedAt) {
-            // Для упрощения, берём только первую страницу
-            // Полная пагинация может занять много времени
-          }
-        }
-      }
-    } catch (e) {
-      Logger.log(`   ❌ Ошибка батча ${batchNum}: ${e.message}`);
+    const response = retryFetch(contentUrl + "/content/v2/get/cards/list", options);
+    if (!response) throw new Error("WB Content API не вернул страницу карточек; таблица не обновлена");
+    const responseCode = response.getResponseCode();
+    if (responseCode < 200 || responseCode >= 300) {
+      throw new Error(`WB Content API HTTP ${responseCode}: ${response.getContentText().substring(0, 300)}`);
     }
+    const data = JSON.parse(response.getContentText());
+    if (!data || !Array.isArray(data.cards) || !data.cursor || !Number.isFinite(Number(data.cursor.total))) {
+      throw new Error("WB Content API вернул неполную структуру пагинации; таблица не обновлена");
+    }
+
+    const pageNmIds = new Set();
+    data.cards.forEach(card => {
+      const nmId = Number(card?.nmID ?? card?.nmId);
+      if (!Number.isSafeInteger(nmId) || nmId <= 0) {
+        throw new Error("WB Content API вернул карточку без корректного nmID");
+      }
+      const key = String(nmId);
+      if (!requestedNmIdSet.has(key)) return;
+      if (pageNmIds.has(key) || nmIdToChrtIds[key]) {
+        throw new Error(`WB Content API вернул повторную карточку nmID ${key}`);
+      }
+      pageNmIds.add(key);
+
+      if (!Array.isArray(card.sizes) || card.sizes.length === 0) return;
+      const chrtIds = card.sizes.map(size => Number(size?.chrtID));
+      if (chrtIds.some(id => !Number.isSafeInteger(id) || id <= 0) || new Set(chrtIds).size !== chrtIds.length) {
+        throw new Error(`WB Content API вернул неполные размеры карточки nmID ${key}`);
+      }
+      nmIdToChrtIds[key] = chrtIds;
+      foundCards++;
+      totalChrtIds += chrtIds.length;
+    });
+
+    pageCount++;
+    if (pageCount > 500) throw new Error("WB Content API pagination exceeded 500 pages");
+    const total = Number(data.cursor.total);
+    if (total < pageSize) break;
+
+    const nextCursor = {
+      updatedAt: String(data.cursor.updatedAt ?? "").trim(),
+      nmID: Number(data.cursor.nmID),
+    };
+    if (!nextCursor.updatedAt || !Number.isSafeInteger(nextCursor.nmID) || nextCursor.nmID <= 0 ||
+        (cursor && nextCursor.updatedAt === cursor.updatedAt && nextCursor.nmID === cursor.nmID)) {
+      throw new Error("WB Content API cursor did not advance; таблица не обновлена");
+    }
+    cursor = nextCursor;
+    Utilities.sleep(650);
   }
 
   Logger.log(`✅ Найдено карточек: ${foundCards}/${uniqueNmIds.length}`);
   Logger.log(`✅ Всего chrtId: ${totalChrtIds}`);
 
   if (foundCards === 0) {
-    Logger.log(`❌ Не найдено карточек в Content API`);
-    Logger.log(`   Возможно токен от другого аккаунта или карточки в особом статусе`);
-    return;
+    throw new Error("WB Content API не вернул карточки с размерами; таблица не обновлена");
   }
 
   // ═══════════════════════════════════════════════════════════════════════════════

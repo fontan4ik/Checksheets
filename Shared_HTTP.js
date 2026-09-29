@@ -74,3 +74,32 @@ function rateLimitRPS(lastRequestTime, rps) {
 
   return Date.now();
 }
+
+/** Writes only rows with a complete source value, preserving unresolved rows. */
+function writeMaskedColumnValues_(sheet, column, values, writeMask, startRow) {
+  const firstRow = startRow || 2;
+  if (values.length !== writeMask.length) {
+    throw new Error(`Masked write has ${values.length} values and ${writeMask.length} mask entries`);
+  }
+
+  let written = 0;
+  let index = 0;
+  while (index < writeMask.length) {
+    if (!writeMask[index]) {
+      index++;
+      continue;
+    }
+
+    const start = index;
+    while (index + 1 < writeMask.length && writeMask[index + 1]) index++;
+    const block = values.slice(start, index + 1);
+    if (block.some(value => !Array.isArray(value) || value.length !== 1)) {
+      throw new Error(`Masked write contains an invalid cell value at row ${firstRow + start}`);
+    }
+    sheet.getRange(firstRow + start, column, block.length, 1).setValues(block);
+    written += block.length;
+    index++;
+  }
+
+  return written;
+}

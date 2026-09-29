@@ -46,7 +46,8 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetHeader = "Ост�
   // Читаем chrtId из колонки AZ (52)
   const chrtIds = sheet.getRange(2, 52, lastRow - 1).getValues().flat(); // AZ (52): chrtId
   const currentStocks = sheet.getRange(2, targetColumn, lastRow - 1).getValues().flat();
-  const newStocks = Array.from({ length: lastRow - 1 }, () => [0]);
+  const newStocks = Array.from({ length: lastRow - 1 }, () => [""]);
+  const writeMask = Array.from({ length: lastRow - 1 }, () => false);
 
   // Подготовим мап для быстрого поиска индекса по chrtId
   const chrtIdIndexMap = new Map();
@@ -54,7 +55,8 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetHeader = "Ост�
     if (chrtId && chrtId > 0) {
       const chrtIdNum = parseInt(chrtId);
       if (!isNaN(chrtIdNum)) {
-        chrtIdIndexMap.set(chrtIdNum, i);
+        if (!chrtIdIndexMap.has(chrtIdNum)) chrtIdIndexMap.set(chrtIdNum, []);
+        chrtIdIndexMap.get(chrtIdNum).push(i);
       }
     }
   });
@@ -105,28 +107,15 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetHeader = "Ост�
       const response = retryFetch(url, options);
 
       if (!response) {
-        Logger.log(`❌ Не удалось получить данные для чанка ${chunkIndex + 1}`);
-        continue;
+        throw new Error(`Не удалось получить данные для чанка ${chunkIndex + 1}`);
+      }
+      const responseCode = response.getResponseCode();
+      if (responseCode < 200 || responseCode >= 300) {
+        throw new Error(`WB FBS HTTP ${responseCode}: ${response.getContentText().substring(0, 300)}`);
       }
 
       const responseText = response.getContentText();
-      let data;
-
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        Logger.log(`❌ Ошибка парсинга JSON для чанка ${chunkIndex + 1}: ${e.message}`);
-
-        // Проверяем если это HTML (ошибка авторизации и т.д.)
-        if (responseText.trim().startsWith('<')) {
-          Logger.log(`⚠️ API вернул HTML вместо JSON. Проверьте токен WB.`);
-          Logger.log(`Первые 200 символов: ${responseText.substring(0, 200)}`);
-          continue;
-        }
-
-        Logger.log(`Ответ: ${responseText.substring(0, 500)}`);
-        continue;
-      }
+      const data = JSON.parse(responseText);
 
       // Проверяем структуру ответа
       if (!data || !Array.isArray(data.stocks)) {
@@ -136,38 +125,43 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetHeader = "Ост�
 
       // Обрабатываем ответ
       const stocks = data.stocks;
+      const requested = new Set(chunk.map(String));
+      const seen = new Set();
 
       stocks.forEach(stock => {
-        const chrtId = stock.chrtId;
-        const amount = stock.amount || 0;
-
-        if (chrtId) {
-          foundCount++;
-
-          // Находим соответствующий индекс в таблице
-          const rowIndex = chrtIdIndexMap.get(chrtId);
-
-          if (rowIndex !== undefined) {
-            newStocks[rowIndex][0] = amount;
-          }
+        const chrtId = Number(stock?.chrtId);
+        const amount = Number(stock?.amount);
+        const key = String(chrtId);
+        if (!Number.isSafeInteger(chrtId) || chrtId <= 0 || !requested.has(key) ||
+            seen.has(key) || !Number.isFinite(amount) || amount < 0) {
+          throw new Error(`WB FBS вернул неполную или неожиданную запись: ${JSON.stringify(stock).substring(0, 200)}`);
         }
+        seen.add(key);
+        foundCount++;
+
+        // Пишем только chrtId, которые WB явно вернул в полном ответе.
+        const rowIndexes = chrtIdIndexMap.get(chrtId) || [];
+        rowIndexes.forEach(rowIndex => {
+          newStocks[rowIndex][0] = amount;
+          writeMask[rowIndex] = true;
+        });
       });
     } catch (e) {
-      Logger.log(`❌ Ошибка при обработке чанка ${chunkIndex + 1}: ${e.message}`);
-      continue;
+      Logger.log(`❌ Ошибка при обработке чанка ${chunkIndex + 1}: ${e.message}; таблица не обновлена`);
+      throw e;
     }
   }
 
   for (let i = 0; i < newStocks.length; i++) {
-    if (Number(currentStocks[i] || 0) !== Number(newStocks[i][0] || 0)) {
+    if (writeMask[i] && Number(currentStocks[i] || 0) !== Number(newStocks[i][0] || 0)) {
       updatedCount++;
     }
   }
-  sheet.getRange(2, targetColumn, newStocks.length, 1).setValues(newStocks);
+  const written = writeMaskedColumnValues_(sheet, targetColumn, newStocks, writeMask);
 
   Logger.log(``);
   Logger.log(`Найдено остатков в API: ${foundCount}`);
-  Logger.log(`Обновлено строк: ${updatedCount}`);
+  Logger.log(`Обновлено значений: ${updatedCount}; записано полных строк: ${written}`);
   Logger.log(`✅ Завершено`);
 }
 

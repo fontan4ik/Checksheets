@@ -40,6 +40,7 @@ function getStocksByWarehouseFBS_() {
 
   // Словари для остатков
   const warehouseStockMap = {};  // Для склада Москва (H, 8)
+  const seenSkus = new Set();
 
   let lastRequestTime = Date.now() - 1000 / customRps;
 
@@ -75,36 +76,44 @@ function getStocksByWarehouseFBS_() {
       const response = retryFetch(ozonFBSStocks(), options, 3);
 
       if (!response) {
-        Logger.log(`❌ Не удалось получить данные FBS по складам для батча ${i / batchSize + 1}`);
-        break;
+        throw new Error(`Не удалось получить данные FBS по складам для батча ${i / batchSize + 1}`);
       }
 
       const responseCode = response.getResponseCode();
       if (responseCode < 200 || responseCode >= 300) {
-        Logger.log(`❌ FBS по складам вернул HTTP ${responseCode}: ${response.getContentText().substring(0, 500)}`);
-        break;
+        throw new Error(`FBS по складам вернул HTTP ${responseCode}: ${response.getContentText().substring(0, 500)}`);
       }
 
       const data = JSON.parse(response.getContentText());
-
-      if (data.products && data.products.length > 0) {
-        data.products.forEach(item => {
-          const sku = item.sku?.toString();
-
-          if (!sku) return;
-
-          const whId = item.warehouse_id;
-          const present = item.present || 0;
-
-          if (!(sku in warehouseStockMap)) warehouseStockMap[sku] = 0;
-          if (whId === targetWarehouseId) {
-            warehouseStockMap[sku] += present;
-          }
-        });
+      if (!data || !Array.isArray(data.products) || typeof data.has_next !== "boolean") {
+        throw new Error(`Ozon FBS вернул неполную структуру ответа для батча ${i / batchSize + 1}`);
       }
+      const requested = new Set(batch.map(String));
 
-      hasNext = data.has_next === true && data.cursor;
-      cursor = data.cursor || "";
+      data.products.forEach(item => {
+        const sku = String(item?.sku ?? "").trim();
+        const present = Number(item?.present);
+        if (!sku || !requested.has(sku) || !Number.isFinite(present) || present < 0 ||
+            item?.warehouse_id === undefined || item?.warehouse_id === null) {
+          throw new Error(`Ozon FBS вернул неполную или неожиданную складскую запись: ${JSON.stringify(item).substring(0, 200)}`);
+        }
+        seenSkus.add(sku);
+        if (!Object.prototype.hasOwnProperty.call(warehouseStockMap, sku)) warehouseStockMap[sku] = 0;
+        if (String(item.warehouse_id) === String(targetWarehouseId)) {
+          warehouseStockMap[sku] += present;
+        }
+      });
+
+      if (data.has_next) {
+        const nextCursor = String(data.cursor ?? "").trim();
+        if (!nextCursor || nextCursor === cursor || data.products.length === 0) {
+          throw new Error(`Ozon FBS pagination did not advance for batch ${i / batchSize + 1}`);
+        }
+        hasNext = true;
+        cursor = nextCursor;
+      } else {
+        hasNext = false;
+      }
 
       if (hasNext) {
         Utilities.sleep(500);
@@ -117,14 +126,19 @@ function getStocksByWarehouseFBS_() {
   }
 
   // Подготовка массивов для записи (учитывая пустые строки)
-  const stocksForWarehouse = skuRaw.map(sku =>
-    sku && sku !== "" && Number(sku) > 0 ? [warehouseStockMap[sku.toString().trim()] || 0] : [""]
+  const writeMask = skuRaw.map(sku => seenSkus.has(String(sku ?? "").trim()));
+  const stocksForWarehouse = skuRaw.map((sku, index) => [
+    writeMask[index] ? warehouseStockMap[String(sku).trim()] : ""
+  ]);
+  const written = writeMaskedColumnValues_(
+    sheet,
+    columnByHeader_(sheet, 'ОСТ ФБС МСК ОЗОН'),
+    stocksForWarehouse,
+    writeMask,
   );
-  // Запись данных
-  sheet.getRange(2, columnByHeader_(sheet, 'ОСТ ФБС МСК ОЗОН'), stocksForWarehouse.length, 1).setValues(stocksForWarehouse);
 
   const withWarehouseStock = Object.keys(warehouseStockMap).filter(k => warehouseStockMap[k] > 0).length;
 
-  Logger.log(`✅ H (8) ОСТ ФБС МСК ОЗОН: ${withWarehouseStock} товаров с остатками`);
+  Logger.log(`✅ H (8) ОСТ ФБС МСК ОЗОН: ${withWarehouseStock} товаров с остатками; записано ${written} полных строк`);
   Logger.log("✅ Завершено");
 }

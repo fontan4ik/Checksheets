@@ -18,7 +18,6 @@ function updateWBStocksFromStatisticsAPI() {
 
   const articles = sheet.getRange(2, 1, lastRow - 1).getValues().flat(); // A (1): Артикул
   const stockColumn = columnByHeader_(sheet, "Остаток ФБО ВБ");
-  const currentStocks = sheet.getRange(2, stockColumn, lastRow - 1).getValues().flat(); // O (15): Остаток ФБО ВБ
   const nmIdValues = sheet.getRange(2, 20, lastRow - 1).getValues().flat(); // T (20): Артикул WB
   const pageSize = 1000;
 
@@ -64,6 +63,7 @@ function updateWBStocksFromStatisticsAPI() {
 
   const url = `${WB_ANALYTICS_BASE_URL()}/api/analytics/v1/stocks-report/wb-warehouses`;
   const stockMap = {};
+  const seenNmIds = new Set();
   const filterBatchSize = 1000;
   let requestCount = 0;
   let totalRecords = 0;
@@ -94,28 +94,32 @@ function updateWBStocksFromStatisticsAPI() {
         const response = retryFetch(url, options);
 
         if (!response) {
-          Logger.log(`❌ Не удалось получить остатки ФБО ВБ`);
-          return;
+          throw new Error("Не удалось получить остатки ФБО ВБ");
         }
 
+        const responseCode = response.getResponseCode();
+        if (responseCode < 200 || responseCode >= 300) {
+          throw new Error(`WB FBO HTTP ${responseCode}: ${response.getContentText().substring(0, 300)}`);
+        }
         const data = JSON.parse(response.getContentText());
         const items = data && data.data && Array.isArray(data.data.items) ? data.data.items : null;
         if (items === null) {
-          Logger.log(`❌ Ошибка ответа API: ${JSON.stringify(data).substring(0, 200)}`);
-          return;
+          throw new Error(`WB FBO вернул неполный ответ: ${JSON.stringify(data).substring(0, 200)}`);
         }
 
+        const requested = new Set(nmIdBatch.map(String));
         totalRecords += items.length;
         items.forEach(item => {
           const rawNmId = item.nmId !== undefined && item.nmId !== null ? item.nmId : item.nmID;
           const nmId = normalizeNmId(rawNmId);
           const quantity = Number(item.quantity);
-          if (nmId === null || !Number.isFinite(quantity)) {
-            return;
+          if (nmId === null || !requested.has(String(nmId)) || !Number.isFinite(quantity) || quantity < 0) {
+            throw new Error("WB FBO вернул неполную или неожиданную запись товара");
           }
 
           const key = String(nmId);
           stockMap[key] = (stockMap[key] || 0) + quantity;
+          seenNmIds.add(key);
         });
 
         Logger.log(`✅ Получено записей: ${items.length} (offset: ${offset})`);
@@ -125,47 +129,37 @@ function updateWBStocksFromStatisticsAPI() {
         }
 
         offset += pageSize;
+        if (offset / pageSize > 100) throw new Error("WB FBO pagination exceeded 100 pages");
       }
     }
 
-    // Обновляем таблицу
-    const updatedStocks = currentStocks.map((value, index, values) => values.slice(index, index + 1));
-    let updatedStockRows = 0;
+    // Записываем только товары, для которых WB вернул валидную запись.
+    const writeMask = articles.map((article, index) => {
+      const nmId = normalizeNmId(nmIdValues[index]);
+      return Boolean(String(article ?? "").trim() && nmId !== null && seenNmIds.has(String(nmId)));
+    });
+    const updatedStocks = articles.map((article, index) => {
+      const nmId = normalizeNmId(nmIdValues[index]);
+      return [writeMask[index] ? stockMap[String(nmId)] : ""];
+    });
     let foundCount = 0;
 
     for (let i = 0; i < articles.length; i++) {
-      const article = articles[i];
-      if (article === null || article === undefined || String(article).trim() === "") {
-        continue;
-      }
-
-      const nmId = normalizeNmId(nmIdValues[i]);
-      if (nmId === null) {
-        continue;
-      }
-
-      const quantity = stockMap[String(nmId)] || 0;
-
-      if (quantity > 0) {
+      if (!writeMask[i]) continue;
+      if (updatedStocks[i][0] > 0) {
         foundCount++;
       }
-
-      const oldValue = currentStocks[i];
-      if (oldValue != quantity) {
-        updatedStockRows++;
-      }
-
-      updatedStocks[i][0] = quantity;
     }
 
-    sheet.getRange(2, stockColumn, updatedStocks.length, 1).setValues(updatedStocks);
+    const written = writeMaskedColumnValues_(sheet, stockColumn, updatedStocks, writeMask);
 
     Logger.log(`Найдено товаров с остатками: ${foundCount}`);
-    Logger.log(`Обновлено строк: ${updatedStockRows}`);
+    Logger.log(`Полных строк записано: ${written}; получено товаров с остатками: ${foundCount}`);
     Logger.log(`Всего записей API: ${totalRecords}`);
     Logger.log(`✅ Завершено`);
 
   } catch (e) {
     Logger.log(`❌ Ошибка: ${e.message}`);
+    throw e;
   }
 }

@@ -6,19 +6,21 @@
 function aggregateFBOAvailableStocksByOffer(items) {
   const stockMap = {};
 
-  (items || []).forEach(item => {
+  if (!Array.isArray(items)) throw new Error("В ответе Ozon отсутствует массив items");
+  items.forEach(item => {
     const offerId = item?.offer_id === null || item?.offer_id === undefined
       ? ""
       : String(item.offer_id).trim();
-    if (!offerId) return;
+    if (!offerId) throw new Error("Ozon FBO вернул товар без offer_id");
 
     const available = Number(item.available_stock_count);
+    if (!Number.isFinite(available) || available < 0) {
+      throw new Error(`Ozon FBO вернул некорректный available_stock_count для ${offerId}`);
+    }
     if (!Object.prototype.hasOwnProperty.call(stockMap, offerId)) {
       stockMap[offerId] = 0;
     }
-    if (Number.isFinite(available)) {
-      stockMap[offerId] += available;
-    }
+    stockMap[offerId] += available;
   });
 
   return stockMap;
@@ -89,10 +91,24 @@ function updateStockFBO_() {
         break;
       }
 
+      const responseCode = response.getResponseCode();
+      if (responseCode < 200 || responseCode >= 300) {
+        throw new Error(`Ozon FBO HTTP ${responseCode}: ${response.getContentText().substring(0, 300)}`);
+      }
       const json = JSON.parse(response.getContentText());
       if (!Array.isArray(json.items)) {
         throw new Error("В ответе Ozon отсутствует массив items");
       }
+      const requested = new Set(batch.map(String));
+      json.items.forEach(item => {
+        const sku = Number(item?.sku);
+        const offerId = String(item?.offer_id ?? "").trim();
+        const available = Number(item?.available_stock_count);
+        if (!Number.isFinite(sku) || !requested.has(String(sku)) || !offerId ||
+            !Number.isFinite(available) || available < 0) {
+          throw new Error("Ozon FBO вернул неполную или неожиданную запись товара");
+        }
+      });
       apiItems.push(...json.items);
       batch.forEach(sku => processedSkus.add(sku));
       nextIndex = i + batch.length;
@@ -104,20 +120,24 @@ function updateStockFBO_() {
   }
 
   const stockMap = aggregateFBOAvailableStocksByOffer(apiItems);
-  const valuesToWrite = rowData.map(row => {
-    if (!row.offerId) return [""];
-    if (!row.sku || !processedSkus.has(row.sku)) return [row.previousFbo];
-    return [stockMap[row.offerId] ?? 0];
-  });
-
-  sheet.getRange(2, columnByHeader_(sheet, 'Остаток ФБО ОЗОН'), valuesToWrite.length, 1).setValues(valuesToWrite);
+  const writeMask = rowData.map(row => Boolean(
+    row.offerId && row.sku && processedSkus.has(row.sku) &&
+    Object.prototype.hasOwnProperty.call(stockMap, row.offerId)
+  ));
+  const valuesToWrite = rowData.map((row, index) => [writeMask[index] ? stockMap[row.offerId] : ""]);
+  const written = writeMaskedColumnValues_(
+    sheet,
+    columnByHeader_(sheet, 'Остаток ФБО ОЗОН'),
+    valuesToWrite,
+    writeMask,
+  );
   if (nextIndex < skus.length) props.setProperty(cursorKey, String(nextIndex));
   else props.deleteProperty(cursorKey);
 
   Logger.log(`Ответов по складским строкам: ${apiItems.length}`);
   Logger.log(`Offer_id с доступным остатком: ${Object.keys(stockMap).length}`);
   Logger.log(`Неуспешных SKU-батчей: ${failedSkus.size ? "есть" : "нет"}`);
-  Logger.log("✅ Колонка F обновлена значением Ozon «Доступно к продаже».");
+  Logger.log(`✅ Колонка F обновлена значением Ozon «Доступно к продаже»: записано ${written} полных строк.`);
 
   // G обновляет собственный существующий триггер updateAllFBSStocks.
   if (failedSkus.size) {
@@ -170,15 +190,35 @@ function updateAllFBSStocks_() {
 
     try {
       const response = retryFetch(ozonStocksApiURL(), options);
+      if (!response) throw new Error("Ozon FBS не вернул ответ");
+      const responseCode = response.getResponseCode();
+      if (responseCode < 200 || responseCode >= 300) {
+        throw new Error(`HTTP ${responseCode}: ${response.getContentText().substring(0, 300)}`);
+      }
       const json = JSON.parse(response.getContentText());
-      const items = json.items || [];
+      if (!Array.isArray(json.items)) throw new Error("В ответе Ozon FBS отсутствует массив items");
+      const requested = new Set(batch.map(String));
+      const seen = new Set();
 
-      items.forEach(item => {
-        const pid = item.product_id;
+      json.items.forEach(item => {
+        const pid = String(item?.product_id ?? "").trim();
+        if (!pid || !requested.has(pid) || seen.has(pid)) {
+          throw new Error(`Ozon FBS вернул пустой, неожиданный или повторный product_id: ${pid}`);
+        }
+        if (!Array.isArray(item.stocks)) throw new Error(`Ozon FBS не вернул stocks для product_id ${pid}`);
+        seen.add(pid);
         // СУММИРУЕМ ВСЕ FBS остатки (не только по конкретному складу)
-        const fbsStocks = item.stocks?.filter(s => s.type === 'fbs') || [];
-        const totalFbs = fbsStocks.reduce((sum, s) => sum + (s.present || 0), 0);
-        if (pid) fbsMap[pid] = totalFbs;
+        const totalFbs = item.stocks.reduce((sum, stock) => {
+          if (!stock || typeof stock.type !== "string") {
+            throw new Error(`Ozon FBS вернул неполную складскую запись для product_id ${pid}`);
+          }
+          const present = Number(stock.present);
+          if (!Number.isFinite(present) || present < 0) {
+            throw new Error(`Ozon FBS вернул некорректный остаток для product_id ${pid}`);
+          }
+          return sum + (stock.type === 'fbs' ? present : 0);
+        }, 0);
+        fbsMap[pid] = totalFbs;
       });
     } catch (e) {
       failedBatches++;
@@ -191,15 +231,13 @@ function updateAllFBSStocks_() {
   }
 
   // Записываем в G (7) - ИСПРАВЛЕНО: пишем для ВСЕХ строк
-  const valuesToWrite = fullProductIds.map(pid => {
-    const key = pid?.toString();
-    // Проверяем: ключ есть в fbsMap И product_id валидный
-    if (key && key !== "" && pid !== '' && pid !== null && pid !== undefined && pid > 0) {
-      return [fbsMap[key] ?? 0];
-    }
-    return [0];
-  });
-
-  sheet.getRange(2, columnByHeader_(sheet, 'Остаток ФБС ОЗОН'), valuesToWrite.length, 1).setValues(valuesToWrite);
-  Logger.log("Остатки FBS (G, 7) обновлены - сумма всех FBS складов.");
+  const writeMask = fullProductIds.map(pid => Object.prototype.hasOwnProperty.call(fbsMap, String(pid)));
+  const valuesToWrite = fullProductIds.map((pid, index) => [writeMask[index] ? fbsMap[String(pid)] : ""]);
+  const written = writeMaskedColumnValues_(
+    sheet,
+    columnByHeader_(sheet, 'Остаток ФБС ОЗОН'),
+    valuesToWrite,
+    writeMask,
+  );
+  Logger.log(`Остатки FBS (G, 7) обновлены: записано ${written} полных строк.`);
 }
