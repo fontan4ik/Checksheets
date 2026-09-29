@@ -46,16 +46,19 @@ function sendTelegramAlertGAS(serviceName, errorMessage, details) {
   const now = new Date();
   const dateStr = Utilities.formatDate(now, 'GMT+4', 'dd.MM.yyyy');
   const timeStr = Utilities.formatDate(now, 'GMT+4', 'HH:mm:ss');
+  const message = String(errorMessage === null || errorMessage === undefined ? '' : errorMessage);
+  const detailText = details ? String(details) : '';
+  recordTelegramAlertForLocalSyncGAS_(serviceName, message, detailText, now);
   const lines = [
     '🚨 <b>Сбой триггера (Apps Script): ' + escapeTelegramHtmlGAS_(serviceName) + '</b>',
     '📅 <b>Дата ошибки:</b> <code>' + dateStr + '</code>',
     '⏰ <b>Время ошибки:</b> <code>' + timeStr + '</code>',
-    '❌ <b>Ошибка:</b> <code>' + escapeTelegramHtmlGAS_(errorMessage) + '</code>'
+    '❌ <b>Ошибка:</b> <code>' + escapeTelegramHtmlGAS_(message) + '</code>'
   ];
 
 
-  if (details) {
-    let detailsStr = String(details);
+  if (detailText) {
+    let detailsStr = detailText;
     if (detailsStr.length > 1500) {
       detailsStr = detailsStr.slice(-1500);
     }
@@ -63,6 +66,44 @@ function sendTelegramAlertGAS(serviceName, errorMessage, details) {
   }
 
   return sendTelegramMessageGAS(lines.join('\n'), 'HTML');
+}
+
+/** Persist GAS alerts in a sheet so the local error-log sync can collect them. */
+function recordTelegramAlertForLocalSyncGAS_(serviceName, errorMessage, details, timestamp) {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    if (!spreadsheet) throw new Error('Active spreadsheet is unavailable');
+
+    const lock = LockService.getScriptLock();
+    lock.waitLock(5000);
+    try {
+      const sheetName = 'Лог ошибок';
+      let sheet = spreadsheet.getSheetByName(sheetName);
+      if (!sheet) {
+        sheet = spreadsheet.insertSheet(sheetName);
+        sheet.getRange(1, 1, 1, 6).setValues([[
+          'id', 'timestamp', 'source', 'service', 'error', 'details'
+        ]]);
+      }
+      const recordId = Utilities.getUuid();
+      sheet.appendRow([
+        recordId,
+        timestamp.toISOString(),
+        'Apps Script',
+        String(serviceName || 'unknown'),
+        String(errorMessage || '').slice(0, 10000),
+        String(details || '').slice(0, 30000)
+      ]);
+      try { sheet.hideSheet(); } catch (ignored) {}
+      return recordId;
+    } finally {
+      lock.releaseLock();
+    }
+  } catch (err) {
+    // Local logging must never prevent the original Telegram alert or rethrow.
+    Logger.log('Failed to queue Telegram alert for local log sync: ' + err);
+    return '';
+  }
 }
 
 function escapeTelegramHtmlGAS_(value) {
