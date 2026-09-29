@@ -431,6 +431,10 @@ def sync_arlight(*, dry_run: bool = False) -> MatchStats:
     articles.extend([""] * ((row_count - 1) - len(articles)))
 
     stock_values, stats = build_stock_values(articles, catalog.stock_by_article)
+    stock_write_mask = [
+        bool(str(article or "").strip()) and str(article or "").strip() in catalog.stock_by_article
+        for article in articles
+    ]
     print(
         "Sheet match: "
         f"matched={stats.matched}/{stats.nonempty_articles} "
@@ -469,6 +473,11 @@ def sync_arlight(*, dry_run: bool = False) -> MatchStats:
         brands,
         catalog.price_by_article,
     )
+    price_write_mask = [
+        str(model or "").strip() in catalog.price_by_article
+        and str(brand or "").strip().casefold() == "arlight"
+        for model, brand in zip(models, brands)
+    ]
     print(
         "Arlight price match: "
         f"matched={price_stats.matched}/{price_stats.arlight_rows} "
@@ -492,14 +501,15 @@ def sync_arlight(*, dry_run: bool = False) -> MatchStats:
         print("DRY RUN: Google Sheets were not changed")
         return stats
 
-    gsheets_utils.update_column(
+    stock_written = gsheets_utils.update_column_masked(
         worksheet,
         columns["stock"],
         stock_values,
+        stock_write_mask,
         start_row=2,
     )
-    print(f"Updated {SHEET_NAME}!F2:F{row_count}")
-    gsheets_utils.update_column_by_schema(
+    print(f"Updated {SHEET_NAME}!F2:F{row_count} for {stock_written} resolved rows")
+    price_written = gsheets_utils.update_column_by_schema_masked(
         test_worksheet,
         {
             "model": TEST_MODEL_HEADER,
@@ -508,11 +518,12 @@ def sync_arlight(*, dry_run: bool = False) -> MatchStats:
         },
         "price",
         price_values,
+        price_write_mask,
         start_row=2,
     )
     print(
         f"Updated {TEST_SHEET_NAME}!'{TEST_PRICE_HEADER}' "
-        f"for {price_stats.matched} Arlight rows"
+        f"for {price_written} resolved Arlight rows"
     )
     print("ARLIGHT API STOCK AND PRICE SYNCHRONIZATION COMPLETED")
     return stats

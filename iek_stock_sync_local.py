@@ -372,7 +372,10 @@ def ensure_stock_header(worksheet) -> int:
     return column
 
 
-def build_sheet_values(worksheet, stock_by_article: dict[str, int | float | None]) -> tuple[int, list[list[Any]]]:
+def build_sheet_values(
+    worksheet,
+    stock_by_article: dict[str, int | float | None],
+) -> tuple[int, list[list[Any]], list[bool]]:
     headers = worksheet.row_values(1)
     header_columns = gsheets_utils.resolve_header_columns(
         headers,
@@ -393,6 +396,7 @@ def build_sheet_values(worksheet, stock_by_article: dict[str, int | float | None
     article_offset = article_column - first_source_column
 
     output: list[list[Any]] = []
+    write_mask: list[bool] = []
     matched_rows = 0
     missing_articles: list[str] = []
     for row_number in range(2, worksheet.row_count + 1):
@@ -402,25 +406,34 @@ def build_sheet_values(worksheet, stock_by_article: dict[str, int | float | None
         article_value = source_row[article_offset] if article_offset < len(source_row) else ""
         if gsheets_utils.normalize_header(brand) != "iek":
             output.append([""])
+            write_mask.append(False)
             continue
 
         article = str(article_value or "").strip()
         if not article:
             missing_articles.append(f"row {row_number}: blank {ARTICLE_HEADER}")
             output.append([""])
+            write_mask.append(False)
             continue
         normalized = normalize_article(article)
         if normalized not in stock_by_article:
             missing_articles.append(f"row {row_number}: {article}")
             output.append([""])
+            write_mask.append(False)
             continue
         stock = stock_by_article[normalized]
-        output.append(["" if stock is None else stock])
+        if stock is None:
+            missing_articles.append(f"row {row_number}: {article} has no numeric API stock")
+            output.append([""])
+            write_mask.append(False)
+            continue
+        output.append([stock])
+        write_mask.append(True)
         matched_rows += 1
 
     if missing_articles:
         logger.warning(
-            "%d IEK sheet row(s) have no API article and will be written blank. Examples: %s",
+            "%d IEK sheet row(s) have no complete API stock and will be left unchanged. Examples: %s",
             len(missing_articles),
             "; ".join(missing_articles[:10]),
         )
@@ -433,7 +446,7 @@ def build_sheet_values(worksheet, stock_by_article: dict[str, int | float | None
         worksheet.row_count - 1,
         column_letter(stock_column),
     )
-    return stock_column, output
+    return stock_column, output, write_mask
 
 
 def sync() -> None:
@@ -441,7 +454,6 @@ def sync() -> None:
     api_key = get_api_key()
     spreadsheet = gsheets_utils.get_gsheet_client().open_by_key(config.SPREADSHEET_ID)
     worksheet = spreadsheet.worksheet(SHEET_NAME)
-    ensure_stock_header(worksheet)
     session = create_session()
     try:
         login(session, api_key)
@@ -450,21 +462,16 @@ def sync() -> None:
     finally:
         session.close()
 
-    stock_column, values = build_sheet_values(worksheet, stock_by_article)
-    last_row = len(values) + 1
-    range_name = f"{column_letter(stock_column)}2:{column_letter(stock_column)}{last_row}"
-    gsheets_utils._retry_gsheet_call(
-        "write IEK stocks",
-        lambda: worksheet.update(
-            values=values,
-            range_name=range_name,
-            value_input_option="RAW",
-        ),
+    ensure_stock_header(worksheet)
+    stock_column, values, write_mask = build_sheet_values(worksheet, stock_by_article)
+    written = gsheets_utils.update_column_by_header_masked(
+        worksheet, STOCK_HEADER, values, write_mask
     )
+    range_name = f"{column_letter(stock_column)}2:{column_letter(stock_column)}{len(values) + 1}"
     elapsed = (datetime.now(timezone.utc) - started).total_seconds()
     logger.info(
         "IEK stock sync completed: %d rows written to %s!%s in %.1fs",
-        len(values),
+        written,
         worksheet.title,
         range_name,
         elapsed,

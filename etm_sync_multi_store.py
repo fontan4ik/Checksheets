@@ -5,6 +5,7 @@ import io
 import ipaddress
 import json
 import logging
+import math
 import os
 import posixpath
 import re
@@ -567,18 +568,21 @@ def resolve_gds_code_loose(row_value, loose_entries):
 
 def parse_int_stock(value):
     if value is None:
-        return 0
+        raise ValueError("ETM record has no stock quantity")
     text = str(value).strip()
     if not text:
-        return 0
+        raise ValueError("ETM record has an empty stock quantity")
     text = text.replace("\xa0", "").replace(" ", "").replace(",", ".")
     match = re.search(r"-?\d+(?:\.\d+)?", text)
     if not match:
-        return 0
+        raise ValueError(f"ETM returned a non-numeric stock quantity: {value!r}")
     try:
-        return max(int(float(match.group(0))), 0)
-    except ValueError:
-        return 0
+        quantity = float(match.group(0))
+    except ValueError as exc:
+        raise ValueError(f"ETM returned an invalid stock quantity: {value!r}") from exc
+    if not math.isfinite(quantity) or quantity < 0:
+        raise ValueError(f"ETM returned an invalid stock quantity: {value!r}")
+    return int(quantity)
 
 
 def pick_value(row: Dict[str, object], candidates: set) -> str:
@@ -589,22 +593,19 @@ def pick_value(row: Dict[str, object], candidates: set) -> str:
 
 
 def row_to_stock_record(row: Dict[str, object], source: str) -> Optional[StockRecord]:
+    gds_code = normalize_etm_code(pick_value(row, CODE_FIELD_NAMES))
+    article = pick_value(row, ARTICLE_FIELD_NAMES)
+    if not gds_code and not article:
+        return None
+
     stock_value = None
     for key, value in row.items():
         if normalize_field_name(key) in STOCK_FIELD_NAMES:
             stock_value = value
             break
 
-    stock = parse_int_stock(stock_value)
-    if stock <= 0:
-        return None
-
-    gds_code = normalize_etm_code(pick_value(row, CODE_FIELD_NAMES))
-    article = pick_value(row, ARTICLE_FIELD_NAMES)
     manufacturer = pick_value(row, MANUFACTURER_FIELD_NAMES)
-
-    if not gds_code and not article:
-        return None
+    stock = parse_int_stock(stock_value)
 
     return StockRecord(
         gds_code=gds_code,
@@ -636,8 +637,7 @@ def parse_delimited(content: bytes, source: str) -> List[StockRecord]:
     stream = io.StringIO(text)
     reader = csv.DictReader(stream, dialect=dialect)
     if not reader.fieldnames:
-        logging.warning("No header row found in %s", source)
-        return []
+        raise ValueError(f"No header row found in {source}")
 
     header_names = [str(name or "").strip() for name in reader.fieldnames]
     normalized_headers = [normalize_field_name(name) for name in header_names]
@@ -662,7 +662,7 @@ def parse_delimited(content: bytes, source: str) -> List[StockRecord]:
         stock_col,
     )
 
-    records = []
+        records = []
     for row in reader:
         record = row_to_stock_record(row, source)
         if record:
@@ -717,8 +717,7 @@ def parse_xlsx_payload(content: bytes, source: str) -> List[StockRecord]:
     try:
         from openpyxl import load_workbook
     except ImportError:
-        logging.warning("openpyxl is not installed; skipping XLSX file %s", source)
-        return []
+        raise RuntimeError(f"openpyxl is required to parse XLSX stock file {source}")
 
     workbook = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     records = []
@@ -774,8 +773,7 @@ def parse_stock_payload(content: bytes, source: str) -> List[StockRecord]:
             return parse_xml_payload(content, source)
         return parse_delimited(content, source)
     except Exception as exc:
-        logging.warning("Could not parse %s: %s", source, exc)
-        return []
+        raise RuntimeError(f"Could not parse complete ETM stock file {source}: {exc}") from exc
 
 
 def get_ftp_password():
@@ -896,8 +894,7 @@ def walk_ftp_files(ftp, remote_dir) -> List[FtpFile]:
     try:
         entries = ftp.nlst(remote_dir)
     except error_perm as exc:
-        logging.warning("Could not list %s: %s", remote_dir, exc)
-        return []
+        raise RuntimeError(f"Could not complete ETM FTP listing for {remote_dir}: {exc}") from exc
 
     for entry in entries:
         name = entry.rstrip("/").split("/")[-1]
@@ -1190,6 +1187,11 @@ def fetch_warehouse_stock_lookup(ftp, remote_dir, label, process_mode, state_key
             ftp_file.modified,
         )
         content = download_ftp_file(ftp, ftp_file.remote_path)
+        if ftp_file.size is not None and len(content) != ftp_file.size:
+            raise RuntimeError(
+                f"Incomplete ETM FTP download for {ftp_file.remote_path}: "
+                f"received {len(content)} bytes, expected {ftp_file.size}"
+            )
         suffix = Path(ftp_file.remote_path).suffix.lower()
         if suffix in {".csv", ".txt", ".tsv", ".dat"}:
             validation = validate_ftp_csv(content, ftp_file.remote_path)

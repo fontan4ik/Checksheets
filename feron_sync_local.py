@@ -1,4 +1,5 @@
 import time
+import math
 import requests
 import os
 import re
@@ -118,7 +119,7 @@ def parse_feron_quantity(qty_data):
     Prefer numeric `text` when available; fall back to `quantity` otherwise.
     """
     if not isinstance(qty_data, dict):
-        return 0
+        raise ValueError("Feron quantity value is not an object")
 
     raw_text = str(qty_data.get("text") or "").replace("\xa0", " ").strip()
     match = re.search(r"-?\d+(?:[,.]\d+)?", raw_text)
@@ -128,10 +129,16 @@ def parse_feron_quantity(qty_data):
         except (ValueError, TypeError):
             pass
 
+    raw_quantity = qty_data.get("quantity")
+    if raw_quantity is None or raw_quantity == "":
+        raise ValueError("Feron quantity value contains neither numeric text nor quantity")
     try:
-        return max(0, int(float(qty_data.get("quantity", 0) or 0)))
-    except (ValueError, TypeError):
-        return 0
+        quantity = float(raw_quantity)
+    except (ValueError, TypeError) as exc:
+        raise ValueError(f"Feron returned a non-numeric quantity: {raw_quantity!r}") from exc
+    if not math.isfinite(quantity) or quantity < 0:
+        raise ValueError(f"Feron returned an invalid quantity: {raw_quantity!r}")
+    return int(quantity)
 
 
 def fetch_all_feron_data(api_key):
@@ -158,6 +165,7 @@ def fetch_all_feron_data(api_key):
     # vendor_code and model. Keep both aliases so rows like 52125-1 / 52125
     # resolve to the same stock record.
     # Using larger size (3000) as in 1C module for efficiency
+    search_finished = False
     for i in range(100): # Safety limit for iterations to avoid infinite loops
         url = f"{base_url}/offers/products/search"
         if search_token:
@@ -176,12 +184,15 @@ def fetch_all_feron_data(api_key):
             )
 
             if response.status_code != 200:
-                print(f"Error fetching products: {response.status_code} {response.text}")
-                break
+                raise RuntimeError(f"Feron product search returned HTTP {response.status_code}")
                 
             data = response.json()
-            items = data.get("items", [])
+            if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+                raise RuntimeError("Feron product search returned an incomplete payload")
+            items = data["items"]
             for item in items:
+                if not isinstance(item, dict) or not item.get("product_id"):
+                    raise RuntimeError("Feron catalog contains a product without product_id")
                 p_id = item.get("product_id")
                 v_code = item.get("vendor_code")
                 model = item.get("model")
@@ -189,19 +200,24 @@ def fetch_all_feron_data(api_key):
                     str(v_code).strip() for v_code in (v_code, model) if v_code
                 }
                 if p_id and lookup_keys:
-                    products_map[p_id] = lookup_keys
+                    products_map[str(p_id)] = lookup_keys
             
             new_token = data.get("search_token")
-            if not new_token or new_token == search_token:
+            if not new_token:
+                search_finished = True
                 break
+            if new_token == search_token:
+                raise RuntimeError("Feron catalog pagination repeated the same search token")
             search_token = new_token
             
             if len(items) == 0:
-                break
+                raise RuntimeError("Feron catalog returned an empty page with a continuation token")
                 
         except Exception as e:
-            print(f"Exception during product search: {e}")
-            break
+            raise RuntimeError(f"Feron catalog load failed at page {i + 1}: {e}") from e
+
+    if not search_finished:
+        raise RuntimeError("Feron catalog exceeded the 100-page safety limit; no sheet update is safe")
             
     print(f"Found {len(products_map)} unique products in Feron catalog.")
     if not products_map:
@@ -233,14 +249,17 @@ def fetch_all_feron_data(api_key):
             )
             
             if response.status_code != 200:
-                print(f"Error fetching quantities: {response.status_code}")
-                continue
+                raise RuntimeError(f"Feron quantities chunk returned HTTP {response.status_code}")
                 
             data = response.json()
-            items = data.get("items", [])
+            if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+                raise RuntimeError("Feron quantities returned an incomplete payload")
+            items = data["items"]
             for item in items:
-                p_id = item.get("product_id")
-                w_id = item.get("warehouse_id")
+                if not isinstance(item, dict) or not item.get("product_id") or not item.get("warehouse_id"):
+                    raise RuntimeError("Feron quantities contains an item without product_id or warehouse_id")
+                p_id = str(item.get("product_id"))
+                w_id = str(item.get("warehouse_id"))
                 qty_data = item.get("value", {})
                 qty = parse_feron_quantity(qty_data)
                 
@@ -267,7 +286,7 @@ def fetch_all_feron_data(api_key):
             print(f"  Progress: {min(i + chunk_size, len(product_ids))}/{len(product_ids)} articles processed")
             
         except Exception as e:
-            print(f"Exception during quantity fetch at index {i}: {e}")
+            raise RuntimeError(f"Feron quantities load failed at product index {i}: {e}") from e
             
     print(f"\n--- All warehouses found in API: {sorted(all_warehouse_ids)} ---")
     if not all_warehouse_ids:
@@ -342,54 +361,62 @@ def sync_feron():
         send_telegram_alert("feron_sync (Google Sheets)", f"Ошибка чтения артикулов из Sheet: {e}")
         raise
 
-    # Phase 3: Match and Upload for each warehouse
+    # Phase 3: Prepare every warehouse before touching the sheet.
     total_non_zero_across_all = 0
+    prepared_results = {}
     for wh_name, wh_id in warehouse_ids.items():
         field_name = FERON_STOCK_FIELD_BY_WAREHOUSE[wh_name]
             
         print(f"\nProcessing warehouse: {wh_name} (ID: {wh_id})")
         
         formatted_results = []
+        write_mask = []
         stats = {"matched": 0, "not_found": 0, "non_zero": 0}
         
         for code in vendor_codes_raw:
             code_str = str(code).strip()
             if not code_str:
-                formatted_results.append([0])
+                formatted_results.append([""])
+                write_mask.append(False)
                 continue
-                
+
             stocks_for_code = all_feron_stocks.get(code_str)
-            if stocks_for_code is not None:
+            if stocks_for_code is not None and wh_id in stocks_for_code:
                 stats["matched"] += 1
-                qty = stocks_for_code.get(wh_id, 0)
+                qty = stocks_for_code[wh_id]
                 formatted_results.append([qty])
+                write_mask.append(True)
                 if qty > 0:
                     stats["non_zero"] += 1
             else:
                 stats["not_found"] += 1
-                formatted_results.append([0])
+                formatted_results.append([""])
+                write_mask.append(False)
         
         print(f"  - Match Rate: {stats['matched']}/{len(vendor_codes_raw)} articles found in API")
         print(f"  - Inventory: {stats['non_zero']} articles have stock > 0")
         total_non_zero_across_all += stats["non_zero"]
-        
+
+        prepared_results[wh_name] = (field_name, formatted_results, write_mask, stats)
+
+    if total_non_zero_across_all == 0:
+        err = "Аномалия: после сопоставления с Feron API получено 0 положительных остатков по всем складам!"
+        print(f"ERROR: {err}; aborting all sheet writes.")
+        send_telegram_alert("feron_sync (Аномалия остатков)", err)
+        raise RuntimeError(err)
+
+    # Upload only resolved product/warehouse values; absent API rows retain their last known sheet value.
+    for wh_name, (field_name, formatted_results, write_mask, stats) in prepared_results.items():
         try:
             print(f"  - Updating Google Sheet header '{FERON_TR_SCHEMA[field_name]}' ({wh_name})...")
-            gsheets_utils.clear_column(ws, FERON_TR_SCHEMA[field_name])
-            gsheets_utils.update_column_by_header(
-                ws, FERON_TR_SCHEMA[field_name], formatted_results
+            written = gsheets_utils.update_column_by_header_masked(
+                ws, FERON_TR_SCHEMA[field_name], formatted_results, write_mask
             )
-            print(f"  - OK: Warehouse {wh_name} updated successfully.")
+            print(f"  - OK: Warehouse {wh_name} updated successfully ({written} resolved rows).")
         except Exception as e:
             print(f"  - ERROR: Failed to update {wh_name}: {e}")
             send_telegram_alert("feron_sync (Google Sheets)", f"Ошибка записи остатков {wh_name}: {e}")
             raise
-
-    if total_non_zero_across_all == 0:
-        err = "Аномалия: после сопоставления с Feron API получено 0 положительных остатков по всем складам!"
-        print(f"ERROR: {err}")
-        send_telegram_alert("feron_sync (Аномалия остатков)", err)
-        raise RuntimeError(err)
 
     print("\n" + "=" * 60)
     print("FERON STOCK SYNCHRONIZATION COMPLETED")

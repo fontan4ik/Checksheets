@@ -216,8 +216,10 @@ async function loadStocks(models, headers, httpClient = axios, httpsAgent) {
       if (pages > 100) throw new Error(`CDEK pagination превысила 100 страниц для model «${model}»`);
     }
 
-    if (found) matched += 1;
-    stockByModel.set(model, total);
+    if (found) {
+      matched += 1;
+      stockByModel.set(model, total);
+    }
     if (index + 1 < models.length) await sleep(REQUEST_DELAY_MS);
   }
   console.log(JSON.stringify({
@@ -246,24 +248,42 @@ async function readSheet(sheets) {
 }
 
 async function writeStocks(sheets, rows, columns, stockByModel) {
-  const values = rows.map((row) => {
-    const model = text(row[columns.model - 1]);
-    if (!model) return [""];
-    if (!stockByModel.has(model)) {
-      throw new Error(`Нет CDEK-остатка для model «${model}»; запись отменена`);
-    }
-    return [stockByModel.get(model)];
-  });
-
   const stockLetter = columnToLetter(columns.stocks);
-  const range = `${quoteSheetName(SHEET_NAME)}!${stockLetter}2:${stockLetter}${values.length + 1}`;
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: SPREADSHEET_ID,
-    range,
-    valueInputOption: "RAW",
-    requestBody: { values },
+  const data = [];
+  const writtenValues = [];
+  let segmentStart = null;
+  let segmentValues = [];
+
+  const flush = (endRow) => {
+    if (segmentStart === null) return;
+    data.push({
+      range: `${quoteSheetName(SHEET_NAME)}!${stockLetter}${segmentStart}:${stockLetter}${endRow}`,
+      values: segmentValues,
+    });
+    segmentStart = null;
+    segmentValues = [];
+  };
+
+  rows.forEach((row, index) => {
+    const model = text(row[columns.model - 1]);
+    const rowNumber = index + 2;
+    if (!model || !stockByModel.has(model)) {
+      flush(rowNumber - 1);
+      return;
+    }
+    if (segmentStart === null) segmentStart = rowNumber;
+    const value = [stockByModel.get(model)];
+    segmentValues.push(value);
+    writtenValues.push(value);
   });
-  return { range, values };
+  flush(rows.length + 1);
+
+  if (!data.length) throw new Error("CDEK API did not return any complete product rows; sheet unchanged");
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: { valueInputOption: "RAW", data },
+  });
+  return { ranges: data.map((item) => item.range), values: writtenValues };
 }
 
 async function main() {
@@ -295,7 +315,7 @@ async function main() {
     rows: result.values.length,
     uniqueModels: models.length,
     nonZero,
-    range: result.range,
+    ranges: result.ranges,
     durationSec: Math.round((Date.now() - startedAt) / 1000),
   }));
 }

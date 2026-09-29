@@ -241,7 +241,7 @@ def update_column_by_header(worksheet, header_name, values, start_row=2):
 def update_column_by_header_masked(worksheet, header_name, values, write_mask, start_row=2):
     """Update only rows whose source values were actually resolved and validated."""
     assert_writable_header(header_name, getattr(worksheet, "title", "worksheet"))
-    _update_column_masked(
+    return _update_column_masked(
         worksheet,
         header_name,
         values,
@@ -253,6 +253,15 @@ def update_column_by_header_masked(worksheet, header_name, values, write_mask, s
             getattr(worksheet, "title", "worksheet"),
         )["target"],
     )
+
+
+def update_column_masked(worksheet, col_num, values, write_mask, start_row=2):
+    """Update only validated rows in a previously resolved fixed-layout column."""
+    col_index = int(col_num)
+    assert_writable_column(worksheet, col_index)
+    header_name = _row_values(worksheet, 1)[col_index - 1]
+    assert_writable_header(header_name, getattr(worksheet, "title", "worksheet"))
+    _update_column_masked(worksheet, header_name, values, write_mask, start_row, col_index)
 
 
 def update_column_by_schema_masked(worksheet, schema, field_name, values, write_mask, start_row=2):
