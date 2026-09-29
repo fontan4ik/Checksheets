@@ -1,5 +1,86 @@
 {
-  "generated_at": "2026-09-29T03:58:53.028073+00:00",
-  "nodes": {},
+  "generated_at": "2026-09-29T10:28:07.639115+00:00",
+  "nodes": {
+    "flow_нтц_списания_fbs_резерв_installntcwriteoffs": {
+      "code_fingerprint": "a3a6107530fa0b422ebb7dd6d3952befa33b2e58bca1a0cacb2a3cb53fc5071b",
+      "label": "installNtcWriteOffs()",
+      "last": "2026-09-29T04:04:48.189257+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-29T04:04:48.189257+00:00",
+          "outcome": "useful",
+          "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
+        }
+      ],
+      "score": 0.993868411,
+      "source_file": "Flow_НТЦ_списания__FBS_резерв.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "flow_нтц_списания_fbs_резерв_syncntcfbswriteoffs": {
+      "code_fingerprint": "a3a6107530fa0b422ebb7dd6d3952befa33b2e58bca1a0cacb2a3cb53fc5071b",
+      "label": "syncNtcFbsWriteOffs()",
+      "last": "2026-09-29T04:04:48.189257+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-29T04:04:48.189257+00:00",
+          "outcome": "useful",
+          "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
+        }
+      ],
+      "score": 0.993868411,
+      "source_file": "Flow_НТЦ_списания__FBS_резерв.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "ntc_f_stage_advance": {
+      "code_fingerprint": "ae27e3f92e9fa82c68fcaab1157ecfcf255e02cb67406463c07ae912c9cf8837",
+      "label": "advance()",
+      "last": "2026-09-29T04:04:48.189257+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-29T04:04:48.189257+00:00",
+          "outcome": "useful",
+          "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
+        }
+      ],
+      "score": 0.993868411,
+      "source_file": "ntc_f_stage.py",
+      "status": "tentative",
+      "uses": 1
+    },
+    "ntc_fbs_reserve_sync": {
+      "code_fingerprint": "e4a34c003d7bdde162ecc176d25cb426ec5e3dda6be3faa6decb2b81d7c048a0",
+      "label": "ntc_fbs_reserve_sync.py",
+      "last": "2026-09-29T04:04:48.189257+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-29T04:04:48.189257+00:00",
+          "outcome": "useful",
+          "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
+        }
+      ],
+      "score": 0.993868411,
+      "source_file": "ntc_fbs_reserve_sync.py",
+      "status": "tentative",
+      "uses": 1
+    },
+    "ntc_live_local": {
+      "code_fingerprint": "b0ee308dfaeb036f53261886cc7355234cf43c4a9513805817ecfc95ce8d04ed",
+      "label": "ntc_live_local.py",
+      "last": "2026-09-29T04:04:48.189257+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-29T04:04:48.189257+00:00",
+          "outcome": "useful",
+          "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
+        }
+      ],
+      "score": 0.993868411,
+      "source_file": "ntc_live_local.py",
+      "status": "tentative",
+      "uses": 1
+    }
+  },
   "version": 1
 }
