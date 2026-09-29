@@ -111,7 +111,7 @@ def normalized_wb_base(article: str) -> str:
 def _read_env_token() -> str | None:
     token = os.environ.get("WB_API_TOKEN", "").strip()
     if token:
-        return token.removeprefix("Bearer ").strip()
+        return token[7:].strip() if token.lower().startswith("bearer ") else token
 
     env_file = ROOT / ".env"
     if env_file.exists():
@@ -121,7 +121,8 @@ def _read_env_token() -> str | None:
                 continue
             name, value = line.split("=", 1)
             if name.strip() == "WB_API_TOKEN":
-                return value.strip().strip("\"'").removeprefix("Bearer ").strip()
+                token = value.strip().strip("\"'")
+                return token[7:].strip() if token.lower().startswith("bearer ") else token
     return None
 
 
@@ -131,7 +132,7 @@ def get_wb_api_token() -> str:
     token = _read_env_token()
     if not token and WB_TOKEN_FILE.exists():
         token = WB_TOKEN_FILE.read_text(encoding="utf-8").strip()
-        token = token.removeprefix("Bearer ").strip()
+        token = token[7:].strip() if token.lower().startswith("bearer ") else token
     if not token:
         source = SHARED_SETTINGS_PATH.read_text(encoding="utf-8")
         match = re.search(r"Authorization\s*:\s*['\"]Bearer\s+([^'\"\s]+)['\"]", source)
