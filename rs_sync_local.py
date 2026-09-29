@@ -10,7 +10,7 @@ from telegram_notifier import send_telegram_alert
 
 
 RS_RETRYABLE_HTTP_STATUSES = {404, 408, 425, 429, 500, 502, 503, 504}
-RS_MAX_REQUEST_ATTEMPTS = 4
+RS_MAX_REQUEST_ATTEMPTS = 7
 RS_API_MIN_PAGE_DELAY_SECONDS = 0.2
 
 
@@ -105,6 +105,7 @@ def fetch_rs_code_map(warehouse_id):
     invalid_products = 0
 
     def fetch_category(category, include_name=False):
+        nonlocal invalid_products
         page = 1
         expected_pages = None
         expected_rows = None
