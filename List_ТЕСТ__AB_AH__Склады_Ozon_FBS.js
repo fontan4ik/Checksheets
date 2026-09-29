@@ -82,6 +82,8 @@ function fetchAndSaveWarehouses() {
   let allWarehouses = [];
   let cursor = "";
   let pageCount = 0;
+  let complete = false;
+  const seenCursors = new Set();
   let lastRequestTime = Date.now() - 1000 / RPS();
 
   Logger.log("\n📤 Загрузка списка складов (Ozon v2 API)...");
@@ -116,8 +118,7 @@ function fetchAndSaveWarehouses() {
       const response = retryFetch(url, options);
 
       if (!response) {
-        Logger.log(`❌ Не удалось получить данные (страница ${pageCount})`);
-        break;
+        throw new Error(`Ozon не вернул список складов (страница ${pageCount})`);
       }
 
       const responseCode = response.getResponseCode();
@@ -126,29 +127,41 @@ function fetchAndSaveWarehouses() {
       if (responseCode === 200) {
         const data = JSON.parse(responseText);
         const warehouses = data.warehouses || data.result || [];
-
-        if (Array.isArray(warehouses) && warehouses.length > 0) {
-          allWarehouses.push(...warehouses);
-
-          if (data.has_next && data.cursor) {
-            cursor = data.cursor;
-          } else {
-            Logger.log(`   ✅ Загружены все склады (${allWarehouses.length} складов)`);
-            break;
+        if (!Array.isArray(warehouses) || typeof data.has_next !== "boolean") {
+          throw new Error(`Ozon вернул неполную структуру списка складов на странице ${pageCount}`);
+        }
+        warehouses.forEach(warehouse => {
+          if (!warehouse || warehouse.warehouse_id === null || warehouse.warehouse_id === undefined ||
+              !String(warehouse.name || "").trim()) {
+            throw new Error(`Ozon вернул неполную запись склада на странице ${pageCount}`);
           }
+          const id = String(warehouse.warehouse_id);
+          if (allWarehouses.some(existing => String(existing.warehouse_id) === id)) {
+            throw new Error(`Ozon повторно вернул склад ${id} при пагинации`);
+          }
+          allWarehouses.push(warehouse);
+        });
+
+        if (data.has_next) {
+          const nextCursor = String(data.cursor || "").trim();
+          if (!nextCursor || nextCursor === cursor || seenCursors.has(nextCursor) || !warehouses.length) {
+            throw new Error(`Ozon warehouse pagination did not advance at page ${pageCount}`);
+          }
+          seenCursors.add(nextCursor);
+          cursor = nextCursor;
         } else {
+          complete = true;
+          Logger.log(`   ✅ Загружены все склады (${allWarehouses.length} складов)`);
           break;
         }
       } else {
-        Logger.log(`   ❌ Ошибка API на странице ${pageCount}: код ${responseCode}`);
-        Logger.log(`   Response: ${responseText.substring(0, 300)}`);
-        break;
+        throw new Error(`Ozon warehouse list HTTP ${responseCode}: ${responseText.substring(0, 300)}`);
       }
     }
 
+    if (!complete) throw new Error(`Ozon warehouse pagination exceeded ${maxPages} pages`);
     if (allWarehouses.length === 0) {
-      Logger.log("\n❌ Не удалось получить склады");
-      return null;
+      throw new Error("Ozon вернул пустой список складов");
     }
 
     Logger.log(`\n✅ Всего загружено складов: ${allWarehouses.length}`);
@@ -390,8 +403,7 @@ function updateAllFBSWarehouses() {
     Logger.log("⚠️ Список складов не найден или пуст. Получаем свежий список складов...");
     warehouses = fetchAndSaveWarehouses();
     if (!warehouses || !Array.isArray(warehouses) || warehouses.length === 0) {
-      Logger.log("❌ Не удалось получить список складов. Завершение работы.");
-      return;
+      throw new Error("Ozon: не удалось получить полный список складов; таблица не обновлена");
     }
   }
 
@@ -399,9 +411,12 @@ function updateAllFBSWarehouses() {
   const targetWarehouses = findTargetWarehouses(warehouses);
 
   if (targetWarehouses.length === 0) {
-    Logger.log("❌ Целевые склады не найдены!");
-    Logger.log("   Проверьте названия в TARGET_WAREHOUSES");
-    return;
+    throw new Error("Ozon: целевые склады не найдены; таблица не обновлена");
+  }
+
+  const targetWarehouseIds = targetWarehouses.map(tw => String(tw.warehouseId));
+  if (new Set(targetWarehouseIds).size !== targetWarehouseIds.length) {
+    throw new Error("Ozon: несколько складских колонок сопоставлены одному warehouse_id; таблица не обновлена");
   }
 
   const targetWhMap = {};
@@ -430,7 +445,7 @@ function updateAllFBSWarehouses() {
   for (let idx = 0; idx < skuValuesRaw.length; idx++) {
     const val = skuValuesRaw[idx];
     const sku = val ? Number(val) : null;
-    if (sku && !isNaN(sku) && sku > 0) {
+    if (Number.isSafeInteger(sku) && sku > 0) {
       validSkuCount++;
       let indices = skuToIndices.get(sku);
       if (!indices) {
@@ -450,11 +465,13 @@ function updateAllFBSWarehouses() {
     return;
   }
 
-  // 4. Подготавливаем массивы для записи (инициализируем нулями)
-  const columnsData = {};
+  // 4. Сохраняем только остатки, явно возвращённые API для конкретного склада.
+  const stockByWarehouse = {};
   targetWarehouses.forEach(tw => {
-    columnsData[tw.column] = new Array(numRows).fill(0);
+    stockByWarehouse[tw.column] = new Map();
   });
+  const targetWhMap = Object.fromEntries(targetWarehouses.map(tw => [String(tw.warehouseId), tw]));
+  const seenProductWarehouse = new Set();
 
   // 5. Запрашиваем остатки по батчам через v2 API (один проход по всем складам сразу)
   const chunkSize = 200;
@@ -463,7 +480,6 @@ function updateAllFBSWarehouses() {
 
   let lastRequestTime = Date.now() - 1000 / RPS();
   let successCount = 0;
-  let failureCount = 0;
   let totalProductsReceived = 0;
 
   Logger.log(`\n📤 Запрос остатков по всем складам (Ozon v2 API)...`);
@@ -479,9 +495,12 @@ function updateAllFBSWarehouses() {
 
     let cursor = "";
     let hasNext = true;
-    let chunkSuccess = true;
+    let pageCount = 0;
+    const seenCursors = new Set();
 
     while (hasNext) {
+      pageCount++;
+      if (pageCount > 100) throw new Error(`Ozon stocks pagination exceeded 100 pages for chunk ${chunkNum}`);
       lastRequestTime = rateLimitRPS(lastRequestTime, RPS());
 
       const payload = {
@@ -504,9 +523,7 @@ function updateAllFBSWarehouses() {
         const response = retryFetch(url, options);
 
         if (!response) {
-          Logger.log(`   ❌ Ошибка сети при запросе остатков для чанка ${chunkNum}`);
-          chunkSuccess = false;
-          break;
+          throw new Error(`Ozon не вернул остатки для чанка ${chunkNum}`);
         }
 
         const responseCode = response.getResponseCode();
@@ -514,78 +531,76 @@ function updateAllFBSWarehouses() {
         if (responseCode === 200) {
           const data = JSON.parse(response.getContentText());
           const products = data.products || data.result || [];
-
-          if (Array.isArray(products) && products.length > 0) {
-            totalProductsReceived += products.length;
-
-            products.forEach(item => {
-              const tw = targetWhMap[String(item.warehouse_id)];
-              if (tw) {
-                const sku = Number(item.sku);
-                const present = Number(item.present) || 0;
-                const reserved = Number(item.reserved) || 0;
-                const totalStock = present + reserved;
-
-                const indices = skuToIndices.get(sku);
-                if (indices) {
-                  for (let k = 0; k < indices.length; k++) {
-                    columnsData[tw.column][indices[k]] = totalStock;
-                  }
-                }
-              }
-            });
+          if (!Array.isArray(products) || typeof data.has_next !== "boolean") {
+            throw new Error(`Ozon вернул неполную структуру stocks для чанка ${chunkNum}`);
           }
+          const requested = new Set(chunk);
+          totalProductsReceived += products.length;
+          products.forEach(item => {
+            const sku = Number(item?.sku);
+            const warehouseId = String(item?.warehouse_id ?? "").trim();
+            const presentRaw = item?.present;
+            const reservedRaw = item?.reserved;
+            const present = Number(presentRaw);
+            const reserved = Number(reservedRaw);
+            if (!Number.isSafeInteger(sku) || !requested.has(sku) || !warehouseId ||
+                presentRaw === null || presentRaw === undefined || presentRaw === "" ||
+                reservedRaw === null || reservedRaw === undefined || reservedRaw === "" ||
+                !Number.isSafeInteger(present) || present < 0 ||
+                !Number.isSafeInteger(reserved) || reserved < 0) {
+              throw new Error(`Ozon вернул неполную или неожиданную запись stocks для чанка ${chunkNum}`);
+            }
+            const tw = targetWhMap[warehouseId];
+            if (!tw) return;
+            const pairKey = `${warehouseId}:${sku}`;
+            if (seenProductWarehouse.has(pairKey)) {
+              throw new Error(`Ozon повторно вернул склад ${warehouseId} и SKU ${sku}`);
+            }
+            seenProductWarehouse.add(pairKey);
+            stockByWarehouse[tw.column].set(sku, present + reserved);
+          });
 
-          if (data.has_next && data.cursor) {
-            cursor = data.cursor;
+          if (data.has_next) {
+            const nextCursor = String(data.cursor || "").trim();
+            if (!nextCursor || nextCursor === cursor || seenCursors.has(nextCursor) || !products.length) {
+              throw new Error(`Ozon stocks cursor did not advance for chunk ${chunkNum}`);
+            }
+            seenCursors.add(nextCursor);
+            cursor = nextCursor;
           } else {
             hasNext = false;
           }
         } else {
-          Logger.log(`   ❌ Ошибка API на чанке ${chunkNum}: код ${responseCode}`);
-          chunkSuccess = false;
-          break;
+          throw new Error(`Ozon stocks HTTP ${responseCode} for chunk ${chunkNum}: ${response.getContentText().substring(0, 300)}`);
         }
       } catch (e) {
         Logger.log(`   ❌ Исключение на чанке ${chunkNum}: ${e.message}`);
-        chunkSuccess = false;
-        break;
+        throw e;
       }
     }
-
-    if (chunkSuccess) {
-      successCount++;
-    } else {
-      failureCount++;
-    }
   }
 
-  Logger.log(`\n📊 Результат запросов: успешно ${successCount}/${totalChunks} чанков, ошибок: ${failureCount}`);
+  Logger.log(`\n📊 Результат запросов: успешно ${totalChunks}/${totalChunks} чанков`);
   Logger.log(`📦 Всего получено записей остатков: ${totalProductsReceived}`);
-
-  // КРИТИЧЕСКАЯ ЗАЩИТА: не перезаписывать таблицу нулями, если API упал
-  if (successCount === 0 && failureCount > 0) {
-    Logger.log("\n❌ КРИТИЧЕСКАЯ ОШИБКА: Ни один запрос к API не завершился успешно!");
-    Logger.log("⛔ Запись в таблицу ОТМЕНЕНА во избежание зануления остатков.");
-    return;
-  }
-
-  if (failureCount > totalChunks * 0.3) {
-    Logger.log(`\n⚠️ ВНИМАНИЕ: Слишком много ошибок запросов (${failureCount}/${totalChunks} > 30%)!`);
-    Logger.log("⛔ Запись в таблицу ОТМЕНЕНА для защиты целостности данных.");
-    return;
-  }
 
   // 6. Записываем данные в таблицу (все колонки)
   Logger.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   Logger.log(`📥 ЗАПИСЬ В ТАБЛИЦУ...`);
 
   targetWarehouses.forEach(tw => {
-    const values = columnsData[tw.column].map(v => [v]);
-    sheet.getRange(2, columnByHeader_(sheet, tw.targetName), values.length, 1).setValues(values);
-
-    const withStock = values.filter(v => v[0] > 0).length;
-    Logger.log(`   ✅ ${tw.letter} (${tw.column}): "${tw.warehouseName}" - ${withStock} товаров с остатками`);
+    const values = new Array(numRows).fill(null).map(() => [""]);
+    const writeMask = new Array(numRows).fill(false);
+    stockByWarehouse[tw.column].forEach((stock, sku) => {
+      const indices = skuToIndices.get(sku) || [];
+      indices.forEach(index => {
+        values[index][0] = stock;
+        writeMask[index] = true;
+      });
+    });
+    const column = columnByHeader_(sheet, tw.targetName);
+    const written = writeMaskedColumnValues_(sheet, column, values, writeMask);
+    const withStock = values.filter((value, index) => writeMask[index] && value[0] > 0).length;
+    Logger.log(`   ✅ ${tw.letter} (${tw.column}): "${tw.warehouseName}" - записано ${written} полных строк, ненулевых ${withStock}`);
   });
 
   // 7. Итоги

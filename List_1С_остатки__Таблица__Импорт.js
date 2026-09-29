@@ -8,6 +8,18 @@ function doPost(e) {
     // Получаем JSON из тела запроса
     var jsonString = e.postData.getDataAsString();      // application/json
     var data = JSON.parse(jsonString);                  // { values: [ [...], [...], ... ] }
+    var values = data && data.values;
+    if (!Array.isArray(values) || values.length < 2 || !Array.isArray(values[0]) || !values[0].length) {
+      throw new Error("Неполный импорт остатков 1С: ожидаются заголовок и хотя бы одна строка товара");
+    }
+    var width = values[0].length;
+    if (values.some(function(row) {
+      return !Array.isArray(row) || row.length !== width || row.some(function(value) {
+        return typeof value === "number" && !isFinite(value);
+      });
+    })) {
+      throw new Error("Неполный импорт остатков 1С: строки имеют разную ширину или некорректные числа");
+    }
 
     // Открываем таблицу по ID — getActiveSpreadsheet() не работает в веб-приложении!
     var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -19,12 +31,16 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Полностью очищаем лист перед новой загрузкой
-    sheet.clearContents();
-
-    var values = data.values;
-    if (values && values.length > 0) {
-      sheet.getRange(1, 1, values.length, values[0].length).setValues(values);
+    // Сначала записываем полностью проверенный снимок. Хвост старых данных
+    // очищаем только после успешной записи нового прямоугольного массива.
+    var previousRows = sheet.getLastRow();
+    var previousColumns = sheet.getLastColumn();
+    sheet.getRange(1, 1, values.length, width).setValues(values);
+    if (previousRows > values.length) {
+      sheet.getRange(values.length + 1, 1, previousRows - values.length, Math.max(previousColumns, width)).clearContent();
+    }
+    if (previousColumns > width) {
+      sheet.getRange(1, width + 1, Math.max(previousRows, values.length), previousColumns - width).clearContent();
     }
 
     return ContentService
