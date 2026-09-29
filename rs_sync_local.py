@@ -14,6 +14,15 @@ RS_MAX_REQUEST_ATTEMPTS = 4
 RS_API_MIN_PAGE_DELAY_SECONDS = 0.2
 
 
+class RSStockSnapshot(dict):
+    """Valid stock rows plus RS codes whose product data must be left untouched."""
+
+    def __init__(self):
+        super().__init__()
+        self.invalid_codes = set()
+        self.invalid_products = 0
+
+
 def get_active_interface_ip():
     preferred_interface = os.getenv("CHECKSHEETS_BYPASS_INTERFACE", "").strip()
 
@@ -93,6 +102,7 @@ def fetch_rs_code_map(warehouse_id):
     http = create_rs_session()
     headers = get_rs_headers()
     code_map = {}
+    invalid_products = 0
 
     def fetch_category(category, include_name=False):
         page = 1
@@ -154,16 +164,29 @@ def fetch_rs_code_map(warehouse_id):
                     f"RS catalog returned an empty intermediate page at warehouse {warehouse_id}, "
                     f"category {category}, page {page}"
                 )
-            for item in items:
-                if not isinstance(item, dict) or not item.get("CODE"):
-                    raise RuntimeError(
-                        f"RS catalog contains an incomplete product at warehouse {warehouse_id}, "
-                        f"category {category}, page {page}"
-                    )
+            for item_index, item in enumerate(items, start=1):
+                if not isinstance(item, dict) or item.get("CODE") in (None, ""):
+                    invalid_products += 1
+                    if invalid_products <= 10:
+                        print(
+                            f"   Skipping incomplete RS catalog product "
+                            f"at warehouse {warehouse_id}, category {category}, "
+                            f"page {page}, row {item_index}: missing CODE"
+                        )
+                    continue
                 vendor_code = str(item.get("VENDOR_CODE", "")).strip()
                 article = str(item.get("ARTICLE", "")).strip()
                 name = str(item.get("NAME", "")).strip()
-                code = item["CODE"]
+                code = str(item["CODE"]).strip()
+                if not vendor_code and not article and not (include_name and name):
+                    invalid_products += 1
+                    if invalid_products <= 10:
+                        print(
+                            f"   Skipping incomplete RS catalog product "
+                            f"at warehouse {warehouse_id}, category {category}, "
+                            f"page {page}, row {item_index}: no article or usable name"
+                        )
+                    continue
 
                 if vendor_code:
                     code_map[vendor_code] = code
@@ -189,6 +212,8 @@ def fetch_rs_code_map(warehouse_id):
                 f"RS catalog was incomplete at warehouse {warehouse_id}, category {category}: "
                 f"read {rows_read} of {expected_rows} rows across {expected_pages} pages"
             )
+        if invalid_products:
+            print(f"   Quarantined incomplete RS catalog products so far: {invalid_products}")
 
     try:
         fetch_category("instock", include_name=True)
@@ -211,7 +236,7 @@ def fetch_all_rs_stocks(warehouse_id):
     print(f"Fetching all RS stocks for warehouse {warehouse_id}...")
     http = create_rs_session()
     headers = get_rs_headers()
-    stock_data = {}
+    stock_data = RSStockSnapshot()
     page = 1
     last_page = None
     expected_records = None
@@ -266,22 +291,53 @@ def fetch_all_rs_stocks(warehouse_id):
                 raise RuntimeError(
                     f"RS residue returned an empty intermediate page at warehouse {warehouse_id}, page {page}"
                 )
-            for item in items:
-                if not isinstance(item, dict) or not item.get("CODE") or "RESIDUE" not in item:
-                    raise RuntimeError(
-                        f"RS residue contains an incomplete product at warehouse {warehouse_id}, page {page}"
-                    )
-                code = item["CODE"]
+            for item_index, item in enumerate(items, start=1):
+                if not isinstance(item, dict) or item.get("CODE") in (None, ""):
+                    stock_data.invalid_products += 1
+                    if stock_data.invalid_products <= 10:
+                        print(
+                            f"   Skipping incomplete RS residue product "
+                            f"at warehouse {warehouse_id}, page {page}, row {item_index}: missing CODE"
+                        )
+                    continue
+                code = str(item["CODE"]).strip()
+                if not code:
+                    stock_data.invalid_products += 1
+                    if stock_data.invalid_products <= 10:
+                        print(
+                            f"   Skipping incomplete RS residue product "
+                            f"at warehouse {warehouse_id}, page {page}, row {item_index}: blank CODE"
+                        )
+                    continue
+                if "RESIDUE" not in item:
+                    stock_data.invalid_codes.add(code)
+                    stock_data.invalid_products += 1
+                    if stock_data.invalid_products <= 10:
+                        print(
+                            f"   Skipping incomplete RS residue product code {code} "
+                            f"at warehouse {warehouse_id}, page {page}: missing RESIDUE"
+                        )
+                    continue
                 try:
                     residue = float(item["RESIDUE"])
-                except (TypeError, ValueError) as exc:
-                    raise RuntimeError(
-                        f"RS residue is non-numeric for code {code} at warehouse {warehouse_id}"
-                    ) from exc
+                except (TypeError, ValueError):
+                    stock_data.invalid_codes.add(code)
+                    stock_data.invalid_products += 1
+                    if stock_data.invalid_products <= 10:
+                        print(
+                            f"   Skipping incomplete RS residue product code {code} "
+                            f"at warehouse {warehouse_id}: non-numeric RESIDUE"
+                        )
+                    continue
                 if residue < 0 or residue != residue or residue in (float("inf"), float("-inf")):
-                    raise RuntimeError(
-                        f"RS residue is invalid for code {code} at warehouse {warehouse_id}: {residue}"
-                    )
+                    stock_data.invalid_codes.add(code)
+                    stock_data.invalid_products += 1
+                    if stock_data.invalid_products <= 10:
+                        print(
+                            f"   Skipping incomplete RS residue product code {code} "
+                            f"at warehouse {warehouse_id}: invalid RESIDUE {residue}"
+                        )
+                    continue
                 residue = int(residue) if residue.is_integer() else residue
                 stock_data[code] = residue
             records_read += len(items)
@@ -304,7 +360,10 @@ def fetch_all_rs_stocks(warehouse_id):
             f"read {records_read} of {expected_records} records across {last_page} pages"
         )
 
-    print(f"Stock data loaded. Items with stock: {len(stock_data)}")
+    print(
+        f"Stock data loaded. Items with stock: {len(stock_data)}; "
+        f"quarantined incomplete products: {stock_data.invalid_products}"
+    )
     return stock_data
 
 def fetch_rs_prices(rs_codes):
@@ -416,6 +475,8 @@ def sync_rs():
     found_with_stock = 0
     found_zero_stock = 0
     not_found = 0
+    skipped_invalid_smr = 0
+    skipped_invalid_msk = 0
 
     for i, model in enumerate(models):
         model = str(model).strip()
@@ -447,14 +508,16 @@ def sync_rs():
                 break
 
         msk_code = next((msk_code_map[variant] for variant in search_variants if variant in msk_code_map), None)
-        if msk_code is None:
+        if msk_code is None or str(msk_code) in msk_stocks.invalid_codes:
             results_msk_stock.append([""])
             write_msk_mask.append(False)
+            if msk_code is not None:
+                skipped_invalid_msk += 1
         else:
             results_msk_stock.append([msk_stocks.get(msk_code, 0)])
             write_msk_mask.append(True)
 
-        if rs_code:
+        if rs_code is not None and str(rs_code) not in all_stocks.invalid_codes:
             stock = all_stocks.get(rs_code, 0)
 
             if model in ['61950', '71650']:
@@ -464,7 +527,7 @@ def sync_rs():
                 found_with_stock += 1
             else:
                 found_zero_stock += 1
-        else:
+        elif rs_code is None:
             not_found += 1
 
             if model in ['61950', '71650']:
@@ -477,8 +540,12 @@ def sync_rs():
                     stock = all_stocks.get(rs_code, 0)
                     print(f"DEBUG: Using similar key '{first_similar}' -> RS code '{rs_code}', stock: {stock}")
 
-        results_stock.append([stock if rs_code is not None else ""])
-        write_stock_mask.append(rs_code is not None)
+        rs_stock_valid = rs_code is not None and str(rs_code) not in all_stocks.invalid_codes
+        if rs_code is not None and not rs_stock_valid:
+            skipped_invalid_smr += 1
+
+        results_stock.append([stock if rs_stock_valid else ""])
+        write_stock_mask.append(rs_stock_valid)
         total_processed += 1
 
     print(f"\nSync Statistics:")
@@ -486,6 +553,7 @@ def sync_rs():
     print(f"  - Found with stock > 0: {found_with_stock}")
     print(f"  - Found with zero stock: {found_zero_stock}")
     print(f"  - Not found: {not_found}")
+    print(f"  - Skipped incomplete stock rows: Samara={skipped_invalid_smr}, Moscow={skipped_invalid_msk}")
 
     if total_processed > 0 and found_with_stock == 0:
         err = f"Аномалия RS: обработано {total_processed} артикулов, но найдено 0 товаров с остатком > 0!"
