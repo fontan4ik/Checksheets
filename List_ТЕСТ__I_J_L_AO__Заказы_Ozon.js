@@ -2,6 +2,7 @@ const OZON_ANALYTICS_STATE_KEY = "OZON_ANALYTICS_PERIOD_INDEX";
 const OZON_ANALYTICS_BATCH_INDEX_KEY = "OZON_ANALYTICS_BATCH_INDEX";
 const OZON_ANALYTICS_PERIOD_RETRY_KEY = "OZON_ANALYTICS_PERIOD_RETRY_COUNT";
 const OZON_ANALYTICS_RUN_ID_KEY = "OZON_ANALYTICS_RUN_ID";
+const OZON_ANALYTICS_RANGE_SIGNATURE_KEY = "OZON_ANALYTICS_RANGE_SIGNATURE";
 const OZON_ANALYTICS_TEMP_FILE_ID_KEY = "OZON_ANALYTICS_TEMP_FILE_ID";
 const OZON_ANALYTICS_CONTINUATION_HANDLER = "continueFetchAndWriteAnalytics";
 const OZON_ANALYTICS_RPS = 1 / 8;
@@ -36,14 +37,28 @@ function fetchAndWriteAnalytics_(resetState) {
 
   try {
   const props = PropertiesService.getScriptProperties();
-  if (resetState) {
+  const monthRange = get3rdTo3rdDateRangeFormatted();
+  const quarterRange = getOzonAnalyticsQuarterRangeFormatted_();
+  const yearRange = getYearDateRangeFormatted();
+  const rangeSignature = JSON.stringify({ monthRange, quarterRange, yearRange });
+  const existingRunId = props.getProperty(OZON_ANALYTICS_RUN_ID_KEY);
+  const existingRangeSignature = props.getProperty(OZON_ANALYTICS_RANGE_SIGNATURE_KEY);
+  const rangeChanged = Boolean(existingRunId) && existingRangeSignature !== rangeSignature;
+
+  // A continuation may run on the next scheduled trigger when Apps Script
+  // cannot create another trigger. Do not mix its saved batches with data
+  // fetched for a different date range on a later day.
+  if (resetState || !existingRunId || !existingRangeSignature || rangeChanged) {
     props.deleteProperty(OZON_ANALYTICS_STATE_KEY);
     props.deleteProperty(OZON_ANALYTICS_BATCH_INDEX_KEY);
     props.deleteProperty(OZON_ANALYTICS_PERIOD_RETRY_KEY);
     props.setProperty(OZON_ANALYTICS_RUN_ID_KEY, String(Date.now()));
+    props.setProperty(OZON_ANALYTICS_RANGE_SIGNATURE_KEY, rangeSignature);
     clearOzonAnalyticsTempStorage_();
     deleteOzonAnalyticsContinuationTriggers_();
-    Logger.log("Состояние Ozon analytics сброшено: начинается новый полный цикл");
+    Logger.log(rangeChanged
+      ? "Состояние Ozon analytics сброшено: диапазон дат изменился, начинается новый полный цикл"
+      : "Состояние Ozon analytics сброшено: начинается новый полный цикл");
   }
 
   const sheet = mainSheet();
@@ -184,9 +199,9 @@ function fetchAndWriteAnalytics_(resetState) {
       totalBatches: totalBatches
     };
   }
-  const [startDate, endDate] = get3rdTo3rdDateRangeFormatted();
-  const [startQuarter, endQuarter] = getFixedQuarterRangeFormatted();
-  const [startYear, endYear] = getYearDateRangeFormatted();
+  const [startDate, endDate] = monthRange;
+  const [startQuarter, endQuarter] = quarterRange;
+  const [startYear, endYear] = yearRange;
   const periods = [
     {
       label: "Месяц",
@@ -303,6 +318,7 @@ function fetchAndWriteAnalytics_(resetState) {
     props.deleteProperty(OZON_ANALYTICS_BATCH_INDEX_KEY);
     props.deleteProperty(OZON_ANALYTICS_PERIOD_RETRY_KEY);
     props.deleteProperty(OZON_ANALYTICS_RUN_ID_KEY);
+    props.deleteProperty(OZON_ANALYTICS_RANGE_SIGNATURE_KEY);
     deleteOzonAnalyticsContinuationTriggers_();
     clearOzonAnalyticsTempStorage_();
     Logger.log("Все периоды Ozon analytics обработаны");
@@ -331,6 +347,7 @@ function stopOzonAnalyticsTriggers() {
   props.deleteProperty(OZON_ANALYTICS_BATCH_INDEX_KEY);
   props.deleteProperty(OZON_ANALYTICS_PERIOD_RETRY_KEY);
   props.deleteProperty(OZON_ANALYTICS_RUN_ID_KEY);
+  props.deleteProperty(OZON_ANALYTICS_RANGE_SIGNATURE_KEY);
   props.deleteProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY);
 
   deleteOzonAnalyticsContinuationTriggers_();
@@ -526,17 +543,21 @@ function getLastNDaysRangeFormatted(days) {
   return [formatDate(pastDate), formatDate(today)];
 }
 
-// Функция для получения фиксированного диапазона дат для квартала: 2025-11-25 → 2026-02-25
-function getFixedQuarterRangeFormatted() {
-  // Фиксированные даты: 2025-11-25 → 2026-02-25
-  const startDate = new Date('2025-11-25');
-  const endDate = new Date('2026-02-25');
+// Диапазон квартала: тот же календарный день три месяца назад по сегодня.
+// Он совпадает с диапазоном квартальной аналитики Ozon в AQ:AT.
+function getOzonAnalyticsQuarterRangeFormatted_() {
+  const today = new Date();
+  const startDate = new Date(today.getFullYear(), today.getMonth() - 3, today.getDate());
+  const endDate = today;
 
   function formatDate(date) {
-    return date.toISOString().slice(0, 10);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
-  Logger.log(`Фиксированный диапазон квартала: ${formatDate(startDate)} → ${formatDate(endDate)}`);
+  Logger.log(`Диапазон квартала: ${formatDate(startDate)} → ${formatDate(endDate)}`);
   return [formatDate(startDate), formatDate(endDate)];
 }
 
