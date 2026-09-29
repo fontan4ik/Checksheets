@@ -152,6 +152,7 @@ function appendAlertToLocalLog(record) {
       `${JSON.stringify(safeRecord)}\n`,
       { encoding: "utf8", mode: 0o600 },
     );
+    fs.chmodSync(path.join(LOGS_DIR, "script_errors.jsonl"), 0o600);
   } catch (error) {
     console.error(`[telegram_notifier] Failed to write local error log: ${redact(error.message || error)}`);
   }

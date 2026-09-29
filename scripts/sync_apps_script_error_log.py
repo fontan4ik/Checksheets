@@ -48,7 +48,6 @@ def sync() -> int:
     try:
         worksheet = spreadsheet.worksheet(SHEET_NAME)
     except gspread.WorksheetNotFound:
-        print("Apps Script error queue does not exist yet; nothing to sync.")
         return 0
 
     rows = worksheet.get_all_values()
@@ -84,11 +83,12 @@ def sync() -> int:
         known_ids.add(record_id)
 
     if not new_records:
-        print("Apps Script error queue is up to date.")
         return 0
 
     LOCAL_LOG.parent.mkdir(parents=True, exist_ok=True)
-    with LOCAL_LOG.open("a", encoding="utf-8") as log_file:
+    file_descriptor = os.open(LOCAL_LOG, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    os.fchmod(file_descriptor, 0o600)
+    with os.fdopen(file_descriptor, "a", encoding="utf-8") as log_file:
         for record in new_records:
             log_file.write(json.dumps(record, ensure_ascii=False) + "\n")
         log_file.flush()

@@ -75,7 +75,7 @@ function recordTelegramAlertForLocalSyncGAS_(serviceName, errorMessage, details,
     if (!spreadsheet) throw new Error('Active spreadsheet is unavailable');
 
     const lock = LockService.getScriptLock();
-    lock.waitLock(5000);
+    lock.waitLock(30000);
     try {
       const sheetName = 'Лог ошибок';
       let sheet = spreadsheet.getSheetByName(sheetName);
@@ -90,9 +90,9 @@ function recordTelegramAlertForLocalSyncGAS_(serviceName, errorMessage, details,
         recordId,
         timestamp.toISOString(),
         'Apps Script',
-        String(serviceName || 'unknown'),
-        String(errorMessage || '').slice(0, 10000),
-        String(details || '').slice(0, 30000)
+        redactTelegramTokenGAS_(serviceName || 'unknown'),
+        redactTelegramTokenGAS_(errorMessage || '').slice(0, 10000),
+        redactTelegramTokenGAS_(details || '').slice(0, 30000)
       ]);
       try { sheet.hideSheet(); } catch (ignored) {}
       return recordId;
@@ -104,6 +104,11 @@ function recordTelegramAlertForLocalSyncGAS_(serviceName, errorMessage, details,
     Logger.log('Failed to queue Telegram alert for local log sync: ' + err);
     return '';
   }
+}
+
+function redactTelegramTokenGAS_(value) {
+  return String(value === null || value === undefined ? '' : value)
+    .replace(/bot\d{5,}:[A-Za-z0-9_-]+/gi, 'bot[redacted]');
 }
 
 function escapeTelegramHtmlGAS_(value) {

@@ -35,11 +35,10 @@ These are uploaded to the Google Spreadsheet Script Editor environment:
 *   **`List_ТЕСТ__C_E_V_X_Y__Товары_Ozon.js`** — Updates brand, model, and item categories from Ozon Seller API.
 *   **`List_ТЕСТ__A_U__ProductId_Ozon.js`** — Synchronizes Seller Offer IDs with Ozon Product IDs.
 *   **`List_ТЕСТ__F_G__Остатки_Ozon.js`** & **`List_ТЕСТ__H__Склад_Москва_Ozon.js`** — Updates Ozon FBO & FBS inventory stocks.
-*   **`List_ТЕСТ__AQ_AT__Продажи_Ozon.js`** — Analytical month/quarter sales reporting via Analytics API.
+*   **`List_ТЕСТ__AQ_AT__Продажи_Ozon.js`** — Legacy trigger shim; local `ozon_fbo_fbs_sales_local.js` owns AQ:AT writes.
 *   **`List_ТЕСТ__K_BR__Цена_Ozon.js`** — Updates active Ozon prices and discounts.
 *   **`Flow_ТЕСТ_ARL_TR__Цены_Huckster.js`** — Read-only выгрузка текущей и рекомендуемой цены Huckster в BN:BO и ручная запись цен из `ARL TR` в Huckster.
 *   **`List_ТЕСТ__I_J_L_AO__Заказы_Ozon.js`** — Pulls orders and performance metrics from Ozon Seller API.
-*   **`List_ТЕСТ__BA_BC__Реклама_Ozon_Performance.js`** — Final optimized Ozon Performance Ads sync (Quantity, Revenue, Spend).
 *   **`List_ТЕСТ__T__Артикулы_WB.js`** — Fills Wildberries nmId columns based on catalog mapping.
 *   **`List_ТЕСТ__R_S__Аналитика_WB.js`** — Fills WB month/quarter analytics columns.
 *   **`WB Склады.js`** & **`List_ТЕСТ__O__Остатки_WB_FBList_UNIT_API__РасчетныеПоля__Ozon.js`** — Handles Wildberries warehouse mapping and stocks.
@@ -53,10 +52,15 @@ These run on local servers or machines to update Google Sheets via the API:
 *   **`etm_sync_multi_store.py`** — Synchronizes ETM stocks across multiple warehouses.
 *   **`feron_sync_local.py`** — Performs bulk stock updates for Feron warehouses.
 *   **`rs_sync_local.py`** — Updates Russvet (RS) stock levels sequentially.
-*   **`ozon_perf_sync.py`** — Local counterpart for Ozon Performance Ads sync.
+*   **`ozon_perf_sync.py`** — Local writer for Ozon Performance Ads metrics in BA:BC; no cron/LaunchAgent schedule is currently configured.
 *   **`config.py`** — Holds ETM, Russvet, Feron API credentials, sheet names, and local configurations.
 *   **`gsheets_utils.py`** — A wrapper client around the `google-auth` / `gspread` libraries.
 *   **`vpn_guard.py`** — Interface adapter fallback checking local VPN routing statuses.
+
+### Local Node.js replacements
+
+*   **`ozon_fbo_fbs_sales_local.js`** — Owns the scheduled Ozon sales refresh for AQ:AT; the Apps Script file retains only a legacy trigger shim.
+*   **`ozon_reviews_local.js`** — Owns the scheduled Ozon review-count refresh for BL; the Apps Script file retains only legacy trigger shims.
 
 ---
 
@@ -114,9 +118,9 @@ These run on local servers or machines to update Google Sheets via the API:
 | **22** | **V** | SKU Ozon | `updateProductsV2()` in `List_ТЕСТ__C_E_V_X_Y__Товары_Ozon.js` | ✅ |
 | **24** | **X** | Название модели | `updateProductsV2()` in `List_ТЕСТ__C_E_V_X_Y__Товары_Ozon.js` | ✅ |
 | **25** | **Y** | Категория товара | `updateProductsV2()` in `List_ТЕСТ__C_E_V_X_Y__Товары_Ozon.js` | ✅ |
-| **53** | **BA** | Реклама Количество | `updateOzonAdPerfFinal()` in `List_ТЕСТ__BA_BC__Реклама_Ozon_Performance.js` | ✅ |
-| **54** | **BB** | Реклама Стоимость | `updateOzonAdPerfFinal()` in `List_ТЕСТ__BA_BC__Реклама_Ozon_Performance.js` | ✅ |
-| **55** | **BC** | Реклама Расход | `updateOzonAdPerfFinal()` in `List_ТЕСТ__BA_BC__Реклама_Ozon_Performance.js` | ✅ |
+| **53** | **BA** | Реклама Количество | `ozon_perf_sync.py` | ✅ |
+| **54** | **BB** | Реклама Стоимость | `ozon_perf_sync.py` | ✅ |
+| **55** | **BC** | Реклама Расход | `ozon_perf_sync.py` | ✅ |
 | **66** | **BN** | Текущая выставленная цена (Huckster `upload_price`) | `updateHucksterPrices()` in `Flow_ТЕСТ_ARL_TR__Цены_Huckster.js` | ✅ |
 | **67** | **BO** | Цена по карте / РЦ для удержания (Huckster `market_card_price`) | `updateHucksterPrices()` in `Flow_ТЕСТ_ARL_TR__Цены_Huckster.js` | ✅ |
 | **по заголовку** | — | Цена на витрине с картой Х (Huckster `market_card_price`) | `updateHucksterPrices()` in `Flow_ТЕСТ_ARL_TR__Цены_Huckster.js` | ✅ |

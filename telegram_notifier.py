@@ -7,6 +7,7 @@ import html
 import json
 import os
 from pathlib import Path
+import re
 import traceback
 from typing import Any
 import uuid
@@ -79,9 +80,9 @@ def send_telegram_alert(
             "id": str(uuid.uuid4()),
             "timestamp": now.astimezone().isoformat(timespec="seconds"),
             "source": "Python",
-            "service": str(service_name),
-            "error": str(error_message),
-            "details": _details_as_text(details),
+            "service": _redact_alert_value(service_name),
+            "error": _redact_alert_value(error_message),
+            "details": _redact_alert_value(_details_as_text(details)),
         }
     )
 
@@ -123,9 +124,18 @@ def _append_alert_to_local_log(record: dict[str, str]) -> None:
     )
     try:
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        with log_path.open("a", encoding="utf-8") as log_file:
+        file_descriptor = os.open(log_path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        os.fchmod(file_descriptor, 0o600)
+        with os.fdopen(file_descriptor, "a", encoding="utf-8") as log_file:
             log_file.write(json.dumps(record, ensure_ascii=False) + "\n")
             log_file.flush()
             os.fsync(log_file.fileno())
     except Exception as exc:
         print(f"[telegram_notifier] Failed to write local error log: {exc}")
+
+
+def _redact_alert_value(value: Any) -> str:
+    text = str(value)
+    if BOT_TOKEN:
+        text = text.replace(BOT_TOKEN, "[redacted]")
+    return re.sub(r"bot\d{5,}:[A-Za-z0-9_-]+", "bot[redacted]", text, flags=re.IGNORECASE)
