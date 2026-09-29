@@ -238,6 +238,66 @@ def update_column_by_header(worksheet, header_name, values, start_row=2):
     )
 
 
+def update_column_by_header_masked(worksheet, header_name, values, write_mask, start_row=2):
+    """Update only rows whose source values were actually resolved and validated."""
+    assert_writable_header(header_name, getattr(worksheet, "title", "worksheet"))
+    _update_column_masked(
+        worksheet,
+        header_name,
+        values,
+        write_mask,
+        start_row,
+        resolve_header_columns(
+            _row_values(worksheet, 1),
+            {"target": header_name},
+            getattr(worksheet, "title", "worksheet"),
+        )["target"],
+    )
+
+
+def update_column_by_schema_masked(worksheet, schema, field_name, values, write_mask, start_row=2):
+    """Schema-based counterpart to update_column_by_header_masked."""
+    columns = get_header_columns(worksheet, schema)
+    col_index = columns[field_name]
+    headers = _row_values(worksheet, 1)
+    assert_writable_header(headers[col_index - 1], getattr(worksheet, "title", "worksheet"))
+    _update_column_masked(worksheet, headers[col_index - 1], values, write_mask, start_row, col_index)
+
+
+def _update_column_masked(worksheet, label, values, write_mask, start_row, col_index):
+    if len(values) != len(write_mask):
+        raise ValueError(
+            f"Masked column update for '{label}' has {len(values)} values and "
+            f"{len(write_mask)} mask entries"
+        )
+    if not values:
+        return 0
+
+    assert_writable_column(worksheet, col_index)
+    column_letter = gspread.utils.rowcol_to_a1(1, col_index).rstrip("1")
+    updates = []
+    index = 0
+    while index < len(write_mask):
+        if not write_mask[index]:
+            index += 1
+            continue
+        start = index
+        while index + 1 < len(write_mask) and write_mask[index + 1]:
+            index += 1
+        end = index
+        range_label = f"{column_letter}{start_row + start}:{column_letter}{start_row + end}"
+        updates.append({"range": range_label, "values": values[start:end + 1]})
+        index += 1
+
+    if not updates:
+        return 0
+    _retry_gsheet_call(
+        f"masked update column '{label}' ({len(updates)} ranges)",
+        lambda: worksheet.batch_update(updates, raw=True),
+    )
+    return sum(1 for enabled in write_mask if enabled)
+
+
 def update_column_by_schema(worksheet, schema, field_name, values, start_row=2):
     """Update a column using a schema, including an explicit duplicate occurrence."""
     if not values:
