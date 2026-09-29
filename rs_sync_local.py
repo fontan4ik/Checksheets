@@ -9,6 +9,11 @@ from network_bypass import SourceAddressAdapter
 from telegram_notifier import send_telegram_alert
 
 
+RS_RETRYABLE_HTTP_STATUSES = {404, 408, 425, 429, 500, 502, 503, 504}
+RS_MAX_REQUEST_ATTEMPTS = 4
+RS_API_MIN_PAGE_DELAY_SECONDS = 0.2
+
+
 def get_active_interface_ip():
     preferred_interface = os.getenv("CHECKSHEETS_BYPASS_INTERFACE", "").strip()
 
@@ -50,6 +55,36 @@ def get_rs_headers():
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
 
+
+def rs_get_with_retry(http, url, headers, timeout=30, label="RS API"):
+    """Retry transient supplier API responses without accepting partial pages."""
+    for attempt in range(1, RS_MAX_REQUEST_ATTEMPTS + 1):
+        try:
+            response = http.get(url, headers=headers, timeout=timeout)
+        except requests.exceptions.RequestException as exc:
+            if attempt == RS_MAX_REQUEST_ATTEMPTS:
+                raise
+            delay = 2 ** (attempt - 1)
+            print(
+                f"   Temporary {label} transport failure "
+                f"({attempt}/{RS_MAX_REQUEST_ATTEMPTS - 1}); retrying in {delay}s: {exc}"
+            )
+            time.sleep(delay)
+            continue
+
+        if response.status_code in RS_RETRYABLE_HTTP_STATUSES and attempt < RS_MAX_REQUEST_ATTEMPTS:
+            delay = 2 ** (attempt - 1)
+            print(
+                f"   Temporary {label} HTTP {response.status_code} "
+                f"({attempt}/{RS_MAX_REQUEST_ATTEMPTS - 1}); retrying in {delay}s"
+            )
+            time.sleep(delay)
+            continue
+        return response
+
+    raise RuntimeError(f"{label} request did not produce a response")
+
+
 def fetch_rs_code_map(warehouse_id):
     """
     Получаем карту соответствий артикулов и RS-кодов
@@ -66,7 +101,13 @@ def fetch_rs_code_map(warehouse_id):
         rows_read = 0
         while expected_pages is None or page <= expected_pages:
             url = f"{config.RS_BASE_URL}/position/{warehouse_id}/{category}?page={page}&rows=1000"
-            response = http.get(url, headers=headers, timeout=30)
+            response = rs_get_with_retry(
+                http,
+                url,
+                headers,
+                timeout=30,
+                label=f"RS catalog warehouse {warehouse_id} page {page}",
+            )
             if response.status_code != 200:
                 raise RuntimeError(
                     f"RS catalog HTTP {response.status_code} at warehouse {warehouse_id}, "
@@ -141,7 +182,7 @@ def fetch_rs_code_map(warehouse_id):
 
             rows_read += len(items)
             page += 1
-            time.sleep(0.1)
+            time.sleep(RS_API_MIN_PAGE_DELAY_SECONDS)
 
         if rows_read != expected_rows:
             raise RuntimeError(
@@ -179,7 +220,13 @@ def fetch_all_rs_stocks(warehouse_id):
     while last_page is None or page <= last_page:
         url = f"{config.RS_BASE_URL}/residue/all/{warehouse_id}?page={page}&rows=200&category=all"
         try:
-            response = http.get(url, headers=headers, timeout=30)
+            response = rs_get_with_retry(
+                http,
+                url,
+                headers,
+                timeout=30,
+                label=f"RS residue warehouse {warehouse_id} page {page}",
+            )
             if response.status_code != 200:
                 raise RuntimeError(
                     f"RS residue HTTP {response.status_code} at warehouse {warehouse_id}, page {page}"
@@ -246,7 +293,7 @@ def fetch_all_rs_stocks(warehouse_id):
                 print(f"   Processed stock page {page}/{last_page}...")
 
             page += 1
-            time.sleep(0.1)
+            time.sleep(RS_API_MIN_PAGE_DELAY_SECONDS)
         except Exception as e:
             print(f"   RS stock load failed; no sheet update will be made: {e}")
             raise
