@@ -470,7 +470,6 @@ function updateAllFBSWarehouses() {
   targetWarehouses.forEach(tw => {
     stockByWarehouse[tw.column] = new Map();
   });
-  const targetWhMap = Object.fromEntries(targetWarehouses.map(tw => [String(tw.warehouseId), tw]));
   const seenProductWarehouse = new Set();
 
   // 5. Запрашиваем остатки по батчам через v2 API (один проход по всем складам сразу)
@@ -530,7 +529,9 @@ function updateAllFBSWarehouses() {
 
         if (responseCode === 200) {
           const data = JSON.parse(response.getContentText());
-          const products = data.products || data.result || [];
+          const products = Array.isArray(data?.products)
+            ? data.products
+            : (Array.isArray(data?.result) ? data.result : null);
           if (!Array.isArray(products) || typeof data.has_next !== "boolean") {
             throw new Error(`Ozon вернул неполную структуру stocks для чанка ${chunkNum}`);
           }

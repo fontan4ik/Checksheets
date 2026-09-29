@@ -76,7 +76,8 @@ function syncNtcFbsWriteOffs() {
       if (!offer) return;
       const size = Number(r[7]);
       if (!Number.isInteger(size) || size <= 0) throw new Error('НТЦ: неверный размер упаковки H' + (index + 2));
-      article[offer] = {model: String(r[1] || '').trim(), size: size};
+      const model = String(r[1] || '').trim();
+      if (model) article[offer] = {model: model, size: size};
     });
     const warehouseId = ozonNTCFindWarehouseId();
     const since = new Date(Date.parse(start) - 90 * 86400000).toISOString();
@@ -99,11 +100,17 @@ function syncNtcFbsWriteOffs() {
       const wasTracked = Object.prototype.hasOwnProperty.call(old, number);
       if (!wasTracked && !(created >= Date.parse(start) || NTC_WRITE_OFF_PENDING.includes(status))) return;
       if (!Array.isArray(posting.products)) throw new Error('Ozon не вернул products для ' + number);
-      const items = posting.products.map(p => ({offer_id: String(p.offer_id || '').trim(), quantity: Number(p.quantity)}));
-      if (items.some(p => !p.offer_id || !Number.isInteger(p.quantity) || p.quantity < 0)) {
+      const items = posting.products.map(p => ({
+        offer_id: String(p && p.offer_id || '').trim(),
+        quantityRaw: p && p.quantity,
+        quantity: Number(p && p.quantity)
+      }));
+      if (items.some(p => !p.offer_id || p.quantityRaw === null || p.quantityRaw === undefined || p.quantityRaw === '' ||
+          !Number.isSafeInteger(p.quantity) || p.quantity < 0)) {
         throw new Error('Некорректные товары отправления ' + number);
       }
-      const relevant = items.filter(item => article[item.offer_id]);
+      const relevant = items.map(item => ({offer_id: item.offer_id, quantity: item.quantity}))
+        .filter(item => article[item.offer_id]);
       if (!relevant.length && !wasTracked) return;
       const shipped = wasTracked && old[number].shipped ||
         ['driver_pickup', 'delivering', 'delivered', 'last_mile'].includes(status);
@@ -123,7 +130,19 @@ function syncNtcFbsWriteOffs() {
     });
     // Запись выполняется только после успешной полной загрузки и валидации.
     ntcWriteLedger_(ledger, next);
-    if (rows.length) sheet.getRange(2, 13, rows.length, 1).setValues(rows.map(r => [reserved[String(r[1] || '').trim()] || 0]));
+    if (rows.length) {
+      const values = rows.map(r => {
+        const offer = String(r[0] || '').trim();
+        const model = String(r[1] || '').trim();
+        return [offer && model && article[offer] ? (reserved[model] || 0) : ''];
+      });
+      const writeMask = rows.map(r => {
+        const offer = String(r[0] || '').trim();
+        const model = String(r[1] || '').trim();
+        return Boolean(offer && model && article[offer]);
+      });
+      writeMaskedColumnValues_(sheet, 13, values, writeMask);
+    }
     props.setProperty(NTC_WRITE_OFF_CURSOR_KEY, now);
     Logger.log('НТЦ FBS: ' + Object.keys(next).length + ' отправлений по листу; резерв ' + JSON.stringify(reserved));
   } finally {
@@ -161,7 +180,9 @@ function ntcFetchPostings_(warehouseId, since, to, status, changedFrom) {
       with: {analytics_data: false, financial_data: false, translit: false}
     });
     const result = response.result || {};
-    if (!Array.isArray(result.postings)) throw new Error('Ozon: неверный ответ списка FBS.');
+    if (!Array.isArray(result.postings) || typeof result.has_next !== 'boolean') {
+      throw new Error('Ozon: неполный ответ списка FBS или отсутствует has_next.');
+    }
     all.push(...result.postings);
     if (!result.has_next) break;
     if (!result.postings.length) throw new Error('Ozon: пустая страница при has_next.');
