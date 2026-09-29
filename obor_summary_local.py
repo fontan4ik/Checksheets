@@ -33,6 +33,12 @@ WB_MAX_STATUS_POLLS = 12
 WB_MAX_429_RETRIES = 4
 LOCK_PATH = ROOT / "logs" / "obor_summary.lock"
 SHARED_SETTINGS_PATH = ROOT / "Shared_Настройки.js"
+WB_TOKEN_FILE = Path(
+    os.environ.get(
+        "WB_API_TOKEN_FILE",
+        str(Path.home() / "AI agents" / "secrets" / "wb_api_token"),
+    )
+)
 
 OUTPUT_HEADERS = (
     "Озон ост",
@@ -120,9 +126,12 @@ def _read_env_token() -> str | None:
 
 
 def get_wb_api_token() -> str:
-    # Shared_Настройки.js is the existing source of the current WB token. An
-    # environment or .env override is available for local secret management.
+    # Follow the local stock syncs: prefer an environment/.env override, then
+    # the shared local token file. Keep the Apps Script value as last fallback.
     token = _read_env_token()
+    if not token and WB_TOKEN_FILE.exists():
+        token = WB_TOKEN_FILE.read_text(encoding="utf-8").strip()
+        token = token.removeprefix("Bearer ").strip()
     if not token:
         source = SHARED_SETTINGS_PATH.read_text(encoding="utf-8")
         match = re.search(r"Authorization\s*:\s*['\"]Bearer\s+([^'\"\s]+)['\"]", source)
@@ -362,11 +371,9 @@ def updateOborSummary(dry_run: bool = False) -> dict:
     target = retry_read(f"открытие листа {TARGET_SHEET}",
                         lambda: spreadsheet.worksheet(TARGET_SHEET))
     headers = retry_read("чтение заголовков ОБОР", lambda: target.row_values(1))
-    target_columns = resolve_header_columns(
-        headers,
-        {header: header for header in OUTPUT_HEADERS},
-        TARGET_SHEET,
-    )
+    target_schema = {header: header for header in OUTPUT_HEADERS}
+    target_schema["article"] = "Артикул"
+    target_columns = resolve_header_columns(headers, target_schema, TARGET_SHEET)
 
     source_sheets = {}
     for field in SHEET_FIELDS:
@@ -383,9 +390,10 @@ def updateOborSummary(dry_run: bool = False) -> dict:
                 f"В {field['sheet']} отсутствуют нужные колонки для «{field['header']}»"
             )
 
+    article_column = column_letter(target_columns["article"])
     target_articles = retry_read(
         "чтение артикулов ОБОР",
-        lambda: target.get("A:A", value_render_option="UNFORMATTED_VALUE"),
+        lambda: target.get(f"{article_column}:{article_column}", value_render_option="UNFORMATTED_VALUE"),
     )
     target_last_row = len(target_articles)
     if target_last_row < 2:
