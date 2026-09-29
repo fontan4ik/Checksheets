@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from datetime import datetime
 import html
+import json
 import os
+from pathlib import Path
 import traceback
 from typing import Any
+import uuid
 
 import requests
 
@@ -71,6 +74,17 @@ def send_telegram_alert(
     if isinstance(error_message, Exception) and not details:
         details = traceback.format_exc()
 
+    _append_alert_to_local_log(
+        {
+            "id": str(uuid.uuid4()),
+            "timestamp": now.astimezone().isoformat(timespec="seconds"),
+            "source": "Python",
+            "service": str(service_name),
+            "error": str(error_message),
+            "details": _details_as_text(details),
+        }
+    )
+
     lines = [
         f"🚨 <b>Сбой синхронизации: {service_name}</b>",
         f"📅 <b>Дата ошибки:</b> <code>{date_str}</code>",
@@ -87,3 +101,31 @@ def send_telegram_alert(
 
     text = "\n".join(lines)
     return send_telegram_message(text, parse_mode="HTML")
+
+
+def _details_as_text(details: str | dict[str, Any] | None) -> str:
+    if details is None:
+        return ""
+    if isinstance(details, str):
+        return details
+    try:
+        return json.dumps(details, ensure_ascii=False, default=str)
+    except Exception:
+        return str(details)
+
+
+def _append_alert_to_local_log(record: dict[str, str]) -> None:
+    log_path = Path(
+        os.getenv(
+            "CHECKSHEETS_ERROR_LOG_FILE",
+            str(Path(__file__).resolve().parent / "logs" / "script_errors.jsonl"),
+        )
+    )
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with log_path.open("a", encoding="utf-8") as log_file:
+            log_file.write(json.dumps(record, ensure_ascii=False) + "\n")
+            log_file.flush()
+            os.fsync(log_file.fileno())
+    except Exception as exc:
+        print(f"[telegram_notifier] Failed to write local error log: {exc}")

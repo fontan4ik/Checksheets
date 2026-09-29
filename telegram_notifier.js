@@ -115,6 +115,17 @@ async function sendTelegramAlert(serviceName, errorMessage, details = null) {
   const now = new Date();
   const date = now.toLocaleDateString("ru-RU", { timeZone: "Europe/Samara" });
   const time = now.toLocaleTimeString("ru-RU", { timeZone: "Europe/Samara", hour12: false });
+  const detailText = details
+    ? (typeof details === "string" ? details : JSON.stringify(details, null, 2))
+    : "";
+  appendAlertToLocalLog({
+    id: uniquePart(),
+    timestamp: now.toISOString(),
+    source: "Node",
+    service: serviceName,
+    error: errorMessage,
+    details: detailText,
+  });
   const lines = [
     `🚨 <b>Сбой синхронизации: ${escapeTelegramHtml(serviceName)}</b>`,
     `📅 <b>Дата ошибки:</b> <code>${escapeTelegramHtml(date)}</code>`,
@@ -122,10 +133,28 @@ async function sendTelegramAlert(serviceName, errorMessage, details = null) {
     `❌ <b>Ошибка:</b> <code>${escapeTelegramHtml(errorMessage)}</code>`,
   ];
   if (details) {
-    const detailText = typeof details === "string" ? details : JSON.stringify(details, null, 2);
     lines.push(`\n<b>Детали:</b>\n<pre>${escapeTelegramHtml(truncate(detailText, 1500))}</pre>`);
   }
   return sendTelegramMessage(lines.join("\n"), "HTML");
+}
+
+function appendAlertToLocalLog(record) {
+  try {
+    fs.mkdirSync(LOGS_DIR, { recursive: true });
+    const safeRecord = {
+      ...record,
+      service: redact(record.service),
+      error: redact(record.error),
+      details: redact(record.details),
+    };
+    fs.appendFileSync(
+      path.join(LOGS_DIR, "script_errors.jsonl"),
+      `${JSON.stringify(safeRecord)}\n`,
+      { encoding: "utf8", mode: 0o600 },
+    );
+  } catch (error) {
+    console.error(`[telegram_notifier] Failed to write local error log: ${redact(error.message || error)}`);
+  }
 }
 
 function recordAndCompareFbsStats(historyKey, totalSku, activeSku, marketplaceSku = null, marketplacePieces = null) {
