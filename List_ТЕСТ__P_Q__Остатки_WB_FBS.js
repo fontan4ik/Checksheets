@@ -52,13 +52,10 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetHeader = "Ост�
   // Подготовим мап для быстрого поиска индекса по chrtId
   const chrtIdIndexMap = new Map();
   chrtIds.forEach((chrtId, i) => {
-    if (chrtId && chrtId > 0) {
-      const chrtIdNum = parseInt(chrtId);
-      if (!isNaN(chrtIdNum)) {
-        if (!chrtIdIndexMap.has(chrtIdNum)) chrtIdIndexMap.set(chrtIdNum, []);
-        chrtIdIndexMap.get(chrtIdNum).push(i);
-      }
-    }
+    const chrtIdNum = Number(chrtId);
+    if (!Number.isSafeInteger(chrtIdNum) || chrtIdNum <= 0) return;
+    if (!chrtIdIndexMap.has(chrtIdNum)) chrtIdIndexMap.set(chrtIdNum, []);
+    chrtIdIndexMap.get(chrtIdNum).push(i);
   });
 
   // Получим уникальные chrtId для запроса
@@ -130,10 +127,12 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetHeader = "Ост�
 
       stocks.forEach(stock => {
         const chrtId = Number(stock?.chrtId);
-        const amount = Number(stock?.amount);
+        const amountRaw = stock?.amount;
+        const amount = Number(amountRaw);
         const key = String(chrtId);
         if (!Number.isSafeInteger(chrtId) || chrtId <= 0 || !requested.has(key) ||
-            seen.has(key) || !Number.isFinite(amount) || amount < 0) {
+            seen.has(key) || amountRaw === null || amountRaw === undefined || amountRaw === "" ||
+            !Number.isSafeInteger(amount) || amount < 0) {
           throw new Error(`WB FBS вернул неполную или неожиданную запись: ${JSON.stringify(stock).substring(0, 200)}`);
         }
         seen.add(key);

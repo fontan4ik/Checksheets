@@ -662,7 +662,7 @@ def parse_delimited(content: bytes, source: str) -> List[StockRecord]:
         stock_col,
     )
 
-        records = []
+    records = []
     for row in reader:
         record = row_to_stock_record(row, source)
         if record:

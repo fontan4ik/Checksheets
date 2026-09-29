@@ -112,9 +112,13 @@ function updateWBStocksFromStatisticsAPI() {
         items.forEach(item => {
           const rawNmId = item.nmId !== undefined && item.nmId !== null ? item.nmId : item.nmID;
           const nmId = normalizeNmId(rawNmId);
-          const quantity = Number(item.quantity);
-          if (nmId === null || !requested.has(String(nmId)) || !Number.isFinite(quantity) || quantity < 0) {
+          const quantityRaw = item?.quantity;
+          const quantity = Number(quantityRaw);
+          if (nmId === null || !requested.has(String(nmId)) || !Number.isSafeInteger(quantity) || quantity < 0) {
             throw new Error("WB FBO вернул неполную или неожиданную запись товара");
+          }
+          if (quantityRaw === null || quantityRaw === undefined || quantityRaw === "") {
+            throw new Error("WB FBO вернул товар без количества");
           }
 
           const key = String(nmId);

@@ -13,8 +13,10 @@ function aggregateFBOAvailableStocksByOffer(items) {
       : String(item.offer_id).trim();
     if (!offerId) throw new Error("Ozon FBO вернул товар без offer_id");
 
-    const available = Number(item.available_stock_count);
-    if (!Number.isFinite(available) || available < 0) {
+    const availableRaw = item?.available_stock_count;
+    const available = Number(availableRaw);
+    if (availableRaw === null || availableRaw === undefined || availableRaw === "" ||
+        !Number.isSafeInteger(available) || available < 0) {
       throw new Error(`Ozon FBO вернул некорректный available_stock_count для ${offerId}`);
     }
     if (!Object.prototype.hasOwnProperty.call(stockMap, offerId)) {
@@ -47,7 +49,6 @@ function updateStockFBO_() {
 
     return {
       offerId,
-      previousFbo: row[5],
       sku: Number.isFinite(skuNumber) && skuNumber > 0 ? skuNumber : null
     };
   });
@@ -103,9 +104,11 @@ function updateStockFBO_() {
       json.items.forEach(item => {
         const sku = Number(item?.sku);
         const offerId = String(item?.offer_id ?? "").trim();
-        const available = Number(item?.available_stock_count);
-        if (!Number.isFinite(sku) || !requested.has(String(sku)) || !offerId ||
-            !Number.isFinite(available) || available < 0) {
+      const availableRaw = item?.available_stock_count;
+      const available = Number(availableRaw);
+      if (!Number.isFinite(sku) || !requested.has(String(sku)) || !offerId ||
+          availableRaw === null || availableRaw === undefined || availableRaw === "" ||
+          !Number.isSafeInteger(available) || available < 0) {
           throw new Error("Ozon FBO вернул неполную или неожиданную запись товара");
         }
       });
@@ -212,8 +215,10 @@ function updateAllFBSStocks_() {
           if (!stock || typeof stock.type !== "string") {
             throw new Error(`Ozon FBS вернул неполную складскую запись для product_id ${pid}`);
           }
-          const present = Number(stock.present);
-          if (!Number.isFinite(present) || present < 0) {
+          const presentRaw = stock.present;
+          const present = Number(presentRaw);
+          if (presentRaw === null || presentRaw === undefined || presentRaw === "" ||
+              !Number.isSafeInteger(present) || present < 0) {
             throw new Error(`Ozon FBS вернул некорректный остаток для product_id ${pid}`);
           }
           return sum + (stock.type === 'fbs' ? present : 0);

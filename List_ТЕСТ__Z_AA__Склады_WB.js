@@ -123,6 +123,7 @@ function updateWBWarehousesByName() {
 
   const nmIdToChrtIds = {}; // nmId -> [chrtId]
   const requestedNmIdSet = new Set(uniqueNmIds.map(String));
+  const seenCatalogNmIds = new Set();
   let foundCards = 0;
   let totalChrtIds = 0;
   let cursor = null;
@@ -157,11 +158,13 @@ function updateWBWarehousesByName() {
       throw new Error(`WB Content API HTTP ${responseCode}: ${response.getContentText().substring(0, 300)}`);
     }
     const data = JSON.parse(response.getContentText());
-    if (!data || !Array.isArray(data.cards) || !data.cursor || !Number.isFinite(Number(data.cursor.total))) {
+    const responseTotal = Number(data?.cursor?.total);
+    if (!data || !Array.isArray(data.cards) || !data.cursor ||
+        data.cursor.total === null || data.cursor.total === undefined || data.cursor.total === "" ||
+        !Number.isSafeInteger(responseTotal) || responseTotal < 0) {
       throw new Error("WB Content API вернул неполную структуру пагинации; таблица не обновлена");
     }
 
-    const pageNmIds = new Set();
     data.cards.forEach(card => {
       const nmId = Number(card?.nmID ?? card?.nmId);
       if (!Number.isSafeInteger(nmId) || nmId <= 0) {
@@ -169,10 +172,10 @@ function updateWBWarehousesByName() {
       }
       const key = String(nmId);
       if (!requestedNmIdSet.has(key)) return;
-      if (pageNmIds.has(key) || nmIdToChrtIds[key]) {
+      if (seenCatalogNmIds.has(key)) {
         throw new Error(`WB Content API вернул повторную карточку nmID ${key}`);
       }
-      pageNmIds.add(key);
+      seenCatalogNmIds.add(key);
 
       if (!Array.isArray(card.sizes) || card.sizes.length === 0) return;
       const chrtIds = card.sizes.map(size => Number(size?.chrtID));
@@ -186,7 +189,7 @@ function updateWBWarehousesByName() {
 
     pageCount++;
     if (pageCount > 500) throw new Error("WB Content API pagination exceeded 500 pages");
-    const total = Number(data.cursor.total);
+    const total = responseTotal;
     if (total < pageSize) break;
 
     const nextCursor = {
@@ -280,10 +283,12 @@ function updateWBWarehousesByName() {
         const seen = new Set();
         data.stocks.forEach(stock => {
           const chrtId = Number(stock?.chrtId);
-          const amount = Number(stock?.amount);
+          const amountRaw = stock?.amount;
+          const amount = Number(amountRaw);
           const key = String(chrtId);
           if (!Number.isSafeInteger(chrtId) || chrtId <= 0 || !requested.has(key) ||
-              seen.has(key) || !Number.isSafeInteger(amount) || amount < 0) {
+              seen.has(key) || amountRaw === null || amountRaw === undefined || amountRaw === "" ||
+              !Number.isSafeInteger(amount) || amount < 0) {
             throw new Error(`WB вернул неполный или неожиданный chrtId/остаток: ${JSON.stringify(stock).substring(0, 200)}`);
           }
           seen.add(key);

@@ -346,9 +346,13 @@ function fetchOzonNtcStocks_(unitRows, warehouseId) {
       const requested = new Set(chunk);
       data.products.forEach(function(item) {
         const offerId = String(item && item.offer_id || '').trim();
-        const present = Number(item && item.present);
-        const reserved = Number(item && item.reserved);
+        const presentRaw = item && item.present;
+        const reservedRaw = item && item.reserved;
+        const present = Number(presentRaw);
+        const reserved = Number(reservedRaw);
         if (!offerId || !requested.has(offerId) ||
+            presentRaw === null || presentRaw === undefined || presentRaw === '' ||
+            reservedRaw === null || reservedRaw === undefined || reservedRaw === '' ||
             !Number.isSafeInteger(present) || present < 0 ||
             !Number.isSafeInteger(reserved) || reserved < 0 ||
             item.warehouse_id === undefined || item.warehouse_id === null) {

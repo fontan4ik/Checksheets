@@ -26,7 +26,7 @@ function getStocksByWarehouseFBS_() {
   // Фильтруем валидные SKU
   const validSkus = [...new Set(skuRaw
     .map(sku => sku?.toString().trim() || "")
-    .filter(sku => sku !== "" && Number(sku) > 0))];
+    .filter(sku => sku !== "" && Number.isSafeInteger(Number(sku)) && Number(sku) > 0))];
 
   if (validSkus.length === 0) {
     Logger.log("Нет SKU для запроса FBS по складам");
@@ -92,8 +92,10 @@ function getStocksByWarehouseFBS_() {
 
       data.products.forEach(item => {
         const sku = String(item?.sku ?? "").trim();
-        const present = Number(item?.present);
-        if (!sku || !requested.has(sku) || !Number.isFinite(present) || present < 0 ||
+        const presentRaw = item?.present;
+        const present = Number(presentRaw);
+        if (!sku || !requested.has(sku) || presentRaw === null || presentRaw === undefined || presentRaw === "" ||
+            !Number.isSafeInteger(present) || present < 0 ||
             item?.warehouse_id === undefined || item?.warehouse_id === null) {
           throw new Error(`Ozon FBS вернул неполную или неожиданную складскую запись: ${JSON.stringify(item).substring(0, 200)}`);
         }

@@ -169,8 +169,10 @@ function normalStock(items) {
   if (!Array.isArray(items)) throw new Error("В карточке CDEK поле items имеет неизвестный формат");
   return items.reduce((sum, item) => {
     if (!INCLUDED_STATES.has(normalizedHeader(item?.state))) return sum;
-    const count = Number(item.count);
-    if (!Number.isFinite(count) || count < 0) {
+    const countRaw = item?.count;
+    const count = Number(countRaw);
+    if (countRaw === null || countRaw === undefined || countRaw === "" ||
+        !Number.isSafeInteger(count) || count < 0) {
       throw new Error("CDEK вернул некорректный остаток items.count");
     }
     return sum + Math.trunc(count);
