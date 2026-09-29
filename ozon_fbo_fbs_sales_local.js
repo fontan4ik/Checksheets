@@ -56,17 +56,35 @@ async function sheetsClient() {
 }
 
 async function request(url, body, limiter) {
-  for (let attempt = 0; attempt < 4; attempt++) {
+  const maxAttempts = 5;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     await limiter();
     try {
       const response = await axios.post(url, body, { headers: headers(), timeout: 30000, validateStatus: () => true });
       if (response.status >= 200 && response.status < 300) return response.data;
-      if (response.status !== 429 && response.status < 500) throw new Error(`Ozon HTTP ${response.status}: ${JSON.stringify(response.data).slice(0, 400)}`);
-      if (attempt === 3) throw new Error(`Ozon HTTP ${response.status}: ${JSON.stringify(response.data).slice(0, 400)}`);
+
+      if (response.status === 429 || response.status >= 500) {
+        if (attempt === maxAttempts - 1) {
+          throw new Error(`Ozon HTTP ${response.status}: ${JSON.stringify(response.data).slice(0, 400)}`);
+        }
+
+        const retryAfter = Number(response.headers?.['retry-after']);
+        const retryAfterMs = Number.isFinite(retryAfter) ? Math.max(0, retryAfter * 1000) : 0;
+        const backoffMs = Math.min(60000, 10000 * 2 ** attempt);
+        const delayMs = Math.max(retryAfterMs, backoffMs);
+        console.warn(`Ozon HTTP ${response.status}; повтор через ${Math.ceil(delayMs / 1000)} сек`);
+        await sleep(delayMs);
+        continue;
+      }
+
+      throw new Error(`Ozon HTTP ${response.status}: ${JSON.stringify(response.data).slice(0, 400)}`);
     } catch (error) {
-      if (attempt === 3 || (/Ozon HTTP 4\d\d/.test(error.message) && !/HTTP 429/.test(error.message))) throw error;
+      if (attempt === maxAttempts - 1 || /Ozon HTTP 4\d\d/.test(error.message)) throw error;
+      const delayMs = Math.min(60000, 10000 * 2 ** attempt);
+      console.warn(`Ошибка Ozon API; повтор через ${Math.ceil(delayMs / 1000)} сек: ${error.message}`);
+      await sleep(delayMs);
     }
-    await sleep(Math.min(30000, 2000 * 2 ** attempt));
   }
   throw new Error('Ozon: исчерпаны повторы запроса');
 }
@@ -156,7 +174,9 @@ async function main({ dryRun = false, probe = false } = {}) {
     console.log('Ozon sales: оба API отвечают; запись в таблицу не выполнялась');
     return;
   }
-  const analyticsThrottle = limiter(7000);
+  // Give the shared Ozon Analytics quota a buffer and recover from 429s
+  // without abandoning the whole refresh and leaving yesterday's columns.
+  const analyticsThrottle = limiter(10000);
   const fbsThrottle = limiter(5000);
   const totalMonth = await analyticsSales(...range.month, analyticsThrottle);
   const totalQuarter = await analyticsSales(...range.quarter, analyticsThrottle);
