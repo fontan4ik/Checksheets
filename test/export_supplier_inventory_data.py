@@ -359,6 +359,7 @@ def main():
                     "stock": stock,
                 }
             )
+        catalog_codes = {row["code"] for row in rows}
         output["russvet"][warehouse_name] = {
             "warehouse_id": warehouse_id,
             "catalog_counts": catalog_counts,
@@ -368,7 +369,7 @@ def main():
             ),
             "invalid_stock_rows": stock_snapshot.invalid_products,
             "stock_codes_without_catalog": sum(
-                code not in {row["code"] for row in rows} for code in stock_snapshot
+                code not in catalog_codes for code in stock_snapshot
             ),
             "rows": rows,
         }
@@ -377,7 +378,8 @@ def main():
     output["fetched_at_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text(json.dumps(output, ensure_ascii=False), encoding="utf-8")
+    with OUTPUT_PATH.open("w", encoding="utf-8") as snapshot_file:
+        json.dump(output, snapshot_file, ensure_ascii=False, separators=(",", ":"))
     print("Supplier data snapshot saved.")
     for warehouse_name, data in output["russvet"].items():
         print(
