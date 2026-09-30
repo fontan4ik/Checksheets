@@ -483,11 +483,15 @@ function parseXlsxRows(buffer) {
     const rowNodes = xml.match(/<row(?:\s[^>]*)?>[\s\S]*?<\/row>/g) || [];
     for (const rowXml of rowNodes) {
       const row = [];
+      let nextColumn = 0;
       const cells = rowXml.match(/<c(?:\s[^>]*)?(?:\/>|>[\s\S]*?<\/c>)/g) || [];
       for (const cellXml of cells) {
         const ref = (cellXml.match(/\br="([^"]+)"/) || [])[1] || '';
         const type = (cellXml.match(/\bt="([^"]+)"/) || [])[1] || '';
-        const col = columnIndexFromRef(ref);
+        // Ozon's XLSX export omits cell references but keeps all 12 columns
+        // in order on every row; preserve that order when refs are absent.
+        const col = ref ? columnIndexFromRef(ref) : nextColumn;
+        nextColumn = col + 1;
         let value = '';
         if (type === 'inlineStr') {
           value = [...cellXml.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map(match => decodeXml(match[1])).join('');
