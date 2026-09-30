@@ -298,6 +298,10 @@ def resolve_wb_value(exact_map: dict[str, float], article: str,
     exact = normalize_article(article)
     if exact in exact_map:
         return exact_map[exact]
+    # A target article can itself be a base for a more specific API article,
+    # for example KKM11-009-230-10 ← KKM11-009-230-10-1.
+    if exact in base_map:
+        return base_map[exact]
     base, multiplier = parse_article(exact)
     normalized_base = normalized_wb_base(exact)
     if exact == base and normalized_base in base_map:
@@ -307,6 +311,17 @@ def resolve_wb_value(exact_map: dict[str, float], article: str,
     if exact == base and f"{exact}-1" in exact_map:
         return exact_map[f"{exact}-1"]
     return 0.0
+
+
+def resolve_source_value(value_map: dict[str, float], article: str) -> float:
+    """Prefer the exact article key before treating its numeric tail as a multiplier."""
+    exact = normalize_article(article)
+    if not exact:
+        return 0.0
+    if exact in value_map:
+        return value_map[exact]
+    base, _ = parse_article(exact)
+    return value_map.get(base, 0.0)
 
 
 def read_columns(worksheet, columns: list[str]) -> dict[str, list]:
@@ -453,8 +468,7 @@ def updateOborSummary(dry_run: bool = False) -> dict:
             if not article:
                 value = ""
             else:
-                base, _ = parse_article(article)
-                value = round_value(value_map.get(base, 0.0))
+                value = round_value(resolve_source_value(value_map, article))
                 if value != 0:
                     non_zero[field["key"]] = non_zero.get(field["key"], 0) + 1
             values.append(value)
