@@ -6,8 +6,10 @@ import json
 import math
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import local
 from urllib.parse import quote
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -20,58 +22,86 @@ import rs_sync_local as rs
 OUTPUT_PATH = Path(__file__).parent / "tmp" / "supplier_inventory_snapshot.json"
 CATALOG_CATEGORIES = ("instock", "custom")
 CATALOG_PAGE_SIZE = 1000
+RS_WORKERS = 6
+_thread_context = local()
 
 
-def fetch_rs_catalog(session, headers, warehouse_id):
+def rs_worker_session():
+    session = getattr(_thread_context, "session", None)
+    if session is None:
+        session = rs.create_rs_session()
+        _thread_context.session = session
+    return session
+
+
+def fetch_rs_catalog_page(warehouse_id, category, page):
+    url = (
+        f"{config.RS_BASE_URL}/position/{warehouse_id}/{category}"
+        f"?page={page}&rows={CATALOG_PAGE_SIZE}"
+    )
+    response = rs.rs_get_with_retry(
+        rs_worker_session(),
+        url,
+        rs.get_rs_headers(),
+        timeout=30,
+        label=f"RS export catalog warehouse {warehouse_id} page {page}",
+    )
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"RS catalog HTTP {response.status_code} for warehouse {warehouse_id}, "
+            f"category {category}, page {page}"
+        )
+    payload = response.json()
+    items = payload.get("items") if isinstance(payload, dict) else None
+    meta = payload.get("meta") if isinstance(payload, dict) else None
+    if not isinstance(items, list) or not isinstance(meta, dict):
+        raise RuntimeError(
+            f"RS catalog response is incomplete for warehouse {warehouse_id}, "
+            f"category {category}, page {page}"
+        )
+    try:
+        last_page = int(meta["last_page"])
+        expected_rows = int(meta["rows_count"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("RS catalog response has invalid pagination metadata") from exc
+    if last_page < 1 or expected_rows < 0:
+        raise RuntimeError("RS catalog response has impossible pagination metadata")
+    if page < last_page and not items:
+        raise RuntimeError("RS catalog returned an empty intermediate page")
+    time.sleep(rs.RS_API_MIN_PAGE_DELAY_SECONDS)
+    return page, items, last_page, expected_rows
+
+
+def fetch_rs_catalog(warehouse_id):
     by_code = {}
     category_counts = {}
     for category in CATALOG_CATEGORIES:
-        page = 1
-        last_page = None
-        expected_rows = None
+        first_page, first_items, last_page, expected_rows = fetch_rs_catalog_page(
+            warehouse_id, category, 1
+        )
+        page_results = [(first_page, first_items)]
+        with ThreadPoolExecutor(max_workers=RS_WORKERS) as executor:
+            futures = {
+                executor.submit(fetch_rs_catalog_page, warehouse_id, category, page): page
+                for page in range(2, last_page + 1)
+            }
+            completed = 1
+            for future in as_completed(futures):
+                page, items, response_last_page, response_rows = future.result()
+                if response_last_page != last_page or response_rows != expected_rows:
+                    raise RuntimeError(
+                        f"RS catalog pagination changed during read for warehouse {warehouse_id}, "
+                        f"category {category}"
+                    )
+                page_results.append((page, items))
+                completed += 1
+                if completed % 100 == 0 or completed == last_page:
+                    print(
+                        f"RS {warehouse_id} {category}: {completed}/{last_page} pages",
+                        flush=True,
+                    )
         rows_read = 0
-        while last_page is None or page <= last_page:
-            url = (
-                f"{config.RS_BASE_URL}/position/{warehouse_id}/{category}"
-                f"?page={page}&rows={CATALOG_PAGE_SIZE}"
-            )
-            response = rs.rs_get_with_retry(
-                session,
-                url,
-                headers,
-                timeout=30,
-                label=f"RS export catalog warehouse {warehouse_id} page {page}",
-            )
-            if response.status_code != 200:
-                raise RuntimeError(
-                    f"RS catalog HTTP {response.status_code} for warehouse {warehouse_id}, "
-                    f"category {category}, page {page}"
-                )
-            payload = response.json()
-            items = payload.get("items") if isinstance(payload, dict) else None
-            meta = payload.get("meta") if isinstance(payload, dict) else None
-            if not isinstance(items, list) or not isinstance(meta, dict):
-                raise RuntimeError(
-                    f"RS catalog response is incomplete for warehouse {warehouse_id}, "
-                    f"category {category}, page {page}"
-                )
-            try:
-                response_last_page = int(meta["last_page"])
-                response_rows = int(meta["rows_count"])
-            except (KeyError, TypeError, ValueError) as exc:
-                raise RuntimeError("RS catalog response has invalid pagination metadata") from exc
-            if response_last_page < 1 or response_rows < 0:
-                raise RuntimeError("RS catalog response has impossible pagination metadata")
-            if last_page is None:
-                last_page = response_last_page
-                expected_rows = response_rows
-            elif last_page != response_last_page or expected_rows != response_rows:
-                raise RuntimeError(
-                    f"RS catalog pagination changed during read for warehouse {warehouse_id}, "
-                    f"category {category}"
-                )
-            if page < last_page and not items:
-                raise RuntimeError("RS catalog returned an empty intermediate page")
+        for _, items in page_results:
             for item in items:
                 if not isinstance(item, dict) or not str(item.get("CODE", "")).strip():
                     raise RuntimeError(
@@ -92,8 +122,6 @@ def fetch_rs_catalog(session, headers, warehouse_id):
                 else:
                     by_code[code] = item
             rows_read += len(items)
-            page += 1
-            time.sleep(rs.RS_API_MIN_PAGE_DELAY_SECONDS)
         if rows_read != expected_rows:
             raise RuntimeError(
                 f"RS catalog was incomplete for warehouse {warehouse_id}, category {category}: "
@@ -103,6 +131,95 @@ def fetch_rs_catalog(session, headers, warehouse_id):
     if not by_code:
         raise RuntimeError(f"RS catalog was empty for warehouse {warehouse_id}")
     return list(by_code.values()), category_counts
+
+
+def fetch_rs_residue_page(warehouse_id, page):
+    url = f"{config.RS_BASE_URL}/residue/all/{warehouse_id}?page={page}&rows=200&category=all"
+    response = rs.rs_get_with_retry(
+        rs_worker_session(),
+        url,
+        rs.get_rs_headers(),
+        timeout=30,
+        label=f"RS export residue warehouse {warehouse_id} page {page}",
+    )
+    if response.status_code != 200:
+        raise RuntimeError(f"RS residue HTTP {response.status_code} for warehouse {warehouse_id}, page {page}")
+    payload = response.json()
+    residues = payload.get("residues") if isinstance(payload, dict) else None
+    if not isinstance(residues, list):
+        raise RuntimeError(f"RS residue response is incomplete for warehouse {warehouse_id}, page {page}")
+    meta = payload.get("meta") if isinstance(payload.get("meta"), dict) else {}
+    header_pages = response.headers.get("x-pagination-page-count")
+    try:
+        last_page = int(header_pages or meta["last_page"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("RS residue response omitted page-count metadata") from exc
+    raw_total = response.headers.get("x-pagination-total-count", meta.get("rows_count"))
+    try:
+        total_rows = int(raw_total) if raw_total is not None else None
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("RS residue response has invalid total-count metadata") from exc
+    if last_page < 1 or (total_rows is not None and total_rows < 0):
+        raise RuntimeError("RS residue response has impossible pagination metadata")
+    if page < last_page and not residues:
+        raise RuntimeError("RS residue returned an empty intermediate page")
+    time.sleep(rs.RS_API_MIN_PAGE_DELAY_SECONDS)
+    return page, residues, last_page, total_rows
+
+
+def fetch_all_rs_stocks_concurrent(warehouse_id):
+    snapshot = rs.RSStockSnapshot()
+    first_page, first_rows, last_page, expected_total = fetch_rs_residue_page(warehouse_id, 1)
+    page_results = [(first_page, first_rows)]
+    with ThreadPoolExecutor(max_workers=RS_WORKERS) as executor:
+        futures = {
+            executor.submit(fetch_rs_residue_page, warehouse_id, page): page
+            for page in range(2, last_page + 1)
+        }
+        completed = 1
+        for future in as_completed(futures):
+            page, items, response_last_page, total_rows = future.result()
+            if response_last_page != last_page or (
+                total_rows is not None and expected_total is not None and total_rows != expected_total
+            ):
+                raise RuntimeError(f"RS residue pagination changed during read for warehouse {warehouse_id}")
+            page_results.append((page, items))
+            completed += 1
+            if completed % 50 == 0 or completed == last_page:
+                print(f"RS {warehouse_id} residue: {completed}/{last_page} pages", flush=True)
+
+    records_read = 0
+    for _, items in page_results:
+        records_read += len(items)
+        for index, item in enumerate(items, start=1):
+            if not isinstance(item, dict) or item.get("CODE") in (None, ""):
+                snapshot.invalid_products += 1
+                continue
+            code = str(item["CODE"]).strip()
+            if not code:
+                snapshot.invalid_products += 1
+                continue
+            if "RESIDUE" not in item:
+                snapshot.invalid_codes.add(code)
+                snapshot.invalid_products += 1
+                continue
+            try:
+                stock = float(item["RESIDUE"])
+            except (TypeError, ValueError):
+                snapshot.invalid_codes.add(code)
+                snapshot.invalid_products += 1
+                continue
+            if stock < 0 or not math.isfinite(stock):
+                snapshot.invalid_codes.add(code)
+                snapshot.invalid_products += 1
+                continue
+            snapshot[code] = int(stock) if stock.is_integer() else stock
+    if expected_total is not None and records_read != expected_total:
+        raise RuntimeError(
+            f"RS residue was incomplete for warehouse {warehouse_id}: "
+            f"read {records_read} of {expected_total}"
+        )
+    return snapshot
 
 
 def valid_optional_stock(value, label):
@@ -216,13 +333,12 @@ def main():
         (config.RS_WAREHOUSE_ID, "Самара"),
         (config.RS_MSK_WAREHOUSE_ID, "Москва"),
     ):
-        session = rs.create_rs_session()
-        catalog, catalog_counts = fetch_rs_catalog(
-            session,
-            rs.get_rs_headers(),
-            warehouse_id,
+        catalog, catalog_counts = fetch_rs_catalog(warehouse_id)
+        print(
+            f"RS {warehouse_name}: каталог получен ({len(catalog)} позиций), читаю остатки",
+            flush=True,
         )
-        stock_snapshot = rs.fetch_all_rs_stocks(warehouse_id)
+        stock_snapshot = fetch_all_rs_stocks_concurrent(warehouse_id)
         rows = []
         for item in catalog:
             code = str(item["CODE"]).strip()
@@ -256,6 +372,7 @@ def main():
             ),
             "rows": rows,
         }
+        print(f"RS {warehouse_name}: срез готов ({len(rows)} позиций)", flush=True)
     output["iek"] = fetch_iek_snapshot()
     output["fetched_at_utc"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
