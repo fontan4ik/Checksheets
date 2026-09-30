@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-09-29T10:28:07.639115+00:00",
+  "generated_at": "2026-09-30T08:43:44.741765+00:00",
   "nodes": {
     "flow_нтц_списания_fbs_резерв_installntcwriteoffs": {
-      "code_fingerprint": "a3a6107530fa0b422ebb7dd6d3952befa33b2e58bca1a0cacb2a3cb53fc5071b",
+      "code_fingerprint": "a170f5b78bc3920ab0e3afffa58404c3f816b039c1601be78ac59b8123e6a4fe",
       "label": "installNtcWriteOffs()",
       "last": "2026-09-29T04:04:48.189257+00:00",
       "provenance": [
@@ -12,13 +12,13 @@
           "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
         }
       ],
-      "score": 0.993868411,
+      "score": 0.972796311,
       "source_file": "Flow_НТЦ_списания__FBS_резерв.js",
       "status": "tentative",
       "uses": 1
     },
     "flow_нтц_списания_fbs_резерв_syncntcfbswriteoffs": {
-      "code_fingerprint": "a3a6107530fa0b422ebb7dd6d3952befa33b2e58bca1a0cacb2a3cb53fc5071b",
+      "code_fingerprint": "a170f5b78bc3920ab0e3afffa58404c3f816b039c1601be78ac59b8123e6a4fe",
       "label": "syncNtcFbsWriteOffs()",
       "last": "2026-09-29T04:04:48.189257+00:00",
       "provenance": [
@@ -28,8 +28,40 @@
           "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
         }
       ],
-      "score": 0.993868411,
+      "score": 0.972796311,
       "source_file": "Flow_НТЦ_списания__FBS_резерв.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "list_тест_i_j_l_ao_заказы_ozon": {
+      "code_fingerprint": "a972871e95501e19ca3c3a40430ed52081e453e484f13c551b716f235df34007",
+      "label": "List_ТЕСТ__I_J_L_AO__Заказы_Ozon.js",
+      "last": "2026-09-29T10:48:20.845444+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-29T10:48:20.845444+00:00",
+          "outcome": "useful",
+          "q": "Найди почему"
+        }
+      ],
+      "score": 0.979115504,
+      "source_file": "List_ТЕСТ__I_J_L_AO__Заказы_Ozon.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "list_тест_i_j_l_ao_заказы_ozon_fetchandwriteanalytics": {
+      "code_fingerprint": "a972871e95501e19ca3c3a40430ed52081e453e484f13c551b716f235df34007",
+      "label": "fetchAndWriteAnalytics()",
+      "last": "2026-09-29T10:48:20.845444+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-29T10:48:20.845444+00:00",
+          "outcome": "useful",
+          "q": "Найди почему"
+        }
+      ],
+      "score": 0.979115504,
+      "source_file": "List_ТЕСТ__I_J_L_AO__Заказы_Ozon.js",
       "status": "tentative",
       "uses": 1
     },
@@ -44,7 +76,7 @@
           "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
         }
       ],
-      "score": 0.993868411,
+      "score": 0.972796311,
       "source_file": "ntc_f_stage.py",
       "status": "tentative",
       "uses": 1
@@ -60,7 +92,7 @@
           "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
         }
       ],
-      "score": 0.993868411,
+      "score": 0.972796311,
       "source_file": "ntc_fbs_reserve_sync.py",
       "status": "tentative",
       "uses": 1
@@ -76,7 +108,7 @@
           "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
         }
       ],
-      "score": 0.993868411,
+      "score": 0.972796311,
       "source_file": "ntc_live_local.py",
       "status": "tentative",
       "uses": 1
