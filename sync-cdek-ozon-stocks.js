@@ -35,6 +35,12 @@ const REQUEST_INTERVAL_MS = Number.isFinite(configuredRequestIntervalMs)
   : 1000;
 const MAX_RETRIES = 3;
 const POSTCHECK_DELAY_MS = 30000;
+const OZON_TERMINAL_PRODUCT_ERRORS = new Set([
+  "NOT_FOUND_ERROR",
+  "NOT_PASS_MODERATION",
+  "PRODUCT_IS_NOT_CREATED",
+  "PRODUCT_IS_ARCHIVED",
+]);
 const SERVICE_ACCOUNT_FILE =
   process.env.GOOGLE_APPLICATION_CREDENTIALS ||
   path.join(__dirname, "nomadic-bedrock-485314-b0-d7624dedd83c.json");
@@ -219,7 +225,7 @@ async function postWithRetry(url, body, headers, retry = 0, httpClient = axios) 
   }
 }
 
-async function uploadBatch(batch, headers, httpClient = axios) {
+async function uploadBatch(batch, headers, httpClient = axios, skippedOfferIds = new Set()) {
   const response = await postWithRetry(
     `${OZON_API_URL}/v2/products/stocks`,
     {
@@ -237,26 +243,39 @@ async function uploadBatch(batch, headers, httpClient = axios) {
   const resultsByOfferId = new Map(
     results.filter((result) => result.offer_id).map((result) => [String(result.offer_id), result]),
   );
-  const failures = batch.flatMap((requested) => {
+  const failures = [];
+  let updated = 0;
+  for (const requested of batch) {
     const result = resultsByOfferId.get(String(requested.offer_id));
-    if (!result) return [`${requested.offer_id}: отсутствует в ответе`];
-    if (result.updated) return [];
-    const details = Array.isArray(result.errors) && result.errors.length
-      ? result.errors.map((error) => `${error.code || "error"}: ${error.message || error.detail || ""}`).join("; ")
+    if (!result) {
+      failures.push(`${requested.offer_id}: отсутствует в ответе`);
+      continue;
+    }
+    if (result.updated) {
+      updated += 1;
+      continue;
+    }
+    const errors = Array.isArray(result.errors) ? result.errors : [];
+    if (errors.length && errors.every((error) => OZON_TERMINAL_PRODUCT_ERRORS.has(error.code))) {
+      skippedOfferIds.add(String(requested.offer_id));
+      continue;
+    }
+    const details = errors.length
+      ? errors.map((error) => `${error.code || "error"}: ${error.message || error.detail || ""}`).join("; ")
       : "нет поля updated=true и нет описания ошибки";
-    return [`${requested.offer_id}: ${details}`];
-  });
+    failures.push(`${requested.offer_id}: ${details}`);
+  }
   if (failures.length) {
     throw new Error(`Ozon не подтвердил ${failures.length}/${batch.length} позиций: ${failures.slice(0, 10).join(" | ")}`);
   }
-  return batch.length;
+  return updated;
 }
 
-async function uploadStocks(stocks, headers, httpClient = axios) {
+async function uploadStocks(stocks, headers, httpClient = axios, skippedOfferIds = new Set()) {
   let updated = 0;
   for (let start = 0; start < stocks.length; start += BATCH_SIZE) {
     const batch = stocks.slice(start, start + BATCH_SIZE);
-    updated += await uploadBatch(batch, headers, httpClient);
+    updated += await uploadBatch(batch, headers, httpClient, skippedOfferIds);
     if (start + BATCH_SIZE < stocks.length) await sleep(REQUEST_INTERVAL_MS);
   }
   return updated;
@@ -313,12 +332,19 @@ async function main() {
   let updated = 0;
   let actual = new Map();
   let mismatches = [];
+  const skippedOzonOffers = new Set();
+  let ozonStocks = stocks;
   if (marketplace !== "yandex") {
     const headers = ozonHeaders();
-    updated = await uploadStocks(stocks, headers);
+    updated = await uploadStocks(stocks, headers, axios, skippedOzonOffers);
+    ozonStocks = stocks.filter((item) => !skippedOzonOffers.has(item.offer_id));
+    if (skippedOzonOffers.size) {
+      const sample = [...skippedOzonOffers].slice(0, 20).join(", ");
+      console.warn(`Ozon ${WAREHOUSE_NAME}: пропущено ${skippedOzonOffers.size} товаров по терминальным ответам API; первые артикулы: ${sample}`);
+    }
     await sleep(POSTCHECK_DELAY_MS);
-    actual = await fetchOzonStocks(stocks, headers);
-    mismatches = stocks.filter((item) => (actual.get(item.offer_id) || 0) !== item.stock);
+    actual = await fetchOzonStocks(ozonStocks, headers);
+    mismatches = ozonStocks.filter((item) => (actual.get(item.offer_id) || 0) !== item.stock);
   }
   let yandexUploaded = 0;
   if (YANDEX_SYNC_ENABLED && marketplace !== "ozon") {
@@ -336,6 +362,7 @@ async function main() {
     positive,
     total,
     updated,
+    skippedOzon: skippedOzonOffers.size,
     yandexWarehouse: YANDEX_WAREHOUSE_NAME,
     yandexCampaignId: YANDEX_CAMPAIGN_ID,
     yandexSyncEnabled: YANDEX_SYNC_ENABLED,
@@ -350,8 +377,8 @@ async function main() {
     if (marketplace !== "yandex") await sendFbsWarehouseReport({
       marketplace: "Ozon",
       warehouseName: WAREHOUSE_NAME,
-      totalSku: stocks.length,
-      activeSku: positive,
+      totalSku: ozonStocks.length,
+      activeSku: ozonStocks.filter((item) => item.stock > 0).length,
       marketplaceStockSku,
       marketplaceTotalPieces,
       durationSec: Math.round((Date.now() - startedAt) / 1000),

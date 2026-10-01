@@ -73,7 +73,12 @@ RUNTIME_PARTS = (
     "tests/tmp/",
     "scratch/",
     "output_to_user/",
+    "graphify-out/cache/",
 )
+
+
+class SyncDeferred(Exception):
+    """The workspace is still being edited; retry on the next polling cycle."""
 
 
 def configure_logging() -> None:
@@ -206,8 +211,8 @@ def stash_runtime_changes() -> str | None:
     paths = [path for path in status_paths() if is_runtime_path(path)]
     non_runtime = [path for path in status_paths() if not is_runtime_path(path)]
     if non_runtime:
-        raise RuntimeError(
-            "После commit остались незакоммиченные source-файлы: " + ", ".join(non_runtime[:10])
+        raise SyncDeferred(
+            "source-файлы ещё меняются: " + ", ".join(non_runtime[:10])
         )
     if not paths:
         return None
@@ -499,6 +504,9 @@ def main() -> int:
                 }
             )
             log.info("Цикл завершён: GitHub=%s, Apps Script push=%s", local[:12], result["pushed"])
+        return 0
+    except SyncDeferred as exc:
+        log.info("Синхронизация отложена до следующего цикла: %s", exc)
         return 0
     except Exception as exc:
         log.error("Синхронизация остановлена: %s", exc)

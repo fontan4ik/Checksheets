@@ -173,6 +173,24 @@ def _request_with_retry(session, method: str, path: str, token: str, max_attempt
     raise last_exc  # type: ignore[misc]
 
 
+def _get_campaigns_with_retry(session, token: str, timeout: int, max_attempts: int = 5) -> list[dict]:
+    last_exc: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return get_campaigns(session, token, timeout=timeout)
+        except Exception as exc:
+            last_exc = exc
+            if not is_transient_cpc_error(exc) or attempt >= max_attempts:
+                raise
+            delay = min(2 ** attempt, 15)
+            print(
+                f"Временная ошибка чтения статусов кампаний "
+                f"({attempt}/{max_attempts - 1}); повтор через {delay} сек: {exc}"
+            )
+            time.sleep(delay)
+    raise last_exc  # type: ignore[misc]
+
+
 def activate_campaign(token: str, session, campaign_id: str) -> None:
     _request_with_retry(session, "POST", f"/api/client/campaign/{campaign_id}/activate", token)
 
@@ -277,7 +295,7 @@ def main() -> int:
     token = get_token(main_session)
     status_started = time.monotonic()
     try:
-        campaigns = get_campaigns(
+        campaigns = _get_campaigns_with_retry(
             main_session,
             token,
             timeout=max(1, args.status_timeout),

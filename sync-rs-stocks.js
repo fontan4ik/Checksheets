@@ -70,6 +70,7 @@ const OZON_TERMINAL_PRODUCT_ERRORS = new Set([
   "NOT_FOUND_ERROR",
   "NOT_PASS_MODERATION",
   "PRODUCT_IS_NOT_CREATED",
+  "PRODUCT_IS_ARCHIVED",
 ]);
 
 function text(value) {

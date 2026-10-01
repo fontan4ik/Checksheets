@@ -12,6 +12,7 @@ from telegram_notifier import send_telegram_alert
 RS_RETRYABLE_HTTP_STATUSES = {404, 408, 425, 429, 500, 502, 503, 504}
 RS_MAX_REQUEST_ATTEMPTS = 7
 RS_API_MIN_PAGE_DELAY_SECONDS = 0.2
+RS_CATALOG_SNAPSHOT_ATTEMPTS = 3
 
 
 class RSStockSnapshot(dict):
@@ -104,12 +105,13 @@ def fetch_rs_code_map(warehouse_id):
     code_map = {}
     invalid_products = 0
 
-    def fetch_category(category, include_name=False):
-        nonlocal invalid_products
+    def fetch_category_snapshot(category, include_name=False):
         page = 1
         expected_pages = None
         expected_rows = None
         rows_read = 0
+        category_code_map = {}
+        category_invalid_products = 0
         while expected_pages is None or page <= expected_pages:
             url = f"{config.RS_BASE_URL}/position/{warehouse_id}/{category}?page={page}&rows=1000"
             response = rs_get_with_retry(
@@ -167,8 +169,8 @@ def fetch_rs_code_map(warehouse_id):
                 )
             for item_index, item in enumerate(items, start=1):
                 if not isinstance(item, dict) or item.get("CODE") in (None, ""):
-                    invalid_products += 1
-                    if invalid_products <= 10:
+                    category_invalid_products += 1
+                    if invalid_products + category_invalid_products <= 10:
                         print(
                             f"   Skipping incomplete RS catalog product "
                             f"at warehouse {warehouse_id}, category {category}, "
@@ -180,8 +182,8 @@ def fetch_rs_code_map(warehouse_id):
                 name = str(item.get("NAME", "")).strip()
                 code = str(item["CODE"]).strip()
                 if not vendor_code and not article and not (include_name and name):
-                    invalid_products += 1
-                    if invalid_products <= 10:
+                    category_invalid_products += 1
+                    if invalid_products + category_invalid_products <= 10:
                         print(
                             f"   Skipping incomplete RS catalog product "
                             f"at warehouse {warehouse_id}, category {category}, "
@@ -190,19 +192,19 @@ def fetch_rs_code_map(warehouse_id):
                     continue
 
                 if vendor_code:
-                    code_map[vendor_code] = code
+                    category_code_map[vendor_code] = code
                     clean_vendor_code = ''.join(c for c in vendor_code if c.isalnum() or c in '-_').upper()
                     if clean_vendor_code != vendor_code.upper():
-                        code_map[clean_vendor_code] = code
+                        category_code_map[clean_vendor_code] = code
                 if article and article != vendor_code:
-                    code_map[article] = code
+                    category_code_map[article] = code
                     clean_article = ''.join(c for c in article if c.isalnum() or c in '-_').upper()
                     if clean_article != article.upper():
-                        code_map[clean_article] = code
+                        category_code_map[clean_article] = code
                 if include_name and name:
                     clean_name = ''.join(c for c in name if c.isalnum() or c in '-_').upper()
                     if clean_name != name.upper():
-                        code_map[clean_name] = code
+                        category_code_map[clean_name] = code
 
             rows_read += len(items)
             page += 1
@@ -213,8 +215,36 @@ def fetch_rs_code_map(warehouse_id):
                 f"RS catalog was incomplete at warehouse {warehouse_id}, category {category}: "
                 f"read {rows_read} of {expected_rows} rows across {expected_pages} pages"
             )
-        if invalid_products:
-            print(f"   Quarantined incomplete RS catalog products so far: {invalid_products}")
+        return category_code_map, category_invalid_products
+
+    def fetch_category(category, include_name=False):
+        nonlocal invalid_products
+        for attempt in range(1, RS_CATALOG_SNAPSHOT_ATTEMPTS + 1):
+            try:
+                category_code_map, category_invalid_products = fetch_category_snapshot(
+                    category,
+                    include_name=include_name,
+                )
+                code_map.update(category_code_map)
+                invalid_products += category_invalid_products
+                if invalid_products:
+                    print(f"   Quarantined incomplete RS catalog products so far: {invalid_products}")
+                return
+            except RuntimeError as exc:
+                message = str(exc)
+                snapshot_changed = any(marker in message for marker in (
+                    "pagination changed during read",
+                    "empty intermediate page",
+                    "catalog was incomplete",
+                ))
+                if not snapshot_changed or attempt == RS_CATALOG_SNAPSHOT_ATTEMPTS:
+                    raise
+                delay = 2 ** (attempt - 1)
+                print(
+                    f"   RS catalog changed while reading {category}; "
+                    f"restarting category ({attempt}/{RS_CATALOG_SNAPSHOT_ATTEMPTS - 1}) in {delay}s"
+                )
+                time.sleep(delay)
 
     try:
         fetch_category("instock", include_name=True)

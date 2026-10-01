@@ -12,6 +12,7 @@ from toggle_cpc_campaigns import (
     activation_filter_reason,
     is_transient_cpc_error,
     _request_with_retry,
+    _get_campaigns_with_retry,
     select_required_state_changes,
 )
 
@@ -115,6 +116,21 @@ class ToggleCpcCampaignsTests(unittest.TestCase):
         _request_with_retry(session, "POST", "/api/client/campaign/123/deactivate", token="fake_token", max_attempts=3)
         self.assertEqual(mock_request_json.call_count, 2)
         mock_sleep.assert_called_once()
+
+    @patch("toggle_cpc_campaigns.time.sleep", return_value=None)
+    @patch("toggle_cpc_campaigns.get_campaigns")
+    def test_campaign_status_read_retries_after_rate_limit(self, mock_get_campaigns, mock_sleep):
+        campaigns = [{"id": "123", "state": "CAMPAIGN_STATE_RUNNING"}]
+        mock_get_campaigns.side_effect = [
+            RuntimeError("GET /api/client/campaign -> HTTP 429: max active requests is 1"),
+            campaigns,
+        ]
+
+        result = _get_campaigns_with_retry(MagicMock(), "fake_token", timeout=5)
+
+        self.assertEqual(result, campaigns)
+        self.assertEqual(mock_get_campaigns.call_count, 2)
+        mock_sleep.assert_called_once_with(2)
 
 
 if __name__ == "__main__":
