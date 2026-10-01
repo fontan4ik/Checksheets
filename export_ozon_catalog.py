@@ -134,14 +134,16 @@ def chunks(values: list[Any], size: int) -> Iterable[list[Any]]:
 
 
 def product_details(client: OzonClient, products: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    identifiers = [
+    product_ids = [
         item.get("product_id") or item.get("id")
         for item in products
         if item.get("product_id") is not None or item.get("id") is not None
     ]
-    details: dict[str, dict[str, Any]] = {}
+    offer_ids = [str(item["offer_id"]) for item in products if item.get("offer_id")]
+    details_by_id: dict[str, dict[str, Any]] = {}
+    details_by_offer: dict[str, dict[str, Any]] = {}
 
-    for batch_number, batch in enumerate(chunks(identifiers, PRODUCT_BATCH_SIZE), start=1):
+    for batch_number, batch in enumerate(chunks(product_ids, PRODUCT_BATCH_SIZE), start=1):
         response = client.post("/v3/product/info/list", {"product_id": batch})
         result = result_object(response)
         items = result.get("items", [])
@@ -150,15 +152,47 @@ def product_details(client: OzonClient, products: list[dict[str, Any]]) -> list[
         for item in items:
             if isinstance(item, dict):
                 product_id = item.get("product_id") or item.get("id")
+                offer_id = item.get("offer_id")
                 if product_id is not None:
-                    details[str(product_id)] = item
-        print(f"Пакет карточек {batch_number}: обогащено {len(items)} товаров")
+                    details_by_id[str(product_id)] = item
+                if offer_id:
+                    details_by_offer[str(offer_id)] = item
+        print(f"Пакет подробных карточек {batch_number}: получено {len(items)} товаров")
+
+    for batch_number, batch in enumerate(chunks(offer_ids, PRODUCT_BATCH_SIZE), start=1):
+        response = client.post(
+            "/v4/product/info/attributes",
+            {"filter": {"offer_id": batch}, "limit": len(batch)},
+        )
+        items = response.get("result", [])
+        if not isinstance(items, list):
+            raise OzonAPIError("Ответ /v4/product/info/attributes не содержит список result")
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            offer_id = item.get("offer_id")
+            product_id = item.get("product_id") or item.get("id")
+            if offer_id:
+                details_by_offer[str(offer_id)] = {
+                    **details_by_offer.get(str(offer_id), {}),
+                    **item,
+                }
+            if product_id is not None:
+                details_by_id[str(product_id)] = {
+                    **details_by_id.get(str(product_id), {}),
+                    **item,
+                }
+        print(f"Пакет атрибутов {batch_number}: получено {len(items)} товаров")
 
     merged: list[dict[str, Any]] = []
     for listed in products:
         product_id = listed.get("product_id") or listed.get("id")
-        detail = details.get(str(product_id), {}) if product_id is not None else {}
-        merged.append({**listed, **detail})
+        offer_id = str(listed.get("offer_id") or "")
+        detail = details_by_offer.get(offer_id, {}) or (
+            details_by_id.get(str(product_id), {}) if product_id is not None else {}
+        )
+        # Preserve type and status details from /v3 while adding Ozon attributes from /v4.
+        merged.append({**listed, **details_by_id.get(str(product_id), {}), **detail})
     return merged
 
 
