@@ -30,6 +30,8 @@ const REQUEST_INTERVAL_MS = 50; // 20 requests/second, matching the shared Ozon 
 const MAX_HTTP_ATTEMPTS = 5;
 const COMMON_COSTS_KEY = '__ozon_report65_common_costs__';
 const HEADER_SCAN_ROWS = 20;
+const STORAGE_HEADER_RETRY_LIMIT = 1;
+const STORAGE_HEADER_NOT_RECOGNIZED = 'Отчёт хранения Ozon: строка заголовков SKU/артикул + хранение не распознана';
 
 dotenv.config({ path: SECRET_FILE, quiet: true });
 dotenv.config({ path: path.join(ROOT, '.env'), quiet: true });
@@ -555,7 +557,7 @@ function findHeaderIndex(headers, markers) {
 
 function storageMapFromRows(rows) {
   const headerIndex = findStorageHeader(rows);
-  if (headerIndex < 0) throw new Error('Отчёт хранения Ozon: строка заголовков SKU/артикул + хранение не распознана');
+  if (headerIndex < 0) throw new Error(STORAGE_HEADER_NOT_RECOGNIZED);
   const headers = rows[headerIndex].map(normalizeHeader);
   const skuIndex = findHeaderIndex(headers, ['sku']);
   const offerIndex = findHeaderIndex(headers, ['артикул', 'offer']);
@@ -580,13 +582,31 @@ function storageMapFromRows(rows) {
   return storageMap;
 }
 
-async function fetchStorage(dateFrom, dateTo) {
-  const reportCode = await createPlacementReport(dateFrom, dateTo);
-  const fileUrl = await waitForReport(reportCode);
-  const buffer = await downloadReport(fileUrl);
-  const rows = await parseReportRows(buffer);
-  if (!rows.length) throw new Error('Отчёт хранения Ozon пуст; запись отменена');
-  return storageMapFromRows(rows);
+async function fetchStorage(dateFrom, dateTo, dependencies = {}) {
+  const createReport = dependencies.createPlacementReport || createPlacementReport;
+  const waitForFile = dependencies.waitForReport || waitForReport;
+  const download = dependencies.downloadReport || downloadReport;
+  const parseRows = dependencies.parseReportRows || parseReportRows;
+  const buildStorageMap = dependencies.storageMapFromRows || storageMapFromRows;
+
+  let headerRetry = 0;
+  while (true) {
+    const reportCode = await createReport(dateFrom, dateTo);
+    const fileUrl = await waitForFile(reportCode);
+    const buffer = await download(fileUrl);
+    const rows = await parseRows(buffer);
+    if (!rows.length) throw new Error('Отчёт хранения Ozon пуст; запись отменена');
+
+    try {
+      return buildStorageMap(rows);
+    } catch (error) {
+      if (error.message !== STORAGE_HEADER_NOT_RECOGNIZED || headerRetry >= STORAGE_HEADER_RETRY_LIMIT) {
+        throw error;
+      }
+      headerRetry++;
+      log(`Заголовок отчёта хранения ${reportCode} не распознан; запрашиваем новый файл (повтор ${headerRetry}/${STORAGE_HEADER_RETRY_LIMIT})`);
+    }
+  }
 }
 
 function mergeBucket(target, source) {
@@ -724,3 +744,5 @@ if (require.main === module) {
     process.exitCode = 1;
   });
 }
+
+module.exports = { fetchStorage, storageMapFromRows };

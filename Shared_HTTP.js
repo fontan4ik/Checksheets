@@ -2,6 +2,24 @@
 // FETCHAPP - HTTP библиотека с retry логикой
 // ============================================
 
+function retryAfterDelayMs_(response) {
+  let headers = {};
+  try {
+    headers = response.getAllHeaders ? response.getAllHeaders() : {};
+  } catch (e) {
+    return null;
+  }
+
+  const key = Object.keys(headers).find(name => name.toLowerCase() === 'retry-after');
+  if (!key) return null;
+  const rawValue = Array.isArray(headers[key]) ? headers[key][0] : headers[key];
+  const seconds = Number(rawValue);
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1000;
+
+  const retryAt = Date.parse(String(rawValue));
+  return Number.isFinite(retryAt) ? Math.max(0, retryAt - Date.now()) : null;
+}
+
 /**
  * retryFetch - Выполняет HTTP запрос с повторными попытками
  *
@@ -12,8 +30,11 @@
  */
 function retryFetch(url, options, maxRetries) {
   const retries = maxRetries || 5;
+  const rateLimitWaitBudgetMs = 90 * 1000;
+  let rateLimitWaitedMs = 0;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
+    let waitTime = null;
     try {
       const response = UrlFetchApp.fetch(url, options);
       const responseCode = response.getResponseCode();
@@ -35,6 +56,18 @@ function retryFetch(url, options, maxRetries) {
         return response; // Возвращаем последний ответ чтобы вызывающий видел ошибку
       }
 
+      if (responseCode === 429) {
+        const retryAfterMs = retryAfterDelayMs_(response);
+        waitTime = retryAfterMs === null
+          ? Math.pow(2, attempt) * 1500
+          : retryAfterMs;
+        if (rateLimitWaitedMs + waitTime > rateLimitWaitBudgetMs) {
+          Logger.log(`🚫 Retry-After для HTTP 429 превышает бюджет ожидания ${rateLimitWaitBudgetMs / 1000}с; возвращаю ответ вызывающему коду`);
+          return response;
+        }
+        rateLimitWaitedMs += waitTime;
+      }
+
     } catch (e) {
       Logger.log(`❌ Ошибка сети в retryFetch (попытка ${attempt}/${retries}): ${e.toString()}`);
       
@@ -44,10 +77,11 @@ function retryFetch(url, options, maxRetries) {
       }
     }
 
-    // Экспоненциальная задержка: 3с, 6с, 12с... (увеличено для WB)
     if (attempt < retries) {
-      const waitTime = Math.pow(2, attempt) * 1500; 
-      Logger.log(`   Пауза ${waitTime/1000}с...`);
+      // Honor Ozon's Retry-After on 429; keep exponential backoff for 5xx,
+      // network failures, and 429 responses without that header.
+      if (waitTime === null) waitTime = Math.pow(2, attempt) * 1500;
+      Logger.log(`   Пауза ${waitTime / 1000}с...`);
       Utilities.sleep(waitTime);
     }
   }

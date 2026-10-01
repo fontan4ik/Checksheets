@@ -237,6 +237,28 @@ async function readFeronStocksFromSheet(auth) {
   return stocks;
 }
 
+async function readFeronStocksWithRetries(auth, context) {
+  const maxReadRetries = 5;
+  for (let attempt = 1; attempt <= maxReadRetries; attempt++) {
+    try {
+      log(`📊 Чтение данных из листа "${SHEET_NAME}" (${context}, попытка ${attempt}/${maxReadRetries})...`);
+      return await readFeronStocksFromSheet(auth);
+    } catch (err) {
+      log(`⚠️ Ошибка чтения листа (${context}, попытка ${attempt}/${maxReadRetries}): ${err.message || err}`);
+      if (attempt === maxReadRetries) throw err;
+      const errMsg = String(err.message || err).toLowerCase();
+      const isQuotaOrLock =
+        errMsg.includes("exhausted") || errMsg.includes("429") ||
+        errMsg.includes("socket hang up") || errMsg.includes("etimedout") ||
+        errMsg.includes("timeout") || errMsg.includes("500") || errMsg.includes("503");
+      const delay = isQuotaOrLock ? 30000 * attempt : 5000 * attempt;
+      log(`⏳ Ожидание ${delay / 1000} сек перед повтором (${context}; ${isQuotaOrLock ? "квота/перегрузка Google" : "стандартная ошибка"})...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error(`Не удалось прочитать лист ${SHEET_NAME} (${context})`);
+}
+
 const WB_TOKEN_FILE =
   process.env.WB_API_TOKEN_FILE ||
   path.join(
@@ -1008,31 +1030,7 @@ async function main() {
   const client = await auth.getClient();
   google.options({ auth: client });
 
-  let stocks = [];
-  const maxReadRetries = 5;
-  for (let attempt = 1; attempt <= maxReadRetries; attempt++) {
-    try {
-      log(`📊 Шаг 1: Чтение данных из листа "${SHEET_NAME}" (попытка ${attempt}/${maxReadRetries})...`);
-      stocks = await readFeronStocksFromSheet(client);
-      break;
-    } catch (err) {
-      log(`⚠️ Ошибка чтения листа (попытка ${attempt}/${maxReadRetries}): ${err.message || err}`);
-      if (attempt === maxReadRetries) throw err;
-      const errMsg = String(err.message || err).toLowerCase();
-      const isQuotaOrLock =
-        errMsg.includes("exhausted") ||
-        errMsg.includes("429") ||
-        errMsg.includes("socket hang up") ||
-        errMsg.includes("etimedout") ||
-        errMsg.includes("timeout") ||
-        errMsg.includes("500") ||
-        errMsg.includes("503");
-
-      const delay = isQuotaOrLock ? 30000 * attempt : 5000 * attempt;
-      log(`⏳ Ожидание ${delay / 1000} сек перед повтором (тип ошибки: ${isQuotaOrLock ? "квота/перегрузка Google" : "стандартная"})...`);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
+  let stocks = await readFeronStocksWithRetries(client, "исходный снимок");
 
   if (stocks.length === 0) {
     log("❌ Нет данных для синхронизации");
@@ -1055,7 +1053,15 @@ async function main() {
 
   log(``);
   log(`🟣 Шаг 3: Обновление остатков WB...`);
-  const wbWarehouseStats = marketplace !== "ozon" ? await updateFeronStocksWB(stocks) : [];
+  let wbWarehouseStats = [];
+  if (marketplace !== "ozon") {
+    log(`📊 Перечитываем StreamSupps непосредственно перед WB записью, чтобы снимок не устарел за время Ozon этапа...`);
+    const wbStocks = await readFeronStocksWithRetries(client, "снимок перед WB");
+    if (wbStocks.length === 0) {
+      throw new Error("Перед WB записью лист StreamSupps прочитан пустым; старый снимок не отправляю");
+    }
+    wbWarehouseStats = await updateFeronStocksWB(wbStocks);
+  }
 
   if (ozonPendingChecks.length > 0) {
     log(``);

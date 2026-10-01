@@ -1431,7 +1431,15 @@ async function main() {
 
   log("");
   log("🟣 Шаг 3: Обновление остатков WB (ВольтМир)...");
-  const wbSyncStats = marketplace !== "ozon" ? await updateETMStocksWB(stocks) : null;
+  let wbSyncStats = null;
+  if (marketplace !== "ozon") {
+    log("📊 Перечитываем StreamSupps непосредственно перед WB записью, чтобы не отправлять снимок до долгой Ozon синхронизации...");
+    const wbStocks = await readETMStocksFromSheet(client);
+    if (wbStocks.length === 0) {
+      throw new Error("Перед WB записью лист StreamSupps прочитан пустым; старый снимок не отправляю");
+    }
+    wbSyncStats = await updateETMStocksWB(wbStocks);
+  }
 
   log("");
   let ozonStats;
