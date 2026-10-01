@@ -1,6 +1,22 @@
 {
-  "generated_at": "2026-09-30T08:43:44.741765+00:00",
+  "generated_at": "2026-10-01T05:32:02.598015+00:00",
   "nodes": {
+    "docs_checksheets_project_context_20260702_launchagents_schedule": {
+      "code_fingerprint": "5bf074d42a59f42365b555046a0e3601af391e3545f0ea95de9af9a6f44edf8d",
+      "label": "LaunchAgents schedule",
+      "last": "2026-09-30T08:53:17.432067+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-30T08:53:17.432067+00:00",
+          "outcome": "useful",
+          "q": "посмотри корректно ли и за какой период прогружаются колонки в тесте AZ BH BI и стоят ли триггеры или локальные лаунчджобы"
+        }
+      ],
+      "score": 0.980320344,
+      "source_file": "Docs/CHECKSHEETS_PROJECT_CONTEXT_20260702.md",
+      "status": "tentative",
+      "uses": 1
+    },
     "flow_нтц_списания_fbs_резерв_installntcwriteoffs": {
       "code_fingerprint": "a170f5b78bc3920ab0e3afffa58404c3f816b039c1601be78ac59b8123e6a4fe",
       "label": "installNtcWriteOffs()",
@@ -12,7 +28,7 @@
           "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
         }
       ],
-      "score": 0.972796311,
+      "score": 0.953505976,
       "source_file": "Flow_НТЦ_списания__FBS_резерв.js",
       "status": "tentative",
       "uses": 1
@@ -28,8 +44,40 @@
           "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
         }
       ],
-      "score": 0.972796311,
+      "score": 0.953505976,
       "source_file": "Flow_НТЦ_списания__FBS_резерв.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "list_тест_bh_bi_отмены_возвраты_ozon": {
+      "code_fingerprint": "257eed5903e4826d720498a99fe14d6a9d102438071c7b5fa6c4c37c4c3ec7ec",
+      "label": "List_ТЕСТ__BH_BI__Отмены_Возвраты_Ozon.js",
+      "last": "2026-09-30T08:53:17.432067+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-30T08:53:17.432067+00:00",
+          "outcome": "useful",
+          "q": "посмотри корректно ли и за какой период прогружаются колонки в тесте AZ BH BI и стоят ли триггеры или локальные лаунчджобы"
+        }
+      ],
+      "score": 0.980320344,
+      "source_file": "List_ТЕСТ__BH_BI__Отмены_Возвраты_Ozon.js",
+      "status": "tentative",
+      "uses": 1
+    },
+    "list_тест_bh_bi_отмены_возвраты_ozon_updateozoncancellationsandreturns": {
+      "code_fingerprint": "257eed5903e4826d720498a99fe14d6a9d102438071c7b5fa6c4c37c4c3ec7ec",
+      "label": "updateOzonCancellationsAndReturns()",
+      "last": "2026-09-30T08:53:17.432067+00:00",
+      "provenance": [
+        {
+          "date": "2026-09-30T08:53:17.432067+00:00",
+          "outcome": "useful",
+          "q": "посмотри корректно ли и за какой период прогружаются колонки в тесте AZ BH BI и стоят ли триггеры или локальные лаунчджобы"
+        }
+      ],
+      "score": 0.980320344,
+      "source_file": "List_ТЕСТ__BH_BI__Отмены_Возвраты_Ozon.js",
       "status": "tentative",
       "uses": 1
     },
@@ -44,7 +92,7 @@
           "q": "Найди почему"
         }
       ],
-      "score": 0.979115504,
+      "score": 0.95969986,
       "source_file": "List_ТЕСТ__I_J_L_AO__Заказы_Ozon.js",
       "status": "tentative",
       "uses": 1
@@ -60,7 +108,7 @@
           "q": "Найди почему"
         }
       ],
-      "score": 0.979115504,
+      "score": 0.95969986,
       "source_file": "List_ТЕСТ__I_J_L_AO__Заказы_Ozon.js",
       "status": "tentative",
       "uses": 1
@@ -76,7 +124,7 @@
           "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
         }
       ],
-      "score": 0.972796311,
+      "score": 0.953505976,
       "source_file": "ntc_f_stage.py",
       "status": "tentative",
       "uses": 1
@@ -92,7 +140,7 @@
           "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
         }
       ],
-      "score": 0.972796311,
+      "score": 0.953505976,
       "source_file": "ntc_fbs_reserve_sync.py",
       "status": "tentative",
       "uses": 1
@@ -108,7 +156,7 @@
           "q": "У нас в проекте есть скрипт который работает с листом НТЦ списания расспиши мне подробно как он работает"
         }
       ],
-      "score": 0.972796311,
+      "score": 0.953505976,
       "source_file": "ntc_live_local.py",
       "status": "tentative",
       "uses": 1
