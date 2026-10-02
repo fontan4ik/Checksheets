@@ -85,8 +85,9 @@ function apiHeaders() {
   return { 'Client-Id': clientId, 'Api-Key': apiKey, 'Content-Type': 'application/json' };
 }
 
-async function requestBuyouts(dateFrom, dateTo, headers) {
+async function requestBuyouts(dateFrom, dateTo, headers, limiter) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    await limiter();
     try {
       const response = await axios.post(BUYOUT_URL, { date_from: dateFrom, date_to: dateTo }, {
         headers,
@@ -127,8 +128,7 @@ async function fetchBuyouts(range, headers, limiter) {
   let productRows = 0;
   const periods = splitPeriod(range.from, range.to);
   for (const period of periods) {
-    await limiter();
-    const products = await requestBuyouts(period.from, period.to, headers);
+    const products = await requestBuyouts(period.from, period.to, headers, limiter);
     productRows += products.length;
     for (const product of products) {
       const sku = normalizeSku(product?.sku);
