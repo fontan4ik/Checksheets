@@ -19,6 +19,7 @@ const SECRET_FILE = process.env.OZON_REVIEWS_SECRETS_FILE || '/Users/vladimirgre
 const SKU_COLUMN = 22; // V: SKU Ozon
 const MAX_PERIOD_DAYS = 31;
 const MAX_ATTEMPTS = 5;
+const REQUEST_INTERVAL_MS = 1200;
 const QUARTER_HEADER = 'Выкупы Ozon, шт за 3 месяца';
 const YEAR_HEADER = 'Выкупы Ozon, шт за 12 месяцев';
 const OUTPUT_HEADERS = [QUARTER_HEADER, YEAR_HEADER];
@@ -107,13 +108,13 @@ async function requestBuyouts(dateFrom, dateTo, headers) {
       }
 
       const retryAfter = Number(response.headers?.['retry-after']);
-      const delayMs = Math.max(Number.isFinite(retryAfter) ? retryAfter * 1000 : 0, Math.min(60000, 2000 * 2 ** attempt));
-      log(`Ozon HTTP ${response.status}; повтор через ${Math.ceil(delayMs / 1000)} сек`);
+      const delayMs = Math.max(Number.isFinite(retryAfter) ? retryAfter * 1000 : 0, Math.min(60000, 10000 * 2 ** attempt));
+      log(`Ozon HTTP ${response.status}: ${JSON.stringify(response.data).slice(0, 200)}; повтор через ${Math.ceil(delayMs / 1000)} сек`);
       await sleep(delayMs);
     } catch (error) {
       if (/^Ozon Buyout API HTTP 4\d\d/.test(error.message) || /нет массива products/.test(error.message)) throw error;
       if (attempt === MAX_ATTEMPTS - 1) throw error;
-      const delayMs = Math.min(60000, 2000 * 2 ** attempt);
+      const delayMs = Math.min(60000, 10000 * 2 ** attempt);
       log(`Сбой запроса Ozon; повтор через ${Math.ceil(delayMs / 1000)} сек: ${error.message}`);
       await sleep(delayMs);
     }
@@ -337,7 +338,7 @@ async function main() {
 
   let lastRequestAt = 0;
   const limiter = async () => {
-    const wait = 100 - (Date.now() - lastRequestAt);
+    const wait = REQUEST_INTERVAL_MS - (Date.now() - lastRequestAt);
     if (wait > 0) await sleep(wait);
     lastRequestAt = Date.now();
   };
