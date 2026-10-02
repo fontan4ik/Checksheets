@@ -29,6 +29,27 @@ const FERON_TR_WB_WAREHOUSE = {
   EKB: 1860503,
 };
 
+const FERON_PAUSED_WAREHOUSES_FILE = path.join(
+  __dirname,
+  "logs",
+  "feron-marketplace-paused-warehouses.txt",
+);
+const FERON_WAREHOUSE_KEYS = new Set(["MSK", "SMR", "NSB", "EKB"]);
+
+function readPausedFeronWarehouseKeys() {
+  if (!fs.existsSync(FERON_PAUSED_WAREHOUSES_FILE)) return new Set();
+
+  const keys = fs.readFileSync(FERON_PAUSED_WAREHOUSES_FILE, "utf8")
+    .split(/[\s,;]+/)
+    .map((key) => key.trim().toUpperCase())
+    .filter(Boolean);
+  const unknownKeys = [...new Set(keys)].filter((key) => !FERON_WAREHOUSE_KEYS.has(key));
+  if (unknownKeys.length > 0) {
+    throw new Error(`Unknown paused Feron warehouse key(s): ${unknownKeys.join(", ")}`);
+  }
+  return new Set(keys);
+}
+
 const FERON_TR_SCHEMA = {
   vendor_code: STREAM_SUPPS_HEADERS.offerId,
   brand: STREAM_SUPPS_HEADERS.brand,
@@ -460,7 +481,7 @@ async function updateFeronStocksOzonWithRetry(
   }
 }
 
-async function updateFeronStocksOzon(stocks) {
+async function updateFeronStocksOzon(stocks, pausedWarehouseKeys) {
   log(`🟠 Обновление остатков Ozon (4 склада)...`);
 
   const validStocks = stocks.filter((s) => s.offer_id);
@@ -504,6 +525,27 @@ async function updateFeronStocksOzon(stocks) {
 
   for (const wh of warehouses) {
     log(`\n📦 Обработка склада: ${wh.name} (ID: ${wh.id})...`);
+
+    if (pausedWarehouseKeys.has(wh.key)) {
+      const sourcePositiveSku = validStocks.filter((item) => Number(item[wh.col]) > 0).length;
+      log(`⏸️ Выгрузка Feron на Ozon для склада ${wh.name} приостановлена; запросы не отправляются`);
+      ozonWarehouseStats.push({
+        warehouseName: wh.name,
+        warehouseId: wh.id,
+        sheetPositiveCount: sourcePositiveSku,
+        marketplacePositiveCount: null,
+        marketplaceTotalPieces: null,
+        sourcePositiveSku,
+        attemptedSku: 0,
+        acceptedSku: 0,
+        skippedSku: 0,
+        errorSku: 0,
+        mismatchSku: 0,
+        verificationStatus: "paused",
+        snapshotReadAt: stocks.snapshotReadAt || null,
+      });
+      continue;
+    }
 
     const batchSize = 100;
     const batches = Math.ceil(validStocks.length / batchSize);
@@ -801,7 +843,7 @@ async function processFeronWBConflictIndividually(
   return { successCount, skippedCount, errorCount };
 }
 
-async function updateFeronStocksWB(stocks) {
+async function updateFeronStocksWB(stocks, pausedWarehouseKeys) {
   log(`🟣 Обновление остатков WB FBS (4 склада)...`);
 
   const validStocks = stocks.filter((s) => s.chrt_id);
@@ -852,6 +894,28 @@ async function updateFeronStocksWB(stocks) {
 
   for (const wh of warehouses) {
     log(`\n📦 Обработка склада: ${wh.name} (ID: ${wh.id})...`);
+
+    if (pausedWarehouseKeys.has(wh.key)) {
+      const sourcePositiveSku = validStocks.filter((item) => Number(item[wh.col]) > 0).length;
+      log(`⏸️ Выгрузка Feron на WB для склада ${wh.name} приостановлена; запросы не отправляются`);
+      wbWarehouseStats.push({
+        warehouseName: wh.name,
+        warehouseId: wh.id,
+        activeSku: sourcePositiveSku,
+        marketplaceStockSku: null,
+        marketplaceTotalPieces: null,
+        sourcePositiveSku,
+        attemptedSku: 0,
+        acceptedSku: 0,
+        skippedSku: 0,
+        errorSku: 0,
+        verificationStatus: "paused",
+        runId: audit.runId,
+        snapshotReadAt: stocks.snapshotReadAt || null,
+        snapshotSources: stocks.wbSourceColumns || null,
+      });
+      continue;
+    }
 
     if (FORCE_ZERO_WB_EKB && wh.key === "EKB") {
       log(`⏸️ FORCE_ZERO_WB_EKB: склад EKB будет записан нулями`);
@@ -1013,11 +1077,15 @@ async function updateFeronStocksWB(stocks) {
 async function main() {
   const marketplace = process.argv.find((arg) => arg.startsWith("--marketplace="))?.split("=")[1] || "all";
   if (!["all", "ozon", "wb"].includes(marketplace)) throw new Error(`Unknown marketplace: ${marketplace}`);
+  const pausedWarehouseKeys = readPausedFeronWarehouseKeys();
   console.log("============================================");
   console.log("🔄 СИНХРОНИЗАЦИЯ ОСТАТКОВ FERON (LOCAL)");
   console.log("============================================");
 
   const startTime = new Date();
+  if (pausedWarehouseKeys.size > 0) {
+    log(`⏸️ Пауза Feron для складов: ${[...pausedWarehouseKeys].join(", ")}; остальные склады продолжают выгружаться`);
+  }
 
   const auth = new google.auth.GoogleAuth({
     keyFile: path.join(
@@ -1048,7 +1116,7 @@ async function main() {
   log(``);
   log(`🟠 Шаг 2: Обновление остатков Ozon...`);
   const { pendingChecks: ozonPendingChecks, ozonWarehouseStats } = marketplace !== "wb"
-    ? await updateFeronStocksOzon(stocks)
+    ? await updateFeronStocksOzon(stocks, pausedWarehouseKeys)
     : { pendingChecks: [], ozonWarehouseStats: [] };
 
   log(``);
@@ -1060,7 +1128,7 @@ async function main() {
     if (wbStocks.length === 0) {
       throw new Error("Перед WB записью лист StreamSupps прочитан пустым; старый снимок не отправляю");
     }
-    wbWarehouseStats = await updateFeronStocksWB(wbStocks);
+    wbWarehouseStats = await updateFeronStocksWB(wbStocks, pausedWarehouseKeys);
   }
 
   if (ozonPendingChecks.length > 0) {
