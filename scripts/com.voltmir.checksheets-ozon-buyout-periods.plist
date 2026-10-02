@@ -21,8 +21,8 @@
   <dict>
     <key>Hour</key>
     <integer>7</integer>
-    <key>Minute</key>
-    <integer>25</integer>
+  <key>Minute</key>
+    <integer>0</integer>
   </dict>
   <key>RunAtLoad</key>
   <false/>
