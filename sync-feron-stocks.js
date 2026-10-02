@@ -35,6 +35,7 @@ const FERON_PAUSED_WAREHOUSES_FILE = path.join(
   "feron-marketplace-paused-warehouses.txt",
 );
 const FERON_WAREHOUSE_KEYS = new Set(["MSK", "SMR", "NSB", "EKB"]);
+const FERON_ZERO_TARGET_WAREHOUSE_KEYS = new Set(["NSB", "EKB"]);
 
 function readPausedFeronWarehouseKeys() {
   if (!fs.existsSync(FERON_PAUSED_WAREHOUSES_FILE)) return new Set();
@@ -359,7 +360,7 @@ async function fetchOzonWarehouseStocksByOfferId(
 async function verifyFeronOzonWarehouse(
   stocks,
   warehouse,
-  { ignoredOfferIds = new Set(), httpClient = axios } = {},
+  { ignoredOfferIds = new Set(), httpClient = axios, expectedStockOverride = null } = {},
 ) {
   const expected = stocks.filter(
     (item) => item.offer_id && !ignoredOfferIds.has(String(item.offer_id)),
@@ -379,7 +380,7 @@ async function verifyFeronOzonWarehouse(
   let marketplaceTotalPieces = 0;
 
   expected.forEach((item) => {
-    const expectedStock = Number(item[warehouse.col]) || 0;
+    const expectedStock = Number(expectedStockOverride ?? item[warehouse.col]) || 0;
     const actual = actualMap.get(String(item.offer_id));
     const actualStock = actual?.free_stock ?? 0;
     const freeStock = actual?.free_stock ?? 0;
@@ -401,7 +402,7 @@ async function verifyFeronOzonWarehouse(
       if (samples.length < 10) {
         const skuLabel = item.ozon_sku ? ` [sku=${item.ozon_sku}]` : "";
         samples.push(
-          `${item.offer_id}${skuLabel}: sheet=${expectedStock}, ozon=${actualStock}, free=${actual?.free_stock ?? 0}`,
+          `${item.offer_id}${skuLabel}: expected=${expectedStock}, ozon=${actualStock}, free=${actual?.free_stock ?? 0}`,
         );
       }
     }
@@ -430,11 +431,12 @@ async function updateFeronStocksOzonWithRetry(
   warehouseId,
   colName,
   retryCount = 0,
+  forceZero = false,
 ) {
   const body = {
     stocks: batch.map((item) => ({
       offer_id: String(item.offer_id),
-      stock: item[colName],
+      stock: forceZero ? 0 : item[colName],
       warehouse_id: warehouseId,
     })),
   };
@@ -469,7 +471,7 @@ async function updateFeronStocksOzonWithRetry(
         "...",
       );
       await new Promise((r) => setTimeout(r, delay));
-      return updateFeronStocksOzonWithRetry(batch, warehouseId, colName, retryCount + 1);
+      return updateFeronStocksOzonWithRetry(batch, warehouseId, colName, retryCount + 1, forceZero);
     }
 
     if (code === 429) {
@@ -481,7 +483,7 @@ async function updateFeronStocksOzonWithRetry(
   }
 }
 
-async function updateFeronStocksOzon(stocks, pausedWarehouseKeys) {
+async function updateFeronStocksOzon(stocks, pausedWarehouseKeys, zeroPausedWarehouses = false) {
   log(`🟠 Обновление остатков Ozon (4 склада)...`);
 
   const validStocks = stocks.filter((s) => s.offer_id);
@@ -526,7 +528,12 @@ async function updateFeronStocksOzon(stocks, pausedWarehouseKeys) {
   for (const wh of warehouses) {
     log(`\n📦 Обработка склада: ${wh.name} (ID: ${wh.id})...`);
 
-    if (pausedWarehouseKeys.has(wh.key)) {
+    if (zeroPausedWarehouses && !pausedWarehouseKeys.has(wh.key)) {
+      log(`⏭️ Режим обнуления: склад ${wh.name} не входит в цель; запросы не отправляются`);
+      continue;
+    }
+
+    if (pausedWarehouseKeys.has(wh.key) && !zeroPausedWarehouses) {
       const sourcePositiveSku = validStocks.filter((item) => Number(item[wh.col]) > 0).length;
       log(`⏸️ Выгрузка Feron на Ozon для склада ${wh.name} приостановлена; запросы не отправляются`);
       ozonWarehouseStats.push({
@@ -562,7 +569,13 @@ async function updateFeronStocksOzon(stocks, pausedWarehouseKeys) {
 
       log(`📤 Отправка на Ozon ${wh.name}: ${batch.length} товаров, первый: offer_id=${batch[0]?.offer_id}, ${wh.col}=${batch[0]?.[wh.col]}`);
 
-      const result = await updateFeronStocksOzonWithRetry(batch, wh.id, wh.col);
+      const result = await updateFeronStocksOzonWithRetry(
+        batch,
+        wh.id,
+        wh.col,
+        0,
+        zeroPausedWarehouses,
+      );
 
       if (result.ok && result.data?.result) {
         const itemResults = result.data.result;
@@ -606,7 +619,11 @@ async function updateFeronStocksOzon(stocks, pausedWarehouseKeys) {
       `⏳ Ожидание ${OZON_POSTCHECK_DELAY_MS / 1000} сек перед промежуточным Ozon post-check ${wh.name}...`,
     );
     await new Promise((resolve) => setTimeout(resolve, OZON_POSTCHECK_DELAY_MS));
-    const mismatches = await verifyFeronOzonWarehouse(validStocks, wh, { ignoredOfferIds: skippedOfferIds });
+    const expectedStockOverride = zeroPausedWarehouses ? 0 : null;
+    const mismatches = await verifyFeronOzonWarehouse(validStocks, wh, {
+      ignoredOfferIds: skippedOfferIds,
+      expectedStockOverride,
+    });
     ozonWarehouseStats.push({
       ...(mismatches.stats || {
         warehouseName: wh.name,
@@ -629,7 +646,7 @@ async function updateFeronStocksOzon(stocks, pausedWarehouseKeys) {
       log(
         `ℹ️ Промежуточные расхождения Ozon ${wh.name} будут перепроверены в конце скрипта после WB: ${mismatches.length}`,
       );
-      pendingChecks.push({ warehouse: wh, mismatches, skippedOfferIds });
+      pendingChecks.push({ warehouse: wh, mismatches, skippedOfferIds, expectedStockOverride });
     }
     totalSuccess += warehouseSuccess;
     totalSkipped += warehouseSkipped;
@@ -843,7 +860,7 @@ async function processFeronWBConflictIndividually(
   return { successCount, skippedCount, errorCount };
 }
 
-async function updateFeronStocksWB(stocks, pausedWarehouseKeys) {
+async function updateFeronStocksWB(stocks, pausedWarehouseKeys, zeroPausedWarehouses = false) {
   log(`🟣 Обновление остатков WB FBS (4 склада)...`);
 
   const validStocks = stocks.filter((s) => s.chrt_id);
@@ -895,7 +912,12 @@ async function updateFeronStocksWB(stocks, pausedWarehouseKeys) {
   for (const wh of warehouses) {
     log(`\n📦 Обработка склада: ${wh.name} (ID: ${wh.id})...`);
 
-    if (pausedWarehouseKeys.has(wh.key)) {
+    if (zeroPausedWarehouses && !pausedWarehouseKeys.has(wh.key)) {
+      log(`⏭️ Режим обнуления: склад ${wh.name} не входит в цель; запросы не отправляются`);
+      continue;
+    }
+
+    if (pausedWarehouseKeys.has(wh.key) && !zeroPausedWarehouses) {
       const sourcePositiveSku = validStocks.filter((item) => Number(item[wh.col]) > 0).length;
       log(`⏸️ Выгрузка Feron на WB для склада ${wh.name} приостановлена; запросы не отправляются`);
       wbWarehouseStats.push({
@@ -922,7 +944,7 @@ async function updateFeronStocksWB(stocks, pausedWarehouseKeys) {
     }
 
     const activeCount = validStocks.filter((s) => {
-      const amt = FORCE_ZERO_WB_EKB && wh.key === "EKB" ? 0 : s[wh.col];
+      const amt = zeroPausedWarehouses || (FORCE_ZERO_WB_EKB && wh.key === "EKB") ? 0 : s[wh.col];
       return amt > 0;
     }).length;
     wbWarehouseStats.push({
@@ -961,7 +983,9 @@ async function updateFeronStocksWB(stocks, pausedWarehouseKeys) {
           warehouseError++;
           continue;
         }
-        const amount = FORCE_ZERO_WB_EKB && wh.key === "EKB" ? 0 : item[wh.col];
+        const amount = zeroPausedWarehouses || (FORCE_ZERO_WB_EKB && wh.key === "EKB")
+          ? 0
+          : item[wh.col];
         validBatch.push({ chrtId: idNum, amount });
         auditItems.push({ offerId: item.offer_id, chrtId: idNum, amount });
       }
@@ -1077,13 +1101,23 @@ async function updateFeronStocksWB(stocks, pausedWarehouseKeys) {
 async function main() {
   const marketplace = process.argv.find((arg) => arg.startsWith("--marketplace="))?.split("=")[1] || "all";
   if (!["all", "ozon", "wb"].includes(marketplace)) throw new Error(`Unknown marketplace: ${marketplace}`);
+  const zeroPausedWarehouses = process.argv.includes("--zero-paused-warehouses");
   const pausedWarehouseKeys = readPausedFeronWarehouseKeys();
+  if (zeroPausedWarehouses) {
+    const hasExactTargets = pausedWarehouseKeys.size === FERON_ZERO_TARGET_WAREHOUSE_KEYS.size &&
+      [...FERON_ZERO_TARGET_WAREHOUSE_KEYS].every((key) => pausedWarehouseKeys.has(key));
+    if (!hasExactTargets) {
+      throw new Error("Zero mode requires exactly NSB and EKB in the paused warehouse file");
+    }
+  }
   console.log("============================================");
   console.log("🔄 СИНХРОНИЗАЦИЯ ОСТАТКОВ FERON (LOCAL)");
   console.log("============================================");
 
   const startTime = new Date();
-  if (pausedWarehouseKeys.size > 0) {
+  if (zeroPausedWarehouses) {
+    log(`🧹 Режим обнуления только складов: ${[...FERON_ZERO_TARGET_WAREHOUSE_KEYS].join(", ")}`);
+  } else if (pausedWarehouseKeys.size > 0) {
     log(`⏸️ Пауза Feron для складов: ${[...pausedWarehouseKeys].join(", ")}; остальные склады продолжают выгружаться`);
   }
 
@@ -1116,7 +1150,7 @@ async function main() {
   log(``);
   log(`🟠 Шаг 2: Обновление остатков Ozon...`);
   const { pendingChecks: ozonPendingChecks, ozonWarehouseStats } = marketplace !== "wb"
-    ? await updateFeronStocksOzon(stocks, pausedWarehouseKeys)
+    ? await updateFeronStocksOzon(stocks, pausedWarehouseKeys, zeroPausedWarehouses)
     : { pendingChecks: [], ozonWarehouseStats: [] };
 
   log(``);
@@ -1128,7 +1162,11 @@ async function main() {
     if (wbStocks.length === 0) {
       throw new Error("Перед WB записью лист StreamSupps прочитан пустым; старый снимок не отправляю");
     }
-    wbWarehouseStats = await updateFeronStocksWB(wbStocks, pausedWarehouseKeys);
+    wbWarehouseStats = await updateFeronStocksWB(
+      wbStocks,
+      pausedWarehouseKeys,
+      zeroPausedWarehouses,
+    );
   }
 
   if (ozonPendingChecks.length > 0) {
@@ -1146,7 +1184,10 @@ async function main() {
       const rechecked = await verifyFeronOzonWarehouse(
         stocks.filter((item) => pendingOfferIds.has(String(item.offer_id))),
         pending.warehouse,
-        { ignoredOfferIds: pending.skippedOfferIds },
+        {
+          ignoredOfferIds: pending.skippedOfferIds,
+          expectedStockOverride: pending.expectedStockOverride,
+        },
       );
       if (rechecked?.stats) {
         const idx = ozonWarehouseStats.findIndex(
