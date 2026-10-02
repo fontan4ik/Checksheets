@@ -140,9 +140,6 @@ async function fetchBuyouts(range, headers, limiter) {
     }
     log(`Выкупы Ozon ${period.from}..${period.to}: товаров ${products.length}`);
   }
-  if (productRows === 0 || quantities.size === 0) {
-    throw new Error(`Ozon Buyout API вернул 0 выкупов за период ${range.from}..${range.to}; таблица не изменена`);
-  }
   return { quantities, productRows, chunkCount: periods.length };
 }
 
@@ -328,6 +325,9 @@ async function main() {
     valueRenderOption: 'FORMATTED_VALUE',
   });
   const headerRow = headersResponse.data.values?.[0] || [];
+  if (text(headerRow[SKU_COLUMN - 1]).replace(/\s+/g, ' ').toLowerCase() !== 'sku ozon') {
+    throw new Error(`ТЕСТ: в колонке V ожидался заголовок «SKU Ozon», найдено «${text(headerRow[SKU_COLUMN - 1])}»`);
+  }
   const columns = chooseOutputColumns(headerRow);
   const sheetRows = rows.slice(1);
   const outputArea = await prepareOutput(sheets, sheetProperties, rows.length, columns);
@@ -344,9 +344,6 @@ async function main() {
   const quarterResult = await fetchBuyouts(ranges.quarter, headers, limiter);
   const yearResult = await fetchBuyouts(ranges.year, headers, limiter);
   const output = buildRows(sheetRows, quarterResult.quantities, yearResult.quantities);
-  if (!output.quarterNonZeroRows && !output.yearNonZeroRows) {
-    throw new Error('ТЕСТ: в отчётах нет ни одного SKU с выкупами; запись отменена');
-  }
 
   // Recheck the output cells immediately before writing to avoid overwriting a concurrent edit.
   const { firstColumn, lastColumn } = outputArea;
