@@ -9,6 +9,7 @@ case "$MARKETPLACE" in ozon|wb|yandex) ;; *) echo "Usage: $0 ozon|wb|yandex" >&2
 mkdir -p "$ROOT/logs" /tmp/checksheets_locks
 LOCK="/tmp/checksheets_locks/marketplace_${MARKETPLACE}.lock"
 LOG="$ROOT/logs/marketplace_${MARKETPLACE}_$(date +%Y%m%d).log"
+FERON_MARKETPLACE_PAUSE_FLAG="$ROOT/logs/feron-marketplace-sync.paused"
 if ! mkdir "$LOCK" 2>/dev/null; then
   OLD_PID=$(cat "$LOCK/pid" 2>/dev/null || true)
   if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
@@ -25,6 +26,10 @@ cd "$ROOT" || exit 1
 
 FAILED=0
 run_supplier() {
+  if [ "$1" = "sync-feron-stocks.js" ] && [ -f "$FERON_MARKETPLACE_PAUSE_FLAG" ]; then
+    echo "[$(date)] $MARKETPLACE: skipping $1; Feron marketplace sync is paused (remove $FERON_MARKETPLACE_PAUSE_FLAG to resume)" >> "$LOG"
+    return 0
+  fi
   echo "[$(date)] $MARKETPLACE: starting $1" >> "$LOG"
   /opt/homebrew/bin/node "$1" "--marketplace=$MARKETPLACE" >> "$LOG" 2>&1
   RESULT=$?
