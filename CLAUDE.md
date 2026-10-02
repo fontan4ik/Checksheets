@@ -61,6 +61,7 @@ These run on local servers or machines to update Google Sheets via the API:
 
 *   **`ozon_fbo_fbs_sales_local.js`** — Owns the scheduled Ozon sales refresh for AQ:AT; the Apps Script file retains only a legacy trigger shim.
 *   **`ozon_reviews_local.js`** — Owns the scheduled Ozon review-count refresh for BL; the Apps Script file retains only legacy trigger shims.
+*   **`ozon_buyout_periods_local.js`** — Writes Ozon buyout quantities for rolling 3- and 12-month periods to the final two columns of `ТЕСТ` (BU:BV).
 
 ---
 
