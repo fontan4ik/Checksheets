@@ -19,7 +19,8 @@ const SECRET_FILE = process.env.OZON_REVIEWS_SECRETS_FILE || '/Users/vladimirgre
 const SKU_COLUMN = 22; // V: SKU Ozon
 const MAX_PERIOD_DAYS = 31;
 const MAX_ATTEMPTS = 5;
-const REQUEST_INTERVAL_MS = 1200;
+// Ozon returns Retry-After values near 60 seconds for this finance endpoint.
+const REQUEST_INTERVAL_MS = 60_000;
 const QUARTER_HEADER = 'Выкупы Ozon, шт за 3 месяца';
 const YEAR_HEADER = 'Выкупы Ozon, шт за 12 месяцев';
 const OUTPUT_HEADERS = [QUARTER_HEADER, YEAR_HEADER];
