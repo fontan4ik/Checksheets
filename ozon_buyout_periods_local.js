@@ -18,7 +18,7 @@ const BUYOUT_URL = 'https://api-seller.ozon.ru/v1/finance/products/buyout';
 const SECRET_FILE = process.env.OZON_REVIEWS_SECRETS_FILE || '/Users/vladimirgrebennikov/AI agents/secrets/ozon-reviews.env';
 const SKU_COLUMN = 22; // V: SKU Ozon
 const MAX_PERIOD_DAYS = 31;
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 10;
 // Ozon returns Retry-After values near 60 seconds for this finance endpoint.
 const REQUEST_INTERVAL_MS = 60_000;
 const QUARTER_HEADER = 'Выкупы Ozon, шт за 3 месяца';
