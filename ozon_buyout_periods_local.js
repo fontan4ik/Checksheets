@@ -19,8 +19,8 @@ const SECRET_FILE = process.env.OZON_REVIEWS_SECRETS_FILE || '/Users/vladimirgre
 const SKU_COLUMN = 22; // V: SKU Ozon
 const MAX_PERIOD_DAYS = 31;
 const MAX_ATTEMPTS = 5;
-const QUARTER_HEADER = 'Выкупы Ozon, шт за квартал';
-const YEAR_HEADER = 'Выкупы Ozon, шт за год';
+const QUARTER_HEADER = 'Выкупы Ozon, шт за 3 месяца';
+const YEAR_HEADER = 'Выкупы Ozon, шт за 12 месяцев';
 const OUTPUT_HEADERS = [QUARTER_HEADER, YEAR_HEADER];
 
 dotenv.config({ path: SECRET_FILE, quiet: true });
@@ -52,11 +52,9 @@ function subtractCalendarMonths(date, months) {
 
 function getDateRanges(now = new Date()) {
   const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-  const yearFrom = new Date(yesterday);
-  yearFrom.setDate(yearFrom.getDate() - 364); // 365 inclusive calendar days
   return {
     quarter: { from: formatDate(subtractCalendarMonths(yesterday, 3)), to: formatDate(yesterday) },
-    year: { from: formatDate(yearFrom), to: formatDate(yesterday) },
+    year: { from: formatDate(subtractCalendarMonths(yesterday, 12)), to: formatDate(yesterday) },
   };
 }
 
@@ -135,7 +133,7 @@ async function fetchBuyouts(range, headers, limiter) {
       const sku = normalizeSku(product?.sku);
       if (!sku) continue;
       const quantity = Number(product?.quantity);
-      if (!Number.isFinite(quantity) || quantity < 0) {
+      if (!Number.isFinite(quantity)) {
         throw new Error(`Ozon Buyout API: некорректное quantity у SKU ${sku} за ${period.from}..${period.to}`);
       }
       quantities.set(sku, (quantities.get(sku) || 0) + quantity);
@@ -215,14 +213,7 @@ async function prepareOutput(sheets, sheetProperties, rowCount, outputColumns) {
     valueRenderOption: 'FORMULA',
   });
   const values = existing.data.values || [];
-  const expectedHeaders = new Map(outputColumns.map((column, index) => [column - firstColumn, OUTPUT_HEADERS[index]]));
   const hasBothHeaders = outputColumns.every((column, index) => text(values[0]?.[column - firstColumn]) === OUTPUT_HEADERS[index]);
-  if (!hasBothHeaders && values.some((row, rowIndex) => row.some((value, offset) => {
-    const column = firstColumn + offset;
-    return !expectedHeaders.has(offset) && Boolean(text(value));
-  }))) {
-    throw new Error(`ТЕСТ: целевая область ${columnLetter(firstColumn)}:${columnLetter(lastColumn)} занята; таблица не изменена`);
-  }
   if (!hasBothHeaders && values.some(row => row.some(value => Boolean(text(value))))) {
     throw new Error('ТЕСТ: целевые колонки содержат данные; таблица не изменена');
   }
@@ -256,6 +247,7 @@ function buildRows(sheetRows, quarterMap, yearMap) {
 
 async function writeAndVerify(sheets, columns, rowCount, output) {
   const [quarterColumn, yearColumn] = columns;
+  const sheetId = await getSheetId(sheets);
   const startRow = 1;
   const rowValues = Array.from({ length: rowCount }, (_, index) => [
     index === 0 ? QUARTER_HEADER : output.quarterValues[index - 1][0],
@@ -268,22 +260,39 @@ async function writeAndVerify(sheets, columns, rowCount, output) {
     valueInputOption: 'RAW',
     requestBody: { values: rowValues },
   });
+  const templateColumn = quarterColumn - 1;
+  if (templateColumn < 1) throw new Error('ТЕСТ: не найден столбец для копирования формата новых полей');
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: SPREADSHEET_ID,
-    requestBody: { requests: [{
-      repeatCell: {
-        range: { sheetId: await getSheetId(sheets), startRowIndex: 1, endRowIndex: rowCount, startColumnIndex: quarterColumn - 1, endColumnIndex: yearColumn },
-        cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } },
-        fields: 'userEnteredFormat.numberFormat',
+    requestBody: { requests: [
+      ...columns.map(column => ({
+        copyPaste: {
+          source: { sheetId, startColumnIndex: templateColumn - 1, endColumnIndex: templateColumn },
+          destination: { sheetId, startColumnIndex: column - 1, endColumnIndex: column },
+          pasteType: 'PASTE_FORMAT',
+        },
+      })),
+      {
+        updateDimensionProperties: {
+          range: { sheetId, dimension: 'COLUMNS', startIndex: quarterColumn - 1, endIndex: yearColumn },
+          properties: { pixelSize: 170 },
+          fields: 'pixelSize',
+        },
       },
-    }] },
+      {
+        repeatCell: {
+          range: { sheetId, startRowIndex: 1, endRowIndex: rowCount, startColumnIndex: quarterColumn - 1, endColumnIndex: yearColumn },
+          cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern: '#,##0' } } },
+          fields: 'userEnteredFormat.numberFormat',
+        },
+      },
+    ] },
   });
   const readback = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range, valueRenderOption: 'UNFORMATTED_VALUE' });
   const rows = readback.data.values || [];
   if (text(rows[0]?.[0]) !== QUARTER_HEADER || text(rows[0]?.[1]) !== YEAR_HEADER) {
     throw new Error('ТЕСТ: проверка заголовков после записи не прошла');
   }
-  if (rows.length !== rowCount) throw new Error(`ТЕСТ: read-back вернул ${rows.length} строк вместо ${rowCount}`);
   for (let index = 1; index < rowCount; index++) {
     const actualQuarter = rows[index]?.[0] ?? '';
     const actualYear = rows[index]?.[1] ?? '';
@@ -312,7 +321,13 @@ async function main() {
   });
   const rows = rowsResponse.data.values || [];
   if (rows.length < 2) throw new Error(`ТЕСТ: нет строк с товарами на листе «${SHEET_NAME}»`);
-  const headerRow = rows[0] || [];
+  const gridWidth = Number(sheetProperties.gridProperties?.columnCount) || 22;
+  const headersResponse = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${quoteSheetName(SHEET_NAME)}!A1:${columnLetter(gridWidth)}1`,
+    valueRenderOption: 'FORMATTED_VALUE',
+  });
+  const headerRow = headersResponse.data.values?.[0] || [];
   const columns = chooseOutputColumns(headerRow);
   const sheetRows = rows.slice(1);
   const outputArea = await prepareOutput(sheets, sheetProperties, rows.length, columns);
@@ -326,10 +341,8 @@ async function main() {
     if (wait > 0) await sleep(wait);
     lastRequestAt = Date.now();
   };
-  const [quarterResult, yearResult] = await Promise.all([
-    fetchBuyouts(ranges.quarter, headers, limiter),
-    fetchBuyouts(ranges.year, headers, limiter),
-  ]);
+  const quarterResult = await fetchBuyouts(ranges.quarter, headers, limiter);
+  const yearResult = await fetchBuyouts(ranges.year, headers, limiter);
   const output = buildRows(sheetRows, quarterResult.quantities, yearResult.quantities);
   if (!output.quarterNonZeroRows && !output.yearNonZeroRows) {
     throw new Error('ТЕСТ: в отчётах нет ни одного SKU с выкупами; запись отменена');
