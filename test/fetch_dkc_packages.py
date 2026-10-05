@@ -1,5 +1,6 @@
 import json
 import re
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -9,12 +10,14 @@ from urllib.parse import quote
 
 from openpyxl import load_workbook
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
 import config
 from etm_sync_multi_store import create_etm_session, login_etm
 from rs_sync_local import create_rs_session, get_rs_headers
 
 
-ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "outputs" / "01a0f179-fa02-7ac1-8c59-51bb8848e624"
 SOURCE_INSPECT = OUT_DIR / "DKC_остатки_по_складам.xlsx.inspect.ndjson"
 RS_FILES = [OUT_DIR / "Русский_свет_Самара.xlsx", OUT_DIR / "Русский_свет_Москва.xlsx"]
