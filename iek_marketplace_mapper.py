@@ -86,6 +86,41 @@ def _number(product: Mapping[str, Any], *keys: str) -> int | float | None:
     return None
 
 
+def _logistic_individual(product: Mapping[str, Any], *names: str) -> Any:
+    """Return a supplier's individual-package logistic value by origin key/name."""
+    rows = product.get("logisticParams") or []
+    expected = {name.casefold() for name in names}
+    for row in _list(rows):
+        if not isinstance(row, Mapping):
+            continue
+        label = _text(row.get("nameOrig") or row.get("name")).casefold()
+        if label in expected:
+            value = row.get("value")
+            if isinstance(value, Mapping):
+                return value.get("individual")
+    return None
+
+
+def _dimension_cm(product: Mapping[str, Any], key: str, aliases: tuple[str, ...]) -> int | float | None:
+    value = _number(product, key)
+    if value is None:
+        value = _number_from_logistic(product, *aliases)
+    if value is None:
+        return None
+    # WB card payload dimensions are centimeters; preserve supplier centimeters.
+    return value
+
+
+def _number_from_logistic(product: Mapping[str, Any], *names: str) -> int | float | None:
+    value = _logistic_individual(product, *names)
+    if value in (None, ""):
+        return None
+    try:
+        return float(value) if "." in str(value) else int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _base(product: Mapping[str, Any]) -> dict[str, Any]:
     article = _text(product.get("article"))
     features = _etim_features(product)
@@ -101,10 +136,11 @@ def _base(product: Mapping[str, Any]) -> dict[str, Any]:
         "multiplicity": _multiplicity(product),
         "category": _text(product.get("category") or product.get("categoryName")),
         "dimensions": {
-            "length": _number(product, "length", "depth"),
-            "width": _number(product, "width"),
-            "height": _number(product, "height"),
-            "weightBrutto": _number(product, "weightBrutto", "weight", "weight_g"),
+            "length": _dimension_cm(product, "length", ("l_см", "length_cm")),
+            "width": _dimension_cm(product, "width", ("b_см", "width_cm")),
+            "height": _dimension_cm(product, "height", ("h_см", "height_cm")),
+            "weightBrutto": _number(product, "weightBrutto")
+            or _number_from_logistic(product, "ВесБрутто", "gross_weight_kg"),
         },
     }
 
