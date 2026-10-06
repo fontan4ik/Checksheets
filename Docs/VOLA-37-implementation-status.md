@@ -18,7 +18,7 @@ The live IEK API was successfully queried using the existing `iek_stock_sync_loc
 | KKME21-025-110-10 | 1390.64 | present | 8.5×5.8×10.0 | 0.538 | 1 | 1 | 14 |
 | KKME31-040-230-11 | 2756.18 | present | 12.8×8.1×12.0 | 1.240 | 1 | 10 | 14 |
 
-RRC is used as requested seller price. The barcode is read from individual IEK logistic parameters. Only the individual values are used, never transport package values. No `-5` suffix is applied.
+RRC is used as requested seller price. The barcode is read from individual IEK logistic parameters. Only the individual values are used, never transport package values. Owner’s latest listing rule overrides the earlier no-suffix understanding: because each product has multiplicity `1`, append `-1` to the marketplace listing identifier (`offer_id` / `vendorCode`). The mapper keeps the original IEK article separately and avoids duplicating an existing `-1` suffix.
 
 ## Marketplace findings
 
