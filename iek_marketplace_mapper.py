@@ -203,10 +203,15 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         (22232, "8536490000 - Прочие реле, на напряжение не более 1000 в"): {"id": 971400163, "value": "8536490000 - Прочие реле, на напряжение не более 1000 в"},
         (22232, "8536490000 - Прочие реле, на напряжение не более 1000 в."): {"id": 972997573, "value": "8536490000 - Прочие реле, на напряжение не более 1000 в."},
     }
-    for map_name, attr_id in (("Бренд", 85), ("Тип", 8229), ("Степень защиты - IP", 6980), ("Число и исполнение контактов", 22963), ("ТН ВЭД коды ЕАЭС", 22232)):
-        config = ozon_attribute_ids.get(map_name)
-        if isinstance(config, Mapping):
-            config["allowed_values"] = [entry["value"] for (aid, _), entry in ozon_dictionary_values.items() if aid == attr_id]
+    ozon_attribute_ids["Бренд"] = {"id": 85, "allowed_values": ["IEK"]}
+    ozon_attribute_ids["Тип"] = {"id": 8229, "allowed_values": ["Контактор"]}
+    ozon_attribute_ids["Степень защиты - IP"] = {"id": 6980, "allowed_values": ["IP20"]}
+    ozon_attribute_ids["Число и исполнение контактов"] = {"id": 22963, "allowed_values": ["1NO", "1NO+1NC"]}
+    ozon_attribute_ids["ТН ВЭД коды ЕАЭС"] = {
+        "id": 22232,
+        "value_from": "feacn",
+        "allowed_values": ["8536490000 - Прочие реле, на напряжение не более 1000 в", "8536490000 - Прочие реле, на напряжение не более 1000 в."],
+    }
 
     if category_id is None:
         errors.append("missing Ozon description_category_id mapping")
@@ -224,6 +229,10 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     mapped_characteristics = 0
     for feature in base["features"]:
         mapped = attribute_ids.get(feature["name"], ozon_attribute_ids.get(feature["name"]))
+        if feature["name"] == "Бренд" and not attribute_ids.get("Бренд"):
+            feature = {**feature, "value": base["brand"]}
+        elif feature["name"] == "Тип" and not attribute_ids.get("Тип"):
+            feature = {**feature, "value": "Контактор"}
         if mapped is None:
             warnings.append(f"unmapped Ozon attribute: {feature['name']}")
             continue
@@ -247,6 +256,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
                 "model": base["name"],
                 "countryOfProduction": _text(product.get("countryOfProduction")),
                 "multiplicity": str(base["multiplicity"] or ""),
+                "feacn": _text(product.get("feacn")),
                 "weight_grams": str(round((base["dimensions"]["weightBrutto"] or 0) * 1000)),
             }
             raw_values = [value_map.get(value_from, "")]
@@ -325,8 +335,42 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
     if base["multiplicity"] not in (None, 1, 1.0):
         warnings.append("multiplicity is not 1; vendor code suffix must be reviewed")
 
-    characteristics = []
-    characteristic_ids = category.get("characteristic_ids", {})
+    wb_characteristic_ids = {
+        "Номин рабочий ток Ie при AC-3 400 В": {"id": 81589},
+        "Степень защиты - IP": {"id": 16758},
+        "Номин напряжение питания цепи управ Us AC 50 Гц": {"id": 14207},
+        "Тип подключения силовой электрич цепи": {"id": 5023, "value_from": "connection"},
+        "Кол-во норм разомкнутых-НО силовых конт": {"id": 176180, "value_from": "poles"},
+        "Кол-во норм замкнутых-НЗ силовых контактов": {"id": 176180, "value_from": "poles"},
+        "Бренд": {"id": 14177446, "value_from": "brand"},
+        "Страна производства": {"id": 14177451, "value_from": "countryOfProduction"},
+        "Описание": {"id": 14177452, "value_from": "description"},
+        "Баркод": {"id": 14177453, "value_from": "barcode"},
+        "Наименование": {"id": 15000000, "value_from": "name"},
+        "ТНВЭД": {"id": 15000001, "value_from": "feacn"},
+        "Вес с упаковкой (кг)": {"id": 88953, "value_from": "gross_weight_kg"},
+        "Высота предмета": {"id": 90630, "value_from": "height_cm"},
+        "Глубина предмета": {"id": 90652, "value_from": "length_cm"},
+        "Ширина предмета": {"id": 90673, "value_from": "width_cm"},
+    }
+    characteristic_ids = {**wb_characteristic_ids, **category.get("characteristic_ids", {})}
+
+    def wb_source_value(source_key: str) -> str:
+        values = {
+            "connection": "Винтовое соединение",
+            "brand": base["brand"],
+            "countryOfProduction": _text(product.get("countryOfProduction")),
+            "description": base["description"],
+            "barcode": base["barcode"],
+            "name": base["name"],
+            "feacn": _text(product.get("feacn")),
+            "gross_weight_kg": _text(base["dimensions"]["weightBrutto"]),
+            "height_cm": _text(base["dimensions"]["height"]),
+            "length_cm": _text(base["dimensions"]["length"]),
+            "width_cm": _text(base["dimensions"]["width"]),
+        }
+        return values.get(source_key, "")
+
     for feature in base["features"]:
         mapped = characteristic_ids.get(feature["name"])
         if mapped is None:
