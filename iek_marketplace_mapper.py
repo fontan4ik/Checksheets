@@ -231,6 +231,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     ozon_fallback_features = {
         "Номинальный ток, А": {"id": 5776, "value_from": "current"},
         "Напряжение катушки управления, В": {"id": 10823, "value_from": "coil_voltage"},
+        "Тип тока": {"id": 10819},
+        "Количество полюсов": {"id": 10818, "value_from": "pole_count"},
         "Число и исполнение контактов": {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]},
         "Страна-изготовитель": {"id": 4389, "value_from": "country"},
         "ТН ВЭД коды ЕАЭС": {"id": 22232, "value_from": "feacn"},
@@ -403,6 +405,9 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
             "weight_grams": str(round((base["dimensions"]["weightBrutto"] or 0) * 1000)),
             "module_count": "3",
             "pole_count": "3",
+            "manufacturer": _text(product.get("tm")),
+            "main_no_count": _feature_value(base, "Кол-во норм разомкнутых-НО силовых конт"),
+            "main_nc_count": _feature_value(base, "Кол-во норм замкн-НЗ силовых контактов"),
         }
         return values.get(source_key, "")
 
