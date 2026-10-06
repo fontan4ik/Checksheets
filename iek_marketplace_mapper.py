@@ -163,6 +163,16 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     errors: list[str] = []
     warnings: list[str] = []
     category_id = category.get("description_category_id")
+    # IEK RRC is the approved seller-price source for this workflow; map it explicitly.
+    seller_price = product.get("seller_price")
+    if seller_price in (None, ""):
+        seller_price = product.get("priceRrc")
+    if seller_price not in (None, ""):
+        try:
+            seller_price = float(str(seller_price).replace(",", "."))
+        except (TypeError, ValueError):
+            errors.append("invalid IEK RRC seller price")
+            seller_price = None
     type_id = category.get("type_id")
     if category_id is None:
         errors.append("missing Ozon description_category_id mapping")
@@ -176,13 +186,37 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         warnings.append("multiplicity is not 1; offer suffix must be reviewed")
 
     attributes = []
+    attribute_ids = category.get("attribute_ids", {})
     for feature in base["features"]:
-        attr_id = category.get("attribute_ids", {}).get(feature["name"])
-        if attr_id is None:
+        mapped = attribute_ids.get(feature["name"])
+        if mapped is None:
             warnings.append(f"unmapped Ozon attribute: {feature['name']}")
             continue
-        values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
-        attributes.append({"id": attr_id, "complex_id": 0, "values": [{"value": str(v)} for v in values]})
+        if isinstance(mapped, Mapping):
+            attr_id = mapped.get("id")
+            complex_id = mapped.get("complex_id", 0)
+            allowed = mapped.get("allowed_values")
+        else:
+            attr_id = mapped
+            complex_id = 0
+            allowed = None
+        raw_values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
+        for raw_value in raw_values:
+            value = _text(raw_value)
+            if allowed is not None and value not in allowed:
+                warnings.append(f"IEK value for {feature['name']} has no exact Ozon dictionary match")
+                continue
+            attributes.append({
+                "id": attr_id,
+                "complex_id": complex_id,
+                "values": [{"value": value}],
+            })
+
+    required_attribute_ids = set(category.get("required_attribute_ids", []))
+    supplied_attribute_ids = {a["id"] for a in attributes}
+    missing_required = sorted(required_attribute_ids - supplied_attribute_ids)
+    if missing_required:
+        errors.append("missing required Ozon attributes: " + ", ".join(map(str, missing_required)))
 
     item = {
         "offer_id": base["offer_id"],
@@ -192,13 +226,13 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "attributes": attributes,
         "description_category_id": category_id,
         "type_id": type_id,
+        "price": seller_price,
     }
-    # Supplier list price/RRC is not a seller-approved marketplace price.
-    for key in ("price", "barcode", "currency_code", "old_price"):
+    for key in ("barcode", "currency_code", "old_price"):
         if product.get(key) not in (None, ""):
             item[key] = product[key]
-    if "price" not in item:
-        errors.append("missing commercial field: seller price")
+    if seller_price is None:
+        errors.append("missing IEK RRC seller price")
     if "barcode" not in item:
         errors.append("missing commercial field: barcode")
     if not attributes:
@@ -227,12 +261,32 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
     characteristics = []
     characteristic_ids = category.get("characteristic_ids", {})
     for feature in base["features"]:
-        char_id = characteristic_ids.get(feature["name"])
-        if char_id is None:
+        mapped = characteristic_ids.get(feature["name"])
+        if mapped is None:
             warnings.append(f"unmapped WB characteristic: {feature['name']}")
             continue
-        values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
-        characteristics.append({"id": char_id, "value": [str(v) for v in values]})
+        if isinstance(mapped, Mapping):
+            char_id = mapped.get("id")
+            allowed = mapped.get("allowed_values")
+        else:
+            char_id = mapped
+            allowed = None
+        raw_values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
+        clean_values = []
+        for raw_value in raw_values:
+            value = _text(raw_value)
+            if allowed is not None and value not in allowed:
+                warnings.append(f"IEK value for {feature['name']} has no exact WB dictionary match")
+                continue
+            clean_values.append(value)
+        if clean_values:
+            characteristics.append({"id": char_id, "value": clean_values})
+
+    required_ids = set(category.get("required_characteristic_ids", []))
+    present_ids = {char["id"] for char in characteristics}
+    missing_required = sorted(required_ids - present_ids)
+    if missing_required:
+        errors.append("missing required WB characteristics: " + ", ".join(map(str, missing_required)))
 
     card = {
         "subjectID": subject_id,
@@ -249,8 +303,8 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
     }
     if not product.get("barcode"):
         errors.append("missing commercial field: barcode")
-    if product.get("price") in (None, ""):
-        errors.append("missing commercial field: seller price")
+    if product.get("price") in (None, "") and product.get("priceRrc") in (None, ""):
+        errors.append("missing IEK RRC seller price")
     if not characteristics:
         errors.append("no mapped WB characteristics")
     return MappingResult(base["article"], card, errors, warnings)
