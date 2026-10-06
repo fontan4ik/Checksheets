@@ -226,6 +226,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         mapped = attribute_ids.get(mapped_name)
         if mapped is None:
             mapped = ozon_attribute_ids.get(mapped_name)
+        if mapped is None and mapped_name == "Номинальный ток, А":
+            mapped = {"id": 5776, "value_from": "current"}
         if feature["name"] == "Бренд" and "Бренд" not in attribute_ids:
             feature = {**feature, "value": base["brand"]}
         elif feature["name"] == "Тип" and "Тип" not in attribute_ids:
@@ -348,6 +350,11 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
         "Ширина предмета": {"id": 90673, "value_from": "width_cm"},
     }
     characteristic_ids = {**wb_characteristic_ids, **category.get("characteristic_ids", {})}
+    characteristic_ids["Тип напряжения управления"] = {"id": 14207, "value_from": "coil_voltage"}
+    characteristic_ids["Число и исполнение контактов"] = {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]}
+    characteristic_ids["Высота предмета"] = {"id": 90630, "value_from": "height_cm"}
+    characteristic_ids["Глубина предмета"] = {"id": 90652, "value_from": "length_cm"}
+    characteristic_ids["Ширина предмета"] = {"id": 90673, "value_from": "width_cm"}
 
     def wb_source_value(source_key: str) -> str:
         values = {
@@ -367,9 +374,11 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
             "main_no_count": next((f["value"] for f in base["features"] if f["name"] == "Кол-во норм разомкнутых-НО силовых конт"), ""),
             "main_nc_count": next((f["value"] for f in base["features"] if f["name"] == "Кол-во норм замкнутых-НЗ силовых контактов"), ""),
             "gross_weight_kg": _text(base["dimensions"]["weightBrutto"]),
+            "height_cm": _text(base["dimensions"]["height"]),
+            "length_cm": _text(base["dimensions"]["length"]),
             "width_cm": _text(base["dimensions"]["width"]),
             "weight_grams": str(round((base["dimensions"]["weightBrutto"] or 0) * 1000)),
-            "module_count": "3",  # three main power poles in this IEK contactor series
+            "module_count": "3",
             "pole_count": "3",
         }
         ozon_attribute_ids["Количество модулей"] = {"id": 168294, "value_from": "module_count"}
