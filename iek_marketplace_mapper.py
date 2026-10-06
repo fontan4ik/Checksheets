@@ -176,31 +176,37 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     type_id = category.get("type_id")
     ozon_attribute_ids = {
         "Номин рабочий ток Ie при AC-3 400 В": 5776,
-        "Степень защиты - IP": 6980,
+        "Степень защиты - IP": {"id": 6980, "allowed_values": ["IP20"]},
         "Номин напряжение питания цепи управ Us AC 50 Гц": 10823,
-        "Тип напряжения управления": 10819,
-        "Тип подключения силовой электрич цепи": 20261,
-        "Число и исполнение контактов": 22963,
+        "Тип напряжения управления": {"id": 10819},
+        "Тип подключения силовой электрич цепи": {"id": 20261},
+        "Число и исполнение контактов": {"id": 22963, "allowed_values": ["1NO", "1NO+1NC"]},
         "Бренд": {"id": 85, "allowed_values": ["IEK"]},
         "Тип": {"id": 8229, "allowed_values": ["Контактор"]},
-        "Название модели (для объединения в одну карточку)": 9048,
+        "Название модели (для объединения в одну карточку)": {"id": 9048, "value_from": "model"},
         "ТН ВЭД коды ЕАЭС": {"id": 22232, "allowed_values": ["8536490000 - Прочие реле, на напряжение не более 1000 в", "8536490000 - Прочие реле, на напряжение не более 1000 в."]},
-        "Нужен код маркировки": {"id": 23536, "type": "Boolean"},
-        "Партномер": 4381,
+        "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
+        "Партномер": {"id": 4381, "value_from": "article"},
+        "Страна-изготовитель": {"id": 4389, "value_from": "countryOfProduction"},
+        "Количество товара в УЕИ": {"id": 23249, "value_from": "multiplicity"},
+        "Вес с упаковкой, г": {"id": 4497, "value_from": "weight_grams"},
+        "Номинальный ток, А": {"id": 5776},
+        "Напряжение катушки управления, В": {"id": 20958},
+        "Номинальное напряжение, В": {"id": 10823},
     }
     ozon_dictionary_values = {
         (85, "IEK"): {"id": 5578883, "value": "IEK"},
         (8229, "Контактор"): {"id": 99040, "value": "Контактор"},
         (6980, "IP20"): {"id": 83627, "value": "IP20"},
         (22963, "1NO"): {"id": 971977917, "value": "1NO"},
+        (22963, "1NO+1NC"): {"id": 971977918, "value": "1NO+1NC"},
         (22232, "8536490000 - Прочие реле, на напряжение не более 1000 в"): {"id": 971400163, "value": "8536490000 - Прочие реле, на напряжение не более 1000 в"},
         (22232, "8536490000 - Прочие реле, на напряжение не более 1000 в."): {"id": 972997573, "value": "8536490000 - Прочие реле, на напряжение не более 1000 в."},
     }
-    for code, feature_name in ((22232, "ТН ВЭД коды ЕАЭС"), (85, "Бренд"), (8229, "Тип"), (6980, "Степень защиты - IP"), (22963, "Число и исполнение контактов")):
-        if feature_name in ozon_attribute_ids and isinstance(ozon_attribute_ids[feature_name], Mapping):
-            allowed = [v for (attr_id, _), v in ozon_dictionary_values.items() if attr_id == code]
-            ozon_attribute_ids[feature_name]["allowed_values"] = allowed
-    ozon_attribute_ids["Страна-изготовитель"] = {"id": 4389, "allowed_values": []}
+    for map_name, attr_id in (("Бренд", 85), ("Тип", 8229), ("Степень защиты - IP", 6980), ("Число и исполнение контактов", 22963), ("ТН ВЭД коды ЕАЭС", 22232)):
+        config = ozon_attribute_ids.get(map_name)
+        if isinstance(config, Mapping):
+            config["allowed_values"] = [entry["value"] for (aid, _), entry in ozon_dictionary_values.items() if aid == attr_id]
 
     if category_id is None:
         errors.append("missing Ozon description_category_id mapping")
@@ -226,12 +232,28 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             complex_id = mapped.get("complex_id", 0)
             allowed = mapped.get("allowed_values")
             is_boolean = mapped.get("type") == "Boolean"
+            value_from = mapped.get("value_from")
+            static_value = mapped.get("value")
         else:
             attr_id = mapped
             complex_id = 0
             allowed = None
             is_boolean = False
-        raw_values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
+            value_from = None
+            static_value = None
+        if value_from:
+            value_map = {
+                "article": base["article"],
+                "model": base["name"],
+                "countryOfProduction": _text(product.get("countryOfProduction")),
+                "multiplicity": str(base["multiplicity"] or ""),
+                "weight_grams": str(round((base["dimensions"]["weightBrutto"] or 0) * 1000)),
+            }
+            raw_values = [value_map.get(value_from, "")]
+        elif static_value is not None:
+            raw_values = [static_value]
+        else:
+            raw_values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
         normalized_values = []
         for raw in raw_values:
             value = _text(raw)
