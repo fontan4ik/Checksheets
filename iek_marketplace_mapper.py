@@ -185,8 +185,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     if base["multiplicity"] not in (None, 1, 1.0):
         warnings.append("multiplicity is not 1; offer suffix must be reviewed")
 
-    attributes = []
-    attribute_ids = category.get("attribute_ids", {})
+    mapped_characteristics = 0
     for feature in base["features"]:
         mapped = attribute_ids.get(feature["name"])
         if mapped is None:
@@ -211,12 +210,17 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
                 "complex_id": complex_id,
                 "values": [{"value": value}],
             })
+        if allowed is None or all(_text(raw_value) in allowed for raw_value in raw_values):
+            mapped_characteristics += 1
 
     required_attribute_ids = set(category.get("required_attribute_ids", []))
     supplied_attribute_ids = {a["id"] for a in attributes}
     missing_required = sorted(required_attribute_ids - supplied_attribute_ids)
     if missing_required:
         errors.append("missing required Ozon attributes: " + ", ".join(map(str, missing_required)))
+
+    if not mapped_characteristics:
+        errors.append("missing mapped Ozon characteristics")
 
     item = {
         "offer_id": base["offer_id"],

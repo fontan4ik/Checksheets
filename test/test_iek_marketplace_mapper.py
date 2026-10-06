@@ -71,6 +71,8 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertEqual(preview["multiplicity"], 1)
         self.assertEqual(preview["article"], PRODUCT["article"])
         self.assertTrue(preview["publishable"])
+        self.assertEqual(preview["ozon"]["payload"]["price"], PRODUCT["priceRrc"])
+        self.assertEqual(preview["ozon"]["payload"]["barcode"], "123")
 
 
 if __name__ == "__main__":
