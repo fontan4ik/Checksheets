@@ -243,7 +243,10 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     # Supplier metadata is separate from ETIM. Only explicit category constants
     # may add fields absent from the supplier; never infer them from the SKU.
     features = list(base["features"])
-    source_feature_names = {feature["name"] for feature in features}
+    source_feature_names = {
+        "Номин рабочий ток Ie при AC-3 400 В" if feature["name"] == "Рабочий ток" else feature["name"]
+        for feature in features
+    }
     if not any(feature["name"] == "Бренд" for feature in features):
         features.append({"name": "Бренд", "value": base["brand"]})
     for name, mapping in attribute_ids.items():
