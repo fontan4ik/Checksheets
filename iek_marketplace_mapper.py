@@ -220,7 +220,13 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     feature_to_ozon_attr = {
         "Номин рабочий ток Ie при AC-3 400 В": "Номинальный ток, А",
         "Рабочий ток": "Номинальный ток, А",
-        "Номин напряжение питания цепи управ Us AC 50 Гц": "Напряжение катушки управления, В",
+        "Номин напряжение питания цепи управ Us AC 50 Гц": "Номинальный ток, А",
+        "Степень защиты - IP": "Степень защиты - IP",
+        "Тип напряжения управления": "Тип тока",
+        "Кол-во вспомогат норм разомкнутых-НО конт": "Количество полюсов",
+        "Кол-во вспомогат норм замкнутых-НЗ конт": "Количество полюсов",
+        "Кол-во норм разомкнутых-НО силовых конт": "Количество полюсов",
+        "Кол-во норм замкнутых-НЗ силовых контактов": "Количество полюсов",
     }
     ozon_fallback_features = {
         "Номинальный ток, А": {"id": 5776, "value_from": "current"},
@@ -244,9 +250,9 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             if mapped is None:
                 mapped = ozon_fallback_features.get(mapped_name)
         if feature["name"] == "Бренд" and "Бренд" not in attribute_ids:
-            feature = {**feature, "value": base["brand"]}
+            feature = {**feature, "value": [base["brand"]]}
         elif feature["name"] == "Тип" and "Тип" not in attribute_ids:
-            feature = {**feature, "value": "Контактор"}
+            feature = {**feature, "value": ["Контактор"]}
         if mapped is None and mapped_name is not None:
             mapped = ozon_fallback_features.get(mapped_name)
         if mapped is None:
