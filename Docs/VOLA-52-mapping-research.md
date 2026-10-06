@@ -28,9 +28,11 @@ This artifact records verified facts and current limits. It does not claim marke
 
 ## Implementation checkpoint
 
-- Mapper intentionally refuses guessed WB defaults; WB characteristics come only from passed current-subject mappings.
-- The three failing tests were stale fixtures passing wrong subject/characteristic names or IDs. Updated those fixtures to the reviewed WB subject `4225` and known live descriptor `81589`; focused suite now passes 14/14.
-- This unit-test pass proves mapper mechanics only. It does not prove five live payloads are complete or marketplace-valid.
+- Mapper now fails closed unless each marketplace schema is explicitly marked verified. For WB subject `4225`, automatic mappings are restricted to the verified numeric descriptors: current `81589`, packaged weight `88953`, item dimensions `90630/90652/90673`, and package dimensions `90745/90846/90849`. Unverified text/enum mappings are deliberately omitted.
+- The former three stale WB fixture failures were corrected. Current focused suite: `./.venv-etm-export/bin/python -m unittest discover -s test -p 'test_iek_marketplace_mapper.py' -v` — 15/15 PASS. Mapper/test compilation and `git diff --check` pass.
+- Current read-only marketplace reconciliation returned zero records for all five exact suffixed Ozon offer IDs (`/v3/product/info/list`, HTTP 200) and all five exact WB vendor codes (`/content/v2/get/cards/list`). This confirms targets remain absent at check time, not that writes are ready.
+- The current WB subject endpoint returned HTTP 200 with 33 descriptors (VOLA-57's saved report had 34 on its earlier fetch). Required flags were false for checked descriptors. This response still does not supply dictionary values or media upload constraints.
+- The unit tests validate mapper mechanics, not five real payloads. Ozon price-range constraints, payload-specific category dictionary values/marking, and verified photo/card submission contracts remain unvalidated. No marketplace write was sent.
 
 ## Not yet done / next exact steps
 

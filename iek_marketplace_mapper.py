@@ -126,7 +126,7 @@ def _logistic_value(product: Mapping[str, Any], *names: str) -> int | float | No
 
 def _dimension_cm(product: Mapping[str, Any], key: str, aliases: tuple[str, ...]) -> int | float | None:
     value = _number(product, key)
-    return value if value is not None else _logistic_value(product, *aliases)
+    return value if value is not None else _logistic_value(product, *aliases) or _number(product, *aliases)
 
 
 def _base(product: Mapping[str, Any]) -> dict[str, Any]:
@@ -144,12 +144,12 @@ def _base(product: Mapping[str, Any]) -> dict[str, Any]:
         "features": _etim_features(product),
         "multiplicity": _multiplicity(product),
         "seller_price": _number(product, "seller_price"),
-        "barcode": _text(product.get("barcode")) or _text(_logistic_individual(product, "Штрихкод", "barcode")),
+        "barcode": next((_text(product.get(key)) for key in ("barcode", "barcodeValue", "gtin", "gtin13", "ean", "ean13") if _text(product.get(key))), "") or _text(_logistic_individual(product, "Штрихкод", "Штрихкод товара", "barcode", "EAN", "EAN13", "GTIN", "GTIN-13")),
         "dimensions": {
-            "length": _dimension_cm(product, "length", ("l_см", "length_cm")),
-            "width": _dimension_cm(product, "width", ("b_см", "width_cm")),
-            "height": _dimension_cm(product, "height", ("h_см", "height_cm")),
-            "weightBrutto": _number(product, "weightBrutto") or _logistic_value(product, "ВесБрутто", "gross_weight_kg"),
+            "length": _dimension_cm(product, "length", ("l_см", "length_cm", "Длина", "Длина упаковки")),
+            "width": _dimension_cm(product, "width", ("b_см", "width_cm", "Ширина", "Ширина упаковки")),
+            "height": _dimension_cm(product, "height", ("h_см", "height_cm", "Высота", "Высота упаковки")),
+            "weightBrutto": _number(product, "weightBrutto", "grossWeight", "gross_weight_kg", "weight") or _logistic_value(product, "ВесБрутто", "Вес брутто", "Масса брутто") or _number(product, "ВесБрутто", "Вес брутто", "Масса брутто"),
         },
     }
 
@@ -174,8 +174,6 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         errors.append("missing Ozon type_id mapping")
     if not base["images"]:
         errors.append("IEK product has no images")
-    if not base["features"]:
-        errors.append("IEK product has no ETIM characteristics")
     if base["multiplicity"] not in (None, 1, 1.0):
         warnings.append("multiplicity is not 1; offer suffix must be reviewed")
 
@@ -258,6 +256,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         errors.append("missing required Ozon attributes: " + ", ".join(map(str, missing_required)))
     if not attributes:
         errors.append("no required Ozon characteristics mapped")
+    if not category.get("schema_verified"):
+        errors.append("Ozon schema has not been verified for this payload")
 
     item: dict[str, Any] = {
         "offer_id": base["offer_id"],
@@ -302,19 +302,56 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
     if base["seller_price"] is None:
         errors.append("missing explicit seller_price; supplier priceRrc is not a seller-price source")
 
-    # WB characteristic IDs are subject-specific and may change. Only accept
-    # mappings obtained from the current subject schema; guessed legacy defaults
-    # can silently attach a real value to the wrong field.
+    # Only the numeric WB mappings below are grounded in the reviewed subject
+    # descriptor. Text/enum mappings must be supplied after dictionary lookup.
     characteristic_ids = category.get("characteristic_ids", {})
+    if subject_id == 4225:
+        reviewed_ids = {
+            "Номин рабочий ток Ie при AC-3 400 В": {"id": 81589, "kind": "number"},
+            "Рабочий ток": {"id": 81589, "kind": "number"},
+            "Высота предмета": {"id": 90630, "kind": "number"},
+            "Глубина предмета": {"id": 90652, "kind": "number"},
+            "Ширина предмета": {"id": 90673, "kind": "number"},
+            "Вес с упаковкой (кг)": {"id": 88953, "kind": "number"},
+            "Ширина упаковки": {"id": 90745, "kind": "number"},
+            "Высота упаковки": {"id": 90846, "kind": "number"},
+            "Длина упаковки": {"id": 90849, "kind": "number"},
+        }
+        characteristic_ids = reviewed_ids | characteristic_ids
     characteristics = []
-    for feature in base["features"]:
+    wb_features = list(base["features"])
+    dims = base["dimensions"]
+    derived = (
+        ("Бренд", base["brand"]), ("Описание", base["description"]),
+        ("Высота предмета", dims["height"]), ("Глубина предмета", dims["length"]),
+        ("Ширина предмета", dims["width"]), ("Вес с упаковкой (кг)", dims["weightBrutto"]),
+        ("Ширина упаковки", dims["width"]), ("Высота упаковки", dims["height"]),
+        ("Длина упаковки", dims["length"]),
+        ("Баркод", base["barcode"]), ("Наименование", base["name"]),
+    )
+    for extra_name, extra_value in derived:
+        if extra_value and not any(feature["name"] == extra_name for feature in wb_features):
+            wb_features.append({"name": extra_name, "value": extra_value})
+    if subject_id == 4225:
+        wb_features = [feature for feature in wb_features if feature["name"] not in {"Бренд", "Баркод", "Наименование"}]
+    for feature in wb_features:
         mapped = characteristic_ids.get(feature["name"])
         if mapped is None:
             warnings.append(f"unmapped WB characteristic: {feature['name']}")
             continue
         char_id = mapped.get("id") if isinstance(mapped, Mapping) else mapped
         raw_values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
-        values = [_text(value) for value in raw_values if _text(value)]
+        values = []
+        for raw_value in raw_values:
+            if raw_value in (None, ""):
+                continue
+            if isinstance(mapped, Mapping) and mapped.get("kind") == "number":
+                try:
+                    values.append(float(raw_value))
+                except (TypeError, ValueError):
+                    warnings.append(f"non-numeric WB value for {feature['name']}")
+            else:
+                values.append(_text(raw_value))
         if values and char_id is not None:
             characteristics.append({"id": char_id, "value": values})
     required = set(category.get("required_characteristic_ids", []))
@@ -323,6 +360,8 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
         errors.append("missing required WB characteristics: " + ", ".join(map(str, missing)))
     if not characteristics:
         errors.append("no mapped WB characteristics")
+    if not category.get("schema_verified"):
+        errors.append("WB schema has not been verified for this payload")
 
     size: dict[str, Any] = {"techSize": "0", "wbSize": "0", "skus": [str(base["barcode"])]}
     if base["seller_price"] is not None:

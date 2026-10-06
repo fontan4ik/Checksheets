@@ -38,12 +38,13 @@ class MarketplaceMapperTest(unittest.TestCase):
             ozon={
                 "description_category_id": 17028654,
                 "type_id": 99040,
+                "schema_verified": True,
                 "attribute_ids": {
                     "Тип": {"id": 8229, "static_value": "Контактор"},
                     "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
                 },
             },
-            wb={"subject_id": 4225, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}},
+            wb={"subject_id": 4225, "schema_verified": True, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}},
         )
         self.assertTrue(mapped["ozon"]["ready"])
         self.assertEqual(mapped["ozon"]["payload"]["price"], 715.11)
@@ -103,7 +104,7 @@ class MarketplaceMapperTest(unittest.TestCase):
     def test_explicit_false_marking_is_preserved(self):
         product = deepcopy(PRODUCT)
         product["etim"]["features"].append({"name": "Нужен код маркировки", "value": False})
-        result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040, "required_attribute_ids": [23536]})
+        result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040, "schema_verified": True, "required_attribute_ids": [23536]})
         self.assertTrue(result.ready)
         marking = next(a for a in result.payload["attributes"] if a["id"] == 23536)
         self.assertIs(marking["values"][0]["value"], False)
@@ -119,6 +120,7 @@ class MarketplaceMapperTest(unittest.TestCase):
             category={
                 "description_category_id": 17028654,
                 "type_id": 99040,
+                "schema_verified": True,
                 "required_attribute_ids": [5776],
             },
         )
@@ -131,16 +133,39 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertEqual(dimensions, {"length": 7.7, "width": 4.8, "height": 8.8, "weightBrutto": 0.36})
         self.assertNotEqual(dimensions["length"], 44.0)
 
+    def test_supplier_barcode_and_dimension_aliases(self):
+        product = deepcopy(PRODUCT)
+        product.pop("barcode", None)
+        product["barcodeValue"] = "4601234567890"
+        product["logisticParams"] = [
+            {"nameOrig": "Длина упаковки", "value": {"individual": "12.5"}},
+            {"nameOrig": "Ширина упаковки", "value": {"individual": "4.2"}},
+            {"nameOrig": "Высота упаковки", "value": {"individual": "8.0"}},
+            {"nameOrig": "Масса брутто", "value": {"individual": "0.36"}},
+        ]
+        result = map_wb(product, category={"subject_id": 4225, "schema_verified": True, "characteristic_ids": {"Баркод": 14177453}})
+        self.assertEqual(result.payload["variants"][0]["dimensions"], {"length": 12.5, "width": 4.2, "height": 8, "weightBrutto": 0.36})
+        self.assertEqual(result.payload["variants"][0]["sizes"][0]["skus"], ["4601234567890"])
+
     def test_wb_maps_images_and_characteristics(self):
-        result = map_wb(PRODUCT, category={"subject_id": 4225, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
+        result = map_wb(PRODUCT, category={"subject_id": 4225, "schema_verified": True})
         self.assertTrue(result.ready)
         variant = result.payload["variants"][0]
         self.assertEqual(variant["vendorCode"], PRODUCT["article"] + "-1")
         self.assertEqual(variant["photos"], PRODUCT["imageUrls"])
         self.assertEqual(variant["characteristics"][0]["id"], 81589)
+        attrs = {attribute["id"]: attribute["value"] for attribute in variant["characteristics"]}
+        self.assertEqual(attrs[88953], [0.36])
+        self.assertEqual(attrs[90630], [8.8])
+        self.assertEqual(attrs[90652], [7.7])
+        self.assertEqual(attrs[90673], [4.8])
+        self.assertEqual(attrs[90745], [4.8])
+        self.assertEqual(attrs[90846], [8.8])
+        self.assertEqual(attrs[90849], [7.7])
+        self.assertNotIn(14177446, attrs)
 
     def test_multiplicity_one_appends_suffix_to_listing_articles(self):
-        preview = build_preview(PRODUCT, ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4225, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
+        preview = build_preview(PRODUCT, ozon={"description_category_id": 1, "type_id": 2, "schema_verified": True, "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4225, "schema_verified": True, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
         self.assertEqual(preview["multiplicity"], 1)
         self.assertEqual(preview["sourceArticle"], PRODUCT["article"])
         self.assertEqual(preview["article"], PRODUCT["article"] + "-1")
