@@ -204,38 +204,34 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             allowed = None
             is_boolean = False
         raw_values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
-        for raw_value in raw_values:
-            value = _text(raw_value)
+        normalized_values = []
+        for raw in raw_values:
+            value = _text(raw)
             if allowed is not None and value not in allowed:
-                warnings.append(f"IEK value for {feature['name']} has no exact Ozon dictionary match")
+                warnings.append(f"IEK value for {feature['name']} lacks exact Ozon dictionary mapping")
                 continue
             if is_boolean:
-                lowered = value.casefold()
-                if lowered in {"да", "yes", "true", "1"}:
+                low = value.casefold()
+                if low in {"да", "yes", "true", "1"}:
                     converted: Any = True
-                elif lowered in {"нет", "no", "false", "0"}:
+                elif low in {"нет", "no", "false", "0"}:
                     converted = False
                 else:
-                    errors.append(f"invalid boolean value for Ozon attribute {feature['name']}")
+                    warnings.append(f"IEK Boolean value for {feature['name']} isn't normalized")
                     continue
             else:
                 converted = value
-            attributes.append({
-                "id": attr_id,
-                "complex_id": complex_id,
-                "values": [{"value": converted}],
-            })
-        if allowed is None or all(_text(raw_value) in allowed for raw_value in raw_values):
-            mapped_characteristics += 1
+            normalized_values.append(converted)
+        if normalized_values:
+            attributes.append({"id": attr_id, "complex_id": complex_id, "values": [{"value": v} for v in normalized_values]})
+            if attr_id in set(category.get("required_attribute_ids", [])):
+                mapped_characteristics += 1
 
-    required_attribute_ids = set(category.get("required_attribute_ids", []))
-    supplied_attribute_ids = {a["id"] for a in attributes}
-    missing_required = sorted(required_attribute_ids - supplied_attribute_ids)
+    missing_required = sorted(set(category.get("required_attribute_ids", [])) - {a["id"] for a in attributes})
     if missing_required:
         errors.append("missing required Ozon attributes: " + ", ".join(map(str, missing_required)))
-
     if not mapped_characteristics:
-        errors.append("missing mapped Ozon characteristics")
+        errors.append("no required Ozon characteristics mapped")
 
     item = {
         "offer_id": base["offer_id"],
@@ -256,6 +252,31 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             item[key] = value
     if seller_price is None:
         errors.append("missing IEK RRC seller price")
+    if not item.get("barcode"):
+        errors.append("missing commercial field: barcode")
+    return MappingResult(base["offer_id"], item, errors, warnings)
+
+            if mapped is None:
+                continue
+            attr_id = mapped.get("id") if isinstance(mapped, Mapping) else mapped
+            allowed = mapped.get("allowed_values") if isinstance(mapped, Mapping) else None
+            if attr_id in ozon_required:
+                mapped_characteristics += 1
+
+            raw_values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
+            normalized_values = []
+            for raw in raw_values:
+                text = _text(raw)
+                if allowed is not None and text not in allowed:
+                    warnings.append(f"IEK value for {feature['name']} lacks an exact Ozon dictionary entry")
+                    continue
+                normalized_values.append(text)
+            if normalized_values:
+                item_attrs.append({"id": attr_id, "complex_id": 0, "values": [{"value": v} for v in normalized_values]})
+        attributes = item_attrs
+        if not mapped_characteristics:
+            errors.append("no mapped Ozon characteristics")
+
     if not item.get("barcode"):
         errors.append("missing commercial field: barcode")
     if not attributes:
