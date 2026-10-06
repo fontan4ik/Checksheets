@@ -104,7 +104,7 @@ def _logistic_individual(product: Mapping[str, Any], *names: str) -> Any:
 def _dimension_cm(product: Mapping[str, Any], key: str, aliases: tuple[str, ...]) -> int | float | None:
     value = _number(product, key)
     if value is None:
-        value = _number_from_logistic(product, *aliases)
+        value = _logistic_value(product, *aliases)
     if value is None:
         return None
     # WB card payload dimensions are centimeters; preserve supplier centimeters.
@@ -112,6 +112,17 @@ def _dimension_cm(product: Mapping[str, Any], key: str, aliases: tuple[str, ...]
 
 
 def _number_from_logistic(product: Mapping[str, Any], *names: str) -> int | float | None:
+    value = _logistic_individual(product, *names)
+    if value in (None, ""):
+        return None
+    try:
+        return float(value) if "." in str(value) else int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _logistic_value(product: Mapping[str, Any], *names: str) -> int | float | None:
+    """Read an individual logistic parameter; returns None for non-numeric values."""
     value = _logistic_individual(product, *names)
     if value in (None, ""):
         return None
@@ -140,7 +151,7 @@ def _base(product: Mapping[str, Any]) -> dict[str, Any]:
             "width": _dimension_cm(product, "width", ("b_см", "width_cm")),
             "height": _dimension_cm(product, "height", ("h_см", "height_cm")),
             "weightBrutto": _number(product, "weightBrutto")
-            or _number_from_logistic(product, "ВесБрутто", "gross_weight_kg"),
+            or _logistic_value(product, "ВесБрутто", "gross_weight_kg"),
         },
     }
 
