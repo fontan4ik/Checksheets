@@ -175,7 +175,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         errors.append("missing IEK RRC seller price")
     type_id = category.get("type_id")
     ozon_attribute_ids = {
-        "Номин рабочий ток Ie при AC-3 400 В": 5776,
+        "Номин рабочий ток Ie при AC-3 400 В": {"id": 5776, "value_from": "current"},
         "Степень защиты - IP": {"id": 6980, "allowed_values": ["IP20"]},
         "Номин напряжение питания цепи управ Us AC 50 Гц": 10823,
         "Тип напряжения управления": {"id": 10819},
@@ -191,8 +191,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
         "Номинальный ток, А": {"id": 5776, "value_from": "current"},
         "Напряжение катушки управления, В": {"id": 20958, "value_from": "coil_voltage"},
-        "Номинальное напряжение, В": {"id": 10823, "value_from": "coil_voltage"},
     }
+    ozon_attribute_ids["Номинальное напряжение, В"] = {"id": 10823, "value_from": "coil_voltage"}
     ozon_attribute_ids["Число и исполнение контактов"] = {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]}
 
     if category_id is None:
