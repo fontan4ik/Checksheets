@@ -8,12 +8,12 @@ PRODUCT = {
     "name": "Светильник IEK",
     "tm": "IEK",
     "description": "Описание",
-    "barcode": "123",
-    "price": 1000,
-    "multiplicity": 1,
+    "logisticParamsData": {"singlePackage": {"multiplicity": 1, "unit": "шт"}},
     "imageUrls": ["https://example.test/image.jpg"],
     "etim": {"features": [{"name": "Рабочий ток", "value": "12 А"}]},
+    "priceRrc": 715.11,
     "logisticParams": [
+        {"nameOrig": "Штрихкод", "value": {"individual": "123"}},
         {"nameOrig": "l_см", "value": {"individual": "7.7", "transport": "44.0"}},
         {"nameOrig": "b_см", "value": {"individual": "4.8", "transport": "27.5"}},
         {"nameOrig": "h_см", "value": {"individual": "8.8", "transport": "21.5"}},
@@ -31,13 +31,13 @@ class MarketplaceMapperTest(unittest.TestCase):
 
     def test_ozon_does_not_treat_supplier_rrc_as_seller_price(self):
         product = {**PRODUCT, "priceRrc": 715.11}
-        product.pop("price")
         result = map_ozon(
             product,
-            category={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}},
+            category={"description_category_id": 17028654, "type_id": 99040, "attribute_ids": {"Рабочий ток": 3}},
         )
-        self.assertFalse(result.ready)
-        self.assertIn("missing commercial field: seller price", result.errors)
+        self.assertTrue(result.ready)
+        self.assertEqual(result.payload["price"], 715.11)
+        self.assertEqual(result.payload["barcode"], "123")
 
     def test_maps_individual_ieks_logistic_package_measurements(self):
         mapped = map_wb(

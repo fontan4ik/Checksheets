@@ -69,6 +69,9 @@ def _multiplicity(product: Mapping[str, Any]) -> int | float | None:
     for row in _list(values):
         if isinstance(row, Mapping) and row.get("multiplicity") not in (None, ""):
             return row["multiplicity"]
+    package = product.get("logisticParamsData", {}).get("singlePackage") if isinstance(product.get("logisticParamsData"), Mapping) else None
+    if isinstance(package, Mapping) and package.get("multiplicity") not in (None, ""):
+        return package["multiplicity"]
     return None
 
 
