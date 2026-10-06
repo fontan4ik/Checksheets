@@ -70,6 +70,20 @@ def _multiplicity(product: Mapping[str, Any]) -> int | float | None:
     return product.get("multiplicity")
 
 
+def _number(product: Mapping[str, Any], *keys: str) -> int | float | None:
+    for key in keys:
+        value = product.get(key)
+        if isinstance(value, Mapping):
+            value = value.get("value")
+        if value in (None, ""):
+            continue
+        try:
+            return float(value) if "." in str(value) else int(value)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def _base(product: Mapping[str, Any]) -> dict[str, Any]:
     article = _text(product.get("article"))
     features = _etim_features(product)
@@ -84,6 +98,12 @@ def _base(product: Mapping[str, Any]) -> dict[str, Any]:
         "features": features,
         "multiplicity": _multiplicity(product),
         "category": _text(product.get("category") or product.get("categoryName")),
+        "dimensions": {
+            "length": _number(product, "length", "depth"),
+            "width": _number(product, "width"),
+            "height": _number(product, "height"),
+            "weightBrutto": _number(product, "weightBrutto", "weight", "weight_g"),
+        },
     }
 
 
@@ -149,6 +169,8 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
         errors.append("IEK product has no images")
     if not base["features"]:
         errors.append("IEK product has no ETIM characteristics")
+    if any(value is None or value <= 0 for value in base["dimensions"].values()):
+        errors.append("missing WB dimensions or weight")
     if base["multiplicity"] not in (None, 1, 1.0):
         warnings.append("multiplicity is not 1; vendor code suffix must be reviewed")
 
