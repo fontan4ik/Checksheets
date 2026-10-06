@@ -197,20 +197,33 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             attr_id = mapped.get("id")
             complex_id = mapped.get("complex_id", 0)
             allowed = mapped.get("allowed_values")
+            is_boolean = mapped.get("type") == "Boolean"
         else:
             attr_id = mapped
             complex_id = 0
             allowed = None
+            is_boolean = False
         raw_values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
         for raw_value in raw_values:
             value = _text(raw_value)
             if allowed is not None and value not in allowed:
                 warnings.append(f"IEK value for {feature['name']} has no exact Ozon dictionary match")
                 continue
+            if is_boolean:
+                lowered = value.casefold()
+                if lowered in {"да", "yes", "true", "1"}:
+                    converted: Any = True
+                elif lowered in {"нет", "no", "false", "0"}:
+                    converted = False
+                else:
+                    errors.append(f"invalid boolean value for Ozon attribute {feature['name']}")
+                    continue
+            else:
+                converted = value
             attributes.append({
                 "id": attr_id,
                 "complex_id": complex_id,
-                "values": [{"value": value}],
+                "values": [{"value": converted}],
             })
         if allowed is None or all(_text(raw_value) in allowed for raw_value in raw_values):
             mapped_characteristics += 1
