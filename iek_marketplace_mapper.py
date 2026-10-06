@@ -185,6 +185,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     if base["multiplicity"] not in (None, 1, 1.0):
         warnings.append("multiplicity is not 1; offer suffix must be reviewed")
 
+    attributes = []
+    attribute_ids = category.get("attribute_ids", {})
     mapped_characteristics = 0
     for feature in base["features"]:
         mapped = attribute_ids.get(feature["name"])
