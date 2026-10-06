@@ -5,7 +5,7 @@ For each row of the ``СРС`` sheet that has both ``art`` and ``SKU OZON`` the
 script creates a new CPC promotion campaign with title ``"я {art}"``, the
 standard placement (``PLACEMENT_SEARCH_AND_CATEGORY``) and autopilot strategy
 (``TARGET_BIDS``), and a weekly budget of 2000₽. The SKU from the row is added
-to the new campaign and the campaign is activated. The new campaign ID is
+to the new campaign; activation respects the sheet toggle and filters. The ID is
 written back to the ``CAMPAIN ID`` column of the same row.
 
 After the creation step the script invokes ``ozon_cpc_cleanup.run``. By
@@ -16,8 +16,11 @@ existing daily-click stop rule.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import config
@@ -30,10 +33,82 @@ from ozon_cpc_cleanup import (
     column_letter,
     create_session,
     find_column,
+    get_campaign_products,
+    get_campaigns,
     normalize_id,
     request_json,
     run_lock,
 )
+from toggle_cpc_campaigns import activation_filter_reason
+
+CREATION_STATE_FILE = Path(__file__).resolve().parent / "logs" / "cpc-creation-state.json"
+
+
+def load_creation_state() -> dict[str, str]:
+    try:
+        data = json.loads(CREATION_STATE_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    if not isinstance(data, dict) or any(
+        not isinstance(key, str) or not isinstance(value, str) or not value.isdigit()
+        for key, value in data.items()
+    ):
+        raise RuntimeError("Некорректный CPC creation state; создание остановлено")
+    return data
+
+
+def save_creation_state(state: dict[str, str]) -> None:
+    CREATION_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    temporary = CREATION_STATE_FILE.with_suffix(".tmp")
+    temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(CREATION_STATE_FILE)
+
+
+def creation_key(row: CreationRow) -> str:
+    return f"{row.article}:{row.sku}"
+
+
+def resume_campaign(session, token, row, campaigns, used_ids) -> str:
+    """Recover an unlinked partial creation, never a campaign of another SKU."""
+    matches = [
+        campaign for campaign in campaigns
+        if campaign.get("title") == f"я {row.article}"
+        and normalize_id(campaign.get("id")) not in used_ids
+        and campaign.get("state") in ("CAMPAIGN_STATE_INACTIVE", "CAMPAIGN_STATE_RUNNING")
+        and ozon_cpc_cleanup.is_cpc_campaign(campaign)
+    ]
+    for campaign in sorted(matches, key=lambda item: item.get("createdAt", ""), reverse=True):
+        campaign_id = normalize_id(campaign["id"])
+        products = get_campaign_products(session, token, campaign_id)
+        if products == {row.sku} or (not products and campaign.get("state") == "CAMPAIGN_STATE_INACTIVE"):
+            print(f"Восстановлена незавершённая кампания {campaign_id} для {row.article}")
+            return campaign_id
+    return ""
+
+
+def should_activate(values: list[list[str]], row: CreationRow) -> bool:
+    headers = values[0]
+    source = values[row.row_number - 1]
+    def value(*names):
+        index = find_column(headers, names)
+        return source[index] if 0 <= index < len(source) else ""
+    return value("включение/отключение компании") in ("1", "1.0") and not activation_filter_reason(
+        value("клики день"), value("фильтр клики день"),
+        value("дрр в продвижении месяц"), value("фильтр дрр месяц"),
+    )
+
+
+def add_sku_with_retry(session, token, campaign_id, sku) -> None:
+    for attempt in range(3):
+        try:
+            add_sku_to_campaign(session, token, campaign_id, sku)
+            return
+        except RuntimeError as exc:
+            if "HTTP 429" not in str(exc) or attempt == 2:
+                raise
+            delay = (5, 15)[attempt]
+            print(f"Ozon ограничил добавление SKU; повтор через {delay} сек", flush=True)
+            time.sleep(delay)
 
 
 @dataclass(frozen=True)
@@ -195,7 +270,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def run(args: argparse.Namespace) -> int:
     worksheet = gsheets_utils.get_worksheet(SHEET_NAME)
-    values = worksheet.get_all_values()
+    values = gsheets_utils._retry_gsheet_call("read CPC creation rows", worksheet.get_all_values)
     all_rows = read_creation_rows(values)
     rows, campaign_column = pending_creation_rows(values)
     campaign_col_letter = column_letter(campaign_column + 1)
@@ -210,20 +285,56 @@ def run(args: argparse.Namespace) -> int:
     created: list[tuple[CreationRow, str]] = []
     failed: list[tuple[CreationRow, str]] = []
     if rows:
+        gsheets_utils.resolve_header_columns(values[0], {
+            "sku": "SKU OZON", "campaign": values[0][campaign_column],
+            "toggle": "Включение/отключение компании", "clicks": "Клики день",
+            "clicks_limit": "Фильтр клики день", "drr": "ДРР в продвижении месяц",
+            "drr_limit": "Фильтр ДРР месяц",
+        }, SHEET_NAME)
         session = create_session()
         token = TokenManager(session)
+        state = load_creation_state()
+        campaigns = get_campaigns(session, token)
+        used_ids = {
+            normalize_id(source[campaign_column])
+            for source in values[1:] if campaign_column < len(source)
+        }
         for index, row in enumerate(rows, start=1):
             title = f"я {row.article}"
             try:
-                data = create_cpc_campaign(session, token, title)
-                new_id = normalize_id(data.get("campaignId") if isinstance(data, dict) else None)
+                key = creation_key(row)
+                new_id = state.get(key) or resume_campaign(session, token, row, campaigns, used_ids)
                 if not new_id:
-                    raise RuntimeError(f"Создание кампании не вернуло campaignId: {data!r}")
-                add_sku_to_campaign(session, token, new_id, row.sku)
-                activate_campaign(session, token, new_id)
+                    data = create_cpc_campaign(session, token, title)
+                    new_id = normalize_id(data.get("campaignId") if isinstance(data, dict) else None)
+                    if not new_id:
+                        raise RuntimeError(f"Создание кампании не вернуло campaignId: {data!r}")
+                # Persist before product addition/activation: either can fail after creation.
+                state[key] = new_id
+                save_creation_state(state)
+                products = get_campaign_products(session, token, new_id)
+                if products and products != {row.sku}:
+                    raise RuntimeError(f"Кампания {new_id} содержит другой SKU; остановлено")
+                if row.sku not in products:
+                    add_sku_with_retry(session, token, new_id, row.sku)
+                if not args.skip_sheet_write:
+                    write_created_campaign_ids(worksheet, campaign_col_letter, [(row, new_id)])
+                if should_activate(values, row):
+                    activate_campaign(session, token, new_id)
+                else:
+                    ozon_cpc_cleanup.deactivate_campaign(session, token, new_id)
+                    print(f"row={row.row_number}: включение запрещено переключателем/фильтрами")
+                if not args.skip_sheet_write:
+                    state.pop(key, None)
+                    save_creation_state(state)
+                used_ids.add(new_id)
             except Exception as exc:
                 failed.append((row, f"{type(exc).__name__}: {exc}"))
                 print(f"[{index}/{len(rows)}] row={row.row_number} art={row.article} FAILED: {type(exc).__name__}: {exc}")
+                if "HTTP 429" in str(exc):
+                    failed.extend((pending, "Добавление отложено: Ozon HTTP 429") for pending in rows[index:])
+                    print("Создание остальных строк отложено до следующего запуска из-за лимита Ozon")
+                    break
                 continue
             created.append((row, new_id))
             print(f"[{index}/{len(rows)}] row={row.row_number} art={row.article} sku={row.sku} -> campaign {new_id} ({title})")
@@ -233,14 +344,13 @@ def run(args: argparse.Namespace) -> int:
     print(f"\nСоздано: {len(created)}; ошибок: {len(failed)}")
 
     if created and not args.skip_sheet_write:
-        write_created_campaign_ids(worksheet, campaign_col_letter, created)
         exact_rows = ", ".join(str(row.row_number) for row, _ in created)
         print(f"Записаны новые CAMPAIN ID для {len(created)} строк: {exact_rows}")
     elif created:
         print("--skip-sheet-write: новые CAMPAIN ID НЕ записаны в СРС")
 
     if args.skip_analytics:
-        return 0
+        return 1 if failed else 0
 
     mode = "с записью в СРС" if args.analytics_write_sheet else "dry-run"
     print(f"\n=== CPC-аналитика после создания ({mode}) ===\n")
@@ -253,7 +363,8 @@ def run(args: argparse.Namespace) -> int:
         stop_on_filter=args.analytics_stop_on_filter,
         limit_rows=0,
     )
-    return ozon_cpc_cleanup.run(analytics_args)
+    analytics_result = ozon_cpc_cleanup.run(analytics_args)
+    return analytics_result or (1 if failed else 0)
 
 
 def main() -> int:

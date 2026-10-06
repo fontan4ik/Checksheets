@@ -255,7 +255,7 @@ def main() -> int:
     args = parser.parse_args()
 
     worksheet = gsheets_utils.get_worksheet(SHEET_NAME)
-    values = worksheet.get_all_values()
+    values = gsheets_utils._retry_gsheet_call("read CPC bid rows", worksheet.get_all_values)
     rows, invalid = read_bid_rows(values)
     print(f"Строк со ставкой в AD: {len(rows)}; некорректных: {len(invalid)}")
     for row_number, raw_bid in invalid[:20]:
