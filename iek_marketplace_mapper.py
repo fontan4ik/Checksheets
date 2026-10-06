@@ -174,6 +174,34 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     else:
         errors.append("missing IEK RRC seller price")
     type_id = category.get("type_id")
+    ozon_attribute_ids = {
+        "Номин рабочий ток Ie при AC-3 400 В": 5776,
+        "Степень защиты - IP": 6980,
+        "Номин напряжение питания цепи управ Us AC 50 Гц": 10823,
+        "Тип напряжения управления": 10819,
+        "Тип подключения силовой электрич цепи": 20261,
+        "Число и исполнение контактов": 22963,
+        "Бренд": {"id": 85, "allowed_values": ["IEK"]},
+        "Тип": {"id": 8229, "allowed_values": ["Контактор"]},
+        "Название модели (для объединения в одну карточку)": 9048,
+        "ТН ВЭД коды ЕАЭС": {"id": 22232, "allowed_values": ["8536490000 - Прочие реле, на напряжение не более 1000 в", "8536490000 - Прочие реле, на напряжение не более 1000 в."]},
+        "Нужен код маркировки": {"id": 23536, "type": "Boolean"},
+        "Партномер": 4381,
+    }
+    ozon_dictionary_values = {
+        (85, "IEK"): {"id": 5578883, "value": "IEK"},
+        (8229, "Контактор"): {"id": 99040, "value": "Контактор"},
+        (6980, "IP20"): {"id": 83627, "value": "IP20"},
+        (22963, "1NO"): {"id": 971977917, "value": "1NO"},
+        (22232, "8536490000 - Прочие реле, на напряжение не более 1000 в"): {"id": 971400163, "value": "8536490000 - Прочие реле, на напряжение не более 1000 в"},
+        (22232, "8536490000 - Прочие реле, на напряжение не более 1000 в."): {"id": 972997573, "value": "8536490000 - Прочие реле, на напряжение не более 1000 в."},
+    }
+    for code, feature_name in ((22232, "ТН ВЭД коды ЕАЭС"), (85, "Бренд"), (8229, "Тип"), (6980, "Степень защиты - IP"), (22963, "Число и исполнение контактов")):
+        if feature_name in ozon_attribute_ids and isinstance(ozon_attribute_ids[feature_name], Mapping):
+            allowed = [v for (attr_id, _), v in ozon_dictionary_values.items() if attr_id == code]
+            ozon_attribute_ids[feature_name]["allowed_values"] = allowed
+    ozon_attribute_ids["Страна-изготовитель"] = {"id": 4389, "allowed_values": []}
+
     if category_id is None:
         errors.append("missing Ozon description_category_id mapping")
     if type_id is None:
@@ -189,7 +217,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     attribute_ids = category.get("attribute_ids", {})
     mapped_characteristics = 0
     for feature in base["features"]:
-        mapped = attribute_ids.get(feature["name"])
+        mapped = attribute_ids.get(feature["name"], ozon_attribute_ids.get(feature["name"]))
         if mapped is None:
             warnings.append(f"unmapped Ozon attribute: {feature['name']}")
             continue
