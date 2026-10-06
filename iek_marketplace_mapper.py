@@ -75,6 +75,22 @@ def _multiplicity(product: Mapping[str, Any]) -> int | float | None:
     return None
 
 
+def marketplace_article(product: Mapping[str, Any]) -> str:
+    """Append supplier multiplicity to a marketplace listing article."""
+    article = _text(product.get("article"))
+    multiplicity = _multiplicity(product)
+    if not article or multiplicity in (None, ""):
+        return article
+    try:
+        quantity = float(multiplicity)
+    except (TypeError, ValueError):
+        return article
+    if quantity <= 0 or not quantity.is_integer():
+        return article
+    suffix = f"-{int(quantity)}"
+    return article if article.endswith(suffix) else article + suffix
+
+
 def _number(product: Mapping[str, Any], *keys: str) -> int | float | None:
     for key in keys:
         value = product.get(key)
@@ -136,13 +152,15 @@ def _logistic_value(product: Mapping[str, Any], *names: str) -> int | float | No
 
 
 def _base(product: Mapping[str, Any]) -> dict[str, Any]:
-    article = _text(product.get("article"))
+    source_article = _text(product.get("article"))
+    listing_article = marketplace_article(product)
     features = _etim_features(product)
     return {
-        "article": article,
-        "offer_id": article,
-        "vendor_code": article,
-        "name": _text(product.get("name") or product.get("shortName")) or article,
+        "source_article": source_article,
+        "article": listing_article,
+        "offer_id": listing_article,
+        "vendor_code": listing_article,
+        "name": _text(product.get("name") or product.get("shortName")) or source_article,
         "brand": _text(product.get("tm")) or "IEK",
         "description": _text(product.get("description")),
         "images": _images(product),
@@ -492,7 +510,8 @@ def build_preview(product: Mapping[str, Any], *, ozon: Mapping[str, Any] | None 
     oz = map_ozon(product, category=ozon)
     wild = map_wb(product, category=wb)
     return {
-        "article": _text(product.get("article")),
+        "sourceArticle": _text(product.get("article")),
+        "article": marketplace_article(product),
         "multiplicity": _multiplicity(product),
         "ozon": {"ready": oz.ready, "payload": oz.payload, "errors": oz.errors, "warnings": oz.warnings},
         "wb": {"ready": wild.ready, "payload": wild.payload, "errors": wild.errors, "warnings": wild.warnings},
