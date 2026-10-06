@@ -194,8 +194,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Напряжение катушки управления, В": {"id": 20958},
         "Номинальное напряжение, В": {"id": 10823},
     }
-    ozon_attribute_ids["Количество модулей"] = {"id": 168294, "value_from": "module_count"}
-    ozon_attribute_ids["Количество полюсов"] = {"id": 10818, "value_from": "pole_count"}
+    ozon_attribute_ids["Номинальное напряжение, В"] = {"id": 10823, "value_from": "coil_voltage"}
+    ozon_attribute_ids["Номинальный ток, А"] = {"id": 5776, "value_from": "current"}
     ozon_attribute_ids["Число и исполнение контактов"] = {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]}
 
     if category_id is None:
@@ -215,6 +215,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     emitted_ids: set[int] = set()
     feature_to_ozon_attr = {
         "Номин рабочий ток Ie при AC-3 400 В": "Номинальный ток, А",
+        "Рабочий ток": "Номинальный ток, А",
         "Степень защиты - IP": "Степень защиты - IP",
         "Номин напряжение питания цепи управ Us AC 50 Гц": "Напряжение катушки управления, В",
         "Тип напряжения управления": "Тип напряжения управления",
