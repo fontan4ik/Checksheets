@@ -191,7 +191,7 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
             "title": base["name"],
             "brand": base["brand"],
             "description": base["description"],
-            "dimensions": {"length": 0, "width": 0, "height": 0, "weightBrutto": 0},
+            "dimensions": base["dimensions"],
             "characteristics": characteristics,
             "sizes": [{"techSize": "0", "wbSize": "0", "price": product.get("price", 0), "skus": [str(product.get("barcode", ""))]}],
             "photos": {"c246x328": base["images"]},

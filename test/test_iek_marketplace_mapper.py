@@ -13,6 +13,10 @@ PRODUCT = {
     "warehouseData": [{"multiplicity": 1}],
     "price": 1000,
     "barcode": "460000000001",
+    "length": 100,
+    "width": 50,
+    "height": 30,
+    "weight": 500,
 }
 
 
