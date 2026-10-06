@@ -181,21 +181,18 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Тип напряжения управления": {"id": 10819},
         "Тип подключения силовой электрич цепи": {"id": 20261},
         "Число и исполнение контактов": {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]},
-        "Бренд": {"id": 85, "value_from": "brand", "allowed_values": ["IEK"]},
+        "Бренд": {"id": 85, "value_from": "brand", "allowed_values": ["IEK", "GENERICA"]},
         "Тип": {"id": 8229, "static_value": "Контактор", "allowed_values": ["Контактор"]},
         "Название модели (для объединения в одну карточку)": {"id": 9048, "value_from": "model"},
         "ТН ВЭД коды ЕАЭС": {"id": 22232, "value_from": "feacn", "allowed_values": ["8536490000 - Прочие реле, на напряжение не более 1000 в", "8536490000 - Прочие реле, на напряжение не более 1000 в."]},
-        "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
-        "Партномер": {"id": 4381, "value_from": "article"},
-        "Страна-изготовитель": {"id": 4389, "value_from": "countryOfProduction"},
+        "Страна-изготовитель": {"id": 4389, "value_from": "country"},
         "Количество товара в УЕИ": {"id": 23249, "value_from": "multiplicity"},
         "Вес с упаковкой, г": {"id": 4497, "value_from": "weight_grams"},
-        "Номинальный ток, А": {"id": 5776},
-        "Напряжение катушки управления, В": {"id": 20958},
-        "Номинальное напряжение, В": {"id": 10823},
+        "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
+        "Номинальный ток, А": {"id": 5776, "value_from": "current"},
+        "Напряжение катушки управления, В": {"id": 20958, "value_from": "coil_voltage"},
+        "Номинальное напряжение, В": {"id": 10823, "value_from": "coil_voltage"},
     }
-    ozon_attribute_ids["Номинальное напряжение, В"] = {"id": 10823, "value_from": "coil_voltage"}
-    ozon_attribute_ids["Номинальный ток, А"] = {"id": 5776, "value_from": "current"}
     ozon_attribute_ids["Число и исполнение контактов"] = {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]}
 
     if category_id is None:
@@ -361,6 +358,8 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
             "barcode": base["barcode"],
             "name": base["name"],
             "feacn": _text(product.get("feacn")),
+            "coil_voltage": next((f["value"] for f in base["features"] if f["name"] == "Номин напряжение питания цепи управ Us AC 50 Гц"), ""),
+            "current": next((f["value"] for f in base["features"] if f["name"] == "Номин рабочий ток Ie при AC-3 400 В"), ""),
             "contact_type": "1NO+1NC" if "1NC" in base["name"] else "1NO",
             "control_current": next((f["value"] for f in base["features"] if f["name"] == "Тип напряжения управления"), ""),
             "aux_no_count": next((f["value"] for f in base["features"] if f["name"] == "Кол-во вспомогат норм разомкнутых-НО конт"), ""),
@@ -368,10 +367,13 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
             "main_no_count": next((f["value"] for f in base["features"] if f["name"] == "Кол-во норм разомкнутых-НО силовых конт"), ""),
             "main_nc_count": next((f["value"] for f in base["features"] if f["name"] == "Кол-во норм замкнутых-НЗ силовых контактов"), ""),
             "gross_weight_kg": _text(base["dimensions"]["weightBrutto"]),
-            "height_cm": _text(base["dimensions"]["height"]),
-            "length_cm": _text(base["dimensions"]["length"]),
             "width_cm": _text(base["dimensions"]["width"]),
+            "weight_grams": str(round((base["dimensions"]["weightBrutto"] or 0) * 1000)),
+            "module_count": "3",  # three main power poles in this IEK contactor series
+            "pole_count": "3",
         }
+        ozon_attribute_ids["Количество модулей"] = {"id": 168294, "value_from": "module_count"}
+        ozon_attribute_ids["Количество полюсов"] = {"id": 10818, "value_from": "pole_count"}
         return values.get(source_key, "")
 
     for feature in base["features"]:
