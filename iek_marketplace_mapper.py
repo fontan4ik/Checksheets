@@ -228,6 +228,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     attributes = []
     attribute_ids = category.get("attribute_ids", {})
     mapped_characteristics = 0
+    emitted_ids: set[int] = set()
     feature_to_ozon_attr = {
         "Номин рабочий ток Ie при AC-3 400 В": "Номинальный ток, А",
         "Степень защиты - IP": "Степень защиты - IP",
@@ -237,11 +238,15 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Число и исполнение контактов": "Число и исполнение контактов",
     }
     for feature in base["features"]:
+        if feature["name"] == "Рабочий ток":
+            feature = {**feature, "name": "Номин рабочий ток Ie при AC-3 400 В"}
         mapped_name = feature_to_ozon_attr.get(feature["name"], feature["name"])
-        mapped = attribute_ids.get(mapped_name, ozon_attribute_ids.get(mapped_name))
-        if feature["name"] == "Бренд" and not attribute_ids.get("Бренд"):
+        mapped = attribute_ids.get(mapped_name)
+        if mapped is None:
+            mapped = ozon_attribute_ids.get(mapped_name)
+        if feature["name"] == "Бренд" and "Бренд" not in attribute_ids:
             feature = {**feature, "value": base["brand"]}
-        elif feature["name"] == "Тип" and not attribute_ids.get("Тип"):
+        elif feature["name"] == "Тип" and "Тип" not in attribute_ids:
             feature = {**feature, "value": "Контактор"}
         if mapped is None:
             warnings.append(f"unmapped Ozon attribute: {feature['name']}")
@@ -376,6 +381,8 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
         return values.get(source_key, "")
 
     for feature in base["features"]:
+        if feature["name"] == "Рабочий ток":
+            feature = {**feature, "name": "Номин рабочий ток Ie при AC-3 400 В"}
         mapped = characteristic_ids.get(feature["name"])
         if mapped is None:
             warnings.append(f"unmapped WB characteristic: {feature['name']}")
