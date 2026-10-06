@@ -27,3 +27,21 @@ The latest board instruction was followed: continue schema and payload implement
 ## Next action
 
 After the pending exact VAT answer, fetch the five current IEK products through the supported loader, assemble each payload with RRC seller price, confirmed VAT, and the VOLA-57 reviewed WB characteristic schema, validate all five payloads, then continue authorized real writes and live ID/status post-check. Never use the failed synthetic Ozon task 5764302353 or WB throwaway upload as product evidence.
+
+## Owner VAT decision and live cabinet evidence (2026-10-06)
+
+The owner superseded the exact-rate question and authorized selecting VAT from similar IEK contactors in the same Ozon category. I loaded Ozon credentials only in process using the existing `ozon_report65_local.js` dotenv order (protected secrets file first, project `.env` second); no credential value was displayed or persisted. Read-only `POST /v1/roles` returned HTTP 200. A complete pagination of `/v3/product/list` followed by `/v3/product/info/list` over the account catalog found exact same-category (`17028654`) IEK contactors; target suffixed offer IDs were absent from the catalog snapshot.
+
+Every matched same-category IEK contactor returned `vat="0.22"`. Closest KMIe series analogs (Ozon product ID — offer ID) include:
+
+- `2948157443` — `KKM11-012-230-10-1`
+- `2948157630` — `KKM11-018-230-10-1`
+- `2948157414` — `KKM11-009-230-10-1`
+- `2948157655` — `KKM21-025-230-10-1`
+- `2948159059` — `KKM31-040-230-11-1`
+
+These KMI/IEK offers are related catalog analogs, not duplicates of the five KMIe supplier products. Additional IEK contactors in the same category also showed `0.22`; no rate disagreement was observed. Use Ozon `vat="0.22"` for the five authorized cards, grounded in these actual product IDs, not the unrelated general-catalog sample.
+
+The live IEK detail loader was exercised read-only for all five exact supplier articles. Each article matched; each has multiplicity 1, so listing IDs must end in exactly `-1`. Photos, 14 ETIM features, individual barcode, package dimensions/weight, and RRC were present. No credential or raw product response was saved as an artifact.
+
+This resolves VAT and authenticated source-data access. It does not by itself establish that the current WB mapper characteristics or all required Ozon attribute values are valid for live writes; do not publish until both actual endpoint payloads are assembled and schema-validated. No marketplace writes were sent in this continuation.
