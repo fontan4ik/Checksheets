@@ -146,6 +146,8 @@ def _base(product: Mapping[str, Any]) -> dict[str, Any]:
         "features": features,
         "multiplicity": _multiplicity(product),
         "category": _text(product.get("category") or product.get("categoryName")),
+        "seller_price": _number(product, "seller_price", "priceRrc"),
+        "barcode": _text(product.get("barcode")) or _text(_logistic_individual(product, "Штрихкод", "barcode")),
         "dimensions": {
             "length": _dimension_cm(product, "length", ("l_см", "length_cm")),
             "width": _dimension_cm(product, "width", ("b_см", "width_cm")),
@@ -163,16 +165,11 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     errors: list[str] = []
     warnings: list[str] = []
     category_id = category.get("description_category_id")
-    # IEK RRC is the approved seller-price source for this workflow; map it explicitly.
-    seller_price = product.get("seller_price")
-    if seller_price in (None, ""):
-        seller_price = product.get("priceRrc")
-    if seller_price not in (None, ""):
-        try:
-            seller_price = float(str(seller_price).replace(",", "."))
-        except (TypeError, ValueError):
-            errors.append("invalid IEK RRC seller price")
-            seller_price = None
+    seller_price = base["seller_price"]
+    if seller_price is not None:
+        seller_price = float(seller_price)
+    else:
+        errors.append("missing IEK RRC seller price")
     type_id = category.get("type_id")
     if category_id is None:
         errors.append("missing Ozon description_category_id mapping")
@@ -228,12 +225,16 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "type_id": type_id,
         "price": seller_price,
     }
-    for key in ("barcode", "currency_code", "old_price"):
-        if product.get(key) not in (None, ""):
-            item[key] = product[key]
+    for key, value in (
+        ("barcode", base["barcode"]),
+        ("currency_code", product.get("currency_code")),
+        ("old_price", product.get("old_price")),
+    ):
+        if value not in (None, ""):
+            item[key] = value
     if seller_price is None:
         errors.append("missing IEK RRC seller price")
-    if "barcode" not in item:
+    if not item.get("barcode"):
         errors.append("missing commercial field: barcode")
     if not attributes:
         errors.append("no mapped Ozon characteristics")
@@ -297,13 +298,13 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
             "description": base["description"],
             "dimensions": base["dimensions"],
             "characteristics": characteristics,
-            "sizes": [{"techSize": "0", "wbSize": "0", "price": product.get("price", 0), "skus": [str(product.get("barcode", ""))]}],
+            "sizes": [{"techSize": "0", "wbSize": "0", "price": base["seller_price"] or 0, "skus": [str(base["barcode"] or "")]}],
             "photos": {"c246x328": base["images"]},
         }],
     }
-    if not product.get("barcode"):
+    if not base["barcode"]:
         errors.append("missing commercial field: barcode")
-    if product.get("price") in (None, "") and product.get("priceRrc") in (None, ""):
+    if base["seller_price"] is None:
         errors.append("missing IEK RRC seller price")
     if not characteristics:
         errors.append("no mapped WB characteristics")
