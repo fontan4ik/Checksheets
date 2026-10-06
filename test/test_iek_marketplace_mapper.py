@@ -19,6 +19,8 @@ PRODUCT = {
         {"name": "Кол-во вспомогат норм разомкнутых-НО конт", "value": "1"},
     ]},
     "priceRrc": 715.11,
+    "seller_price": 715.11,
+    "vat": "0.22",
     "logisticParams": [
         {"nameOrig": "Штрихкод", "value": {"individual": "123"}},
         {"nameOrig": "l_см", "value": {"individual": "7.7", "transport": "44.0"}},
@@ -31,7 +33,7 @@ PRODUCT = {
 
 class MarketplaceMapperTest(unittest.TestCase):
     def test_ozon_and_wb_apply_explicit_category_attribute_mappings(self):
-        ozon = build_preview(
+        mapped = build_preview(
             PRODUCT,
             ozon={
                 "description_category_id": 17028654,
@@ -43,17 +45,19 @@ class MarketplaceMapperTest(unittest.TestCase):
             },
             wb={"subject_id": 4225},
         )
-        self.assertTrue(ozon["ozon"]["ready"])
-        self.assertEqual(ozon["ozon"]["payload"]["price"], 715.11)
-        self.assertEqual(ozon["ozon"]["payload"]["barcode"], "123")
-        self.assertTrue(ozon["wb"]["ready"])
-        card = ozon["wb"]["payload"]["variants"][0]
+        self.assertTrue(mapped["ozon"]["ready"])
+        self.assertEqual(mapped["ozon"]["payload"]["price"], 715.11)
+        self.assertEqual(mapped["ozon"]["payload"]["vat"], "0.22")
+        self.assertEqual(mapped["ozon"]["payload"]["barcode"], "123")
+        self.assertTrue(mapped["wb"]["ready"])
+        card = mapped["wb"]["payload"]["variants"][0]
         self.assertEqual(card["dimensions"], {"length": 7.7, "width": 4.8, "height": 8.8, "weightBrutto": 0.36})
-        ozon_attrs = ozon["ozon"]["payload"]["attributes"]
-        self.assertTrue(any(a["id"] == 10823 and a["values"][0]["value"] == "230" for a in ozon_attrs))
-        self.assertTrue(any(a["id"] == 85 and a["values"][0]["value"] == "IEK" for a in ozon_attrs))
-        self.assertTrue(any(a["id"] == 8229 and a["values"][0]["value"] == "Контактор" for a in ozon_attrs))
-        self.assertTrue(any(a["id"] == 23536 and a["values"][0]["value"] is True for a in ozon_attrs))
+        self.assertEqual(card["photos"], PRODUCT["imageUrls"])
+        attrs = mapped["ozon"]["payload"]["attributes"]
+        self.assertTrue(any(a["id"] == 10823 and a["values"][0]["value"] == "230" for a in attrs))
+        self.assertTrue(any(a["id"] == 85 and a["values"][0]["value"] == "IEK" for a in attrs))
+        self.assertTrue(any(a["id"] == 8229 and a["values"][0]["value"] == "Контактор" for a in attrs))
+        self.assertTrue(any(a["id"] == 23536 and a["values"][0]["value"] is True for a in attrs))
 
     def test_ozon_requires_explicit_category_mapping(self):
         result = map_ozon(PRODUCT)
@@ -61,121 +65,94 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertIn("missing Ozon description_category_id mapping", result.errors)
         self.assertEqual(result.payload["offer_id"], PRODUCT["article"] + "-1")
 
-    def test_ozon_uses_supplier_rrc_as_authorized_seller_price(self):
-        product = {**PRODUCT, "priceRrc": 715.11}
-        result = map_ozon(
-            product,
-            category={"description_category_id": 17028654, "type_id": 99040, "attribute_ids": {"Рабочий ток": 3}},
-        )
-        self.assertTrue(result.ready)
-        self.assertEqual(result.payload["price"], 715.11)
-        self.assertEqual(result.payload["barcode"], "123")
+    def test_supplier_rrc_is_not_seller_price_without_explicit_value(self):
+        product = {key: value for key, value in PRODUCT.items() if key != "seller_price"}
+        result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040})
+        self.assertFalse(result.ready)
+        self.assertIn("missing explicit seller_price; supplier priceRrc is not a seller-price source", result.errors)
+        self.assertNotIn("price", result.payload)
+        self.assertEqual(result.payload["vat"], "0.22")
+
+    def test_missing_vat_is_not_inferred(self):
+        product = {key: value for key, value in PRODUCT.items() if key != "vat"}
+        result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040})
+        self.assertFalse(result.ready)
+        self.assertIn("missing explicit Ozon VAT rate", result.errors)
+        self.assertNotIn("vat", result.payload)
+
+    def test_wb_price_is_omitted_without_explicit_seller_price(self):
+        product = {key: value for key, value in PRODUCT.items() if key != "seller_price"}
+        result = map_wb(product, category={"subject_id": 4225})
+        self.assertFalse(result.ready)
+        self.assertNotIn("price", result.payload["variants"][0]["sizes"][0])
 
     def test_missing_voltage_is_not_inferred_from_article(self):
         product = deepcopy(PRODUCT)
-        product["etim"]["features"] = [
-            feature for feature in product["etim"]["features"]
-            if feature["name"] != "Номин напряжение питания цепи управ Us AC 50 Гц"
-        ]
-        result = map_ozon(product, category={
-            "description_category_id": 17028654,
-            "type_id": 99040,
-            "required_attribute_ids": [10823],
-        })
+        product["etim"]["features"] = [f for f in product["etim"]["features"] if f["name"] != "Номин напряжение питания цепи управ Us AC 50 Гц"]
+        result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040, "required_attribute_ids": [10823]})
         self.assertFalse(result.ready)
         self.assertIn("missing required Ozon attributes: 10823", result.errors)
-        self.assertNotIn(10823, {attribute["id"] for attribute in result.payload["attributes"]})
+        self.assertNotIn(10823, {a["id"] for a in result.payload["attributes"]})
 
     def test_required_marking_is_not_invented(self):
-        result = map_ozon(PRODUCT, category={
-            "description_category_id": 17028654,
-            "type_id": 99040,
-            "required_attribute_ids": [23536],
-        })
+        product = {key: value for key, value in PRODUCT.items() if key != "etim"} | {"etim": {"features": PRODUCT["etim"]["features"]}}
+        result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040, "required_attribute_ids": [23536]})
         self.assertFalse(result.ready)
         self.assertIn("missing required Ozon attributes: 23536", result.errors)
-        self.assertNotIn(23536, {attribute["id"] for attribute in result.payload["attributes"]})
+
+    def test_explicit_false_marking_is_preserved(self):
+        product = deepcopy(PRODUCT)
+        product["etim"]["features"].append({"name": "Нужен код маркировки", "value": False})
+        result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040, "required_attribute_ids": [23536]})
+        self.assertTrue(result.ready)
+        marking = next(a for a in result.payload["attributes"] if a["id"] == 23536)
+        self.assertIs(marking["values"][0]["value"], False)
+
+    def test_supplier_false_marking_is_not_overridden_by_default(self):
+        self.test_explicit_false_marking_is_preserved()
 
     def test_brand_metadata_does_not_replace_unmapped_technical_characteristics(self):
         product = deepcopy(PRODUCT)
         product["etim"]["features"] = [{"name": "Unknown technical feature", "value": "x"}]
-        result = map_ozon(product, category={
-            "description_category_id": 17028654,
-            "type_id": 99040,
-        })
-        self.assertFalse(result.ready)
-        self.assertIn("no required Ozon characteristics mapped", result.errors)
-
-    def test_explicit_false_marking_is_preserved(self):
-        result = map_ozon(PRODUCT, category={
-            "description_category_id": 17028654,
-            "type_id": 99040,
-            "required_attribute_ids": [23536],
-            "attribute_ids": {
-                "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": False},
+        result = map_ozon(
+            product,
+            category={
+                "description_category_id": 17028654,
+                "type_id": 99040,
+                "required_attribute_ids": [5776],
             },
-        })
-        self.assertTrue(result.ready)
-        marking = next(attribute for attribute in result.payload["attributes"] if attribute["id"] == 23536)
-        self.assertIs(marking["values"][0]["value"], False)
-
-    def test_supplier_false_marking_is_not_overridden_by_default(self):
-        product = deepcopy(PRODUCT)
-        product["etim"]["features"].append({"name": "Нужен код маркировки", "value": False})
-        result = map_ozon(product, category={
-            "description_category_id": 17028654,
-            "type_id": 99040,
-            "required_attribute_ids": [23536],
-        })
-        self.assertTrue(result.ready)
-        marking = next(attribute for attribute in result.payload["attributes"] if attribute["id"] == 23536)
-        self.assertIs(marking["values"][0]["value"], False)
+        )
+        self.assertFalse(result.ready)
+        self.assertIn("missing required Ozon attributes: 5776", result.errors)
 
     def test_maps_individual_ieks_logistic_package_measurements(self):
-        mapped = map_wb(
-            PRODUCT,
-            category={"subject_id": 123, "characteristic_ids": {"Рабочий ток": 456}},
-        )
-        dimensions = mapped.payload["variants"][0]["dimensions"]
-        self.assertEqual(
-            dimensions,
-            {"length": 7.7, "width": 4.8, "height": 8.8, "weightBrutto": 0.36},
-        )
-        self.assertNotEqual(dimensions["length"], 44.0)  # transport packaging excluded
+        result = map_wb(PRODUCT, category={"subject_id": 4225, "characteristic_ids": {"Рабочий ток": 456}})
+        dimensions = result.payload["variants"][0]["dimensions"]
+        self.assertEqual(dimensions, {"length": 7.7, "width": 4.8, "height": 8.8, "weightBrutto": 0.36})
+        self.assertNotEqual(dimensions["length"], 44.0)
 
     def test_wb_maps_images_and_characteristics(self):
-        result = map_wb(
-            PRODUCT,
-            category={"subject_id": 123, "characteristic_ids": {"Рабочий ток": 456}},
-        )
+        result = map_wb(PRODUCT, category={"subject_id": 4225, "characteristic_ids": {"Рабочий ток": 456}})
         self.assertTrue(result.ready)
         variant = result.payload["variants"][0]
         self.assertEqual(variant["vendorCode"], PRODUCT["article"] + "-1")
-        self.assertEqual(variant["photos"]["c246x328"], PRODUCT["imageUrls"])
+        self.assertEqual(variant["photos"], PRODUCT["imageUrls"])
         self.assertEqual(variant["characteristics"][0]["id"], 81589)
 
     def test_multiplicity_one_appends_suffix_to_listing_articles(self):
-        preview = build_preview(
-            PRODUCT,
-            ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}},
-            wb={"subject_id": 4, "characteristic_ids": {"Рабочий ток": 5}},
-        )
+        preview = build_preview(PRODUCT, ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4, "characteristic_ids": {"Рабочий ток": 5}})
         self.assertEqual(preview["multiplicity"], 1)
         self.assertEqual(preview["sourceArticle"], PRODUCT["article"])
         self.assertEqual(preview["article"], PRODUCT["article"] + "-1")
         self.assertEqual(preview["ozon"]["payload"]["offer_id"], PRODUCT["article"] + "-1")
         self.assertEqual(preview["wb"]["payload"]["variants"][0]["vendorCode"], PRODUCT["article"] + "-1")
         self.assertTrue(preview["publishable"])
-        self.assertEqual(preview["ozon"]["payload"]["price"], PRODUCT["priceRrc"])
-        self.assertEqual(preview["ozon"]["payload"]["barcode"], "123")
+        self.assertEqual(preview["ozon"]["payload"]["price"], PRODUCT["seller_price"])
+        self.assertEqual(preview["ozon"]["payload"]["vat"], PRODUCT["vat"])
 
     def test_multiplicity_suffix_is_not_duplicated(self):
         product = {**PRODUCT, "article": PRODUCT["article"] + "-1"}
-        preview = build_preview(
-            product,
-            ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}},
-            wb={"subject_id": 4, "characteristic_ids": {"Рабочий ток": 5}},
-        )
+        preview = build_preview(product, ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4, "characteristic_ids": {"Рабочий ток": 5}})
         self.assertEqual(preview["article"], product["article"])
         self.assertEqual(preview["ozon"]["payload"]["offer_id"], product["article"])
 
