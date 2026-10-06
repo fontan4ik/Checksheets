@@ -2760,9 +2760,93 @@
     "semantic_hash": ""
   },
   "sites/iek-operator/.openai/hosting.json": {
-    "mtime": 1791310247.7912693,
-    "seen": 1791310807.426256,
-    "ast_hash": "a37ec77a1b516b7ace0dfb41e97fbe58",
+    "mtime": 1791313870.061432,
+    "seen": 1791316434.7673228,
+    "ast_hash": "c364180d104fb438d86ec9791afdc07f",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/db/schema.ts": {
+    "mtime": 1791313372.3237438,
+    "seen": 1791316434.767324,
+    "ast_hash": "c65a91c625178f9e42f9a2fff945aec6",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/drizzle.config.ts": {
+    "mtime": 1791313372.2809684,
+    "seen": 1791316434.767325,
+    "ast_hash": "e81dce0ee5a68cda79ed14b17d1c583d",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/drizzle/meta/0000_snapshot.json": {
+    "mtime": 1791313499.4621053,
+    "seen": 1791316434.767325,
+    "ast_hash": "ad44c0daa11dd017447fbd56bff61e27",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/drizzle/meta/_journal.json": {
+    "mtime": 1791313499.4621754,
+    "seen": 1791316434.7673259,
+    "ast_hash": "7a3d6fcdce800346ec73f50018ab03c5",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/package.json": {
+    "mtime": 1791313372.2660553,
+    "seen": 1791316434.7673259,
+    "ast_hash": "c8db2013a766792dbc518bb16703c8f5",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/scripts/build.mjs": {
+    "mtime": 1791313372.3830152,
+    "seen": 1791316434.7673259,
+    "ast_hash": "36febaff772036a7eebfe0500c53da0f",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/scripts/build.sh": {
+    "mtime": 1791313372.3677323,
+    "seen": 1791316434.767327,
+    "ast_hash": "97a2abd64fccc7e567c5036d590703b1",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/scripts/validate-artifact.mjs": {
+    "mtime": 1791313870.0756216,
+    "seen": 1791316434.767327,
+    "ast_hash": "eab6ef9a88f80a15845ec6d86ba1ec7a",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/test/migration.test.mjs": {
+    "mtime": 1791313650.7612243,
+    "seen": 1791316434.767328,
+    "ast_hash": "323ed2defc22c603cea9901750ad1e28",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/test/worker-flow.test.mjs": {
+    "mtime": 1791314422.399436,
+    "seen": 1791316434.767328,
+    "ast_hash": "bb3a6a919d36ee750ffe0945fcae801b",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/worker/index.js": {
+    "mtime": 1791314032.0866098,
+    "seen": 1791316434.767329,
+    "ast_hash": "d65fe3008950055435cd4d63be128a25",
+    "semantic_hash": ""
+  },
+  "Docs/VOLA-52-mapping-research.md": {
+    "mtime": 1791311713.4343894,
+    "seen": 1791316434.772164,
+    "ast_hash": "e75541680dbbb673561c2148c8d1edbe",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/src/index.html": {
+    "mtime": 1791314119.648058,
+    "seen": 1791316434.772681,
+    "ast_hash": "603a31d18f0937cf6d744ce1a8843e27",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/src/favicon.svg": {
+    "mtime": 1791313372.4107504,
+    "seen": 1791316434.7728179,
+    "ast_hash": "49e3c84d6cc6f86ffd579e3f7af7b256",
     "semantic_hash": ""
   }
 }
