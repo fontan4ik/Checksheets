@@ -43,7 +43,7 @@ class MarketplaceMapperTest(unittest.TestCase):
                     "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
                 },
             },
-            wb={"subject_id": 4225},
+            wb={"subject_id": 4225, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}},
         )
         self.assertTrue(mapped["ozon"]["ready"])
         self.assertEqual(mapped["ozon"]["payload"]["price"], 715.11)
@@ -126,13 +126,13 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertIn("missing required Ozon attributes: 5776", result.errors)
 
     def test_maps_individual_ieks_logistic_package_measurements(self):
-        result = map_wb(PRODUCT, category={"subject_id": 4225, "characteristic_ids": {"Рабочий ток": 456}})
+        result = map_wb(PRODUCT, category={"subject_id": 4225, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
         dimensions = result.payload["variants"][0]["dimensions"]
         self.assertEqual(dimensions, {"length": 7.7, "width": 4.8, "height": 8.8, "weightBrutto": 0.36})
         self.assertNotEqual(dimensions["length"], 44.0)
 
     def test_wb_maps_images_and_characteristics(self):
-        result = map_wb(PRODUCT, category={"subject_id": 4225, "characteristic_ids": {"Рабочий ток": 456}})
+        result = map_wb(PRODUCT, category={"subject_id": 4225, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
         self.assertTrue(result.ready)
         variant = result.payload["variants"][0]
         self.assertEqual(variant["vendorCode"], PRODUCT["article"] + "-1")
@@ -140,7 +140,7 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertEqual(variant["characteristics"][0]["id"], 81589)
 
     def test_multiplicity_one_appends_suffix_to_listing_articles(self):
-        preview = build_preview(PRODUCT, ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4, "characteristic_ids": {"Рабочий ток": 5}})
+        preview = build_preview(PRODUCT, ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4225, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
         self.assertEqual(preview["multiplicity"], 1)
         self.assertEqual(preview["sourceArticle"], PRODUCT["article"])
         self.assertEqual(preview["article"], PRODUCT["article"] + "-1")
@@ -152,7 +152,7 @@ class MarketplaceMapperTest(unittest.TestCase):
 
     def test_multiplicity_suffix_is_not_duplicated(self):
         product = {**PRODUCT, "article": PRODUCT["article"] + "-1"}
-        preview = build_preview(product, ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4, "characteristic_ids": {"Рабочий ток": 5}})
+        preview = build_preview(product, ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4225, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
         self.assertEqual(preview["article"], product["article"])
         self.assertEqual(preview["ozon"]["payload"]["offer_id"], product["article"])
 
