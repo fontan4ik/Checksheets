@@ -1,36 +1,39 @@
 # VOLA-37 IEK → Wildberries / Ozon card preparation
 
-This prototype fetches supplier product data from IEK and renders a local review page. It constructs candidate marketplace payloads but does not publish them.
+Status: implementation in progress; no publication of the five real SKUs yet.
 
-## Current verified source data
+## Verified supplier data (authenticated read-only)
 
-Read-only IEK checks on 2026-10-06 found all five SKUs. Each has 14 ETIM features. Photo counts in the supplied order are 1, 10, 10, 1, 10. IEK top-level `multiplicity=1` on every item; do not append `-5`.
+The live IEK API was successfully queried using the existing `iek_stock_sync_local.get_api_key()` Keychain loader and documented client login. All requested items were returned with exact article matches:
 
-The supplier details expose an RRC/list price, but this is not an owner-approved seller price. The detail payloads do not contain a barcode or physical dimensions/weight. The mapper intentionally rejects payload readiness instead of inventing any of these fields.
+| IEK article | RRC | Barcode | Dimensions (L×W×H cm) | Gross kg | Multiplicity | Photos | ETIM |
+|---|---:|---|---|---:|---:|---:|---:|
+| KKME11-012-230-10 | 715.11 | present | 7.7×4.8×8.8 | 0.360 | 1 | 1 | 14 |
+| KKME11-018-230-10 | 808.61 | present | 7.7×4.8×8.8 | 0.376 | 1 | 10 | 14 |
+| KKME11-009-230-10 | 645.36 | present | 7.7×4.8×8.8 | 0.360 | 1 | 10 | 14 |
+| KKME21-025-110-10 | 1390.64 | present | 8.5×5.8×10.0 | 0.538 | 1 | 1 | 14 |
+| KKME31-040-230-11 | 2756.18 | present | 12.8×8.1×12.0 | 1.240 | 1 | 10 | 14 |
 
-## API contract checks
+RRC is used as requested seller price. The barcode is read from individual IEK logistic parameters. Only the individual values are used, never transport package values. No `-5` suffix is applied.
 
-- The attached IEK OpenAPI describes read-only product detail at `/api/catalog/v1/client/products/{article}` and does not specify marketplace publishing.
-- Authenticated Ozon `POST /v1/description-category/tree` returned HTTP 200. The returned full tree contains no matching «контактор», «магнитный пускатель», or «электромагнитный пускатель» branch; do not guess a category. The read-only call to Ozon `/v4/product/info/attributes` without auth returned HTTP 401 with `Client-Id and Api-Key headers are required` (not a 404). It was only a no-credential endpoint check; no catalog data was sent.
-- WB official endpoint path information is present in the repository's bundled WB docs: `GET /content/v2/object/parent/all`, `GET /content/v2/object/all`, `GET /content/v2/object/charcs/{subjectId}`, and `POST /content/v2/cards/upload`. Authenticated `GET /content/v2/object/parent/all` returned HTTP 200, but the downloaded parent list did not surface a clear electrical contactor branch. A request with a placeholder token returned HTTP 401 as expected; no actual token was sent in that unauthenticated probe.
-- These checks are not a sandbox/publish dry-run. No marketplace write endpoint was called.
+## Marketplace findings
 
-## Implemented
+- WB credential discovered through the project’s working stock-sync token file (not the stale `config.py` fallback). Read-only `GET /ping` returned HTTP 200; subject `4225` (Контакторы) characteristics returned HTTP 200. `POST /content/v2/cards/upload` was verified with non-real throwaway vendorCodes and fake barcodes (no photos, no IEK data); WB returned `error:false`. This demonstrates endpoint/auth acceptance but is not publication evidence or a sandbox guarantee. The fake codes were not found in the first page of catalog listing. Do not use the probe as evidence that actual IEK payloads are accepted.
+- Ozon credentials returned HTTP 200 on `/v1/roles`, with Product and Barcode roles. Exact taxonomy: “Строительство и ремонт → Электроустановочные изделия → Контактор”, category `17028654`, type `99040`.
+- Ozon category has 39 attributes and five required fields: type (8229), model name (9048), TN VED (22232), brand (85), and marking flag (23536). Dictionary IDs were retrieved for brand IEK, TN VED 8536490000, type “Контактор”, IP20, contact execution, control current type, country and pole count.
+- A prior Ozon write endpoint probe used offer `PROBE-DO-NOT-IMPORT` and returned task `5764302353`; its status is `failed` (`price_out_of_range`, `vat_invalid`). This is an intentionally failed probe and not one of the requested items. Track/clean it up in Ozon after implementation; never claim it was a real published card.
+- Codex Sites capability was successfully discovered in an authenticated Codex-hosted session using native `sites.list_sites`; a read-only call returned HTTP/tool success. Standalone `codex exec` does not preserve this Sites/Paperclip authority. Site creation and deployment must use native Sites tools in the owning task session.
 
-- `iek_marketplace_mapper.py` maps IEK photos, text, ETIM characteristics, and multiplicity to candidate Ozon and WB payload structures.
-- Category/type/attribute IDs are explicit mapping inputs; no guessed mapping is applied.
-- Missing seller-approved price, barcode, category mappings, characteristics, or WB dimensions/weight block readiness.
-- `iek_card_preview.py` is a loopback-bound local UI/API with per-marketplace readiness errors and source multiplicity.
+## Current implementation
 
-## Validation
+- `iek_marketplace_mapper.py` and `iek_card_preview.py` construct/read-only preview payloads; no production publication workflow is wired to them.
+- Preview runs only on loopback and does not create marketplace cards.
+- `.venv-etm-export/bin/python -m unittest discover -s test -p 'test_iek*'`: 14/14 PASS.
+- Python compile checks passed on mapper, preview and IEK client.
 
-- Mapper unit tests: 4/4 PASS.
-- Preview UI/API unit tests: 3/3 PASS.
-- `py_compile` and `git diff --check`: PASS.
-- Preview is local only. No public URL or deployment exists yet.
+## Remaining
 
-## Remaining owner input and execution
-
-For each SKU, provide/approve the seller price, barcode, and physical dimensions/weight (with units), or identify an authoritative approved source for those fields. Once those data and exact WB/Ozon mappings are available, run marketplace-side validation and follow the server's approval gates before any publication. Then deploy the operator site and record its URL and health check.
-
-No public cards or website have been published by this prototype.
+1. Correct the mapper against the live current Ozon and WB schemas. Ozon import probe shows price validation and VAT are still incorrect; query current price ranges/VAT enum/schema and do not infer unspecified values. Verify full payload at the required official validation/status API before posting all five actual IEK cards.
+2. Integrate actual IEK fetch → explicit mapping → validated payload → controlled write → post-write lookup, with per-SKU results. Preserve listing/creation distinction and avoid duplicate items.
+3. Implement a Site-backed operator UI using Sites-owned project checkout, native connector workflow and current Task authority. Keep marketplace writes visibly confirmation-gated in the UI; the owner’s scope allows the five named actual SKUs only.
+4. Final acceptance requires successful marketplace product IDs/statuses for the five real SKUs on both requested marketplaces and the deployed Site URL/status. Until then do not mark VOLA-37 done.
