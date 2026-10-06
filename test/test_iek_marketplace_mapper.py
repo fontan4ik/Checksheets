@@ -23,6 +23,22 @@ PRODUCT = {
 
 
 class MarketplaceMapperTest(unittest.TestCase):
+    def test_ozon_and_wb_apply_verified_live_category_attribute_mappings(self):
+        ozon = build_preview(
+            PRODUCT,
+            ozon={"description_category_id": 17028654, "type_id": 99040},
+            wb={"subject_id": 4225},
+        )
+        self.assertTrue(ozon["ozon"]["ready"])
+        self.assertEqual(ozon["ozon"]["payload"]["price"], 715.11)
+        self.assertEqual(ozon["ozon"]["payload"]["barcode"], "123")
+        self.assertTrue(ozon["wb"]["ready"])
+        card = ozon["wb"]["payload"]["variants"][0]
+        self.assertEqual(card["dimensions"], {"length": 7.7, "width": 4.8, "height": 8.8, "weightBrutto": 0.36})
+        ozon_attrs = ozon["ozon"]["payload"]["attributes"]
+        self.assertTrue(any(a["id"] == 85 and a["values"][0]["value"] == "IEK" for a in ozon_attrs))
+        self.assertTrue(any(a["id"] == 23536 and a["values"][0]["value"] is True for a in ozon_attrs))
+
     def test_ozon_requires_explicit_category_mapping(self):
         result = map_ozon(PRODUCT)
         self.assertFalse(result.ready)

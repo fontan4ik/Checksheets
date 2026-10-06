@@ -228,8 +228,17 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     attributes = []
     attribute_ids = category.get("attribute_ids", {})
     mapped_characteristics = 0
+    feature_to_ozon_attr = {
+        "Номин рабочий ток Ie при AC-3 400 В": "Номинальный ток, А",
+        "Степень защиты - IP": "Степень защиты - IP",
+        "Номин напряжение питания цепи управ Us AC 50 Гц": "Напряжение катушки управления, В",
+        "Тип напряжения управления": "Тип напряжения управления",
+        "Тип подключения силовой электрич цепи": "Тип подключения силовой электрич цепи",
+        "Число и исполнение контактов": "Число и исполнение контактов",
+    }
     for feature in base["features"]:
-        mapped = attribute_ids.get(feature["name"], ozon_attribute_ids.get(feature["name"]))
+        mapped_name = feature_to_ozon_attr.get(feature["name"], feature["name"])
+        mapped = attribute_ids.get(mapped_name, ozon_attribute_ids.get(mapped_name))
         if feature["name"] == "Бренд" and not attribute_ids.get("Бренд"):
             feature = {**feature, "value": base["brand"]}
         elif feature["name"] == "Тип" and not attribute_ids.get("Тип"):
@@ -251,6 +260,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             is_boolean = False
             value_from = None
             static_value = None
+        if value_from:
+            raw_values = [feature["value"]]
         elif static_value is not None:
             raw_values = [static_value]
         else:
