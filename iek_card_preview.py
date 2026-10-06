@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 import iek_stock_sync_local as iek
+from iek_marketplace_mapper import build_preview
 
 HOST = "127.0.0.1"
 PORT = int(os.getenv("IEK_PREVIEW_PORT", "8765"))
@@ -83,7 +84,10 @@ class Handler(BaseHTTPRequestHandler):
                         elif iek.normalize_article(product.get("article")) != iek.normalize_article(article):
                             products.append({"article": article, "error": "API вернул несовпадающий артикул"})
                         else:
-                            products.append(product)
+                            products.append({
+                                **product,
+                                "marketplacePreview": build_preview(product),
+                            })
                     except Exception as exc:
                         products.append({"article": article, "error": f"Не удалось загрузить: {type(exc).__name__}"})
                 result = json.dumps({"products": products}, ensure_ascii=False).encode()
