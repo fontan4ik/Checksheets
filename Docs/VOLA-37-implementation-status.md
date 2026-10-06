@@ -2,6 +2,10 @@
 
 Status: implementation in progress; no publication of the five real SKUs yet.
 
+## Listing article suffix rule (owner update, 2026-10-06)
+
+The marketplace listing identifier is the supplier article plus `-<multiplicity>` whenever IEK returns a positive integer multiplicity, including `-1`. For the five currently verified SKUs, the Ozon `offer_id` and WB `vendorCode` must therefore be `KKME11-012-230-10-1`, `KKME11-018-230-10-1`, `KKME11-009-230-10-1`, `KKME21-025-110-10-1`, and `KKME31-040-230-11-1`. The preview retains the unmodified supplier article separately as `sourceArticle`; suffix addition is idempotent. No real marketplace listing was created by this rule change.
+
 ## Verified supplier data (authenticated read-only)
 
 The live IEK API was successfully queried using the existing `iek_stock_sync_local.get_api_key()` Keychain loader and documented client login. All requested items were returned with exact article matches:

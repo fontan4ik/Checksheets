@@ -59,7 +59,7 @@ class MarketplaceMapperTest(unittest.TestCase):
         result = map_ozon(PRODUCT)
         self.assertFalse(result.ready)
         self.assertIn("missing Ozon description_category_id mapping", result.errors)
-        self.assertEqual(result.payload["offer_id"], PRODUCT["article"])
+        self.assertEqual(result.payload["offer_id"], PRODUCT["article"] + "-1")
 
     def test_ozon_uses_supplier_rrc_as_authorized_seller_price(self):
         product = {**PRODUCT, "priceRrc": 715.11}
@@ -150,21 +150,34 @@ class MarketplaceMapperTest(unittest.TestCase):
         )
         self.assertTrue(result.ready)
         variant = result.payload["variants"][0]
-        self.assertEqual(variant["vendorCode"], PRODUCT["article"])
+        self.assertEqual(variant["vendorCode"], PRODUCT["article"] + "-1")
         self.assertEqual(variant["photos"]["c246x328"], PRODUCT["imageUrls"])
         self.assertEqual(variant["characteristics"][0]["id"], 81589)
 
-    def test_multiplicity_one_does_not_add_suffix(self):
+    def test_multiplicity_one_appends_suffix_to_listing_articles(self):
         preview = build_preview(
             PRODUCT,
             ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}},
             wb={"subject_id": 4, "characteristic_ids": {"Рабочий ток": 5}},
         )
         self.assertEqual(preview["multiplicity"], 1)
-        self.assertEqual(preview["article"], PRODUCT["article"])
+        self.assertEqual(preview["sourceArticle"], PRODUCT["article"])
+        self.assertEqual(preview["article"], PRODUCT["article"] + "-1")
+        self.assertEqual(preview["ozon"]["payload"]["offer_id"], PRODUCT["article"] + "-1")
+        self.assertEqual(preview["wb"]["payload"]["variants"][0]["vendorCode"], PRODUCT["article"] + "-1")
         self.assertTrue(preview["publishable"])
         self.assertEqual(preview["ozon"]["payload"]["price"], PRODUCT["priceRrc"])
         self.assertEqual(preview["ozon"]["payload"]["barcode"], "123")
+
+    def test_multiplicity_suffix_is_not_duplicated(self):
+        product = {**PRODUCT, "article": PRODUCT["article"] + "-1"}
+        preview = build_preview(
+            product,
+            ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}},
+            wb={"subject_id": 4, "characteristic_ids": {"Рабочий ток": 5}},
+        )
+        self.assertEqual(preview["article"], product["article"])
+        self.assertEqual(preview["ozon"]["payload"]["offer_id"], product["article"])
 
 
 if __name__ == "__main__":
