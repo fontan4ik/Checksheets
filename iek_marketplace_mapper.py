@@ -180,11 +180,11 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Номин напряжение питания цепи управ Us AC 50 Гц": 10823,
         "Тип напряжения управления": {"id": 10819},
         "Тип подключения силовой электрич цепи": {"id": 20261},
-        "Число и исполнение контактов": {"id": 22963, "allowed_values": ["1NO", "1NO+1NC"]},
-        "Бренд": {"id": 85, "allowed_values": ["IEK"]},
-        "Тип": {"id": 8229, "allowed_values": ["Контактор"]},
+        "Число и исполнение контактов": {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]},
+        "Бренд": {"id": 85, "value_from": "brand", "allowed_values": ["IEK"]},
+        "Тип": {"id": 8229, "static_value": "Контактор", "allowed_values": ["Контактор"]},
         "Название модели (для объединения в одну карточку)": {"id": 9048, "value_from": "model"},
-        "ТН ВЭД коды ЕАЭС": {"id": 22232, "allowed_values": ["8536490000 - Прочие реле, на напряжение не более 1000 в", "8536490000 - Прочие реле, на напряжение не более 1000 в."]},
+        "ТН ВЭД коды ЕАЭС": {"id": 22232, "value_from": "feacn", "allowed_values": ["8536490000 - Прочие реле, на напряжение не более 1000 в", "8536490000 - Прочие реле, на напряжение не более 1000 в."]},
         "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
         "Партномер": {"id": 4381, "value_from": "article"},
         "Страна-изготовитель": {"id": 4389, "value_from": "countryOfProduction"},
@@ -193,26 +193,10 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Номинальный ток, А": {"id": 5776},
         "Напряжение катушки управления, В": {"id": 20958},
         "Номинальное напряжение, В": {"id": 10823},
-        "Число и исполнение контактов": {"id": 22963, "value_from": "contact_type"},
     }
-    ozon_dictionary_values = {
-        (85, "IEK"): {"id": 5578883, "value": "IEK"},
-        (8229, "Контактор"): {"id": 99040, "value": "Контактор"},
-        (6980, "IP20"): {"id": 83627, "value": "IP20"},
-        (22963, "1NO"): {"id": 971977917, "value": "1NO"},
-        (22963, "1NO+1NC"): {"id": 971977918, "value": "1NO+1NC"},
-        (22232, "8536490000 - Прочие реле, на напряжение не более 1000 в"): {"id": 971400163, "value": "8536490000 - Прочие реле, на напряжение не более 1000 в"},
-        (22232, "8536490000 - Прочие реле, на напряжение не более 1000 в."): {"id": 972997573, "value": "8536490000 - Прочие реле, на напряжение не более 1000 в."},
-    }
-    ozon_attribute_ids["Бренд"] = {"id": 85, "static_value": "IEK", "allowed_values": ["IEK"]}
-    ozon_attribute_ids["Тип"] = {"id": 8229, "static_value": "Контактор", "allowed_values": ["Контактор"]}
-    ozon_attribute_ids["Степень защиты - IP"] = {"id": 6980, "allowed_values": ["IP20"]}
+    ozon_attribute_ids["Количество модулей"] = {"id": 168294, "value_from": "module_count"}
+    ozon_attribute_ids["Количество полюсов"] = {"id": 10818, "value_from": "pole_count"}
     ozon_attribute_ids["Число и исполнение контактов"] = {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]}
-    ozon_attribute_ids["ТН ВЭД коды ЕАЭС"] = {
-        "id": 22232,
-        "value_from": "feacn",
-        "allowed_values": ["8536490000 - Прочие реле, на напряжение не более 1000 в", "8536490000 - Прочие реле, на напряжение не более 1000 в."],
-    }
 
     if category_id is None:
         errors.append("missing Ozon description_category_id mapping")
@@ -289,9 +273,10 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             else:
                 converted = value
             normalized_values.append(converted)
-        if normalized_values:
-            attributes.append({"id": attr_id, "complex_id": complex_id, "values": [{"value": v} for v in normalized_values]})
-            if not category.get("required_attribute_ids") or attr_id in set(category.get("required_attribute_ids", [])):
+            if normalized_values and attr_id is not None and attr_id not in emitted_ids:
+                attributes.append({"id": attr_id, "complex_id": complex_id, "values": [{"value": v} for v in normalized_values]})
+                emitted_ids.add(attr_id)
+            if normalized_values and attr_id is not None and (not category.get("required_attribute_ids") or attr_id in set(category.get("required_attribute_ids", []))):
                 mapped_characteristics += 1
 
     missing_required = sorted(set(category.get("required_attribute_ids", [])) - {a["id"] for a in attributes})
@@ -347,9 +332,12 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
         "Номин рабочий ток Ie при AC-3 400 В": {"id": 81589},
         "Степень защиты - IP": {"id": 16758},
         "Номин напряжение питания цепи управ Us AC 50 Гц": {"id": 14207},
+        "Кол-во вспомогат норм разомкнутых-НО конт": {"id": 168294, "value_from": "aux_no_count"},
+        "Кол-во вспомогат норм замкнутых-НЗ конт": {"id": 168294, "value_from": "aux_nc_count"},
         "Тип подключения силовой электрич цепи": {"id": 5023, "value_from": "connection"},
-        "Кол-во норм разомкнутых-НО силовых конт": {"id": 176180, "value_from": "poles"},
-        "Кол-во норм замкнутых-НЗ силовых контактов": {"id": 176180, "value_from": "poles"},
+        "Кол-во норм разомкнутых-НО силовых конт": {"id": 176180, "value_from": "main_no_count"},
+        "Кол-во норм замкнутых-НЗ силовых контактов": {"id": 176180, "value_from": "main_nc_count"},
+        "Тип напряжения управления": {"id": 14207, "value_from": "control_current"},
         "Бренд": {"id": 14177446, "value_from": "brand"},
         "Страна производства": {"id": 14177451, "value_from": "countryOfProduction"},
         "Описание": {"id": 14177452, "value_from": "description"},
@@ -373,6 +361,11 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
             "name": base["name"],
             "feacn": _text(product.get("feacn")),
             "contact_type": "1NO+1NC" if "1NC" in base["name"] else "1NO",
+            "control_current": next((f["value"] for f in base["features"] if f["name"] == "Тип напряжения управления"), ""),
+            "aux_no_count": next((f["value"] for f in base["features"] if f["name"] == "Кол-во вспомогат норм разомкнутых-НО конт"), ""),
+            "aux_nc_count": next((f["value"] for f in base["features"] if f["name"] == "Кол-во вспомогат норм замкнутых-НЗ конт"), ""),
+            "main_no_count": next((f["value"] for f in base["features"] if f["name"] == "Кол-во норм разомкнутых-НО силовых конт"), ""),
+            "main_nc_count": next((f["value"] for f in base["features"] if f["name"] == "Кол-во норм замкнутых-НЗ силовых контактов"), ""),
             "gross_weight_kg": _text(base["dimensions"]["weightBrutto"]),
             "height_cm": _text(base["dimensions"]["height"]),
             "length_cm": _text(base["dimensions"]["length"]),

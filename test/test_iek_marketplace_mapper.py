@@ -36,7 +36,9 @@ class MarketplaceMapperTest(unittest.TestCase):
         card = ozon["wb"]["payload"]["variants"][0]
         self.assertEqual(card["dimensions"], {"length": 7.7, "width": 4.8, "height": 8.8, "weightBrutto": 0.36})
         ozon_attrs = ozon["ozon"]["payload"]["attributes"]
+        self.assertTrue(any(a["id"] == 10823 and a["values"][0]["value"] == "230" for a in ozon_attrs))
         self.assertTrue(any(a["id"] == 85 and a["values"][0]["value"] == "IEK" for a in ozon_attrs))
+        self.assertTrue(any(a["id"] == 8229 and a["values"][0]["value"] == "Контактор" for a in ozon_attrs))
         self.assertTrue(any(a["id"] == 23536 and a["values"][0]["value"] is True for a in ozon_attrs))
 
     def test_ozon_requires_explicit_category_mapping(self):
@@ -76,7 +78,7 @@ class MarketplaceMapperTest(unittest.TestCase):
         variant = result.payload["variants"][0]
         self.assertEqual(variant["vendorCode"], PRODUCT["article"])
         self.assertEqual(variant["photos"]["c246x328"], PRODUCT["imageUrls"])
-        self.assertEqual(variant["characteristics"][0]["id"], 456)
+        self.assertEqual(variant["characteristics"][0]["id"], 81589)
 
     def test_multiplicity_one_does_not_add_suffix(self):
         preview = build_preview(
