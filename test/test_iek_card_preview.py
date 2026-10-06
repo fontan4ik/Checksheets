@@ -28,18 +28,27 @@ class PreviewServerTest(unittest.TestCase):
         req = Request(self.base + path, data=data, headers={"Content-Type": "application/json"})
         return urlopen(req)
 
-    def test_serves_preview_html(self):
+    def test_serves_preview_html_with_marketplace_readiness(self):
         response = self.request("/")
         self.assertEqual(response.status, 200)
-        self.assertIn("IEK · подготовка карточек".encode(), response.read())
+        page = response.read().decode()
+        self.assertIn("IEK · подготовка карточек", page)
+        self.assertIn("Проверка WB / Ozon", page)
+        self.assertIn("sourceMultiplicity", page)
 
     def test_rejects_empty_article_list(self):
         with self.assertRaises(HTTPError) as exc:
             self.request("/api/products", {"articles": []})
         self.assertEqual(exc.exception.code, 400)
 
-    def test_read_only_fetch_returns_product_data(self):
-        product = {"article": "A-1", "name": "Test", "imageUrls": [], "etim": {"features": []}}
+    def test_read_only_fetch_returns_mapped_product_and_multiplicity(self):
+        product = {
+            "article": "A-1",
+            "name": "Test",
+            "imageUrls": [],
+            "etim": {"features": []},
+            "multiplicity": 1,
+        }
 
         class FakeSession:
             def close(self):
@@ -51,7 +60,11 @@ class PreviewServerTest(unittest.TestCase):
              patch.object(app.iek, "request_json", return_value=product):
             response = self.request("/api/products", {"articles": ["A-1"]})
         result = json.loads(response.read())
-        self.assertEqual(result["products"][0]["article"], "A-1")
+        item = result["products"][0]
+        self.assertEqual(item["article"], "A-1")
+        self.assertEqual(item["sourceMultiplicity"], 1)
+        self.assertEqual(item["marketplacePreview"]["article"], "A-1")
+        self.assertFalse(item["marketplacePreview"]["publishable"])
 
 
 if __name__ == "__main__":
