@@ -64,10 +64,12 @@ def _etim_features(product: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 def _multiplicity(product: Mapping[str, Any]) -> int | float | None:
     values = product.get("warehouseData") or product.get("warehouses")
+    if product.get("multiplicity") not in (None, ""):
+        return product["multiplicity"]
     for row in _list(values):
         if isinstance(row, Mapping) and row.get("multiplicity") not in (None, ""):
             return row["multiplicity"]
-    return product.get("multiplicity")
+    return None
 
 
 def _number(product: Mapping[str, Any], *keys: str) -> int | float | None:
