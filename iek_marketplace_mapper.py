@@ -302,19 +302,10 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
     if base["seller_price"] is None:
         errors.append("missing explicit seller_price; supplier priceRrc is not a seller-price source")
 
-    defaults = {
-        "Номин рабочий ток Ie при AC-3 400 В": {"id": 81589},
-        "Рабочий ток": {"id": 81589},
-        "Степень защиты - IP": {"id": 16758},
-        "Номин напряжение питания цепи управ Us AC 50 Гц": {"id": 14207},
-        "Кол-во вспомогат норм разомкнутых-НО конт": {"id": 168294},
-        "Кол-во вспомогат норм замкнутых-НЗ конт": {"id": 168294},
-        "Тип подключения силовой электрич цепи": {"id": 5023},
-        "Кол-во норм разомкнутых-НО силовых конт": {"id": 176180},
-        "Кол-во норм замкнутых-НЗ силовых контактов": {"id": 176180},
-        "Тип напряжения управления": {"id": 14207},
-    }
-    characteristic_ids = {**defaults, **category.get("characteristic_ids", {})}
+    # WB characteristic IDs are subject-specific and may change. Only accept
+    # mappings obtained from the current subject schema; guessed legacy defaults
+    # can silently attach a real value to the wrong field.
+    characteristic_ids = category.get("characteristic_ids", {})
     characteristics = []
     for feature in base["features"]:
         mapped = characteristic_ids.get(feature["name"])
