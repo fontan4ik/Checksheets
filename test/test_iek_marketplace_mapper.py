@@ -1,11 +1,12 @@
 import unittest
+from copy import deepcopy
 
 from iek_marketplace_mapper import map_ozon, map_wb, build_preview
 
 
 PRODUCT = {
     "article": "KKME11-012-230-10",
-    "name": "Светильник IEK",
+    "name": "Контактор IEK",
     "tm": "IEK",
     "description": "Описание",
     "logisticParamsData": {"singlePackage": {"multiplicity": 1, "unit": "шт"}},
@@ -29,10 +30,17 @@ PRODUCT = {
 
 
 class MarketplaceMapperTest(unittest.TestCase):
-    def test_ozon_and_wb_apply_verified_live_category_attribute_mappings(self):
+    def test_ozon_and_wb_apply_explicit_category_attribute_mappings(self):
         ozon = build_preview(
             PRODUCT,
-            ozon={"description_category_id": 17028654, "type_id": 99040},
+            ozon={
+                "description_category_id": 17028654,
+                "type_id": 99040,
+                "attribute_ids": {
+                    "Тип": {"id": 8229, "static_value": "Контактор"},
+                    "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
+                },
+            },
             wb={"subject_id": 4225},
         )
         self.assertTrue(ozon["ozon"]["ready"])
@@ -53,7 +61,7 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertIn("missing Ozon description_category_id mapping", result.errors)
         self.assertEqual(result.payload["offer_id"], PRODUCT["article"])
 
-    def test_ozon_does_not_treat_supplier_rrc_as_seller_price(self):
+    def test_ozon_uses_supplier_rrc_as_authorized_seller_price(self):
         product = {**PRODUCT, "priceRrc": 715.11}
         result = map_ozon(
             product,
@@ -62,6 +70,66 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertTrue(result.ready)
         self.assertEqual(result.payload["price"], 715.11)
         self.assertEqual(result.payload["barcode"], "123")
+
+    def test_missing_voltage_is_not_inferred_from_article(self):
+        product = deepcopy(PRODUCT)
+        product["etim"]["features"] = [
+            feature for feature in product["etim"]["features"]
+            if feature["name"] != "Номин напряжение питания цепи управ Us AC 50 Гц"
+        ]
+        result = map_ozon(product, category={
+            "description_category_id": 17028654,
+            "type_id": 99040,
+            "required_attribute_ids": [10823],
+        })
+        self.assertFalse(result.ready)
+        self.assertIn("missing required Ozon attributes: 10823", result.errors)
+        self.assertNotIn(10823, {attribute["id"] for attribute in result.payload["attributes"]})
+
+    def test_required_marking_is_not_invented(self):
+        result = map_ozon(PRODUCT, category={
+            "description_category_id": 17028654,
+            "type_id": 99040,
+            "required_attribute_ids": [23536],
+        })
+        self.assertFalse(result.ready)
+        self.assertIn("missing required Ozon attributes: 23536", result.errors)
+        self.assertNotIn(23536, {attribute["id"] for attribute in result.payload["attributes"]})
+
+    def test_brand_metadata_does_not_replace_unmapped_technical_characteristics(self):
+        product = deepcopy(PRODUCT)
+        product["etim"]["features"] = [{"name": "Unknown technical feature", "value": "x"}]
+        result = map_ozon(product, category={
+            "description_category_id": 17028654,
+            "type_id": 99040,
+        })
+        self.assertFalse(result.ready)
+        self.assertIn("no required Ozon characteristics mapped", result.errors)
+
+    def test_explicit_false_marking_is_preserved(self):
+        result = map_ozon(PRODUCT, category={
+            "description_category_id": 17028654,
+            "type_id": 99040,
+            "required_attribute_ids": [23536],
+            "attribute_ids": {
+                "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": False},
+            },
+        })
+        self.assertTrue(result.ready)
+        marking = next(attribute for attribute in result.payload["attributes"] if attribute["id"] == 23536)
+        self.assertIs(marking["values"][0]["value"], False)
+
+    def test_supplier_false_marking_is_not_overridden_by_default(self):
+        product = deepcopy(PRODUCT)
+        product["etim"]["features"].append({"name": "Нужен код маркировки", "value": False})
+        result = map_ozon(product, category={
+            "description_category_id": 17028654,
+            "type_id": 99040,
+            "required_attribute_ids": [23536],
+        })
+        self.assertTrue(result.ready)
+        marking = next(attribute for attribute in result.payload["attributes"] if attribute["id"] == 23536)
+        self.assertIs(marking["values"][0]["value"], False)
 
     def test_maps_individual_ieks_logistic_package_measurements(self):
         mapped = map_wb(

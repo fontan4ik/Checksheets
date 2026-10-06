@@ -188,7 +188,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Страна-изготовитель": {"id": 4389, "value_from": "country"},
         "Количество товара в УЕИ": {"id": 23249, "value_from": "multiplicity"},
         "Вес с упаковкой, г": {"id": 4497, "value_from": "weight_grams"},
-        "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
+        "Нужен код маркировки": {"id": 23536, "type": "Boolean"},
         "Номинальный ток, А": {"id": 5776, "value_from": "current"},
         "Напряжение катушки управления, В": {"id": 10823, "value_from": "coil_voltage"},
     }
@@ -220,7 +220,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     feature_to_ozon_attr = {
         "Номин рабочий ток Ie при AC-3 400 В": "Номинальный ток, А",
         "Рабочий ток": "Номинальный ток, А",
-        "Номин напряжение питания цепи управ Us AC 50 Гц": "Номинальный ток, А",
+        "Номин напряжение питания цепи управ Us AC 50 Гц": "Напряжение катушки управления, В",
         "Степень защиты - IP": "Степень защиты - IP",
         "Тип напряжения управления": "Тип тока",
         "Кол-во вспомогат норм разомкнутых-НО конт": "Количество полюсов",
@@ -238,9 +238,21 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "ТН ВЭД коды ЕАЭС": {"id": 22232, "value_from": "feacn"},
         "Бренд": {"id": 85, "value_from": "brand", "allowed_values": ["IEK", "GENERICA"]},
         "Тип": {"id": 8229, "static_value": "Контактор", "allowed_values": ["Контактор"]},
-        "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
+        "Нужен код маркировки": {"id": 23536, "type": "Boolean"},
     }
-    for feature in base["features"]:
+    # Supplier metadata is separate from ETIM. Only explicit category constants
+    # may add fields absent from the supplier; never infer them from the SKU.
+    features = list(base["features"])
+    source_feature_names = {feature["name"] for feature in features}
+    if not any(feature["name"] == "Бренд" for feature in features):
+        features.append({"name": "Бренд", "value": base["brand"]})
+    for name, mapping in attribute_ids.items():
+        if not isinstance(mapping, Mapping):
+            continue
+        constant = mapping.get("value", mapping.get("static_value"))
+        if constant is not None and not any(feature["name"] == name for feature in features):
+            features.append({"name": name, "value": constant})
+    for feature in features:
         if feature["name"] == "Рабочий ток":
             feature = {**feature, "name": "Номин рабочий ток Ie при AC-3 400 В"}
         mapped_name = feature_to_ozon_attr.get(feature["name"], feature["name"])
@@ -252,7 +264,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             if mapped is None:
                 mapped = ozon_fallback_features.get(mapped_name)
         if feature["name"] == "Бренд" and "Бренд" not in attribute_ids:
-            feature = {**feature, "value": [base["brand"]]}
+            feature = {**feature, "value": base["brand"]}
         elif feature["name"] == "Тип" and "Тип" not in attribute_ids:
             feature = {**feature, "value": ["Контактор"]}
         if mapped is None and mapped_name is not None:
@@ -266,7 +278,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             allowed = mapped.get("allowed_values")
             is_boolean = mapped.get("type") == "Boolean"
             value_from = mapped.get("value_from")
-            static_value = mapped.get("value")
+            static_value = mapped.get("value", mapped.get("static_value"))
         else:
             attr_id = mapped
             complex_id = 0
@@ -301,7 +313,9 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             if normalized_values and attr_id is not None and attr_id not in emitted_ids:
                 attributes.append({"id": attr_id, "complex_id": complex_id, "values": [{"value": v} for v in normalized_values]})
                 emitted_ids.add(attr_id)
-            if normalized_values and attr_id is not None and (not category.get("required_attribute_ids") or attr_id in set(category.get("required_attribute_ids", []))):
+            required_ids = set(category.get("required_attribute_ids", []))
+            counts_as_characteristic = attr_id in required_ids if required_ids else feature["name"] in source_feature_names
+            if normalized_values and attr_id is not None and counts_as_characteristic:
                 mapped_characteristics += 1
 
     missing_required = sorted(set(category.get("required_attribute_ids", [])) - {a["id"] for a in attributes})
@@ -406,8 +420,6 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
             "module_count": "3",
             "pole_count": "3",
             "manufacturer": _text(product.get("tm")),
-            "main_no_count": _feature_value(base, "Кол-во норм разомкнутых-НО силовых конт"),
-            "main_nc_count": _feature_value(base, "Кол-во норм замкн-НЗ силовых контактов"),
         }
         return values.get(source_key, "")
 
