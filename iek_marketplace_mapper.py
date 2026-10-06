@@ -227,9 +227,9 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         if mapped_name is not None:
             mapped = attribute_ids.get(mapped_name)
             if mapped is None:
-                mapped = ozon_attribute_ids.get(mapped_name) or ozon_fallback_features.get(mapped_name)
-        if mapped is None and mapped_name == "Номинальный ток, А":
-            mapped = {"id": 5776, "value_from": "current"}
+                mapped = ozon_attribute_ids.get(mapped_name)
+            if mapped is None:
+                mapped = ozon_fallback_features.get(mapped_name)
         if feature["name"] == "Бренд" and "Бренд" not in attribute_ids:
             feature = {**feature, "value": base["brand"]}
         elif feature["name"] == "Тип" and "Тип" not in attribute_ids:
