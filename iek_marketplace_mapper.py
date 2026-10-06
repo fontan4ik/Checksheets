@@ -193,6 +193,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Номинальный ток, А": {"id": 5776},
         "Напряжение катушки управления, В": {"id": 20958},
         "Номинальное напряжение, В": {"id": 10823},
+        "Число и исполнение контактов": {"id": 22963, "value_from": "contact_type"},
     }
     ozon_dictionary_values = {
         (85, "IEK"): {"id": 5578883, "value": "IEK"},
@@ -203,10 +204,10 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         (22232, "8536490000 - Прочие реле, на напряжение не более 1000 в"): {"id": 971400163, "value": "8536490000 - Прочие реле, на напряжение не более 1000 в"},
         (22232, "8536490000 - Прочие реле, на напряжение не более 1000 в."): {"id": 972997573, "value": "8536490000 - Прочие реле, на напряжение не более 1000 в."},
     }
-    ozon_attribute_ids["Бренд"] = {"id": 85, "allowed_values": ["IEK"]}
-    ozon_attribute_ids["Тип"] = {"id": 8229, "allowed_values": ["Контактор"]}
+    ozon_attribute_ids["Бренд"] = {"id": 85, "static_value": "IEK", "allowed_values": ["IEK"]}
+    ozon_attribute_ids["Тип"] = {"id": 8229, "static_value": "Контактор", "allowed_values": ["Контактор"]}
     ozon_attribute_ids["Степень защиты - IP"] = {"id": 6980, "allowed_values": ["IP20"]}
-    ozon_attribute_ids["Число и исполнение контактов"] = {"id": 22963, "allowed_values": ["1NO", "1NO+1NC"]}
+    ozon_attribute_ids["Число и исполнение контактов"] = {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]}
     ozon_attribute_ids["ТН ВЭД коды ЕАЭС"] = {
         "id": 22232,
         "value_from": "feacn",
@@ -250,16 +251,6 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             is_boolean = False
             value_from = None
             static_value = None
-        if value_from:
-            value_map = {
-                "article": base["article"],
-                "model": base["name"],
-                "countryOfProduction": _text(product.get("countryOfProduction")),
-                "multiplicity": str(base["multiplicity"] or ""),
-                "feacn": _text(product.get("feacn")),
-                "weight_grams": str(round((base["dimensions"]["weightBrutto"] or 0) * 1000)),
-            }
-            raw_values = [value_map.get(value_from, "")]
         elif static_value is not None:
             raw_values = [static_value]
         else:
@@ -335,6 +326,7 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
     if base["multiplicity"] not in (None, 1, 1.0):
         warnings.append("multiplicity is not 1; vendor code suffix must be reviewed")
 
+    characteristics = []
     wb_characteristic_ids = {
         "Номин рабочий ток Ie при AC-3 400 В": {"id": 81589},
         "Степень защиты - IP": {"id": 16758},
@@ -364,6 +356,7 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
             "barcode": base["barcode"],
             "name": base["name"],
             "feacn": _text(product.get("feacn")),
+            "contact_type": "1NO+1NC" if "1NC" in base["name"] else "1NO",
             "gross_weight_kg": _text(base["dimensions"]["weightBrutto"]),
             "height_cm": _text(base["dimensions"]["height"]),
             "length_cm": _text(base["dimensions"]["length"]),
@@ -379,10 +372,19 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
         if isinstance(mapped, Mapping):
             char_id = mapped.get("id")
             allowed = mapped.get("allowed_values")
+            value_from = mapped.get("value_from")
+            static_value = mapped.get("value")
         else:
             char_id = mapped
             allowed = None
-        raw_values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
+            value_from = None
+            static_value = None
+        if value_from:
+            raw_values = [wb_source_value(value_from)]
+        elif static_value is not None:
+            raw_values = [static_value]
+        else:
+            raw_values = feature["value"] if isinstance(feature["value"], list) else [feature["value"]]
         clean_values = []
         for raw_value in raw_values:
             value = _text(raw_value)
