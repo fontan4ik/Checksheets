@@ -4,30 +4,33 @@ This prototype fetches supplier product data from IEK and renders a local review
 
 ## Current verified source data
 
-On 2026-10-06, the IEK client was used to read the following five SKUs. Every SKU was found, each has 14 ETIM characteristics, and photo counts were 1, 10, 10, 1, and 10 in the given order. IEK returns `multiplicity=1` for all five, so no `-5` suffix should be added.
+Read-only IEK checks on 2026-10-06 found all five SKUs. Each has 14 ETIM features. Photo counts in the supplied order are 1, 10, 10, 1, 10. IEK top-level `multiplicity=1` on every item; do not append `-5`.
 
-IEK supplies an RRC/list price field. That value is not automatically used as the seller-approved marketplace price. The returned product detail did not contain barcode or dimensions/weight fields needed by marketplace payloads. Do not invent these fields.
+The supplier details expose an RRC/list price, but this is not an owner-approved seller price. The detail payloads do not contain a barcode or physical dimensions/weight. The mapper intentionally rejects payload readiness instead of inventing any of these fields.
+
+## API contract checks
+
+- The attached IEK OpenAPI describes read-only product detail at `/api/catalog/v1/client/products/{article}` and does not specify marketplace publishing.
+- Authenticated Ozon `POST /v1/description-category/tree` returned HTTP 200. The returned full tree contains no matching «контактор», «магнитный пускатель», or «электромагнитный пускатель» branch; do not guess a category. The read-only call to Ozon `/v4/product/info/attributes` without auth returned HTTP 401 with `Client-Id and Api-Key headers are required` (not a 404). It was only a no-credential endpoint check; no catalog data was sent.
+- WB official endpoint path information is present in the repository's bundled WB docs: `GET /content/v2/object/parent/all`, `GET /content/v2/object/all`, `GET /content/v2/object/charcs/{subjectId}`, and `POST /content/v2/cards/upload`. Authenticated `GET /content/v2/object/parent/all` returned HTTP 200, but the downloaded parent list did not surface a clear electrical contactor branch. A request with a placeholder token returned HTTP 401 as expected; no actual token was sent in that unauthenticated probe.
+- These checks are not a sandbox/publish dry-run. No marketplace write endpoint was called.
 
 ## Implemented
 
-- `iek_marketplace_mapper.py` maps IEK photos, text, ETIM characteristics, and multiplicity to draft Ozon and WB payload structures.
-- Category IDs and attribute IDs are explicit mapping inputs; no automatic guessed category mapping is applied.
-- Missing seller price, barcode, category mappings, attributes, or WB dimensions/weight keep the draft not ready.
-- `iek_card_preview.py` provides a local UI/API, loopback-bound by default, and displays the IEK data and per-marketplace readiness errors.
-- No marketplace write endpoint is called by the preview or mapper.
+- `iek_marketplace_mapper.py` maps IEK photos, text, ETIM characteristics, and multiplicity to candidate Ozon and WB payload structures.
+- Category/type/attribute IDs are explicit mapping inputs; no guessed mapping is applied.
+- Missing seller-approved price, barcode, category mappings, characteristics, or WB dimensions/weight block readiness.
+- `iek_card_preview.py` is a loopback-bound local UI/API with per-marketplace readiness errors and source multiplicity.
 
 ## Validation
 
-- Focused unit tests are run with `.venv-etm-export/bin/python -m unittest discover -s test -p 'test_iek_marketplace_mapper.py' -v`.
-- Python compilation: `python3 -m py_compile iek_marketplace_mapper.py iek_card_preview.py`.
-- Embedded UI JavaScript syntax is checked with `node --check` after extracting it to a temporary file under the run scratch directory.
+- Mapper unit tests: 4/4 PASS.
+- Preview UI/API unit tests: 3/3 PASS.
+- `py_compile` and `git diff --check`: PASS.
+- Preview is local only. No public URL or deployment exists yet.
 
-## Remaining
+## Remaining owner input and execution
 
-1. Provide verified seller price, barcode, and physical dimensions/weight for each SKU, or an explicitly approved authoritative source for each field.
-2. Retrieve authoritative current Ozon category/type/attribute mappings and WB subject/characteristic mappings for these products.
-3. Complete marketplace-side dry-run/validation in the existing VOLA-40 child task, recording exact endpoints/statuses.
-4. Only after payload and policy approval, publish cards to WB/Ozon and verify card/task IDs and final statuses.
-5. Deploy the operator-facing site through the approved publishing path and record a working URL and health verification.
+For each SKU, provide/approve the seller price, barcode, and physical dimensions/weight (with units), or identify an authoritative approved source for those fields. Once those data and exact WB/Ozon mappings are available, run marketplace-side validation and follow the server's approval gates before any publication. Then deploy the operator site and record its URL and health check.
 
 No public cards or website have been published by this prototype.
