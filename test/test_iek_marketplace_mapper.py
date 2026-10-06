@@ -8,20 +8,16 @@ PRODUCT = {
     "name": "Светильник IEK",
     "tm": "IEK",
     "description": "Описание",
-    "length": 10,
-    "width": 20,
-    "height": 30,
-    "weight": 40,
     "barcode": "123",
     "price": 1000,
     "multiplicity": 1,
     "imageUrls": ["https://example.test/image.jpg"],
     "etim": {"features": [{"name": "Рабочий ток", "value": "12 А"}]},
     "logisticParams": [
-        {"nameOrig": "l_см", "value": {"individual": "7.7"}},
-        {"nameOrig": "b_см", "value": {"individual": "4.8"}},
-        {"nameOrig": "h_см", "value": {"individual": "8.8"}},
-        {"nameOrig": "ВесБрутто", "value": {"individual": "0.36"}},
+        {"nameOrig": "l_см", "value": {"individual": "7.7", "transport": "44.0"}},
+        {"nameOrig": "b_см", "value": {"individual": "4.8", "transport": "27.5"}},
+        {"nameOrig": "h_см", "value": {"individual": "8.8", "transport": "21.5"}},
+        {"nameOrig": "ВесБрутто", "value": {"individual": "0.36", "transport": "18.0"}},
     ],
 }
 
@@ -38,15 +34,27 @@ class MarketplaceMapperTest(unittest.TestCase):
         product.pop("price")
         result = map_ozon(
             product,
-            category={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Мощность": 3}},
+            category={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}},
         )
         self.assertFalse(result.ready)
         self.assertIn("missing commercial field: seller price", result.errors)
 
+    def test_maps_individual_ieks_logistic_package_measurements(self):
+        mapped = map_wb(
+            PRODUCT,
+            category={"subject_id": 123, "characteristic_ids": {"Рабочий ток": 456}},
+        )
+        dimensions = mapped.payload["variants"][0]["dimensions"]
+        self.assertEqual(
+            dimensions,
+            {"length": 7.7, "width": 4.8, "height": 8.8, "weightBrutto": 0.36},
+        )
+        self.assertNotEqual(dimensions["length"], 44.0)  # transport packaging excluded
+
     def test_wb_maps_images_and_characteristics(self):
         result = map_wb(
             PRODUCT,
-            category={"subject_id": 123, "characteristic_ids": {"Мощность": 456}},
+            category={"subject_id": 123, "characteristic_ids": {"Рабочий ток": 456}},
         )
         self.assertTrue(result.ready)
         variant = result.payload["variants"][0]
@@ -57,8 +65,8 @@ class MarketplaceMapperTest(unittest.TestCase):
     def test_multiplicity_one_does_not_add_suffix(self):
         preview = build_preview(
             PRODUCT,
-            ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Мощность": 3}},
-            wb={"subject_id": 4, "characteristic_ids": {"Мощность": 5}},
+            ozon={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Рабочий ток": 3}},
+            wb={"subject_id": 4, "characteristic_ids": {"Рабочий ток": 5}},
         )
         self.assertEqual(preview["multiplicity"], 1)
         self.assertEqual(preview["article"], PRODUCT["article"])
