@@ -177,7 +177,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     ozon_attribute_ids = {
         "Номин рабочий ток Ie при AC-3 400 В": {"id": 5776, "value_from": "current"},
         "Степень защиты - IP": {"id": 6980, "allowed_values": ["IP20"]},
-        "Номин напряжение питания цепи управ Us AC 50 Гц": 10823,
+        "Номин напряжение питания цепи управ Us AC 50 Гц": {"id": 10823, "value_from": "coil_voltage"},
         "Тип напряжения управления": {"id": 10819},
         "Тип подключения силовой электрич цепи": {"id": 20261},
         "Число и исполнение контактов": {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]},
@@ -190,11 +190,14 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Вес с упаковкой, г": {"id": 4497, "value_from": "weight_grams"},
         "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
         "Номинальный ток, А": {"id": 5776, "value_from": "current"},
-        "Напряжение катушки управления, В": {"id": 20958, "value_from": "coil_voltage"},
+        "Напряжение катушки управления, В": {"id": 10823, "value_from": "coil_voltage"},
     }
-    ozon_attribute_ids["Номинальное напряжение, В"] = {"id": 10823, "value_from": "coil_voltage"}
     ozon_attribute_ids["Число и исполнение контактов"] = {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]}
-
+    ozon_attribute_ids.pop("Напряжение катушки управления, В", None)
+    ozon_attribute_ids.pop("Номинальное напряжение, В", None)
+    ozon_attribute_ids["Степень защиты - IP"] = {"id": 6980, "allowed_values": ["IP20"]}
+    ozon_attribute_ids["Тип тока"] = {"id": 10819}
+    ozon_attribute_ids["Количество модулей"] = {"id": 168294, "value_from": "pole_count"}
     if category_id is None:
         errors.append("missing Ozon description_category_id mapping")
     if type_id is None:
@@ -383,8 +386,6 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
             "module_count": "3",
             "pole_count": "3",
         }
-        ozon_attribute_ids["Количество модулей"] = {"id": 168294, "value_from": "module_count"}
-        ozon_attribute_ids["Количество полюсов"] = {"id": 10818, "value_from": "pole_count"}
         return values.get(source_key, "")
 
     for feature in base["features"]:

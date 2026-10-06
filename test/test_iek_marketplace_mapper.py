@@ -10,7 +10,13 @@ PRODUCT = {
     "description": "Описание",
     "logisticParamsData": {"singlePackage": {"multiplicity": 1, "unit": "шт"}},
     "imageUrls": ["https://example.test/image.jpg"],
-    "etim": {"features": [{"name": "Рабочий ток", "value": "12 А"}]},
+    "etim": {"features": [
+        {"name": "Номин рабочий ток Ie при AC-3 400 В", "value": "12", "unit": "А"},
+        {"name": "Номин напряжение питания цепи управ Us AC 50 Гц", "value": "230", "unit": "В"},
+        {"name": "Степень защиты - IP", "value": "IP20"},
+        {"name": "Тип напряжения управления", "value": "Переменный (AC)"},
+        {"name": "Кол-во вспомогат норм разомкнутых-НО конт", "value": "1"},
+    ]},
     "priceRrc": 715.11,
     "logisticParams": [
         {"nameOrig": "Штрихкод", "value": {"individual": "123"}},
