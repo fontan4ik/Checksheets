@@ -1,0 +1,822 @@
+{
+  "date": "2026-10-06",
+  "scope": [
+    "test",
+    "tmp"
+  ],
+  "removed_files": 1889,
+  "removed_bytes": 284600309,
+  "removed": [
+    {
+      "path": "test/tmp/ozon_real_clicks_probe_20260708T175754",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 0,
+      "bytes": 0
+    },
+    {
+      "path": "test/tmp/apps-script-ntc-yandex-upload-backup-20260811-161239",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 3,
+      "bytes": 22380
+    },
+    {
+      "path": "test/tmp/ozon_buyout_seller_vs_api_20260708.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 519
+    },
+    {
+      "path": "test/tmp/ozon-report65-dop-header-fix-20260702T173951",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 4,
+      "bytes": 987760
+    },
+    {
+      "path": "test/tmp/ozon_buyout_unit_write_20260702_121505.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 514
+    },
+    {
+      "path": "test/tmp/apps-script-yandex-zero-mode-backup-20260803-185134",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 3,
+      "bytes": 16652
+    },
+    {
+      "path": "test/tmp/apps-script-sync-summary-20260720T054710Z.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 794
+    },
+    {
+      "path": "test/tmp/feron_wb_resume_20260702.log",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 14429
+    },
+    {
+      "path": "test/tmp/apps-script-sync-summary-20260701T083830Z.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 1550
+    },
+    {
+      "path": "test/tmp/ozon_real_clicks_probe_20260708T214929",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 7,
+      "bytes": 28709
+    },
+    {
+      "path": "test/tmp/O.gs.before-finance-clicks-20260706T182032.gs",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 89056
+    },
+    {
+      "path": "test/tmp/apps-script-local-backup-20260708-124608",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 68,
+      "bytes": 935452
+    },
+    {
+      "path": "test/tmp/apps-script-local-backup-20260813-180706-ozon-fbo-fbs",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 2,
+      "bytes": 21247
+    },
+    {
+      "path": "test/tmp/apps-script-sync-fix-backup-20260716T064641Z",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 2,
+      "bytes": 19156
+    },
+    {
+      "path": "test/tmp/rs-oneoff-stock-backup-20260731_140509.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 126
+    },
+    {
+      "path": "test/tmp/apps-script-local-backup-20260811-110839",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 4,
+      "bytes": 27060
+    },
+    {
+      "path": "test/tmp/appsscript-backup-20260716-165237",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 14803
+    },
+    {
+      "path": "test/tmp/ozon_buyout_clasp_push_20260708.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 1217
+    },
+    {
+      "path": "test/tmp/apps-script-o-gs-finance-clicks-20260706T182955",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 156,
+      "bytes": 2325214
+    },
+    {
+      "path": "test/tmp/apps-script-local-backup-cdek-20260729T134511Z",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 71,
+      "bytes": 1014807
+    },
+    {
+      "path": "test/tmp/ozon_real_clicks_probe_20260708T215100",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 7,
+      "bytes": 28692
+    },
+    {
+      "path": "test/tmp/arl_remote_fix_20260706",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 53,
+      "bytes": 772413
+    },
+    {
+      "path": "test/tmp/apps-script-buyout-push-20260702_125003",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 2,
+      "bytes": 125
+    },
+    {
+      "path": "test/tmp/apps-script-remote-backup-before-perf-v3-fix-20260709-133613",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 66,
+      "bytes": 937333
+    },
+    {
+      "path": "test/tmp/cpc-token-fix-backup-20260811-164405",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 2,
+      "bytes": 62874
+    },
+    {
+      "path": "test/tmp/apps-script-local-backup-20260803_171132",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 74,
+      "bytes": 1044006
+    },
+    {
+      "path": "test/tmp/cdek-kgt-zero-backup-20260826T104944+0400",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 3,
+      "bytes": 29870
+    },
+    {
+      "path": "test/tmp/apps-script-remote-backup-before-feron-dedupe-20260709-135100",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 66,
+      "bytes": 937587
+    },
+    {
+      "path": "test/tmp/ozon_real_clicks_probe_20260708T180734",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 0,
+      "bytes": 0
+    },
+    {
+      "path": "test/tmp/artifact-runtime",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 0,
+      "bytes": 0
+    },
+    {
+      "path": "test/tmp/com.voltmir.checksheets-cpc-hourly.plist.before-all-campaigns-batch",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 1483
+    },
+    {
+      "path": "test/tmp/apps-script-ntc-yandex-key-migration",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 68,
+      "bytes": 939232
+    },
+    {
+      "path": "test/tmp/apps-script-local-backup-20260716-113348",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 70,
+      "bytes": 1010022
+    },
+    {
+      "path": "test/tmp/apps-script-google-only-final-backup-20260803-185941",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 3,
+      "bytes": 15042
+    },
+    {
+      "path": "test/tmp/apps-script-remote-readback-after-perf-v3-fix-20260709-133716",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 66,
+      "bytes": 937587
+    },
+    {
+      "path": "test/tmp/apps-script-warehouse-exact-backup-20260803-182739",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 3,
+      "bytes": 15359
+    },
+    {
+      "path": "test/tmp/apps-script-backup-yandex-samara-20260810-143045",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 69,
+      "bytes": 964535
+    },
+    {
+      "path": "test/tmp/sync_rs_photos_to_target.js",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 11061
+    },
+    {
+      "path": "test/tmp/apps-script-yandex-disable-backup-20260803-183852",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 3,
+      "bytes": 16399
+    },
+    {
+      "path": "test/tmp/apps-script-sync-summary-20260701T215717Z.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 1385
+    },
+    {
+      "path": "test/tmp/apps-script-upload-backup-20260812-111837",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 4,
+      "bytes": 27169
+    },
+    {
+      "path": "test/tmp/apps-script-ntc-yandex-user-lock-backup-20260804-110136",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 17519
+    },
+    {
+      "path": "test/tmp/apps-script-local-backup-cdek-removal-20260729T135446Z",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 73,
+      "bytes": 1031554
+    },
+    {
+      "path": "test/tmp/apps-script-local-backup-20260803_171458",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 3,
+      "bytes": 14976
+    },
+    {
+      "path": "test/tmp/apps-script-js-migration-backup-20260708-125329",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 123,
+      "bytes": 1815294
+    },
+    {
+      "path": "test/tmp/ozon_real_clicks_probe_20260708T175956",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 0,
+      "bytes": 0
+    },
+    {
+      "path": "test/tmp/apps-script-cloud-export-20260701T215717Z.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 789422
+    },
+    {
+      "path": "test/tmp/apps-script-ntc-yandex-readback",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 68,
+      "bytes": 938620
+    },
+    {
+      "path": "test/tmp/feron_wb_resume_20260702.js",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 6119
+    },
+    {
+      "path": "test/tmp/apps-script-obor-source-fix-backup-20260716-124847",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 3,
+      "bytes": 14884
+    },
+    {
+      "path": "test/tmp/etm_mapping_rows.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 127453
+    },
+    {
+      "path": "test/tmp/apps-script-ntc-yandex-split-backup-20260804-112846",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 17815
+    },
+    {
+      "path": "test/tmp/apps-script-timeout-fix-backup-20260716-120748",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 3,
+      "bytes": 14155
+    },
+    {
+      "path": "test/tmp/apps-script-cloud-pull-35uZD8",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 67,
+      "bytes": 925815
+    },
+    {
+      "path": "test/tmp/apps-script-local-backup-20260720T054710Z",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 72,
+      "bytes": 1016061
+    },
+    {
+      "path": "test/tmp/apps-script-ntc-yandex-price-rate-limit-backup-20260804-102632",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 2,
+      "bytes": 21402
+    },
+    {
+      "path": "test/tmp/ozon_real_clicks_probe_20260708T181006",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 0,
+      "bytes": 0
+    },
+    {
+      "path": "test/tmp/ozon-report65-common-extra-unit-plus-upd-20260702T174230",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 4,
+      "bytes": 988120
+    },
+    {
+      "path": "test/tmp/apps-script-remote-readback-after-odc-dedupe-20260709-135534",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 66,
+      "bytes": 902642
+    },
+    {
+      "path": "test/tmp/ozon-report65-fixed-columns-20260702T155829",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 59,
+      "bytes": 1931881
+    },
+    {
+      "path": "test/tmp/inspect_rs_photo_target.py",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 1511
+    },
+    {
+      "path": "test/tmp/inspect_etm_mapping.mjs",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 684
+    },
+    {
+      "path": "test/tmp/apps-script-remote-readback-after-feron-dedupe-20260709-135135",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 66,
+      "bytes": 921535
+    },
+    {
+      "path": "test/tmp/apps-script-remote-readback-after-gauss-dedupe-20260709-135331",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 66,
+      "bytes": 902537
+    },
+    {
+      "path": "test/tmp/apps-script-values-backup-20260716-114908",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 3,
+      "bytes": 14154
+    },
+    {
+      "path": "test/tmp/verify_feron_articles_20260702.js",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 2973
+    },
+    {
+      "path": "test/tmp/apps-script-ntc-offer-id-backup-20260804-114149",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 21318
+    },
+    {
+      "path": "test/tmp/apps-script-cloud-backup-before-buyout-upload",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 2,
+      "bytes": 1768448
+    },
+    {
+      "path": "test/tmp/apps-script-pull-js-to-gs-sync-20260708-124838.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 5091
+    },
+    {
+      "path": "test/tmp/inspect_rs_photo_target.js",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 1344
+    },
+    {
+      "path": "test/tmp/apps-script-cloud-export-20260701T083830Z.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 789422
+    },
+    {
+      "path": "test/tmp/ozon_real_clicks_probe_20260708T214557",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 4,
+      "bytes": 6376
+    },
+    {
+      "path": "test/tmp/apps-script-ntc-yandex-price-backup-20260804-095844",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 2,
+      "bytes": 19468
+    },
+    {
+      "path": "test/tmp/apps-script-local-backup-20260701T215717Z",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 64,
+      "bytes": 916082
+    },
+    {
+      "path": "test/tmp/apps-script-local-backup-20260701T083830Z",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 47,
+      "bytes": 590780
+    },
+    {
+      "path": "test/tmp/apps-script-js-migration-20260708-125354.json",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 1,
+      "bytes": 8672
+    },
+    {
+      "path": "test/tmp/apps-script-remote-backup-20260708-232245",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 53,
+      "bytes": 777425
+    },
+    {
+      "path": "test/tmp/apps-script-ntc-yandex-inline-key-backup-20260804-101656",
+      "reason": "Устаревший временный артефакт/бэкап до сентября",
+      "files": 2,
+      "bytes": 22625
+    },
+    {
+      "path": "test/etm_iek_stock_20260623_heartbeat.xlsx",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 5158814
+    },
+    {
+      "path": "test/sheet_titles.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 578
+    },
+    {
+      "path": "test/test_results.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 491
+    },
+    {
+      "path": "test/sync-feron-stocks.log",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 90288
+    },
+    {
+      "path": "test/etm_iek_stock_kotelniki_20260625.csv",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 15385481
+    },
+    {
+      "path": "test/etm_sums.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 681
+    },
+    {
+      "path": "test/sheets_list.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 232
+    },
+    {
+      "path": "test/etm_test.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 581
+    },
+    {
+      "path": "test/test_rs_out.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 0
+    },
+    {
+      "path": "test/robust_results.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 1714
+    },
+    {
+      "path": "test/sync.log",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 232
+    },
+    {
+      "path": "test/etm_debug.log",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 1473
+    },
+    {
+      "path": "test/etm_tr_recovery_20260610_bulk_direct_verified.csv",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 169394
+    },
+    {
+      "path": "test/etm_broad.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 461
+    },
+    {
+      "path": "test/etm_iek_stock_kotelniki_20260625.xlsx",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 4942248
+    },
+    {
+      "path": "test/rs_warehouses.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 232
+    },
+    {
+      "path": "test/etm_tr_recovery_20260610_combined.csv",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 451117
+    },
+    {
+      "path": "test/debug_6131.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 301
+    },
+    {
+      "path": "test/etm_iek_stock_20260623_heartbeat.csv",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 15519044
+    },
+    {
+      "path": "test/etm_tr_recovery_20260610_manual_events.csv",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 3293
+    },
+    {
+      "path": "test/etm_working.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 441
+    },
+    {
+      "path": "test/recovered_etm_tr_from_log_20260610.csv",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 1894
+    },
+    {
+      "path": "test/etm_search.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 152
+    },
+    {
+      "path": "test/sync-etm-stocks.log",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 26465
+    },
+    {
+      "path": "test/etm_exhaustive.txt",
+      "reason": "Старый результат диагностики или выгрузка",
+      "files": 1,
+      "bytes": 781
+    },
+    {
+      "path": "test/etm_raw.json",
+      "reason": "Устаревший дамп, кэш или чтение удаляемого дампа",
+      "files": 1,
+      "bytes": 4602
+    },
+    {
+      "path": "test/ozon-local-sales-backup-1785755023656.json",
+      "reason": "Устаревший дамп, кэш или чтение удаляемого дампа",
+      "files": 1,
+      "bytes": 386078
+    },
+    {
+      "path": "test/debug",
+      "reason": "Устаревший дамп, кэш или чтение удаляемого дампа",
+      "files": 1,
+      "bytes": 837776
+    },
+    {
+      "path": "test/__pycache__",
+      "reason": "Устаревший дамп, кэш или чтение удаляемого дампа",
+      "files": 78,
+      "bytes": 529340
+    },
+    {
+      "path": "test/print_broad.py",
+      "reason": "Устаревший дамп, кэш или чтение удаляемого дампа",
+      "files": 1,
+      "bytes": 132
+    },
+    {
+      "path": "test/read_debug.py",
+      "reason": "Устаревший дамп, кэш или чтение удаляемого дампа",
+      "files": 1,
+      "bytes": 120
+    },
+    {
+      "path": "test/fix_creds.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 2578
+    },
+    {
+      "path": "test/fix_creds_v2.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 2777
+    },
+    {
+      "path": "test/strict_fix_creds.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 2953
+    },
+    {
+      "path": "test/generate_creds.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 2756
+    },
+    {
+      "path": "test/generate_creds_v3.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 2625
+    },
+    {
+      "path": "test/generate_creds_v4.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 2918
+    },
+    {
+      "path": "test/generate_creds_v5.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 2801
+    },
+    {
+      "path": "test/final_fix_creds.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 576
+    },
+    {
+      "path": "test/force_fix_creds.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 2750
+    },
+    {
+      "path": "test/fix_json_pk.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 500
+    },
+    {
+      "path": "test/fix_mangled_newlines.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 1398
+    },
+    {
+      "path": "test/check_creds.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 656
+    },
+    {
+      "path": "test/validate_b64.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 734
+    },
+    {
+      "path": "test/debug_pk_content.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 663
+    },
+    {
+      "path": "test/debug_pos_pk.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 390
+    },
+    {
+      "path": "test/examine_pk.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 273
+    },
+    {
+      "path": "test/search_pk_backslash.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 345
+    },
+    {
+      "path": "test/find_illegal_chars.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 662
+    },
+    {
+      "path": "test/analyze_json_pk.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 782
+    },
+    {
+      "path": "test/debug_json.py",
+      "reason": "Одноразовая апрельская диагностика старых credentials",
+      "files": 1,
+      "bytes": 548
+    },
+    {
+      "path": "test/.DS_Store",
+      "reason": "Служебный кэш Finder",
+      "files": 1,
+      "bytes": 26628
+    },
+    {
+      "path": "test/tmp/.DS_Store",
+      "reason": "Служебный кэш Finder",
+      "files": 1,
+      "bytes": 18436
+    },
+    {
+      "path": "test/tmp/etm_ftp_downloads/.DS_Store",
+      "reason": "Служебный кэш Finder",
+      "files": 1,
+      "bytes": 6148
+    },
+    {
+      "path": "test/tmp/etm_ftp_downloads/from_etm/.DS_Store",
+      "reason": "Служебный кэш Finder",
+      "files": 1,
+      "bytes": 6148
+    },
+    {
+      "path": "test/etm_iek_stock_20260623_heartbeat.client_goods.json",
+      "reason": "Июньский сырой дамп ЭТМ, не используется рабочими скриптами",
+      "files": 1,
+      "bytes": 210381032
+    }
+  ],
+  "verification": {
+    "outside_scope_tracked_files_unchanged": true,
+    "preserved_top_level_test_files_unchanged": true,
+    "active_etm_cache_and_state_preserved": true,
+    "recent_clasp_backups_preserved": true,
+    "recent_tmp_pdfs_preserved": true
+  }
+}
