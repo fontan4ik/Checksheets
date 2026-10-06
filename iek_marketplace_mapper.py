@@ -198,6 +198,10 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     ozon_attribute_ids["Степень защиты - IP"] = {"id": 6980, "allowed_values": ["IP20"]}
     ozon_attribute_ids["Тип тока"] = {"id": 10819}
     ozon_attribute_ids["Количество модулей"] = {"id": 168294, "value_from": "pole_count"}
+    ozon_attribute_ids["Бренд"] = {"id": 85, "value_from": "brand", "allowed_values": ["IEK", "GENERICA"]}
+    ozon_attribute_ids["Тип"] = {"id": 8229, "static_value": "Контактор", "allowed_values": ["Контактор"]}
+    ozon_attribute_ids["Страна-изготовитель"] = {"id": 4389, "value_from": "country"}
+    ozon_attribute_ids["ТН ВЭД коды ЕАЭС"] = {"id": 22232, "value_from": "feacn"}
     if category_id is None:
         errors.append("missing Ozon description_category_id mapping")
     if type_id is None:
@@ -221,6 +225,12 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     ozon_fallback_features = {
         "Номинальный ток, А": {"id": 5776, "value_from": "current"},
         "Напряжение катушки управления, В": {"id": 10823, "value_from": "coil_voltage"},
+        "Число и исполнение контактов": {"id": 22963, "value_from": "contact_type", "allowed_values": ["1NO", "1NO+1NC"]},
+        "Страна-изготовитель": {"id": 4389, "value_from": "country"},
+        "ТН ВЭД коды ЕАЭС": {"id": 22232, "value_from": "feacn"},
+        "Бренд": {"id": 85, "value_from": "brand", "allowed_values": ["IEK", "GENERICA"]},
+        "Тип": {"id": 8229, "static_value": "Контактор", "allowed_values": ["Контактор"]},
+        "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
     }
     for feature in base["features"]:
         if feature["name"] == "Рабочий ток":
@@ -237,6 +247,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             feature = {**feature, "value": base["brand"]}
         elif feature["name"] == "Тип" and "Тип" not in attribute_ids:
             feature = {**feature, "value": "Контактор"}
+        if mapped is None and mapped_name is not None:
+            mapped = ozon_fallback_features.get(mapped_name)
         if mapped is None:
             warnings.append(f"unmapped Ozon attribute: {feature['name']}")
             continue
