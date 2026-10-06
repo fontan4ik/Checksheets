@@ -8,6 +8,7 @@ const path = require('path');
 const axios = require('axios');
 const dotenv = require('dotenv');
 const { google } = require('googleapis');
+const JSONbig = require('json-bigint')({ storeAsString: true });
 
 const ROOT = __dirname;
 const SPREADSHEET_ID = process.env.CHECKSHEETS_SPREADSHEET_ID || '15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI';
@@ -25,6 +26,8 @@ const PAGE_LIMIT = 50;
 const MAX_PAGES = 100;
 const MAX_API_RETRIES = 4;
 const APPROVAL_BATCH_SIZE = 50;
+const RAW_UINT64_PREFIX = '__OZON_RAW_UINT64__:';
+const MAX_UINT64 = 18446744073709551615n;
 
 dotenv.config({ path: SECRET_FILE, quiet: true });
 dotenv.config({ path: path.join(ROOT, '.env'), quiet: true });
@@ -66,6 +69,31 @@ function normalizeSku(value) {
 function finiteNumber(value) {
   const number = Number(value);
   return value !== null && value !== undefined && value !== '' && Number.isFinite(number) ? number : null;
+}
+
+function uint64String(value) {
+  let raw;
+  if (typeof value === 'bigint') raw = value.toString();
+  else if (typeof value === 'number' && Number.isSafeInteger(value)) raw = String(value);
+  else if (typeof value === 'string') raw = value;
+  else return null;
+  if (!/^\d+$/.test(raw)) return null;
+  try {
+    const integer = BigInt(raw);
+    return integer > 0n && integer <= MAX_UINT64 ? integer.toString() : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function rawUint64(value) {
+  const normalized = uint64String(value);
+  if (normalized === null) throw new Error('Ozon вернул некорректный uint64 ID');
+  return `${RAW_UINT64_PREFIX}${normalized}`;
+}
+
+function serializeOzonBody(body) {
+  return JSON.stringify(body).replace(/"__OZON_RAW_UINT64__:(\d+)"/g, '$1');
 }
 
 async function createSheetsClient() {
@@ -182,10 +210,11 @@ async function ozonPost(url, body, headers, options = {}) {
   for (let attempt = 0; attempt < (options.retry ? MAX_API_RETRIES : 1); attempt++) {
     let response;
     try {
-      response = await axios.post(url, body, {
+      response = await axios.post(url, serializeOzonBody(body), {
         headers,
         timeout: 30000,
         validateStatus: () => true,
+        transformResponse: [data => typeof data === 'string' ? JSONbig.parse(data) : data],
       });
     } catch (error) {
       lastError = error;
@@ -210,19 +239,19 @@ async function fetchNewTasks(headers) {
   let lastId;
   for (let page = 0; page < MAX_PAGES; page++) {
     const body = { limit: PAGE_LIMIT, status: 'NEW' };
-    if (lastId !== undefined) body.last_id = lastId;
+    if (lastId !== undefined) body.last_id = rawUint64(lastId);
     const response = await ozonPost(OZON_LIST_URL, body, headers, { retry: true });
     if (!Array.isArray(response?.tasks)) throw new Error('Ozon discounts-task/list v2 вернул ответ без массива tasks');
     const pageTasks = response.tasks;
     for (const task of pageTasks) {
-      const id = String(task?.id ?? '');
+      const id = uint64String(task?.id);
       if (id && !seenIds.has(id)) {
         seenIds.add(id);
         tasks.push(task);
       }
     }
     if (pageTasks.length < PAGE_LIMIT) return tasks;
-    const nextLastId = finiteNumber(pageTasks[pageTasks.length - 1]?.id);
+    const nextLastId = uint64String(pageTasks[pageTasks.length - 1]?.id);
     if (nextLastId === null || nextLastId === lastId) throw new Error('Ozon discounts-task/list v2: некорректная пагинация last_id');
     lastId = nextLastId;
   }
@@ -242,7 +271,7 @@ function selectEligibleTasks(tasks, cache) {
     const sku = normalizeSku(task?.sku);
     const requestedDiscount = finiteNumber(task?.requested_discount);
     const requestedPrice = finiteNumber(task?.requested_price);
-    const taskId = finiteNumber(task?.id);
+    const taskId = uint64String(task?.id);
     const difference = sku ? finiteNumber(cache.differenceBySku[sku]) : null;
     if (taskId === null || requestedDiscount === null || requestedDiscount < 0 || requestedDiscount > 100 || requestedPrice === null || requestedPrice <= 0 || difference === null) {
       skippedData++;
@@ -254,7 +283,7 @@ function selectEligibleTasks(tasks, cache) {
       skippedRule++;
       continue;
     }
-    const approval = { id: taskId, approved_price: requestedPrice };
+    const approval = { id: rawUint64(taskId), approved_price: requestedPrice };
     const requestedQuantityMax = finiteNumber(task?.requested_quantity_max);
     if (requestedQuantityMax !== null && requestedQuantityMax > 0) {
       approval.approved_quantity_min = 1;

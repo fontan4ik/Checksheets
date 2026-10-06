@@ -4,6 +4,7 @@
     "csv-parse": "^7.0.3",
     "dotenv": "^17.4.2",
     "googleapis": "^171.4.0",
+    "json-bigint": "^1.0.0",
     "jszip": "^3.10.2"
   }
 }
