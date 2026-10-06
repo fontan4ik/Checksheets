@@ -27,6 +27,16 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertIn("missing Ozon description_category_id mapping", result.errors)
         self.assertEqual(result.payload["offer_id"], PRODUCT["article"])
 
+    def test_ozon_does_not_treat_supplier_rrc_as_seller_price(self):
+        product = {**PRODUCT, "priceRrc": 715.11}
+        product.pop("price")
+        result = map_ozon(
+            product,
+            category={"description_category_id": 1, "type_id": 2, "attribute_ids": {"Мощность": 3}},
+        )
+        self.assertFalse(result.ready)
+        self.assertIn("missing commercial field: seller price", result.errors)
+
     def test_wb_maps_images_and_characteristics(self):
         result = map_wb(
             PRODUCT,

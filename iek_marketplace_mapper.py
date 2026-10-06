@@ -146,11 +146,12 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "description_category_id": category_id,
         "type_id": type_id,
     }
+    # Supplier list price/RRC is not a seller-approved marketplace price.
     for key in ("price", "barcode", "currency_code", "old_price"):
         if product.get(key) not in (None, ""):
             item[key] = product[key]
     if "price" not in item:
-        errors.append("missing commercial field: price")
+        errors.append("missing commercial field: seller price")
     if "barcode" not in item:
         errors.append("missing commercial field: barcode")
     if not attributes:
@@ -201,6 +202,8 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
     }
     if not product.get("barcode"):
         errors.append("missing commercial field: barcode")
+    if product.get("price") in (None, ""):
+        errors.append("missing commercial field: seller price")
     if not characteristics:
         errors.append("no mapped WB characteristics")
     return MappingResult(base["article"], card, errors, warnings)
