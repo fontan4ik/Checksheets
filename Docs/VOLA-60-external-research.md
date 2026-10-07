@@ -1,42 +1,44 @@
-# VOLA-60 — самостоятельная проверка IEK SKU для ТН ВЭД и маркировки
+# VOLA-60 — Ozon TN VED candidate matching and marking flag
 
-Дата проверки: 2026-10-07. Область: только сбор доказательств, без marketplace writes.
+Дата: 2026-10-07. Marketplace API writes не выполнялись.
 
-## Результат
+## Вывод по новому указанию владельца
 
-Проверил отдельно имеющиеся точные характеристики пяти SKU в проектном отчёте IEK API и сопоставил их с доступной записью Ozon `8536490000` («Прочие реле, на напряжение не более 1000 В»). Все пять изделий — контакторы KMIe, предназначенные для коммутации цепей/пуска электродвигателей; значения рейтинга AC-3 ниже 1000 В и катушки управления 110/230 В совместимы с общим описанием этой остаточной подгруппы 8536.49. Для 8536.49 это более подходящий из зафиксированных в Ozon кандидатов, чем иные известные категории аппаратов, но это подбор по назначению и напряжению, а не официальный таможенный акт классификации. В локально сохранённом evidence нет полного актуального списка и полных описаний всех Ozon dictionary candidates, поэтому утверждать глобальную уникальность кода среди всего справочника нельзя.
+Для пяти названных IEK контакторов из доступных Ozon-значений выбираю кандидат `8536490000` — полное описание в записи Ozon: «Прочие реле, на напряжение не более 1000 В» (в исходном issue указаны dictionary IDs 971400163/972997573; attribute ID 22232; category/type 17028654/99040).
 
-По marking Boolean `23536` решение остаётся неопределённым: схема подтверждает именно «требуется ли код обязательной маркировки», не marketplace barcode/DataMatrix; ETIM/товарные сведения и текущее найденное свидетельство не доказывают применимость обязательной маркировки. Значение true/false не подставлено.
+Это наиболее подходящий сохранённый кандидат по известному назначению изделий: IEK KMIe — электромагнитные контакторы, выполняющие коммутацию силовых цепей/управление электродвигателями; класс 8536.49 охватывает прочие реле/аппараты соответствующего рода на напряжение не более 1000 В. Указанные в артикулах суффиксы 110/230 относятся к напряжению катушки управления, а не являются сами по себе свидетельством полного номинала силовой цепи; их не использовал как единственное доказательство. Запись словаря Ozon и эта техническая аналогия дают разумный candidate для продолжения карточки, но не обязательное юридическое классификационное решение.
 
-## Проверенные источники и факты
+Ограничение: из имеющихся локальных артефактов нельзя восстановить полный актуальный набор всех TN VED candidates и их полные описания для данной category/type. Поэтому утверждать, что `8536490000` уникально лучше каждого другого возможного dictionary-кандидата, нельзя. Сравнительная подборка ниже ограничена точно зафиксированными в задаче данными Ozon.
 
-1. Официальный листинг IEK: https://www.iek.ru/products/catalog/produktsiya_kontaktor
-   - HTTP/web-доступ успешен; листинг разделён на подразделы 41.01, 41.02 и др.
-   - В подразделе 41.01 «Модульное оборудование Контактор» серверная выдача каталога содержит артикулы серии `7000...` (например, 7000003) и не показывает ни один из пяти `KKME...` SKU.
-   - Поиск сайта по SKU через маршрут `/search/?q=...` возвращает 404; общий листинг не является доказательством отсутствия товара в архивах IEK.
-2. Официальная страница IEK «API и Инфобаза»: https://www.iek.ru/support/api/
-   - Публично описаны отдельные пути «API товары» (https://lk.iek.ru/products/api/auth/) и «Информационная база данных» (https://www.iek.ru/products/infobaza/).
-   - Инфобаза прямо описана как выдающая продуктовые XML и архивы вложений (в том числе сертификаты/паспорта); файлы необходимо связывать по указанным в XML именам/ссылкам. Публичная информационная страница не содержит самих XML/архивов и для получения данных требует входа/доступа.
-3. Проверена официальная категория IEK «Лимитированный импортный ассортимент (ЛИА) Контактор»: https://www.iek.ru/products/catalog/produktsiya_kontaktor/limitirovannyy_importnyy_assortiment_lia_kontaktor
-   - В текущем публичном листинге всего три записи: 7006108, 7007156 и 7007157; пяти SKU нет. Это фиксирует предел текущего публичного листинга, не исключая закрытую/архивную Инфобазу.
-4. Ozon schema — согласно ранее полученному live-read (зафиксирован в истории issue): атрибут 23536 имеет Boolean тип, `dictionary_id=0`; он спрашивает, требуется ли маркировочный код для товара. Он не является значением готового штрихкода/DataMatrix. Это отдельное требование от marketplace-генерации barcode. Схема сама по себе не устанавливает значение true/false для конкретного товара.
-5. SKU-level технический evidence, зафиксированный в `Docs/VOLA-37-implementation-status.md` (строки 11–19): exact IEK API ответы дали все пять артикулов; все с multiplicity 1 и по 14 ETIM характеристик. Отдельный тестовый fixture `test/test_iek_marketplace_mapper.py` содержит пример IE 12 A AC-3/400 V и Us 230 V AC, но это пример для одного тестового товара, не заменяет индивидуальные данные по пяти артикульным записям и потому не использован для распределения параметров по SKU.
-6. Официальные публичные страницы IEK не дают классификационного документа для указанных артикулов. Запросы поиска SKU обнаруживают торговые карточки, но не являются юридическим основанием для ТН ВЭД либо обязательной маркировки.
+## SKU mapping
 
-## Матрица SKU
+IEK product status report фиксирует точное получение всех пяти supplier records из IEK API и 14 ETIM характеристик для каждого. Но report не сохраняет сами 14 значений по SKU. Точный список:
 
-| SKU | Зафиксированное точное товарное свидетельство | Подбор из доступного Ozon TN VED | Ozon 23536 |
-|---|---|---|---|
-| KKME11-012-230-10 | IEK API product record is documented in VOLA-37; rating 12 A AC-3/400 V appears only in test fixture, not SKU-specific row | `8536490000` — candidate fit based on contactor function and voltage ≤1000 V; not official binding classification | Undetermined |
-| KKME11-018-230-10 | Exact IEK API record documented; the report does not reproduce individual ETIM field values | `8536490000` — same conditional fit; full SKU-specific ratings not captured in report | Undetermined |
-| KKME11-009-230-10 | Exact IEK API record documented; the report does not reproduce individual ETIM field values | `8536490000` — same conditional fit; full SKU-specific ratings not captured in report | Undetermined |
-| KKME21-025-110-10 | Exact IEK API record documented; 110 V is in article suffix but cannot treat suffix alone as technical proof | `8536490000` — conditional on contactor function and rated voltage ≤1000 V; retrieve exact ETIM before using as attribute | Undetermined |
-| KKME31-040-230-11 | Exact IEK API record documented; 230 V is in article suffix but cannot treat suffix alone as technical proof | `8536490000` — conditional on contactor function and rated voltage ≤1000 V; retrieve exact ETIM before using as attribute | Undetermined |
+| IEK SKU | Ozon TN VED candidate | Основание и предел |
+|---|---|---|
+| `KKME11-012-230-10` | `8536490000` | KMIe contactor; description candidate «прочие реле ≤1000 В» соответствует назначению класса. SKU-specific values для силового напряжения в артефакте не зафиксированы. |
+| `KKME11-018-230-10` | `8536490000` | То же семейство и назначение; IEK API exact record есть, но individual ETIM values не записаны. |
+| `KKME11-009-230-10` | `8536490000` | То же семейство и назначение; IEK API exact record есть, но individual ETIM values не записаны. |
+| `KKME21-025-110-10` | `8536490000` | KMIe contactor; `110` в строке SKU не принят за product-rated voltage evidence. Exact ETIM values не записаны. |
+| `KKME31-040-230-11` | `8536490000` | KMIe contactor; `230` в строке SKU не принят за product-rated voltage evidence. Exact ETIM values не записаны. |
 
-## Что необходимо для доказательного завершения
+Фактическая IEK API выдача подтверждена отчётом `Docs/VOLA-37-implementation-status.md`, раздел «Verified supplier data», строки таблицы 11–19; источник получения — IEK product API, documented loader `iek_stock_sync_local.get_api_key()` + client login + GET `/api/catalog/v1/client/products/{article}`. Этот status report документирует числа ETIM attributes, но не их содержимое. `test/test_iek_marketplace_mapper.py` содержит лишь synthetic fixture 12 A AC-3/400 V и Us 230 V AC для одной тестовой модели; это не exact-SKU evidence и в таблицу не переносилось.
 
-Следующий конкретный штатный путь — запросить у IEK/авторизованного поставщика доступ/экспорт именно из описанной IEK Инфобазы для этих пяти артикулов (XML-поля товара и связанный архив), включая декларацию/сертификат и документ классификации с точным охватом артикулов. Для `23536` дополнительно требуется применимое нормативное основание по обязательной маркировке (или подтверждение, что категория/товар не входит в обязательный перечень) с датой действия. Публичная страница API указывает, что эти файлы существуют как возможный тип контента, но фактически не предоставила их без авторизации; не утверждается, что такие документы уже проверены.
+## Boolean Ozon attribute 23536 — маркировка
 
-По просьбе владельца для продолжения VOLA-52 допустимо использовать `8536490000` как выбранный Ozon candidate для всех пяти контакторов, с указанной выше ограниченной аргументацией. Перед импортом следует подтвердить полный список dictionary-кандидатов и сверить SKU-level ETIM (контактная функция/класс цепи, номинальные напряжения), поскольку доступные локальные отчёты содержат число ETIM-полей, но не сами значения для каждого из пяти SKU. Это не мешает описать предложенный код, но не превращает его в обязательное/таможенно-юридическое заключение.
+Live schema finding, ранее зафиксированный в issue: attribute `23536` is Boolean, `dictionary_id=0`, meaning whether statutory product marking code is required. Это не barcode, не DataMatrix и не операция генерации marketplace barcode.
 
-Marking `23536` остаётся без true/false основания. До этого атрибута и payload validation не публиковать. Marketplace writes не выполнялись; VAT 0.22 и seller price/RRC не менялись.
+Для пяти SKU значение `true` или `false` пока не доказано доступными записями. IEK API summary/ETIM count и Ozon schema не устанавливают попадание товаров в применимый перечень обязательной маркировки. Флаг оставлен unresolved; не заполнять произвольным default. Marketplace barcode, уже имеющийся в IEK logistics, — отдельное поле.
+
+## Проверенные ссылки и ограничения
+
+- IEK public contactor category: https://www.iek.ru/products/catalog/produktsiya_kontaktor
+- IEK public LIA listing: https://www.iek.ru/products/catalog/produktsiya_kontaktor/limitirovannyy_importnyy_assortiment_lia_kontaktor — текущий публичный листинг не содержит данные KMIe SKU.
+- IEK API/Infobase overview: https://www.iek.ru/support/api/ — описаны API и выгрузки XML + связанные архивы документов; сами product XML/сертификаты не были публично доступны в текущей проверке.
+- Ozon code candidate description/dictionary IDs/category/type — сохранены в issue description и локальных research notes; не получено отдельной свежей выгрузки полного словаря в этом run.
+
+## Статус и безопасное продолжение
+
+В VOLA-52 передан выбранный Ozon dictionary candidate `8536490000` и ограничения его доказательности; это передача выбранного подходящего доступного значения, а не присвоение выдуманного кода. Для окончательного техничного payload следует восстановить индивидуальные ETIM values из пяти IEK API records и сверить voltage/function; для `23536` по-прежнему требуется основание применимости обязательной маркировки. До подтверждения Boolean и успешной payload validation marketplace listing writes запрещены.
+
+Публикация не выполнялась. VAT 0.22 и seller price/RRC не менялись.
