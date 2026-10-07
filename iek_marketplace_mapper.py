@@ -241,7 +241,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Название модели (для объединения в одну карточку)": {"id": 9048},
         "ТН ВЭД коды ЕАЭС": {"id": 22232},
         "Страна-изготовитель": {"id": 4389},
-        "Нужен код маркировки": {"id": 23536},
+        "Нужен код маркировки": {"id": 23536, "type": "Boolean"},
         "Количество полюсов": {"id": 10818},
         "Число и исполнение контактов": {"id": 22963},
     }
@@ -266,10 +266,13 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         feacn = _text(product.get("feacn") or product.get("tn_ved"))
         if feacn:
             source_features.append({"name": "ТН ВЭД коды ЕАЭС", "value": feacn})
-    if not any(feature["name"].casefold() in {"нужен код маркировки", "маркировка", "товар подлежит маркировке"} for feature in source_features):
+    marking_names = {"нужен код маркировки", "маркировка", "товар подлежит маркировке"}
+    if not any(feature["name"].casefold() in marking_names for feature in source_features):
         is_marked = product.get("isMarked")
         if isinstance(is_marked, bool):
             source_features.append({"name": "Нужен код маркировки", "value": is_marked})
+    else:
+        source_features = [feature for feature in source_features if feature["name"].casefold() not in marking_names] + [next(feature for feature in reversed(source_features) if feature["name"].casefold() in marking_names)]
     if not any(feature["name"] == "Бренд" for feature in source_features):
         source_features.append({"name": "Бренд", "value": base["brand"]})
     attribute_ids = category.get("attribute_ids", {})
@@ -294,7 +297,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             attr_id = mapped.get("id")
             static = mapped.get("value", mapped.get("static_value"))
             allowed = mapped.get("allowed_values")
-            boolean = mapped.get("type") == "Boolean"
+            declared_type = _text(mapped.get("type")).casefold()
+            boolean = declared_type in {"boolean", "bool"} or "boolean" in declared_type
         else:
             attr_id, static, allowed, boolean = mapped, None, None, False
         raw = static if static is not None else feature.get("value")
@@ -305,16 +309,16 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             if boolean and not isinstance(value, bool):
                 normalized = _text(value).casefold()
                 if normalized in {"да", "yes", "true", "1"}:
-                    value = "true"
+                    value = True
                 elif normalized in {"нет", "no", "false", "0"}:
-                    value = "false"
+                    value = False
                 else:
                     warnings.append(f"IEK Boolean value for {name} isn't normalized")
                     continue
             clean.append(value)
         if clean and attr_id is not None and attr_id not in emitted:
             complex_id = mapped.get("complex_id", 0) if isinstance(mapped, Mapping) else 0
-            output_values = [raw_value if boolean and isinstance(raw_value, bool) else value for raw_value, value in zip(values, clean)]
+            output_values = clean if boolean else [_text(value) for value in clean]
             attributes.append({"id": attr_id, "complex_id": complex_id, "values": [{"value": value} for value in output_values]})
             emitted.add(attr_id)
 

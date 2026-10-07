@@ -40,7 +40,7 @@ class MarketplaceMapperTest(unittest.TestCase):
                     "required_attribute_ids": [8229, 9048, 22232, 85, 23536],
                     "seller_price_source": "iek_priceRrc",
                     "attribute_ids": {"Тип": {"id": 8229, "static_value": "Контактор"},
-                                      "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
+                                      "Нужен код маркировки": {"id": 23536, "type": "BOOLEAN", "value": True},
                                       "ТН ВЭД коды ЕАЭС": {"id": 22232, "allowed_values": ["8536490000"]}}}
         product["feacn"] = "8536490000"
         product["isMarked"] = True
@@ -61,7 +61,7 @@ class MarketplaceMapperTest(unittest.TestCase):
                 "seller_price_source": "iek_priceRrc",
                 "attribute_ids": {
                     "Тип": {"id": 8229, "static_value": "Контактор"},
-                    "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
+                    "Нужен код маркировки": {"id": 23536, "type": "BOOLEAN", "value": True},
                 },
             },
             wb={"subject_id": 4225, "schema_verified": True, "photo_contract_verified": True, "seller_price_source": "iek_priceRrc", "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}},
