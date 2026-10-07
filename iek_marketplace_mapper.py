@@ -124,9 +124,58 @@ def _logistic_value(product: Mapping[str, Any], *names: str) -> int | float | No
         return None
 
 
-def _dimension_cm(product: Mapping[str, Any], key: str, aliases: tuple[str, ...]) -> int | float | None:
-    value = _number(product, key)
-    return value if value is not None else _logistic_value(product, *aliases) or _number(product, *aliases)
+def _package_measurements(product: Mapping[str, Any]) -> dict[str, int | float | None]:
+    """Resolve dimensions from IEK's single-package record, never transport size."""
+    logistics = product.get("logisticParamsData")
+    package = logistics.get("singlePackage") if isinstance(logistics, Mapping) else None
+    package = package if isinstance(package, Mapping) else {}
+
+    def dimension(axis: str, logistics_alias: str) -> float | None:
+        raw = package.get(axis)
+        unit = _text(package.get("dimensionUnit") or package.get("unit")).casefold()
+        if isinstance(raw, Mapping):
+            unit = _text(raw.get("unit") or unit).casefold()
+            raw = raw.get("individual", raw.get("value"))
+        if raw in (None, ""):
+            raw = _logistic_individual(product, logistics_alias)
+            unit = "cm" if logistics_alias.endswith("_см") else unit
+        try:
+            number = float(raw)
+        except (TypeError, ValueError):
+            return None
+        if number <= 0:
+            return None
+        if unit in {"см", "cm"}:
+            return number
+        if unit in {"мм", "mm"}:
+            return number / 10
+        return None
+
+    weight = package.get("weightBrutto", package.get("weight"))
+    weight_unit = _text(package.get("weightUnit") or package.get("weight_unit")).casefold()
+    if isinstance(weight, Mapping):
+        weight_unit = _text(weight.get("unit") or weight_unit).casefold()
+        weight = weight.get("individual", weight.get("value"))
+    if weight in (None, ""):
+        weight = _logistic_value(product, "ВесБрутто", "Вес брутто", "Масса брутто")
+        weight_unit = weight_unit or "kg"
+    try:
+        weight_value = float(weight)
+    except (TypeError, ValueError):
+        weight_value = None
+    if weight_value is not None:
+        if weight_unit in {"кг", "kg"}:
+            pass
+        elif weight_unit in {"г", "g"}:
+            weight_value /= 1000
+        else:
+            weight_value = None
+    return {
+        "length": dimension("length", "l_см"),
+        "width": dimension("width", "b_см"),
+        "height": dimension("height", "h_см"),
+        "weightBrutto": weight_value if weight_value and weight_value > 0 else None,
+    }
 
 
 def _base(product: Mapping[str, Any]) -> dict[str, Any]:
@@ -147,12 +196,7 @@ def _base(product: Mapping[str, Any]) -> dict[str, Any]:
         "source_family": _text(product.get("family")),
         "source_series": _text(product.get("series")),
         "barcode": next((_text(product.get(key)) for key in ("barcode", "barcodeValue", "gtin", "gtin13", "ean", "ean13") if _text(product.get(key))), "") or _text(_logistic_individual(product, "Штрихкод", "Штрихкод товара", "barcode", "EAN", "EAN13", "GTIN", "GTIN-13")),
-        "dimensions": {
-            "length": _dimension_cm(product, "length", ("l_см", "length_cm", "Длина", "Длина упаковки")),
-            "width": _dimension_cm(product, "width", ("b_см", "width_cm", "Ширина", "Ширина упаковки")),
-            "height": _dimension_cm(product, "height", ("h_см", "height_cm", "Высота", "Высота упаковки")),
-            "weightBrutto": _number(product, "weightBrutto", "grossWeight", "gross_weight_kg", "weight") or _logistic_value(product, "ВесБрутто", "Вес брутто", "Масса брутто") or _number(product, "ВесБрутто", "Вес брутто", "Масса брутто"),
-        },
+        "dimensions": _package_measurements(product),
     }
 
 
@@ -286,6 +330,18 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "description_category_id": category_id,
         "type_id": type_id,
     }
+    package_dims = base["dimensions"]
+    if any(package_dims[key] is None or package_dims[key] <= 0 for key in ("length", "width", "height", "weightBrutto")):
+        errors.append("missing IEK individual package dimensions/weight with supported units")
+    else:
+        item.update({
+            "depth": round(float(package_dims["length"]) * 10),
+            "width": round(float(package_dims["width"]) * 10),
+            "height": round(float(package_dims["height"]) * 10),
+            "weight": round(float(package_dims["weightBrutto"]) * 1000),
+            "dimension_unit": "mm",
+            "weight_unit": "g",
+        })
     if price is not None:
         item["price"] = float(price)
     if vat not in (None, ""):
