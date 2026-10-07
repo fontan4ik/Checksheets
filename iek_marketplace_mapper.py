@@ -232,9 +232,10 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     builtins = {
         "Номин рабочий ток Ie при AC-3 400 В": {"id": 5776},
         "Рабочий ток": {"id": 5776},
-        "Степень защиты - IP": {"id": 6980},
+        "Степень защиты - IP": {"id": 6980, "allowed_values": ["IP20"]},
         "Номин напряжение питания цепи управ Us AC 50 Гц": {"id": 10823},
         "Тип напряжения управления": {"id": 10819},
+        "Тип тока": {"id": 10819, "static_value": "Переменный (AC)", "allowed_values": ["Переменный (AC)"]},
         "Бренд": {"id": 85},
         "Название": {"id": 4180},
         "Тип": {"id": 8229, "static_value": "Контактор"},
@@ -242,7 +243,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "ТН ВЭД коды ЕАЭС": {"id": 22232},
         "Страна-изготовитель": {"id": 4389},
         "Нужен код маркировки": {"id": 23536, "type": "Boolean"},
-        "Количество полюсов": {"id": 10818},
+        "Количество полюсов": {"id": 10818, "allowed_values": ["1"]},
         "Число и исполнение контактов": {"id": 22963},
     }
     aliases = {
@@ -297,9 +298,10 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             attr_id = mapped.get("id")
             static = mapped.get("value", mapped.get("static_value"))
             allowed = mapped.get("allowed_values")
+            dictionary_value_id = mapped.get("dictionary_value_id")
             boolean = mapped.get("type") == "Boolean"
         else:
-            attr_id, static, allowed, boolean = mapped, None, None, False
+            attr_id, static, allowed, boolean, dictionary_value_id = mapped, None, None, False, None
         raw = static if static is not None else feature.get("value")
         values = raw if isinstance(raw, list) else [raw]
         clean = []
@@ -321,7 +323,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         if clean and attr_id is not None and attr_id not in emitted:
             complex_id = mapped.get("complex_id", 0) if isinstance(mapped, Mapping) else 0
             output_values = clean if boolean else [_text(value) for value in clean]
-            attributes.append({"id": attr_id, "complex_id": complex_id, "values": [{"value": value} for value in output_values]})
+            attribute_values = [{"dictionary_value_id": dictionary_value_id, "value": value} if dictionary_value_id is not None else {"value": value} for value in output_values]
+            attributes.append({"id": attr_id, "complex_id": complex_id, "values": attribute_values})
             emitted.add(attr_id)
 
     required_ids = set(category.get("required_attribute_ids", []))
