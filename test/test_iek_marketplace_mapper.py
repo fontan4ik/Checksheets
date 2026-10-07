@@ -40,7 +40,7 @@ class MarketplaceMapperTest(unittest.TestCase):
                     "required_attribute_ids": [8229, 9048, 22232, 85, 23536],
                     "seller_price_source": "iek_priceRrc",
                     "attribute_ids": {"Тип": {"id": 8229, "static_value": "Контактор"},
-                                      "Нужен код маркировки": {"id": 23536, "type": "BOOLEAN", "value": True},
+                                      "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
                                       "ТН ВЭД коды ЕАЭС": {"id": 22232, "allowed_values": ["8536490000"]}}}
         product["feacn"] = "8536490000"
         product["isMarked"] = True
@@ -61,13 +61,13 @@ class MarketplaceMapperTest(unittest.TestCase):
                 "seller_price_source": "iek_priceRrc",
                 "attribute_ids": {
                     "Тип": {"id": 8229, "static_value": "Контактор"},
-                    "Нужен код маркировки": {"id": 23536, "type": "BOOLEAN", "value": True},
+                    "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
                 },
             },
             wb={"subject_id": 4225, "schema_verified": True, "photo_contract_verified": True, "seller_price_source": "iek_priceRrc", "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}},
         )
         self.assertTrue(mapped["ozon"]["ready"])
-        self.assertEqual(mapped["ozon"]["payload"]["price"], 715.11)
+        self.assertEqual(mapped["ozon"]["payload"]["price"], "715.11")
         self.assertEqual(mapped["ozon"]["payload"]["vat"], "0.22")
         self.assertEqual(mapped["ozon"]["payload"]["barcode"], "123")
         self.assertTrue(mapped["wb"]["ready"])
@@ -113,7 +113,7 @@ class MarketplaceMapperTest(unittest.TestCase):
         product = {key: value for key, value in PRODUCT.items() if key != "seller_price"}
         product["priceRrc"] = 715.11
         result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040, "seller_price_source": "iek_priceRrc"})
-        self.assertEqual(result.payload["price"], 715.11)
+        self.assertEqual(result.payload["price"], "715.11")
 
     def test_missing_vat_is_not_inferred(self):
         product = {key: value for key, value in PRODUCT.items() if key != "vat"}
@@ -125,7 +125,7 @@ class MarketplaceMapperTest(unittest.TestCase):
     def test_vat_can_be_bound_explicitly_to_payload(self):
         result = map_ozon(PRODUCT, category={"description_category_id": 17028654, "type_id": 99040, "schema_verified": True, "seller_price_source": "iek_priceRrc"}, vat="0.22")
         self.assertEqual(result.payload["vat"], "0.22")
-        self.assertEqual(result.payload["price"], PRODUCT["priceRrc"])
+        self.assertEqual(result.payload["price"], str(PRODUCT["priceRrc"]))
 
     def test_wb_price_is_omitted_without_explicit_seller_price(self):
         product = {key: value for key, value in PRODUCT.items() if key != "seller_price"}
@@ -246,7 +246,7 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertEqual(preview["ozon"]["payload"]["offer_id"], PRODUCT["article"] + "-1")
         self.assertEqual(preview["wb"]["payload"]["variants"][0]["vendorCode"], PRODUCT["article"] + "-1")
         self.assertTrue(preview["publishable"])
-        self.assertEqual(preview["ozon"]["payload"]["price"], PRODUCT["seller_price"])
+        self.assertEqual(preview["ozon"]["payload"]["price"], str(PRODUCT["seller_price"]))
         self.assertEqual(preview["ozon"]["payload"]["vat"], PRODUCT["vat"])
 
     def test_multiplicity_suffix_is_not_duplicated(self):

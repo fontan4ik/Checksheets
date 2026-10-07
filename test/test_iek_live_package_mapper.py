@@ -65,7 +65,7 @@ class LivePackageMappingTest(unittest.TestCase):
                 self.assertEqual((item["depth"], item["width"], item["height"], item["weight"]), row[6])
                 self.assertEqual((item["dimension_unit"], item["weight_unit"]), ("mm", "g"))
                 self.assertEqual(item["vat"], "0.22")
-                self.assertEqual(item["price"], float(row[1]))
+                self.assertEqual(item["price"], row[1])
                 self.assertEqual(item["images"], product["imageUrls"])
                 if product_id is not None:
                     self.assertEqual(item["product_id"], product_id)
