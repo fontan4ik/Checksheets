@@ -297,8 +297,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             attr_id = mapped.get("id")
             static = mapped.get("value", mapped.get("static_value"))
             allowed = mapped.get("allowed_values")
-            declared_type = _text(mapped.get("type")).casefold()
-            boolean = declared_type in {"boolean", "bool"} or "boolean" in declared_type
+            boolean = mapped.get("type") == "Boolean"
         else:
             attr_id, static, allowed, boolean = mapped, None, None, False
         raw = static if static is not None else feature.get("value")
