@@ -236,6 +236,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Номин напряжение питания цепи управ Us AC 50 Гц": {"id": 10823},
         "Тип напряжения управления": {"id": 10819},
         "Бренд": {"id": 85},
+        "Название": {"id": 4180},
         "Тип": {"id": 8229, "static_value": "Контактор"},
         "Название модели (для объединения в одну карточку)": {"id": 9048},
         "ТН ВЭД коды ЕАЭС": {"id": 22232},
@@ -258,6 +259,9 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     model_name = _text(product.get("model_name") or product.get("shortName") or product.get("name"))
     if model_name and not any(feature["name"] == "Название модели (для объединения в одну карточку)" for feature in source_features):
         source_features.append({"name": "Название модели (для объединения в одну карточку)", "value": model_name})
+    product_title = _text(product.get("russianName") or product.get("shortName") or product.get("name"))
+    if product_title and not any(feature["name"] == "Название" for feature in source_features):
+        source_features.append({"name": "Название", "value": product_title})
     if not any(feature["name"].casefold() in {"тн вэд", "тн вэд коды еаэс", "код тн вэд"} for feature in source_features):
         feacn = _text(product.get("feacn") or product.get("tn_ved"))
         if feacn:
