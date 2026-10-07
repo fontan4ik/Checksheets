@@ -203,7 +203,7 @@ def _base(product: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = None, vat: str | None = None) -> MappingResult:
+def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = None, vat: str | None = None, product_id: int | None = None) -> MappingResult:
     """Build an Ozon /v3/product/import item without sending it."""
     base = _base(product)
     category = category or {}
@@ -334,6 +334,11 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "description_category_id": category_id,
         "type_id": type_id,
     }
+    if product_id is not None:
+        if isinstance(product_id, bool) or product_id <= 0:
+            errors.append("product_id must be a positive Ozon product ID")
+        else:
+            item["product_id"] = product_id
     package_dims = base["dimensions"]
     if any(package_dims[key] is None or package_dims[key] <= 0 for key in ("length", "width", "height", "weightBrutto")):
         errors.append("missing IEK individual package dimensions/weight with supported units")

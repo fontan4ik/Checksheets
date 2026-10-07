@@ -57,7 +57,8 @@ class LivePackageMappingTest(unittest.TestCase):
         for row in PRODUCTS:
             with self.subTest(article=row[0]):
                 product = supplier_record(row)
-                result = map_ozon(product, category=CATEGORY, vat="0.22")
+                product_id = 6541499612 if row[0] == "KKME11-012-230-10" else None
+                result = map_ozon(product, category=CATEGORY, vat="0.22", product_id=product_id)
                 self.assertEqual(result.article, row[0] + "-1")
                 self.assertEqual(result.errors, [])
                 item = result.payload
@@ -66,6 +67,8 @@ class LivePackageMappingTest(unittest.TestCase):
                 self.assertEqual(item["vat"], "0.22")
                 self.assertEqual(item["price"], float(row[1]))
                 self.assertEqual(item["images"], product["imageUrls"])
+                if product_id is not None:
+                    self.assertEqual(item["product_id"], product_id)
                 self.assertEqual({a["id"] for a in item["attributes"]} & set(CATEGORY["required_attribute_ids"],), set(CATEGORY["required_attribute_ids"]))
 
     def test_unknown_units_and_transport_only_values_never_produce_ready_dimensions(self):
