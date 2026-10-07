@@ -317,7 +317,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             clean.append(value)
         if clean and attr_id is not None and attr_id not in emitted:
             complex_id = mapped.get("complex_id", 0) if isinstance(mapped, Mapping) else 0
-            attributes.append({"id": attr_id, "complex_id": complex_id, "values": [{"value": value} for value in clean]})
+            output_values = [False if boolean and isinstance(raw_value, bool) and raw_value is False else True if boolean and isinstance(raw_value, bool) else (False if boolean else value) for raw_value, value in zip(values, clean)]
+            attributes.append({"id": attr_id, "complex_id": complex_id, "values": [{"value": value} for value in output_values]})
             emitted.add(attr_id)
 
     required_ids = set(category.get("required_attribute_ids", []))

@@ -48,6 +48,7 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertEqual(result.payload["name"], "Контактор КМИе-11210")
         self.assertEqual(result.payload["product_id"], 6541499612)
         self.assertIn(4180, {attribute["id"] for attribute in result.payload["attributes"]})
+        self.assertTrue(all(isinstance(value["value"], (str, bool)) for attribute in result.payload["attributes"] for value in attribute["values"]))
 
     def test_ozon_and_wb_apply_explicit_category_attribute_mappings(self):
         mapped = build_preview(
