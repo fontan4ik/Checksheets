@@ -193,7 +193,7 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertIn("WB photo/media submission contract has not been verified", result.errors)
 
     def test_multiplicity_one_appends_suffix_to_listing_articles(self):
-        preview = build_preview(PRODUCT, ozon={"description_category_id": 1, "type_id": 2, "schema_verified": True, "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4225, "schema_verified": True, "photo_contract_verified": True, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
+        preview = build_preview(PRODUCT, ozon={"description_category_id": 1, "type_id": 2, "schema_verified": True, "seller_price_source": "iek_priceRrc", "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4225, "schema_verified": True, "photo_contract_verified": True, "seller_price_source": "iek_priceRrc", "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
         self.assertEqual(preview["multiplicity"], 1)
         self.assertEqual(preview["sourceArticle"], PRODUCT["article"])
         self.assertEqual(preview["article"], PRODUCT["article"] + "-1")
