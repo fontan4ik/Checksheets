@@ -301,7 +301,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         values = raw if isinstance(raw, list) else [raw]
         clean = []
         for raw_value in values:
-            value: Any = raw_value if isinstance(raw_value, bool) else _text(raw_value)
+            value: Any = raw_value if boolean and isinstance(raw_value, bool) else _text(raw_value)
             if allowed is not None and value not in allowed:
                 warnings.append(f"IEK value for {name} lacks exact Ozon dictionary mapping")
                 continue
