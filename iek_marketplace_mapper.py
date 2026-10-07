@@ -210,6 +210,14 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     model_name = _text(product.get("model_name") or product.get("shortName") or product.get("name"))
     if model_name and not any(feature["name"] == "Название модели (для объединения в одну карточку)" for feature in source_features):
         source_features.append({"name": "Название модели (для объединения в одну карточку)", "value": model_name})
+    if not any(feature["name"].casefold() in {"тн вэд", "тн вэд коды еаэс", "код тн вэд"} for feature in source_features):
+        feacn = _text(product.get("feacn") or product.get("tn_ved"))
+        if feacn:
+            source_features.append({"name": "ТН ВЭД коды ЕАЭС", "value": feacn})
+    if not any(feature["name"].casefold() in {"нужен код маркировки", "маркировка", "товар подлежит маркировке"} for feature in source_features):
+        is_marked = product.get("isMarked")
+        if isinstance(is_marked, bool):
+            source_features.append({"name": "Нужен код маркировки", "value": is_marked})
     if not any(feature["name"] == "Бренд" for feature in source_features):
         source_features.append({"name": "Бренд", "value": base["brand"]})
     attribute_ids = category.get("attribute_ids", {})

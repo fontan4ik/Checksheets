@@ -36,6 +36,9 @@ This artifact records verified facts and current limits. It does not claim marke
 - 2026-10-07 follow-up: mapper was hardened to fail closed for WB photos unless `photo_contract_verified=true`. WB `OPTIONS /content/v3/media/save` returns 405 `Allow: POST`; the available authenticated read-only WB endpoint could not be reached during this run (`fetch failed`), and the local OpenAPI copy did not contain media endpoints. This does not establish a successful photo submission contract.
 - Explicit project status identifies IEK RRC as the requested seller price. The mapper accepts `priceRrc` only when configuration explicitly sets `seller_price_source="iek_priceRrc"`; without that policy, tests confirm it remains unset.
 - Focused mapper tests after these changes: 18/18 pass; `git diff --check` passed. No marketplace writes were sent.
+- Ozon exact analogous IEK records expose their public model names only indirectly; for the five exact IEK products, supplier `shortName` is a defensible free-text model value for attribute 9048. Mapper uses it and passes a dedicated regression test. Ozon price checks on five analog offers returned 1,526–4,683 RUB at VAT 0.22; these are observed prices, not a documented permitted range for new imports.
+- The mapper adds Ozon TN VED `22232` from explicit product `feacn`/`tn_ved` and marking boolean `23536` from explicit `isMarked`; neither is inferred when absent.
+- WB payload media contract remains unverified; `photo_contract_verified` intentionally gates readiness. Do not set it merely because supplier image URLs respond successfully.
 - The unit tests validate mapper mechanics, not five real payloads. Ozon price-range constraints, payload-specific category dictionary values/marking, and verified photo/card submission contracts remain unvalidated. No marketplace write was sent.
 
 ## Not yet done / next exact steps
