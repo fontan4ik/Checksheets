@@ -7,6 +7,7 @@ from iek_marketplace_mapper import map_ozon, map_wb, build_preview
 PRODUCT = {
     "article": "KKME11-012-230-10",
     "name": "Контактор IEK",
+    "shortName": "Контактор КМИе-11210 12А 230В/АС3 1NO GENERICA",
     "tm": "IEK",
     "description": "Описание",
     "logisticParamsData": {"singlePackage": {"multiplicity": 1, "unit": "шт"}},
@@ -44,7 +45,7 @@ class MarketplaceMapperTest(unittest.TestCase):
                     "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
                 },
             },
-            wb={"subject_id": 4225, "schema_verified": True, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}},
+            wb={"subject_id": 4225, "schema_verified": True, "photo_contract_verified": True, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}},
         )
         self.assertTrue(mapped["ozon"]["ready"])
         self.assertEqual(mapped["ozon"]["payload"]["price"], 715.11)
@@ -59,6 +60,21 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertTrue(any(a["id"] == 85 and a["values"][0]["value"] == "IEK" for a in attrs))
         self.assertTrue(any(a["id"] == 8229 and a["values"][0]["value"] == "Контактор" for a in attrs))
         self.assertTrue(any(a["id"] == 23536 and a["values"][0]["value"] is True for a in attrs))
+        model = next(a for a in attrs if a["id"] == 9048)
+        self.assertEqual(model["values"][0]["value"], PRODUCT["shortName"])
+
+    def test_ozon_model_name_uses_exact_supplier_short_name(self):
+        product = deepcopy(PRODUCT)
+        product["article"] = "KKME31-040-230-11"
+        product["shortName"] = "Контактор КМИе-34012 40А 230В/АС3 1NO;1NC GENERICA"
+        result = map_ozon(product, category={
+            "description_category_id": 17028654,
+            "type_id": 99040,
+            "schema_verified": True,
+            "required_attribute_ids": [9048],
+        })
+        model = next(a for a in result.payload["attributes"] if a["id"] == 9048)
+        self.assertEqual(model["values"][0]["value"], product["shortName"])
 
     def test_ozon_requires_explicit_category_mapping(self):
         result = map_ozon(PRODUCT)
@@ -148,7 +164,7 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertEqual(result.payload["variants"][0]["sizes"][0]["skus"], ["4601234567890"])
 
     def test_wb_maps_images_and_characteristics(self):
-        result = map_wb(PRODUCT, category={"subject_id": 4225, "schema_verified": True})
+        result = map_wb(PRODUCT, category={"subject_id": 4225, "schema_verified": True, "photo_contract_verified": True})
         self.assertTrue(result.ready)
         variant = result.payload["variants"][0]
         self.assertEqual(variant["vendorCode"], PRODUCT["article"] + "-1")
@@ -164,8 +180,13 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertEqual(attrs[90849], [7.7])
         self.assertNotIn(14177446, attrs)
 
+    def test_wb_fails_closed_without_verified_photo_contract(self):
+        result = map_wb(PRODUCT, category={"subject_id": 4225, "schema_verified": True})
+        self.assertFalse(result.ready)
+        self.assertIn("WB photo/media submission contract has not been verified", result.errors)
+
     def test_multiplicity_one_appends_suffix_to_listing_articles(self):
-        preview = build_preview(PRODUCT, ozon={"description_category_id": 1, "type_id": 2, "schema_verified": True, "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4225, "schema_verified": True, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
+        preview = build_preview(PRODUCT, ozon={"description_category_id": 1, "type_id": 2, "schema_verified": True, "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4225, "schema_verified": True, "photo_contract_verified": True, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
         self.assertEqual(preview["multiplicity"], 1)
         self.assertEqual(preview["sourceArticle"], PRODUCT["article"])
         self.assertEqual(preview["article"], PRODUCT["article"] + "-1")

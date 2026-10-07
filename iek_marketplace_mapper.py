@@ -200,6 +200,12 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         "Кол-во норм замкнутых-НЗ силовых контактов": "Количество полюсов",
     }
     source_features = list(base["features"])
+    # Ozon 9048 is required free text (dictionary_id=0). IEK's exact
+    # catalogue name/shortName is the source-backed model label; never infer it
+    # from an article code or substitute a cabinet's opaque grouped value.
+    model_name = _text(product.get("model_name") or product.get("shortName") or product.get("name"))
+    if model_name and not any(feature["name"] == "Название модели (для объединения в одну карточку)" for feature in source_features):
+        source_features.append({"name": "Название модели (для объединения в одну карточку)", "value": model_name})
     if not any(feature["name"] == "Бренд" for feature in source_features):
         source_features.append({"name": "Бренд", "value": base["brand"]})
     attribute_ids = category.get("attribute_ids", {})
@@ -301,6 +307,9 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
         errors.append("missing commercial field: barcode")
     if base["seller_price"] is None:
         errors.append("missing explicit seller_price; supplier priceRrc is not a seller-price source")
+
+    if base["images"] and category.get("photo_contract_verified") is not True:
+        errors.append("WB photo/media submission contract has not been verified")
 
     # Only the numeric WB mappings below are grounded in the reviewed subject
     # descriptor. Text/enum mappings must be supplied after dictionary lookup.
