@@ -104,6 +104,14 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertIn("missing explicit Ozon VAT rate", result.errors)
         self.assertNotIn("vat", result.payload)
 
+    def test_vat_requires_approved_analog_source(self):
+        result = map_ozon(PRODUCT, category={"description_category_id": 17028654, "type_id": 99040}, vat="0.22")
+        self.assertFalse(result.ready)
+        self.assertIn("Ozon VAT requires explicit approved analogous-product source", result.errors)
+        approved = map_ozon(PRODUCT, category={"description_category_id": 17028654, "type_id": 99040, "vat_source": "ozon_analog_iek_contactors"}, vat="0.22")
+        self.assertTrue(approved.ready)
+        self.assertEqual(approved.payload["vat"], "0.22")
+
     def test_wb_price_is_omitted_without_explicit_seller_price(self):
         product = {key: value for key, value in PRODUCT.items() if key != "seller_price"}
         result = map_wb(product, category={"subject_id": 4225})
@@ -155,6 +163,29 @@ class MarketplaceMapperTest(unittest.TestCase):
         dimensions = result.payload["variants"][0]["dimensions"]
         self.assertEqual(dimensions, {"length": 7.7, "width": 4.8, "height": 8.8, "weightBrutto": 0.36})
         self.assertNotEqual(dimensions["length"], 44.0)
+
+    def test_ozon_maps_individual_ieks_package_measurements_to_documented_units(self):
+        product = deepcopy(PRODUCT)
+        product["logisticParams"] = [
+            {"nameOrig": "l_см", "value": {"individual": "7.7", "transport": "44.0"}},
+            {"nameOrig": "b_см", "value": {"individual": "4.8", "transport": "27.5"}},
+            {"nameOrig": "h_см", "value": {"individual": "8.8", "transport": "21.5"}},
+            {"nameOrig": "ВесБрутто", "value": {"individual": "0.36", "transport": "18.0"}},
+        ]
+        result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040}, vat="0.22")
+        self.assertEqual((result.payload["depth"], result.payload["width"], result.payload["height"], result.payload["weight"]), (77, 48, 88, 360))
+        self.assertEqual((result.payload["dimension_unit"], result.payload["weight_unit"]), ("mm", "g"))
+
+    def test_ozon_converts_explicit_package_units_and_rejects_unknown_units(self):
+        product = deepcopy(PRODUCT)
+        product["logisticParams"] = []
+        product["logisticParamsData"]["singlePackage"].update({"length": "77", "width": "48", "height": "88", "weightBrutto": "360", "dimensionUnit": "mm", "weightUnit": "g"})
+        result = map_ozon(product, category={"description_category_id": 1, "type_id": 2})
+        self.assertEqual((result.payload["depth"], result.payload["width"], result.payload["height"], result.payload["weight"]), (77, 48, 88, 360))
+        product["logisticParamsData"]["singlePackage"]["dimensionUnit"] = "unknown"
+        rejected = map_ozon(product, category={"description_category_id": 1, "type_id": 2})
+        self.assertNotIn("depth", rejected.payload)
+        self.assertIn("missing IEK individual package dimensions/weight with supported units", rejected.errors)
 
     def test_supplier_barcode_and_dimension_aliases(self):
         product = deepcopy(PRODUCT)

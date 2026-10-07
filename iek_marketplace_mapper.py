@@ -130,7 +130,7 @@ def _package_measurements(product: Mapping[str, Any]) -> dict[str, int | float |
     package = logistics.get("singlePackage") if isinstance(logistics, Mapping) else None
     package = package if isinstance(package, Mapping) else {}
 
-    def dimension(axis: str, logistics_alias: str) -> float | None:
+    def dimension(axis: str, logistics_alias: str, legacy_aliases: tuple[str, ...]) -> float | None:
         raw = package.get(axis)
         unit = _text(package.get("dimensionUnit") or package.get("unit")).casefold()
         if isinstance(raw, Mapping):
@@ -139,6 +139,9 @@ def _package_measurements(product: Mapping[str, Any]) -> dict[str, int | float |
         if raw in (None, ""):
             raw = _logistic_individual(product, logistics_alias)
             unit = "cm" if logistics_alias.endswith("_см") else unit
+        if raw in (None, ""):
+            raw = _logistic_individual(product, *legacy_aliases)
+            unit = unit or ("cm" if any(alias.endswith("_см") for alias in legacy_aliases) else "")
         try:
             number = float(raw)
         except (TypeError, ValueError):
@@ -171,9 +174,9 @@ def _package_measurements(product: Mapping[str, Any]) -> dict[str, int | float |
         else:
             weight_value = None
     return {
-        "length": dimension("length", "l_см"),
-        "width": dimension("width", "b_см"),
-        "height": dimension("height", "h_см"),
+        "length": dimension("length", "l_см", ("Длина упаковки", "Длина")),
+        "width": dimension("width", "b_см", ("Ширина упаковки", "Ширина")),
+        "height": dimension("height", "h_см", ("Высота упаковки", "Высота")),
         "weightBrutto": weight_value if weight_value and weight_value > 0 else None,
     }
 
@@ -200,7 +203,7 @@ def _base(product: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = None) -> MappingResult:
+def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = None, vat: str | None = None) -> MappingResult:
     """Build an Ozon /v3/product/import item without sending it."""
     base = _base(product)
     category = category or {}
@@ -211,7 +214,9 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     price = base["seller_price"]
     if price is None and category.get("seller_price_source") == "iek_priceRrc":
         price = _number(product, "priceRrc")
-    vat = product.get("vat")
+    vat = vat if vat not in (None, "") else product.get("vat")
+    if vat not in (None, "") and category.get("vat_source") != "ozon_analog_iek_contactors":
+        errors.append("Ozon VAT requires explicit approved analogous-product source")
     if price is None:
         errors.append("missing explicit seller_price; supplier priceRrc is not a seller-price source")
     if vat in (None, ""):
