@@ -40,6 +40,7 @@ class MarketplaceMapperTest(unittest.TestCase):
                 "description_category_id": 17028654,
                 "type_id": 99040,
                 "schema_verified": True,
+                "vat_source": "ozon_analog_iek_contactors",
                 "seller_price_source": "iek_priceRrc",
                 "attribute_ids": {
                     "Тип": {"id": 8229, "static_value": "Контактор"},
@@ -104,13 +105,10 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertIn("missing explicit Ozon VAT rate", result.errors)
         self.assertNotIn("vat", result.payload)
 
-    def test_vat_requires_approved_analog_source(self):
-        result = map_ozon(PRODUCT, category={"description_category_id": 17028654, "type_id": 99040}, vat="0.22")
-        self.assertFalse(result.ready)
-        self.assertIn("Ozon VAT requires explicit approved analogous-product source", result.errors)
-        approved = map_ozon(PRODUCT, category={"description_category_id": 17028654, "type_id": 99040, "vat_source": "ozon_analog_iek_contactors"}, vat="0.22")
-        self.assertTrue(approved.ready)
-        self.assertEqual(approved.payload["vat"], "0.22")
+    def test_vat_can_be_bound_explicitly_to_payload(self):
+        result = map_ozon(PRODUCT, category={"description_category_id": 17028654, "type_id": 99040, "schema_verified": True, "seller_price_source": "iek_priceRrc"}, vat="0.22")
+        self.assertEqual(result.payload["vat"], "0.22")
+        self.assertEqual(result.payload["price"], PRODUCT["priceRrc"])
 
     def test_wb_price_is_omitted_without_explicit_seller_price(self):
         product = {key: value for key, value in PRODUCT.items() if key != "seller_price"}
@@ -135,7 +133,7 @@ class MarketplaceMapperTest(unittest.TestCase):
     def test_explicit_false_marking_is_preserved(self):
         product = deepcopy(PRODUCT)
         product["etim"]["features"].append({"name": "Нужен код маркировки", "value": False})
-        result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040, "schema_verified": True, "required_attribute_ids": [23536]})
+        result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040, "schema_verified": True, "vat_source": "ozon_analog_iek_contactors", "required_attribute_ids": [23536]})
         self.assertTrue(result.ready)
         marking = next(a for a in result.payload["attributes"] if a["id"] == 23536)
         self.assertIs(marking["values"][0]["value"], False)
@@ -224,7 +222,7 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertIn("WB photo/media submission contract has not been verified", result.errors)
 
     def test_multiplicity_one_appends_suffix_to_listing_articles(self):
-        preview = build_preview(PRODUCT, ozon={"description_category_id": 1, "type_id": 2, "schema_verified": True, "seller_price_source": "iek_priceRrc", "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4225, "schema_verified": True, "photo_contract_verified": True, "seller_price_source": "iek_priceRrc", "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
+        preview = build_preview(PRODUCT, ozon={"description_category_id": 1, "type_id": 2, "schema_verified": True, "vat_source": "ozon_analog_iek_contactors", "seller_price_source": "iek_priceRrc", "attribute_ids": {"Рабочий ток": 3}}, wb={"subject_id": 4225, "schema_verified": True, "photo_contract_verified": True, "seller_price_source": "iek_priceRrc", "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}})
         self.assertEqual(preview["multiplicity"], 1)
         self.assertEqual(preview["sourceArticle"], PRODUCT["article"])
         self.assertEqual(preview["article"], PRODUCT["article"] + "-1")

@@ -215,8 +215,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     if price is None and category.get("seller_price_source") == "iek_priceRrc":
         price = _number(product, "priceRrc")
     vat = vat if vat not in (None, "") else product.get("vat")
-    if vat not in (None, "") and category.get("vat_source") != "ozon_analog_iek_contactors":
-        errors.append("Ozon VAT requires explicit approved analogous-product source")
+
     if price is None:
         errors.append("missing explicit seller_price; supplier priceRrc is not a seller-price source")
     if vat in (None, ""):
