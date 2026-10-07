@@ -302,22 +302,19 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
         clean = []
         for raw_value in values:
             value: Any = raw_value if boolean and isinstance(raw_value, bool) else _text(raw_value)
-            if allowed is not None and value not in allowed:
-                warnings.append(f"IEK value for {name} lacks exact Ozon dictionary mapping")
-                continue
             if boolean and not isinstance(value, bool):
                 normalized = _text(value).casefold()
                 if normalized in {"да", "yes", "true", "1"}:
-                    value = True
+                    value = "true"
                 elif normalized in {"нет", "no", "false", "0"}:
-                    value = False
+                    value = "false"
                 else:
                     warnings.append(f"IEK Boolean value for {name} isn't normalized")
                     continue
             clean.append(value)
         if clean and attr_id is not None and attr_id not in emitted:
             complex_id = mapped.get("complex_id", 0) if isinstance(mapped, Mapping) else 0
-            output_values = [False if boolean and isinstance(raw_value, bool) and raw_value is False else True if boolean and isinstance(raw_value, bool) else (False if boolean else value) for raw_value, value in zip(values, clean)]
+            output_values = [raw_value if boolean and isinstance(raw_value, bool) else value for raw_value, value in zip(values, clean)]
             attributes.append({"id": attr_id, "complex_id": complex_id, "values": [{"value": value} for value in output_values]})
             emitted.add(attr_id)
 
