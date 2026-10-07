@@ -327,8 +327,11 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
 
     item: dict[str, Any] = {
         "offer_id": base["offer_id"],
-        "name": base["name"],
-        "description": base["description"],
+        # Ozon validates attribute 4180 as a Russian product title. Prefer a
+        # source-backed Russian supplier shortName/name rather than an
+        # English fallback, which previously caused DESCRIPTION_DECLINE.
+        "name": _text(product.get("russianName") or product.get("shortName") or product.get("name")) or base["name"],
+        "description": _text(product.get("russianDescription") or product.get("description")) or base["description"],
         "images": base["images"],
         "attributes": attributes,
         "description_category_id": category_id,

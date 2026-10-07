@@ -33,6 +33,21 @@ PRODUCT = {
 
 
 class MarketplaceMapperTest(unittest.TestCase):
+
+    def test_ozon_import_name_prefers_source_russian_title(self):
+        product = dict(PRODUCT, name="IEK KMIe contactor", shortName="Контактор КМИе-11210")
+        category = {"description_category_id": 17028654, "type_id": 99040, "schema_verified": True,
+                    "required_attribute_ids": [8229, 9048, 22232, 85, 23536],
+                    "seller_price_source": "iek_priceRrc",
+                    "attribute_ids": {"Тип": {"id": 8229, "static_value": "Контактор"},
+                                      "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
+                                      "ТН ВЭД коды ЕАЭС": {"id": 22232, "allowed_values": ["8536490000"]}}}
+        product["feacn"] = "8536490000"
+        product["isMarked"] = True
+        result = map_ozon(product, category=category, vat="0.22", product_id=6541499612)
+        self.assertEqual(result.payload["name"], "Контактор КМИе-11210")
+        self.assertEqual(result.payload["product_id"], 6541499612)
+
     def test_ozon_and_wb_apply_explicit_category_attribute_mappings(self):
         mapped = build_preview(
             PRODUCT,
