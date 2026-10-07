@@ -17,6 +17,7 @@ This artifact records verified facts and current limits. It does not claim marke
 
 - Current taxonomy/category/type confirmed in prior live read: description category `17028654`, type `99040`.
 - Required attribute IDs: type `8229`, model `9048`, TN VED `22232`, brand `85`, marking flag `23536`. Confirmed dictionary values include `Контактор`, IEK, TN VED `8536490000`; marking flag must be supplied from actual product/commercial evidence rather than invented.
+- 2026-10-07 follow-up: the exact IEK `shortName`/`name` values establish source-backed model text for 9048 (KMIe series); mapper now derives this field from supplier data. Ozon cabinet comparison for five corresponding IEK analogs yielded price 1,526–4,683 RUB and VAT 0.22. This is a comparison, not an API-stated allowable min/max for new offers. Exact target offer IDs remain absent from catalog reads.
 - Existing Ozon seller catalog documented VAT `0.22` for matching same-category IEK contactors.
 
 ### Wildberries
@@ -32,6 +33,9 @@ This artifact records verified facts and current limits. It does not claim marke
 - The former three stale WB fixture failures were corrected. Current focused suite: `./.venv-etm-export/bin/python -m unittest discover -s test -p 'test_iek_marketplace_mapper.py' -v` — 15/15 PASS. Mapper/test compilation and `git diff --check` pass.
 - Current read-only marketplace reconciliation returned zero records for all five exact suffixed Ozon offer IDs (`/v3/product/info/list`, HTTP 200) and all five exact WB vendor codes (`/content/v2/get/cards/list`). This confirms targets remain absent at check time, not that writes are ready.
 - The current WB subject endpoint returned HTTP 200 with 33 descriptors (VOLA-57's saved report had 34 on its earlier fetch). Required flags were false for checked descriptors. This response still does not supply dictionary values or media upload constraints.
+- 2026-10-07 follow-up: mapper was hardened to fail closed for WB photos unless `photo_contract_verified=true`. WB `OPTIONS /content/v3/media/save` returns 405 `Allow: POST`; the available authenticated read-only WB endpoint could not be reached during this run (`fetch failed`), and the local OpenAPI copy did not contain media endpoints. This does not establish a successful photo submission contract.
+- Explicit project status identifies IEK RRC as the requested seller price. The mapper accepts `priceRrc` only when configuration explicitly sets `seller_price_source="iek_priceRrc"`; without that policy, tests confirm it remains unset.
+- Focused mapper tests after these changes: 18/18 pass; `git diff --check` passed. No marketplace writes were sent.
 - The unit tests validate mapper mechanics, not five real payloads. Ozon price-range constraints, payload-specific category dictionary values/marking, and verified photo/card submission contracts remain unvalidated. No marketplace write was sent.
 
 ## Not yet done / next exact steps

@@ -2,8 +2,8 @@
 
 This module never calls WB/Ozon and never publishes cards. It converts a
 supplier response plus explicitly supplied seller-commercial facts and verified
-marketplace schema into reviewable payloads. Supplier RRC is never treated as a
-seller price.
+marketplace schema into reviewable payloads. Supplier RRC is used only when an
+explicit policy selects it as the seller-price source.
 """
 from __future__ import annotations
 
@@ -144,6 +144,8 @@ def _base(product: Mapping[str, Any]) -> dict[str, Any]:
         "features": _etim_features(product),
         "multiplicity": _multiplicity(product),
         "seller_price": _number(product, "seller_price"),
+        "source_family": _text(product.get("family")),
+        "source_series": _text(product.get("series")),
         "barcode": next((_text(product.get(key)) for key in ("barcode", "barcodeValue", "gtin", "gtin13", "ean", "ean13") if _text(product.get(key))), "") or _text(_logistic_individual(product, "Штрихкод", "Штрихкод товара", "barcode", "EAN", "EAN13", "GTIN", "GTIN-13")),
         "dimensions": {
             "length": _dimension_cm(product, "length", ("l_см", "length_cm", "Длина", "Длина упаковки")),
@@ -163,6 +165,8 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
     category_id = category.get("description_category_id")
     type_id = category.get("type_id")
     price = base["seller_price"]
+    if price is None and category.get("seller_price_source") == "iek_priceRrc":
+        price = _number(product, "priceRrc")
     vat = product.get("vat")
     if price is None:
         errors.append("missing explicit seller_price; supplier priceRrc is not a seller-price source")
@@ -305,7 +309,10 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
         warnings.append("multiplicity is not 1; vendor code suffix must be reviewed")
     if not base["barcode"]:
         errors.append("missing commercial field: barcode")
-    if base["seller_price"] is None:
+    seller_price = base["seller_price"]
+    if seller_price is None and category.get("seller_price_source") == "iek_priceRrc":
+        seller_price = _number(product, "priceRrc")
+    if seller_price is None:
         errors.append("missing explicit seller_price; supplier priceRrc is not a seller-price source")
 
     if base["images"] and category.get("photo_contract_verified") is not True:
@@ -373,8 +380,8 @@ def map_wb(product: Mapping[str, Any], *, category: Mapping[str, Any] | None = N
         errors.append("WB schema has not been verified for this payload")
 
     size: dict[str, Any] = {"techSize": "0", "wbSize": "0", "skus": [str(base["barcode"])]}
-    if base["seller_price"] is not None:
-        size["price"] = base["seller_price"]
+    if seller_price is not None:
+        size["price"] = seller_price
     card = {
         "subjectID": subject_id,
         "variants": [{

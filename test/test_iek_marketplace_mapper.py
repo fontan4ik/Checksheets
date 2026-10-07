@@ -40,12 +40,13 @@ class MarketplaceMapperTest(unittest.TestCase):
                 "description_category_id": 17028654,
                 "type_id": 99040,
                 "schema_verified": True,
+                "seller_price_source": "iek_priceRrc",
                 "attribute_ids": {
                     "Тип": {"id": 8229, "static_value": "Контактор"},
                     "Нужен код маркировки": {"id": 23536, "type": "Boolean", "value": True},
                 },
             },
-            wb={"subject_id": 4225, "schema_verified": True, "photo_contract_verified": True, "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}},
+            wb={"subject_id": 4225, "schema_verified": True, "photo_contract_verified": True, "seller_price_source": "iek_priceRrc", "characteristic_ids": {"Номин рабочий ток Ie при AC-3 400 В": 81589}},
         )
         self.assertTrue(mapped["ozon"]["ready"])
         self.assertEqual(mapped["ozon"]["payload"]["price"], 715.11)
@@ -89,6 +90,12 @@ class MarketplaceMapperTest(unittest.TestCase):
         self.assertIn("missing explicit seller_price; supplier priceRrc is not a seller-price source", result.errors)
         self.assertNotIn("price", result.payload)
         self.assertEqual(result.payload["vat"], "0.22")
+
+    def test_explicit_rrc_seller_price_policy(self):
+        product = {key: value for key, value in PRODUCT.items() if key != "seller_price"}
+        product["priceRrc"] = 715.11
+        result = map_ozon(product, category={"description_category_id": 17028654, "type_id": 99040, "seller_price_source": "iek_priceRrc"})
+        self.assertEqual(result.payload["price"], 715.11)
 
     def test_missing_vat_is_not_inferred(self):
         product = {key: value for key, value in PRODUCT.items() if key != "vat"}
