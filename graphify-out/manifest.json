@@ -2412,9 +2412,9 @@
     "semantic_hash": ""
   },
   "iek_marketplace_mapper.py": {
-    "mtime": 1791379943.3014786,
-    "seen": 1791380337.178114,
-    "ast_hash": "8dc91d59fba73b23ea3f86ab7b98e627",
+    "mtime": 1791392485.8351636,
+    "seen": 1791393053.4374242,
+    "ast_hash": "99db705385ee26a283bab1e9bd6fcad3",
     "semantic_hash": ""
   },
   "obor_summary_local.py": {
@@ -2532,9 +2532,9 @@
     "semantic_hash": ""
   },
   "test/test_iek_marketplace_mapper.py": {
-    "mtime": 1791379818.6727116,
-    "seen": 1791380337.181505,
-    "ast_hash": "1d4d65aa03a6c2fa0af8a74b84ca9db1",
+    "mtime": 1791392503.6945727,
+    "seen": 1791393053.4406898,
+    "ast_hash": "4780601230becccb2b5fdb534b94b94b",
     "semantic_hash": ""
   },
   "test/test_obor_summary_local.py": {
@@ -2838,9 +2838,9 @@
     "semantic_hash": ""
   },
   "sites/iek-operator/src/index.html": {
-    "mtime": 1791374345.8009496,
-    "seen": 1791374613.359881,
-    "ast_hash": "3f3f417a29c796a67a74869579f62592",
+    "mtime": 1791382486.722345,
+    "seen": 1791393053.4432871,
+    "ast_hash": "261c3b125e37cbe93793f8a81fe36a11",
     "semantic_hash": ""
   },
   "sites/iek-operator/src/favicon.svg": {
@@ -2853,6 +2853,12 @@
     "mtime": 1791376136.2866604,
     "seen": 1791379546.475795,
     "ast_hash": "f35c4a1de1095f6dd5f082343824f340",
+    "semantic_hash": ""
+  },
+  "test/test_iek_live_package_mapper.py": {
+    "mtime": 1791392598.5437813,
+    "seen": 1791393053.4406888,
+    "ast_hash": "85bc3bf33f4c77bdf0a8f158b81122d3",
     "semantic_hash": ""
   }
 }
