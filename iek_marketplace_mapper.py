@@ -314,6 +314,9 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
                 else:
                     warnings.append(f"IEK Boolean value for {name} isn't normalized")
                     continue
+            if allowed is not None and _text(value) not in allowed:
+                warnings.append(f"IEK value for {name} lacks exact Ozon dictionary mapping")
+                continue
             clean.append(value)
         if clean and attr_id is not None and attr_id not in emitted:
             complex_id = mapped.get("complex_id", 0) if isinstance(mapped, Mapping) else 0
@@ -360,7 +363,7 @@ def map_ozon(product: Mapping[str, Any], *, category: Mapping[str, Any] | None =
             "weight_unit": "g",
         })
     if price is not None:
-        item["price"] = float(price)
+        item["price"] = str(price)
     if vat not in (None, ""):
         item["vat"] = str(vat)
     for key, value in (("barcode", base["barcode"]), ("currency_code", product.get("currency_code")), ("old_price", product.get("old_price"))):
