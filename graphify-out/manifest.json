@@ -2914,5 +2914,41 @@
     "seen": 1791446986.623189,
     "ast_hash": "6b4f2794895aed73927ac827aa156188",
     "semantic_hash": ""
+  },
+  "test/cdek_ozon_apply_20261008.js": {
+    "mtime": 1791449103.0210078,
+    "seen": 1791453047.8888361,
+    "ast_hash": "077d6d2b4c5933f4e4a0a15afc23160b",
+    "semantic_hash": ""
+  },
+  "test/cdek_ozon_before_20261008.json": {
+    "mtime": 1791449038.206161,
+    "seen": 1791453047.888837,
+    "ast_hash": "754441330dac49e2d8812e4f65614574",
+    "semantic_hash": ""
+  },
+  "test/cdek_ozon_refresh_20261008.js": {
+    "mtime": 1791449030.388305,
+    "seen": 1791453047.8888378,
+    "ast_hash": "62124955d57c74ebd655f81c94b9948c",
+    "semantic_hash": ""
+  },
+  "test/cdek_ozon_result_20261008.json": {
+    "mtime": 1791449240.3751366,
+    "seen": 1791453047.8888378,
+    "ast_hash": "87c6037e1fc7014b1190d3f49c7153f9",
+    "semantic_hash": ""
+  },
+  "test/cdek_ozon_sheet_backup_20261008.json": {
+    "mtime": 1791449105.4849699,
+    "seen": 1791453047.8888378,
+    "ast_hash": "a2a5279bc7f9e207c7ced50c6745c46d",
+    "semantic_hash": ""
+  },
+  "test/cdek_ozon_upload_20261008.json": {
+    "mtime": 1791449200.823572,
+    "seen": 1791453047.888839,
+    "ast_hash": "484049f23952e8becb37e0f7846952fc",
+    "semantic_hash": ""
   }
 }
