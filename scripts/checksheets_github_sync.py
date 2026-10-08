@@ -52,6 +52,8 @@ LOG_PATH = LOG_ROOT / "checksheets-github-sync.log"
 SETTLE_SECONDS = int(os.environ.get("CHECKSHEETS_SYNC_SETTLE_SECONDS", "20"))
 COMMAND_TIMEOUT = int(os.environ.get("CHECKSHEETS_SYNC_COMMAND_TIMEOUT", "300"))
 NPM = os.environ.get("CHECKSHEETS_SYNC_NPM", str(HOME / ".local" / "bin" / "npm"))
+BACKUP_KEEP_ALL_DAYS = 30
+BACKUP_KEEP_DAILY_DAYS = 90
 
 SENSITIVE_NAMES = (
     ".env",
@@ -419,6 +421,54 @@ def backup_apps_script(timestamp: str) -> Path:
     return destination
 
 
+def prune_backup_dirs(now: dt.datetime | None = None) -> tuple[int, int]:
+    """Keep detailed recent snapshots and one rollback snapshot per older day."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=dt.timezone.utc)
+    now = now.astimezone(dt.timezone.utc)
+    keep_all_after = now - dt.timedelta(days=BACKUP_KEEP_ALL_DAYS)
+    keep_daily_after = now - dt.timedelta(days=BACKUP_KEEP_DAILY_DAYS)
+
+    snapshots: list[tuple[dt.datetime, Path]] = []
+    for path in BACKUP_ROOT.iterdir() if BACKUP_ROOT.exists() else ():
+        if path.is_symlink() or not path.is_dir():
+            continue
+        try:
+            timestamp = dt.datetime.strptime(path.name, "%Y%m%dT%H%M%SZ").replace(
+                tzinfo=dt.timezone.utc
+            )
+        except ValueError:
+            continue
+        snapshots.append((timestamp, path))
+
+    keep: set[Path] = set()
+    latest_per_day: dict[dt.date, tuple[dt.datetime, Path]] = {}
+    for timestamp, path in snapshots:
+        if timestamp >= keep_all_after:
+            keep.add(path)
+        elif timestamp >= keep_daily_after:
+            day = timestamp.date()
+            if day not in latest_per_day or timestamp > latest_per_day[day][0]:
+                latest_per_day[day] = (timestamp, path)
+    keep.update(path for _, path in latest_per_day.values())
+
+    removed_count = 0
+    removed_bytes = 0
+    for _, path in snapshots:
+        if path in keep:
+            continue
+        for item in path.rglob("*"):
+            if item.is_file() and not item.is_symlink():
+                try:
+                    removed_bytes += item.stat().st_size
+                except OSError:
+                    pass
+        shutil.rmtree(path)
+        removed_count += 1
+    return removed_count, removed_bytes
+
+
 def verify_cloud_against_local(tracked: list[str]) -> tuple[int, list[str]]:
     with tempfile.TemporaryDirectory(prefix="checksheets-clasp-verify-") as temporary:
         temp_root = Path(temporary)
@@ -503,6 +553,16 @@ def main() -> int:
                     "last_cycle_apps_script": result,
                 }
             )
+            removed_backups, removed_bytes = prune_backup_dirs()
+            if removed_backups:
+                log.info(
+                    "Очистил старые Apps Script backups: %s папок, %.1f MiB; "
+                    "храню все за %s дней и по одному в день за %s дней",
+                    removed_backups,
+                    removed_bytes / (1024 * 1024),
+                    BACKUP_KEEP_ALL_DAYS,
+                    BACKUP_KEEP_DAILY_DAYS,
+                )
             log.info("Цикл завершён: GitHub=%s, Apps Script push=%s", local[:12], result["pushed"])
         return 0
     except SyncDeferred as exc:
