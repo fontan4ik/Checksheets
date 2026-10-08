@@ -2826,9 +2826,9 @@
     "semantic_hash": ""
   },
   "sites/iek-operator/worker/index.js": {
-    "mtime": 1791440057.0948286,
-    "seen": 1791440411.7521548,
-    "ast_hash": "29d8caccf48401128518481bcd86327b",
+    "mtime": 1791440882.4966524,
+    "seen": 1791440962.8165388,
+    "ast_hash": "629fa0104c0d63d941d8289cd0f3016a",
     "semantic_hash": ""
   },
   "Docs/VOLA-52-mapping-research.md": {
@@ -2880,15 +2880,15 @@
     "semantic_hash": ""
   },
   "sites/iek-operator/src/article-import.js": {
-    "mtime": 1791439481.8953269,
-    "seen": 1791439747.1744928,
-    "ast_hash": "0b5ed8e400e3a88f1831c39ba9da1c42",
+    "mtime": 1791440882.4969225,
+    "seen": 1791440962.816462,
+    "ast_hash": "376f34af0e2256510542cbd3f527bc50",
     "semantic_hash": ""
   },
   "sites/iek-operator/test/article-id.test.mjs": {
-    "mtime": 1791439852.7546556,
-    "seen": 1791440020.1154501,
-    "ast_hash": "c0bcadccfaf71ea7296970d228a483cc",
+    "mtime": 1791440697.3195977,
+    "seen": 1791440962.816462,
+    "ast_hash": "9847f572453e570195e9805722eb018c",
     "semantic_hash": ""
   },
   "sites/iek-operator/worker/article-id.js": {
