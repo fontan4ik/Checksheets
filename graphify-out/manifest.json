@@ -2826,9 +2826,9 @@
     "semantic_hash": ""
   },
   "sites/iek-operator/worker/index.js": {
-    "mtime": 1791443906.417444,
-    "seen": 1791444239.700521,
-    "ast_hash": "f911f0cb164df9417c2611f253c33148",
+    "mtime": 1791445755.5164034,
+    "seen": 1791446986.6186602,
+    "ast_hash": "3367b83e19cc7214e781eda8341a56b6",
     "semantic_hash": ""
   },
   "Docs/VOLA-52-mapping-research.md": {
@@ -2880,15 +2880,15 @@
     "semantic_hash": ""
   },
   "sites/iek-operator/src/article-import.js": {
-    "mtime": 1791440882.4969225,
-    "seen": 1791440962.816462,
-    "ast_hash": "376f34af0e2256510542cbd3f527bc50",
+    "mtime": 1791446425.9384363,
+    "seen": 1791446986.618581,
+    "ast_hash": "3451f38f17f3dc45fc95fb9faf555e78",
     "semantic_hash": ""
   },
   "sites/iek-operator/test/article-id.test.mjs": {
-    "mtime": 1791444100.9713311,
-    "seen": 1791444239.700462,
-    "ast_hash": "46a1060bd4b6f65aba58b9846fe98f71",
+    "mtime": 1791445930.8672318,
+    "seen": 1791446986.618582,
+    "ast_hash": "a1ba8933f137f3987ffaaa407d31ad5d",
     "semantic_hash": ""
   },
   "sites/iek-operator/worker/article-id.js": {
@@ -2901,6 +2901,18 @@
     "mtime": 1791440320.6997597,
     "seen": 1791440411.751989,
     "ast_hash": "9562f22a4101b30ff3db5bb1af6094b8",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator/test/article-import-ui.test.mjs": {
+    "mtime": 1791446437.037972,
+    "seen": 1791446986.618582,
+    "ast_hash": "ed90f725f5e85f184eda4e19e84d3c79",
+    "semantic_hash": ""
+  },
+  "Docs/VOLA-63-sites-readonly-heartbeat-2026-10-08.md": {
+    "mtime": 1791444392.0993514,
+    "seen": 1791446986.623189,
+    "ast_hash": "6b4f2794895aed73927ac827aa156188",
     "semantic_hash": ""
   }
 }
