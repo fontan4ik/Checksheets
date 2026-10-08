@@ -1,0 +1,1965 @@
+{
+  "time": "2026-10-08T08:46:40.822Z",
+  "stocks": [
+    {
+      "offer_id": "022770-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "022771-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "022772-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "022773-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10265-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10266-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10267-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10267-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "10270-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10277-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10277-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "10293-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10293-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "10299-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10299-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "10300-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10327-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10336-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10337-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "10337-10",
+      "stock": 1
+    },
+    {
+      "offer_id": "10337-2",
+      "stock": 3
+    },
+    {
+      "offer_id": "10337-3",
+      "stock": 2
+    },
+    {
+      "offer_id": "10337-4",
+      "stock": 2
+    },
+    {
+      "offer_id": "10337-5",
+      "stock": 1
+    },
+    {
+      "offer_id": "10338-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "10338-10",
+      "stock": 2
+    },
+    {
+      "offer_id": "10338-2",
+      "stock": 3
+    },
+    {
+      "offer_id": "10338-3",
+      "stock": 3
+    },
+    {
+      "offer_id": "10338-4",
+      "stock": 2
+    },
+    {
+      "offer_id": "10338-5",
+      "stock": 2
+    },
+    {
+      "offer_id": "10340-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "10340-10",
+      "stock": 2
+    },
+    {
+      "offer_id": "10340-2",
+      "stock": 2
+    },
+    {
+      "offer_id": "10340-3",
+      "stock": 2
+    },
+    {
+      "offer_id": "10340-4",
+      "stock": 2
+    },
+    {
+      "offer_id": "10340-5",
+      "stock": 2
+    },
+    {
+      "offer_id": "10341-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "10341-10",
+      "stock": 1
+    },
+    {
+      "offer_id": "10341-2",
+      "stock": 2
+    },
+    {
+      "offer_id": "10341-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "10341-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "10341-5",
+      "stock": 1
+    },
+    {
+      "offer_id": "10351-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "10351-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "10351-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "10351-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "10351-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "10351-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "10352-1",
+      "stock": 22
+    },
+    {
+      "offer_id": "10352-2",
+      "stock": 20
+    },
+    {
+      "offer_id": "10353-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "10353-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "10353-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "10353-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "10353-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "10353-5",
+      "stock": 1
+    },
+    {
+      "offer_id": "10354-1",
+      "stock": 5
+    },
+    {
+      "offer_id": "10354-10",
+      "stock": 4
+    },
+    {
+      "offer_id": "10354-2",
+      "stock": 5
+    },
+    {
+      "offer_id": "10354-3",
+      "stock": 5
+    },
+    {
+      "offer_id": "10354-4",
+      "stock": 5
+    },
+    {
+      "offer_id": "10354-5",
+      "stock": 4
+    },
+    {
+      "offer_id": "10361-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10361-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "10362-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10362-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "10363-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10367-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10368-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10369-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10371-1",
+      "stock": 1
+    },
+    {
+      "offer_id": "10371-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "10371-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "10371-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "10371-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "10371-5",
+      "stock": 1
+    },
+    {
+      "offer_id": "10372-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10373-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "10374-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "10374-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "10374-2",
+      "stock": 2
+    },
+    {
+      "offer_id": "10374-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "10374-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "10374-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "21078-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "21078-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "21078-2",
+      "stock": 2
+    },
+    {
+      "offer_id": "21078-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "21078-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "21078-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "21083-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "21083-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "21083-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "21083-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "21083-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "21083-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "21084-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "21084-10",
+      "stock": 1
+    },
+    {
+      "offer_id": "21084-2",
+      "stock": 2
+    },
+    {
+      "offer_id": "21084-3",
+      "stock": 2
+    },
+    {
+      "offer_id": "21084-4",
+      "stock": 2
+    },
+    {
+      "offer_id": "21084-5",
+      "stock": 1
+    },
+    {
+      "offer_id": "21085-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "21085-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "21085-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "21085-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "21085-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "21085-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "28769-1",
+      "stock": 4
+    },
+    {
+      "offer_id": "28769-10",
+      "stock": 2
+    },
+    {
+      "offer_id": "28769-2",
+      "stock": 2
+    },
+    {
+      "offer_id": "28769-3",
+      "stock": 2
+    },
+    {
+      "offer_id": "28769-4",
+      "stock": 2
+    },
+    {
+      "offer_id": "28769-5",
+      "stock": 2
+    },
+    {
+      "offer_id": "28851-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "28851-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "28851-2",
+      "stock": 2
+    },
+    {
+      "offer_id": "28851-3",
+      "stock": 2
+    },
+    {
+      "offer_id": "28851-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "28851-5",
+      "stock": 1
+    },
+    {
+      "offer_id": "29681-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "29681-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "29681-2",
+      "stock": 2
+    },
+    {
+      "offer_id": "29681-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "29681-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "29681-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "29682-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "29682-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "29682-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "29682-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "29682-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "29682-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "29763-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "29763-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "29763-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "29763-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "29763-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "29763-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "29764-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "29764-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "29764-2",
+      "stock": 2
+    },
+    {
+      "offer_id": "29764-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "29764-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "29764-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "41307-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "41307-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "41307-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "41307-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "41307-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "41307-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "41308-1",
+      "stock": 1
+    },
+    {
+      "offer_id": "41308-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "41308-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "41308-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "41308-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "41308-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "41728-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "41728-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "41729-1",
+      "stock": 8
+    },
+    {
+      "offer_id": "41729-2",
+      "stock": 6
+    },
+    {
+      "offer_id": "41729-20",
+      "stock": 1
+    },
+    {
+      "offer_id": "41731-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "41731-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "41732-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "41732-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "41732-20",
+      "stock": 0
+    },
+    {
+      "offer_id": "41959-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "41960-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "41961-1",
+      "stock": 8
+    },
+    {
+      "offer_id": "41962-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "41963-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "41964-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "41965-1",
+      "stock": 1
+    },
+    {
+      "offer_id": "41966-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "48116-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "48120-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "48121-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "48149-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "48150-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "48528-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "48528-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "48528-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "48528-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "48528-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "48528-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "48529-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "48529-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "5010710-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5010727-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5023826-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5026322-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5026346-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "51050-1",
+      "stock": 5
+    },
+    {
+      "offer_id": "51050-10",
+      "stock": 2
+    },
+    {
+      "offer_id": "51050-2",
+      "stock": 3
+    },
+    {
+      "offer_id": "51050-3",
+      "stock": 2
+    },
+    {
+      "offer_id": "51050-5",
+      "stock": 2
+    },
+    {
+      "offer_id": "51051-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "51051-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "51051-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "51051-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "51051-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "51887-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "51887-10",
+      "stock": 1
+    },
+    {
+      "offer_id": "51887-2",
+      "stock": 2
+    },
+    {
+      "offer_id": "51887-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "51887-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "51887-5",
+      "stock": 1
+    },
+    {
+      "offer_id": "51888-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "51888-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "51888-2",
+      "stock": 2
+    },
+    {
+      "offer_id": "51888-20",
+      "stock": 0
+    },
+    {
+      "offer_id": "51888-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "51888-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "51888-5",
+      "stock": 1
+    },
+    {
+      "offer_id": "51890-1",
+      "stock": 4
+    },
+    {
+      "offer_id": "51890-10",
+      "stock": 2
+    },
+    {
+      "offer_id": "51890-2",
+      "stock": 3
+    },
+    {
+      "offer_id": "51890-3",
+      "stock": 3
+    },
+    {
+      "offer_id": "51890-4",
+      "stock": 3
+    },
+    {
+      "offer_id": "51890-5",
+      "stock": 2
+    },
+    {
+      "offer_id": "51891-1",
+      "stock": 5
+    },
+    {
+      "offer_id": "51891-10",
+      "stock": 2
+    },
+    {
+      "offer_id": "51891-2",
+      "stock": 3
+    },
+    {
+      "offer_id": "51891-20",
+      "stock": 1
+    },
+    {
+      "offer_id": "51891-3",
+      "stock": 3
+    },
+    {
+      "offer_id": "51891-4",
+      "stock": 2
+    },
+    {
+      "offer_id": "51891-5",
+      "stock": 2
+    },
+    {
+      "offer_id": "BT410-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "BT411-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "BT412-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "BT413-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "BT414-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "BT415-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TR101-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TR102-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TR103-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TR104-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TR127-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TR128-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TR130-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "41353-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "27850-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612030999-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612030975-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "27854-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "2850645А-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "27851-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5000742-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "LDBO0-3001-4-4000-K01-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "LDBO0-3003-10-4000-K01-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5018372-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "27945-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "40513-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "29785-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612033112-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "29627-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "55059-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612059976-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "130411908-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "130411912-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "130411915-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "130511112-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "130511305-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "130511310-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "1036278-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "48143-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "48142-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "27946-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "25499-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "48141-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "25497-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "5010338-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "1036322А-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "25499-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "25497-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "32876-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "55058-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "143424218-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "143424318-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "48144-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "143426345-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "144124218-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "144125236-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "144125336-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "144126250-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "145024336-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "LDBO0-3002-7-4000-K01-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "LDBO0-3004-14-4000-K01-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612031019-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "1025340-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "038426-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "41110-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "41111-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "41111-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "41111-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "41111-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "41111-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "41111-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "41114-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "41114-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "41114-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "41115-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "41115-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "41115-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "41115-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "41115-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "41115-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612031002-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038162-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "4690612038179-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "4690612037646-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612037653-1",
+      "stock": 2
+    },
+    {
+      "offer_id": "4690612038803-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "4690612038810-1",
+      "stock": 3
+    },
+    {
+      "offer_id": "4690612053059-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053066-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612052984-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057279-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057286-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053837-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057293-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057309-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038162-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612038179-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612037646-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612037653-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612038803-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612038810-2",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612053059-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053066-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612052984-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038162-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612038179-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612057279-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057286-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612037646-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612037653-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053837-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057293-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057309-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038162-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612038179-4",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612038803-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612038810-3",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612037646-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612037653-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053059-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053066-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612052984-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057279-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057286-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038162-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038179-5",
+      "stock": 1
+    },
+    {
+      "offer_id": "4690612053837-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038803-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038810-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057293-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057309-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612037646-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612037653-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053059-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053066-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612052984-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057279-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057286-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038803-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038810-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053837-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057293-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057309-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053059-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053066-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612052984-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057279-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057286-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053837-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057293-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057309-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038162-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038179-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612037646-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612037653-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038803-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612038810-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053059-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053066-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612059969-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "41114-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "41114-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "41114-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "41110-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "41110-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "41110-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "41110-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "41110-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612052984-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057279-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057286-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612053837-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057293-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612057309-10",
+      "stock": 0
+    },
+    {
+      "offer_id": "5053137-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "95784-30",
+      "stock": 0
+    },
+    {
+      "offer_id": "5053090-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5066052-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "5066076-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612030982-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612066561-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612066554-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "41299-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "41298-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "29779-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "29780-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "28944-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "28968-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "038423-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "038428-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "038429-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "038430-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "038431-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "023144(2)-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "023146(2)-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "61939-30",
+      "stock": 0
+    },
+    {
+      "offer_id": "61940-30",
+      "stock": 0
+    },
+    {
+      "offer_id": "71302-30",
+      "stock": 0
+    },
+    {
+      "offer_id": "71303-30",
+      "stock": 0
+    },
+    {
+      "offer_id": "814426250-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "843425236-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "843425336-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "844424218-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "844426250-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "844426350-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "930411204-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "95789-30",
+      "stock": 0
+    },
+    {
+      "offer_id": "94068-30",
+      "stock": 0
+    },
+    {
+      "offer_id": "TL001-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TL002-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TL003-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TL004-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TL005-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TL006-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TL007-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TL008-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "1032515-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "27947-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "4690612031026-25",
+      "stock": 0
+    },
+    {
+      "offer_id": "023145(2)-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "TR129-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "48915-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "48914-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5053090-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "5053090-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "5053090-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "5053090-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "5053137-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "5053137-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "5053137-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "5053137-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "5060159-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5062023-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5062023-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "5062023-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "5062023-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "5062023-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "5062047-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5062047-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "5062047-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "5062047-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "5062047-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "2853486J-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "2853486J-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "2853486J-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "2853486J-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "2853486J-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "2853509J-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "2853509J-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "2853509J-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "2853509J-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "2853509J-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "5005303C-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5005303C-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "5005303C-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "5005303C-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "5005303C-5",
+      "stock": 0
+    },
+    {
+      "offer_id": "5005327C-1",
+      "stock": 0
+    },
+    {
+      "offer_id": "5005327C-2",
+      "stock": 0
+    },
+    {
+      "offer_id": "5005327C-3",
+      "stock": 0
+    },
+    {
+      "offer_id": "5005327C-4",
+      "stock": 0
+    },
+    {
+      "offer_id": "5005327C-5",
+      "stock": 0
+    }
+  ]
+}
