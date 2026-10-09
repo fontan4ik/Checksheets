@@ -14,19 +14,42 @@ vm.runInNewContext(`${source.slice(start, end)}; result = wbToken`, sandbox);
 async function main() {
   const candidateRows = JSON.parse(fs.readFileSync("/tmp/etm_candidate_source_rows.json", "utf8"));
   const candidates = new Set(candidateRows.map((item) => item.article));
-  const cardsByVendorCode = new Map();
-  const seenCursors = new Set();
-  let cursor = null;
-  let pages = 0;
-  let totalCards = 0;
+  const statePath = "/tmp/wb_candidate_scan_state.json";
+  const saved = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, "utf8")) : {};
+  const cardsByVendorCode = new Map((saved.matches || []).map((card) => [card.vendorCode, card]));
+  const seenCursors = new Set(saved.seenCursors || []);
+  let cursor = saved.cursor || null;
+  let pages = saved.pages || 0;
+  let totalCards = saved.totalCards || 0;
 
   while (true) {
-    const settings = { sort: { ascending: true }, cursor: cursor || { limit: 100 } };
-    const response = await axios.post(
-      "https://content-api.wildberries.ru/content/v2/get/cards/list",
-      { settings, filter: { withPhoto: -1 } },
-      { headers: { Authorization: sandbox.result, "Content-Type": "application/json" }, timeout: 60000 },
-    );
+    const settings = {
+      sort: { ascending: true },
+      cursor: cursor
+        ? { updatedAt: cursor.updatedAt, nmID: cursor.nmID, limit: 100 }
+        : { limit: 100 },
+    };
+    let response;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        response = await axios.post(
+          "https://content-api.wildberries.ru/content/v2/get/cards/list",
+          { settings, filter: { withPhoto: -1 } },
+          { headers: { Authorization: sandbox.result, "Content-Type": "application/json" }, timeout: 60000 },
+        );
+        break;
+      } catch (error) {
+        const status = error.response?.status;
+        const maxAttempts = status === 429 ? 3 : 5;
+        if (![429, 500, 502, 503, 504].includes(status) || attempt >= maxAttempts) throw error;
+        const retryAfter = Number(error.response?.headers?.["retry-after"]);
+        const delay = status === 429
+          ? (Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 60000)
+          : Math.min(30000, 1000 * 2 ** (attempt - 1));
+        console.warn("WB Content API HTTP " + status + "; retry " + attempt + "/" + maxAttempts + " in " + delay + "ms");
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
     const data = response.data || {};
     const cards = Array.isArray(data.cards) ? data.cards : [];
     if (!cards.length) break;
@@ -50,6 +73,9 @@ async function main() {
     if (seenCursors.has(nextKey)) throw new Error("WB Content API repeated a pagination cursor");
     seenCursors.add(nextKey);
     cursor = next;
+    fs.writeFileSync(statePath, JSON.stringify({
+      pages, totalCards, cursor, seenCursors: [...seenCursors], matches: [...cardsByVendorCode.values()],
+    }));
     if (totalCards > 50000) throw new Error("WB Content API exceeded the 50000 card safety limit");
     if (pages % 25 === 0) console.log(`Read ${totalCards} WB cards, matched ${cardsByVendorCode.size}`);
     await new Promise((resolve) => setTimeout(resolve, 1000));
