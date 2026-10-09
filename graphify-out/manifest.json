@@ -2826,9 +2826,9 @@
     "semantic_hash": ""
   },
   "sites/iek-operator/worker/index.js": {
-    "mtime": 1791445755.5164034,
-    "seen": 1791446986.6186602,
-    "ast_hash": "3367b83e19cc7214e781eda8341a56b6",
+    "mtime": 1791542110.3796663,
+    "seen": 1791543125.532049,
+    "ast_hash": "51f5f296d473de09b0d582ca36453e5c",
     "semantic_hash": ""
   },
   "Docs/VOLA-52-mapping-research.md": {
@@ -2886,9 +2886,9 @@
     "semantic_hash": ""
   },
   "sites/iek-operator/test/article-id.test.mjs": {
-    "mtime": 1791445930.8672318,
-    "seen": 1791446986.618582,
-    "ast_hash": "a1ba8933f137f3987ffaaa407d31ad5d",
+    "mtime": 1791542188.1376724,
+    "seen": 1791543125.5316029,
+    "ast_hash": "c79a45b58fafe1bb6281bb8710ab67bd",
     "semantic_hash": ""
   },
   "sites/iek-operator/worker/article-id.js": {
@@ -2964,9 +2964,165 @@
     "semantic_hash": ""
   },
   "test/query_wb_card_candidates.js": {
-    "mtime": 1791538994.5480301,
-    "seen": 1791539768.076263,
-    "ast_hash": "fed80ea73e1451bf8fedaad6eb1a8abe",
+    "mtime": 1791540330.629654,
+    "seen": 1791543125.5367,
+    "ast_hash": "05ef70dc4c027a0d7698647a7dcc37b5",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/.openai/hosting.json": {
+    "mtime": 1791541875.6403716,
+    "seen": 1791543125.530914,
+    "ast_hash": "c364180d104fb438d86ec9791afdc07f",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/db/schema.ts": {
+    "mtime": 1791541875.6404614,
+    "seen": 1791543125.530915,
+    "ast_hash": "bb18f83ef7b792447874e25dbaa2bf7f",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/drizzle.config.ts": {
+    "mtime": 1791541875.6405187,
+    "seen": 1791543125.5309162,
+    "ast_hash": "e81dce0ee5a68cda79ed14b17d1c583d",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/drizzle/meta/0000_snapshot.json": {
+    "mtime": 1791541875.640916,
+    "seen": 1791543125.5309162,
+    "ast_hash": "ad44c0daa11dd017447fbd56bff61e27",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/drizzle/meta/0002_snapshot.json": {
+    "mtime": 1791541875.6410007,
+    "seen": 1791543125.5309172,
+    "ast_hash": "08d33dd102f8fa2e2c569201e1455893",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/drizzle/meta/0003_snapshot.json": {
+    "mtime": 1791541875.641191,
+    "seen": 1791543125.5309172,
+    "ast_hash": "37353e377497ba1aaecc6ead8a9696eb",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/drizzle/meta/0004_snapshot.json": {
+    "mtime": 1791541875.6415238,
+    "seen": 1791543125.530918,
+    "ast_hash": "9562f22a4101b30ff3db5bb1af6094b8",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/drizzle/meta/_journal.json": {
+    "mtime": 1791541875.64176,
+    "seen": 1791543125.530918,
+    "ast_hash": "cbff36c3ee72799ea85d9cc790b714c1",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/package.json": {
+    "mtime": 1791541875.642537,
+    "seen": 1791543125.5309188,
+    "ast_hash": "1baaccffef91e3fd68d8cae47923e506",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/scripts/build.mjs": {
+    "mtime": 1791541875.6428535,
+    "seen": 1791543125.5309188,
+    "ast_hash": "bf77616dd5b43a292bfe6e691b835fbd",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/scripts/build.sh": {
+    "mtime": 1791541875.6430457,
+    "seen": 1791543125.53092,
+    "ast_hash": "97a2abd64fccc7e567c5036d590703b1",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/scripts/validate-artifact.mjs": {
+    "mtime": 1791541875.643265,
+    "seen": 1791543125.53092,
+    "ast_hash": "3bb98389af53f13d37d7d4ed68226686",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/src/article-import.js": {
+    "mtime": 1791542843.2578435,
+    "seen": 1791543125.530921,
+    "ast_hash": "0829c7fd8d8cc066abc8a6cc344b3852",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/test/article-id.test.mjs": {
+    "mtime": 1791543061.4702084,
+    "seen": 1791543125.530921,
+    "ast_hash": "b66a3b922b8a7f0fac1b0c8b8567a636",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/test/article-import-ui.test.mjs": {
+    "mtime": 1791541875.6447384,
+    "seen": 1791543125.530922,
+    "ast_hash": "a69e0a12a2cc38553602b98a7fd26cf0",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/test/migration.test.mjs": {
+    "mtime": 1791541875.644911,
+    "seen": 1791543125.530922,
+    "ast_hash": "ffc3148df76c733571322b0935695816",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/test/worker-flow.test.mjs": {
+    "mtime": 1791541875.6452494,
+    "seen": 1791543125.530923,
+    "ast_hash": "9282dfd5277dc7278d700cce9991e5ac",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/worker/article-id.js": {
+    "mtime": 1791541875.6455183,
+    "seen": 1791543125.530923,
+    "ast_hash": "74671bddb3ae2f46de72eab8b19cad07",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/worker/articles.js": {
+    "mtime": 1791541875.6456609,
+    "seen": 1791543125.530923,
+    "ast_hash": "28a610af79bf3db4a51692b2e6409efe",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/worker/index.js": {
+    "mtime": 1791542894.955523,
+    "seen": 1791543125.530923,
+    "ast_hash": "ee1a154293d87865a1fd3e77d3ff6190",
+    "semantic_hash": ""
+  },
+  "test/iek-card-correction-20261009-live-readback.cjs": {
+    "mtime": 1791540201.3345714,
+    "seen": 1791543125.53542,
+    "ast_hash": "ad4410e283c90f11d54b6777f5dba925",
+    "semantic_hash": ""
+  },
+  "test/iek-card-correction-20261009-live-readback.json": {
+    "mtime": 1791540347.9942083,
+    "seen": 1791543125.535421,
+    "ast_hash": "419606fe6fdfff96f3686f7091962d58",
+    "semantic_hash": ""
+  },
+  "Docs/VOLA-67-status-evidence.md": {
+    "mtime": 1791540383.0505877,
+    "seen": 1791543125.543125,
+    "ast_hash": "371ee1b2503ac95bf91730c7b0229f3f",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/src/index.html": {
+    "mtime": 1791541875.644091,
+    "seen": 1791543125.543784,
+    "ast_hash": "0d23e5d3f2b15aee88e56cd3291cbce8",
+    "semantic_hash": ""
+  },
+  "test/iek-card-correction-20261009-regression-review.md": {
+    "mtime": 1791541566.5566099,
+    "seen": 1791543125.543832,
+    "ast_hash": "804f359cff857ca8c1409ee09f54783b",
+    "semantic_hash": ""
+  },
+  "sites/iek-operator-correction-20261009/src/favicon.svg": {
+    "mtime": 1791541875.6438334,
+    "seen": 1791543125.543964,
+    "ast_hash": "49e3c84d6cc6f86ffd579e3f7af7b256",
     "semantic_hash": ""
   }
 }
