@@ -1,30 +1,21 @@
-# VOLA-67 source checkpoint
+# VOLA-67 regression review checkpoint
 
-Reviewed using independent reviewer findings (VOLA-68) and latest owner verification-inputs rev3.
+## Fresh price evidence (owner-provided verification-inputs rev3)
 
-## Price facts
+The 2026-10-09 10:11:19 UTC `POST /v5/product/info/prices` read confirms both seller `price` and `marketing_seller_price` at 340 / 340 / 340 / 377 / 433 RUB for 9A / 12A / 18A / 25A / 40A, VAT 0.22. These are seller prices, not buyer-discount prices. Owner policy is seller price = IEK API RRC. The actor/source of the price change is unknown; do not attribute it. No marketplace write was made.
 
-The owner-reported fresh `POST /v5/product/info/prices` response at 2026-10-09 10:11:19 UTC confirms seller `price` and `marketing_seller_price` at 340/340/340/377/433 RUB for 9A/12A/18A/25A/40A, VAT 0.22. These are not buyer-discount prices. The owner policy is seller price = RRC from IEK API. The actor/source of the current-price change is unknown; no attribution is made and no marketplace price write was attempted.
+## Reviewer findings checked against checkout
 
-## Independent regressions checked in source
+VOLA-68's independent offline report documents nine reproduced failures. Current code inspection confirms unresolved defects in `worker/index.js` (false completion without product readback, empty required attribute values accepted, lost task receipt window, no durable atomic process claim) and `src/article-import.js` (30-attempt stop, no start guard, reload restores state without resuming, retry only shown for failed rows). The current source workspace is dirty and must be preserved; HEAD is `52e99ba76ae4c0ce93d04672791d9b809745e835`.
 
-VOLA-68's offline report reproduces nine defects. Source inspection confirms several remain in the current uncommitted worktree:
+## Tests
 
-- `worker/index.js:520-524`: `status === imported` plus product ID yields complete without product detail, images, prices, or attribute readback.
-- `worker/index.js:549-557`: an existing product ID yields complete after only product-info lookup and required-schema presence check.
-- `worker/index.js:427-432`: required attributes are considered satisfied by attribute ID alone, regardless of empty `values`.
-- `worker/index.js:285-316`: brand has a fallback `IEK`, dimensions/weight are converted without persisted source units; only partial product payload fields are emitted.
-- `worker/index.js:569-579`: provider create occurs before task ID persistence by the caller, so a DB failure can lose receipt and permit resubmission.
-- `worker/index.js:674 onward`: processing path must be reworked to claim rows atomically before external effects; reviewer fixture showed duplicate concurrent provider submissions.
-- `src/article-import.js:45-53,75-89`: 30-attempt driver exit can strand queued work; no double-click guard and retry only appears for failed rows; restoring previous run only renders state.
+`node --test test/*.test.mjs` passed 4/4 on this checkout. Independent review confirms these existing tests do not cover the nine regressions. No fix is claimed from that pass.
 
-## Current source validation status
+## Official Sites source-open attempt
 
-- `node --test test/*.test.mjs`: 4 tests passed in this run.
-- Passing tests do not cover the independent regression cases; no fix is claimed.
-- Source open/publish workflow must be run using official Sites connector. A previous attempt with `approval_policy=never` failed specifically on `write_stdin` requiring approval; that did not establish a broader CLI blocker. Retry path is explicitly authorized by owner: fresh PTY, workspace-write sandbox rooted at the registered Site checkout, network access enabled only for supported git workflow, approval_policy never, fresh credential in memory/stdin only, publish_on_push disabled.
-- Live Site UI visual check remains intentionally unverified under owner security boundary. No attempt to bypass it.
+Used supported `codex exec --ephemeral --json --sandbox workspace-write -C <registered Site checkout> -c approval_policy="never" -c sandbox_workspace_write.network_access=true`, requested fresh native source credential with `publish_on_push: null`, and started the bundled Site workflow in a fresh PTY. Native PTY reached the official hidden-input Ready prompt. Native `write_stdin` was then rejected with exact error: `write_stdin rejected: approval required by policy, but AskForApproval is set to Never`.
 
-## Remains
+No credential was sent to the workflow, it did not open source, and no source changes/deploy/publish occurred from this attempt. Do not retry around this rejection. The issue remains blocked pending a supported authorized input path for the CLI PTY.
 
-Do not edit prices/brand on provider without fresh source→expected→submitted preview. Preserve the existing product IDs; do not create SKUs, activate sales, or alter stock/documents/certificates. Implement and test same-ID readback/validation, durable import claim and task receipt handling, unit-aware packaging conversion and truthful UI resume. Then use authorized Sites source open, reconcile without discarding shared changes, build/test, and publish this existing Site through the official mechanism. Capture version/deployment IDs and provider readback; ask for human acceptance only against the current revision.
+Visual UI remains unverified by explicit owner browser-security restriction. Certificates and product documents remain excluded from acceptance scope.
