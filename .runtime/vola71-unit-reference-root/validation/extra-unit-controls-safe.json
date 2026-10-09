@@ -1,0 +1,150 @@
+{
+  "candidateWorkerSha256": "60d98ce1ecc99a6621bcc4523d10205f4c2eb57350aa4d9728ae20cfa8142129",
+  "outcomes": [
+    {
+      "case": "named_cm_with_legacy_flat_brutto_kg",
+      "status": "pass",
+      "observed": {
+        "normalized": {
+          "length": 120,
+          "width": 80,
+          "height": 90,
+          "weight": 0.5
+        },
+        "payload": {
+          "depth": 120,
+          "width": 80,
+          "height": 90,
+          "weight": 500
+        }
+      },
+      "expected": {
+        "depth": 120,
+        "width": 80,
+        "height": 90,
+        "weight": 500
+      }
+    },
+    {
+      "case": "package_named_cm_typed_grams_count_unit_ignored",
+      "status": "pass",
+      "observed": {
+        "normalized": {
+          "length": 120,
+          "width": 80,
+          "height": 90,
+          "weight": 0.23
+        },
+        "payload": {
+          "depth": 120,
+          "width": 80,
+          "height": 90,
+          "weight": 230
+        }
+      },
+      "expected": {
+        "depth": 120,
+        "width": 80,
+        "height": 90,
+        "weight": 230
+      }
+    },
+    {
+      "case": "explicit_kg_not_confused_with_g",
+      "status": "pass",
+      "observed": {
+        "normalized": {
+          "length": 77,
+          "width": 48,
+          "height": 88,
+          "weight": 0.36
+        },
+        "payload": {
+          "depth": 77,
+          "width": 48,
+          "height": 88,
+          "weight": 360
+        }
+      },
+      "expected": {
+        "depth": 77,
+        "width": 48,
+        "height": 88,
+        "weight": 360
+      }
+    },
+    {
+      "case": "unknown_declared_dimension_refuses_conversion",
+      "status": "pass",
+      "observed": {
+        "normalized": {
+          "length": null,
+          "width": 80,
+          "height": 90,
+          "weight": 0.5
+        },
+        "payload": {
+          "depth": null,
+          "width": null,
+          "height": null,
+          "weight": null
+        }
+      },
+      "expected": {
+        "length": null
+      }
+    },
+    {
+      "case": "naked_weight_without_unit_refuses_conversion",
+      "status": "pass",
+      "observed": {
+        "normalized": {
+          "length": 120,
+          "width": 80,
+          "height": 90,
+          "weight": null
+        },
+        "payload": {
+          "depth": null,
+          "width": null,
+          "height": null,
+          "weight": null
+        }
+      },
+      "expected": {
+        "weight": null
+      }
+    },
+    {
+      "case": "package_count_unit_does_not_supply_physical_unit",
+      "status": "pass",
+      "observed": {
+        "normalized": {
+          "length": null,
+          "width": null,
+          "height": null,
+          "weight": null
+        },
+        "payload": {
+          "depth": null,
+          "width": null,
+          "height": null,
+          "weight": null
+        }
+      },
+      "expected": {
+        "length": null,
+        "width": null,
+        "height": null,
+        "weight": null
+      }
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 0
+  },
+  "full76HarnessRerun": false,
+  "networkCalls": 0,
+  "productionMutations": 0
+}

@@ -1,0 +1,2264 @@
+{
+  "references": {
+    "ozon-fields-before-safe.json": {
+      "path": "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/ozon-fields-before-safe.json",
+      "sha256": "85e548d8549240b1b557abf2b70c6d9911a49ff8f09a19a8e4d9ab876c52bf47"
+    },
+    "iek-fields-before-safe.json": {
+      "path": "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/iek-fields-before-safe.json",
+      "sha256": "d927fe529fbbcaa217931897c6233933ea9c8a787cdb9d76586dbf43598b7ca0"
+    },
+    "iek-sixth-fields-independent-safe.json": {
+      "path": "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/iek-sixth-fields-independent-safe.json",
+      "sha256": "736f0750717ac60e15d750ece6829c45e99cfdd476cf4e95a584200c61f7b16b"
+    },
+    "iek-six-metadata-independent-safe.json": {
+      "path": "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/iek-six-metadata-independent-safe.json",
+      "sha256": "4a1d9d579971838cb2f577643c59592556fbff102cfb52de5216e2e00c94beff"
+    },
+    "ozon-dictionary-resolution-independent-safe.json": {
+      "path": "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/ozon-dictionary-resolution-independent-safe.json",
+      "sha256": "f94c98936b574558a1c1d2a0f4169300a3f61a3ae85715b649fa926e7dd18c56"
+    },
+    "independent-acceptance-counterexamples-safe.json": {
+      "path": "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/independent-acceptance-counterexamples-safe.json",
+      "sha256": "f22772ef6b45fc057f4185732794cd3d77670233c2ab58c05ab73c7642074f46",
+      "examinedWorkerSnapshotSha256": "36216e58645a6f8d8884dc2d46f7eae9bfd9b8288f9d139bd72df59594a7aef5"
+    },
+    "main-voltage-verification-safe.md": {
+      "path": "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/main-voltage-verification-safe.md",
+      "sha256": "2e625e123775cb96af84471c5467fdd4297a9e61db72b0d3cc06f3fadb4f2f37"
+    }
+  },
+  "schema": [
+    {
+      "id": 10400,
+      "name": "Гарантия",
+      "description": "Период, в течение которого производитель отвечает за качество товара. А покупатель может оформить заявку на возврат по гарантийному случаю. Выберите одно значение из выпадающего списка.",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 46700526,
+      "group_name": "Общие",
+      "group_id": 1,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 8229,
+      "name": "Тип",
+      "description": "Выберите из списка наиболее подходящий тип товара. Типы участвуют в распределении товаров по категориям на сайте Ozon. Чтобы правильно указать тип, найдите на сайте Ozon товары, похожие на ваш, и укажите в этом поле такой же тип.",
+      "type": "String",
+      "is_required": true,
+      "is_collection": false,
+      "dictionary_id": 1960,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": true,
+      "max_value_count": 0
+    },
+    {
+      "id": 11650,
+      "name": "Количество заводских упаковок",
+      "description": "Сколько заводских упаковок продаёте под этим SKU. Пример: 24 банки детского пюре запаяны в 1 упаковку на заводе и в таком же виде продаются в других магазинах — укажите значение 1. \nДругой пример: завод выпускает лампочки в упаковках по 1 или 10 штук, а вы решили продавать по 3 лампочки и запаяли их в одну упаковку — значение атрибута будет 3",
+      "type": "Integer",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 4381,
+      "name": "Партномер",
+      "description": "Уникальный код, однозначно идентифицирующий изделие или деталь. Можно добавить номер детали по каталогу фирмы-производителя для не оригинальных запчастей. Если деталь не имеет такого артикула  — укажите здесь код продавца. ",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 10096,
+      "name": "Цвет товара",
+      "description": "Основной или доминирующий цвет товара. Если точного соответствия нет, используйте ближайшие цвета. Сложные цвета нужно описывать перечислением простых цветов. Например, если в товаре преобладают черный, желтый и белый цвета, то укажите их все простым перечислением. Атрибут \"Цвет товара\" — это основной цвет. Все остальные цвета можно перечислить в атрибуте \"Название цвета\", если он доступен в категории",
+      "type": "String",
+      "is_required": false,
+      "is_collection": true,
+      "dictionary_id": 1494,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": true,
+      "max_value_count": 0
+    },
+    {
+      "id": 9024,
+      "name": "Код продавца",
+      "description": "Цифро-буквенный код товара для его учета, является уникальным среди товаров. Не является EAN/серийным номером/штрихкодом, не равен названию модели товара - для этих параметров есть отдельные характеристики. Код продавца не выводится в карточке товара на сайте. Может использоваться при автоматическом формировании названия товара.",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 21837,
+      "name": "Озон.Видео: название",
+      "description": "Укажите название для видео",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 22232,
+      "name": "ТН ВЭД коды ЕАЭС",
+      "description": "Выберите одно значение из списка. Если вы не знаете, какой код нужно указать, то вам необходимо обратиться к таможенной службе или таможенному представителю",
+      "type": "String",
+      "is_required": true,
+      "is_collection": false,
+      "dictionary_id": 124412395,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": true,
+      "max_value_count": 0
+    },
+    {
+      "id": 23171,
+      "name": "#Хештеги",
+      "description": "Хештеги работают так же, как в соцсетях: покупатели могут нажать на них в карточке или написать в поиске. Укажите тут тренд, стиль или тематику. Например, для одежды #oldmoney #kpop #бохо, для мебели #скандинавский_стиль #минимализм #лофт. Не добавляйте бренды, параметры или название товара.  Хештег должен начинаться со знака # и содержать только буквы и цифры. Если хештег состоит из 2+ слов, соедините их нижним подчеркиванием. Длина — не более 30 символов. Укажите не больше 30 хештегов, разделяйте пробелом",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 23249,
+      "name": "Количество товара в УЕИ",
+      "description": "УЕИ – унифицированная единица измерения. Необходимо указывать для продажи товаров на территории Республики Беларусь согласно локальному законодательству. Указывается количество ШТУК в одной SKU. Можно указать только целое число.",
+      "type": "Decimal",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 4180,
+      "name": "Название",
+      "description": "Название пишется по принципу: Тип + Бренд + Модель (серия + пояснение) + Артикул производителя + , (запятая) + Атрибут Название не пишется большими буквами (не используем caps lock). Перед атрибутом ставится запятая. Если атрибутов несколько, они так же разделяются запятыми. Если какой-то составной части названия нет - пропускаем её. Атрибутом может быть: цвет, вес, объём, количество штук в упаковке и т.д. Цвет пишется с маленькой буквы, в мужском роде, единственном числе. Слово цвет в названии не пишем. Точка в конце не ставится. Никаких знаков препинания, кроме запятой, не используем. Кавычки используем только для названий на русском языке. Примеры корректных названий: Смартфон Apple iPhone XS MT572RU/A, space black Кеды Dr. Martens Киноклассика, бело-черные, размер 43 Стиральный порошок Ariel Магия белого с мерной ложкой, 15 кг Соус Heinz Xtreme Tabasco суперострый, 10 мл Игрушка для животных Четыре лапы \"Бегающая мышка\" БММ, белый",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 4383,
+      "name": "Вес товара, г",
+      "description": "Вес товара без упаковки (нетто) в граммах в расчете на 1 SKU. Можно указать только целое число или десятичную дробь. Разделитель — точка",
+      "type": "Decimal",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 4384,
+      "name": "Комплектация",
+      "description": "Перечислите, что входит в комплект вместе с товаром: инструкция, чехол, комплект проводов и т.п. Не дублируйте сюда значения других характеристик (аннотацию, тип или количество в упаковке). Если вы поставляете товар без дополнительной комплектации, не заполняйте эту характеристику. ",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 6980,
+      "name": "Степень водо-пылезащиты",
+      "description": "Выберите из списка. Можно указать только одно значение.",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 1862,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": true,
+      "max_value_count": 0
+    },
+    {
+      "id": 8790,
+      "name": "Документ PDF",
+      "description": "",
+      "type": "URL",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 10819,
+      "name": "Тип тока",
+      "description": "Выберите из списка. Можно указать только одно значение.",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 54238857,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 21845,
+      "name": "Озон.Видеообложка: ссылка",
+      "description": "Укажите ссылку на видео (MP4, MOV). Продолжительность от 8 до 30 секунд, размер файла не более 20МБ",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 10499,
+      "name": "Количество фаз",
+      "description": "Выберите из списка или укажите вручную. Можно добавить несколько значений через точку с запятой. Если точка с запятой есть в значении атрибута, поместите знак в кавычки \";\".",
+      "type": "String",
+      "is_required": false,
+      "is_collection": true,
+      "dictionary_id": 39827842,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 5776,
+      "name": "Номинальный ток, А",
+      "description": "Можно указать только целое число или десятичную дробь. Разделитель — точка.",
+      "type": "Decimal",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": true,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 21841,
+      "name": "Озон.Видео: ссылка",
+      "description": "Укажите ссылку на видео (MP4, MOV). Продолжительность от 8 сек до 5 минут, размер файла не более 2ГБ",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 23518,
+      "name": "Минимальное количество оптом",
+      "description": "Заполните поле (укажите целое число), чтобы продавать товар оптом покупателям-юрлицам. Подробнее: https://seller-edu.ozon.ru/libra/work-with-goods/additional-materials/prodazha-optom",
+      "type": "Integer",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 11254,
+      "name": "Rich-контент JSON",
+      "description": "Добавьте расширенное описание товара с фото и видео по шаблону в формате JSON. Подробнее о заполнении этой характеристики можно узнать в статье \"Rich-контент\" в \"Базе знаний\".",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 85,
+      "name": "Бренд",
+      "description": "Наименование бренда, под которым произведен товар. Если товар не имеет бренда, используйте значение \"Нет бренда\".",
+      "type": "String",
+      "is_required": true,
+      "is_collection": false,
+      "dictionary_id": 28732849,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": true,
+      "max_value_count": 0
+    },
+    {
+      "id": 22963,
+      "name": "Число и исполнение контактов",
+      "description": "Выберите из списка. Можно указать только одно значение.",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 124412934,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 8962,
+      "name": "Единиц в одном товаре",
+      "description": "Количество единиц товара, которое будет продано клиенту за указанную цену. Например, 6 бутылок воды в одной упаковке или 12 паучей корма в одной упаковке. Если продаете товар поштучно, укажите в этом поле 1. Можно указать только целое число.",
+      "type": "Integer",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": true,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 20958,
+      "name": "Напряжение катушки управления, В",
+      "description": "Можно указать только целое число.",
+      "type": "Integer",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 7225,
+      "name": "Мощность, кВт",
+      "description": "Можно указать только целое число или десятичную дробь. Разделитель — точка.",
+      "type": "Decimal",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 22273,
+      "name": "Озон.Видео: товары на видео",
+      "description": "Укажите товары, которые демонстрируются в вашем видео. Перечислите SKU через запятую (не более 5).",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 23536,
+      "name": "Нужен код маркировки",
+      "description": "Выберите «Да», если товар имеет код маркировки (КИЗ). Будем проверять его у каждой отгрузки или поставки. При интеграции через Seller API передавайте параметр как \"true\" ",
+      "type": "Boolean",
+      "is_required": true,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 10823,
+      "name": "Номинальное напряжение, В",
+      "description": "Можно указать только целое число.",
+      "type": "Integer",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 12141,
+      "name": "Название модели для шаблона наименования",
+      "description": "Только краткое название модели, без типа, бренда и характеристик товара. Будет использовано в шаблонизаторе для составления названия карточки для сайта.",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 10818,
+      "name": "Количество полюсов",
+      "description": "Выберите из списка. Можно указать только одно значение.",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 1079,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": true,
+      "category_dependent": true,
+      "max_value_count": 0
+    },
+    {
+      "id": 22390,
+      "name": "Объединить в похожие товары",
+      "description": "Введите одинаковое значение в этом атрибуте для объединения товаров в группу \"Похожие\". Обратите внимание, что товары в группе собираются в рамках одной категории второго уровня в личном кабинете. Если у товаров будет указано одно Название группы, но они находятся в разных категориях — вы получите несколько объединений товаров. Подробнее об объединении в Похожие можно прочитать в статье \"Похожие товары\" в \"Базе знаний\"",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 4191,
+      "name": "Аннотация",
+      "description": "Описание товара, маркетинговый текст",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 8789,
+      "name": "Название файла PDF",
+      "description": "",
+      "type": "String",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 9048,
+      "name": "Название модели (для объединения в одну карточку)",
+      "description": "Заполните данное поле любым одинаковым значением на товарах, которые хотите объединить. И по разному, если товары нужно разъединить. Объединение произойдет при условии, что товары имеют одинаковый Тип и Бренд, и хотя бы одна вариативная характеристика заполнена по разному на всех товарах в объединении",
+      "type": "String",
+      "is_required": true,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 4497,
+      "name": "Вес с упаковкой, г",
+      "description": "Можно указать только целое число или десятичную дробь. Разделитель — точка.",
+      "type": "Decimal",
+      "is_required": false,
+      "is_collection": false,
+      "dictionary_id": 0,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 20261,
+      "name": "Способ монтажа",
+      "description": "Выберите из списка или укажите вручную. Можно добавить несколько значений через точку с запятой. Если точка с запятой есть в значении атрибута, поместите знак в кавычки \";\".",
+      "type": "String",
+      "is_required": false,
+      "is_collection": true,
+      "dictionary_id": 113288252,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    },
+    {
+      "id": 4389,
+      "name": "Страна-изготовитель",
+      "description": "Страна, в которой изготовлен/собран товар и которая указана на упаковке. Может отличаться от страны бренда. Выберите из списка или укажите вручную. Можно добавить несколько значений через точку с запятой.",
+      "type": "String",
+      "is_required": false,
+      "is_collection": true,
+      "dictionary_id": 1935,
+      "group_name": "",
+      "group_id": 0,
+      "is_aspect": false,
+      "category_dependent": false,
+      "max_value_count": 0
+    }
+  ],
+  "dictionaries": [
+    {
+      "attributeId": 10818,
+      "httpStatus": 200,
+      "values": [
+        {
+          "id": 41834,
+          "value": "1",
+          "info": ""
+        },
+        {
+          "id": 41835,
+          "value": "10",
+          "info": ""
+        },
+        {
+          "id": 41836,
+          "value": "11",
+          "info": ""
+        },
+        {
+          "id": 41837,
+          "value": "12",
+          "info": ""
+        },
+        {
+          "id": 41838,
+          "value": "15",
+          "info": ""
+        },
+        {
+          "id": 41839,
+          "value": "18",
+          "info": ""
+        },
+        {
+          "id": 41840,
+          "value": "2",
+          "info": ""
+        },
+        {
+          "id": 41843,
+          "value": "3",
+          "info": ""
+        },
+        {
+          "id": 41844,
+          "value": "4",
+          "info": ""
+        },
+        {
+          "id": 41845,
+          "value": "5",
+          "info": ""
+        },
+        {
+          "id": 41846,
+          "value": "6",
+          "info": ""
+        },
+        {
+          "id": 41847,
+          "value": "7",
+          "info": ""
+        },
+        {
+          "id": 41848,
+          "value": "8",
+          "info": ""
+        },
+        {
+          "id": 41849,
+          "value": "9",
+          "info": ""
+        },
+        {
+          "id": 41852,
+          "value": "13",
+          "info": ""
+        },
+        {
+          "id": 41853,
+          "value": "16",
+          "info": ""
+        },
+        {
+          "id": 41854,
+          "value": "14",
+          "info": ""
+        },
+        {
+          "id": 970606215,
+          "value": "20",
+          "info": ""
+        },
+        {
+          "id": 971086349,
+          "value": "19",
+          "info": ""
+        },
+        {
+          "id": 971093194,
+          "value": "17",
+          "info": ""
+        }
+      ],
+      "hasNext": false
+    },
+    {
+      "attributeId": 10819,
+      "httpStatus": 200,
+      "values": [
+        {
+          "id": 970749122,
+          "value": "Переменный",
+          "info": ""
+        },
+        {
+          "id": 970749123,
+          "value": "Постоянный",
+          "info": ""
+        },
+        {
+          "id": 970855485,
+          "value": "Постоянный / переменный",
+          "info": ""
+        }
+      ],
+      "hasNext": false
+    }
+  ],
+  "brandReadbackKnown": {
+    "id": 5643327,
+    "value": "Generica",
+    "provenance": "ozon-sixth-fields-independent-safe.json actual brand readback; not a full dictionary lookup"
+  },
+  "products": [
+    {
+      "article": "KKME11-012-230-10",
+      "name": "Контактор КМИе-11210 12А 230В/АС3 1NО GENERICA",
+      "shortName": "Контактор КМИе-11210 12А 230В/АС3 1NО GENERICA",
+      "description": "Малогабаритные контакторы серии КМИе на ток нагрузки от 9 до 95 А предназначены для пуска, остановки и реверсирования асинхронных электродвигателей с короткозамкнутым ротором на напряжение до 660 В (категория применения АС-3), а также для дистанционного управления цепями освещения, нагревательными цепями и различными малоиндуктивными нагрузками (категория применения АС-1).\n\nОбласть применения малогабаритных контакторов серии КМИе - управление вентиляторами, насосами, тепловыми завесами, печами, кран-балками, станками, освещением, в системах автоматического ввода резерва (АВР).\n\nПо своим конструктивным и техническим характеристикам контакторы малогабаритные серии КМИе соответствуют требованиям международных и российских стандартов ГОСТ Р 50030.4.1-2002 (МЭК 60947-4-1-2000).",
+      "tm": "GENERICA",
+      "priceRrc": 715.11,
+      "multiplicity": 1,
+      "logisticParams": [
+        {
+          "name": "Количество",
+          "nameOrig": "Количество",
+          "value": {
+            "group": null,
+            "individual": "1",
+            "transport": "50.0"
+          }
+        },
+        {
+          "name": "Единицы измерения",
+          "nameOrig": "ЕдИзмерен",
+          "value": {
+            "group": null,
+            "individual": "шт",
+            "transport": "шт"
+          }
+        },
+        {
+          "name": "Тип упаковки",
+          "nameOrig": "ТипУпаковки",
+          "value": {
+            "group": null,
+            "individual": "КОРОБКА/БОКС",
+            "transport": "ГОФРОКОРОБ"
+          }
+        },
+        {
+          "name": "Материал упаковки",
+          "nameOrig": "МатериалУпаковки",
+          "value": {
+            "group": null,
+            "individual": "ГОФРОКАРТОН ТРЕХСЛОЙНЫЙ",
+            "transport": "ГОФРОКАРТОН ПЯТИСЛОЙНЫЙ"
+          }
+        },
+        {
+          "name": "Штрихкод",
+          "nameOrig": "Штрихкод",
+          "value": {
+            "group": null,
+            "individual": "4606056260434",
+            "transport": "4606056261783"
+          }
+        },
+        {
+          "name": "Вес брутто, кг",
+          "nameOrig": "ВесБрутто",
+          "value": {
+            "group": null,
+            "individual": "0.3600000",
+            "transport": "18.0000000"
+          }
+        },
+        {
+          "name": "Объем, м^3",
+          "nameOrig": "ОбъемКуб",
+          "value": {
+            "group": null,
+            "individual": "0.0005200",
+            "transport": "0.0260150"
+          }
+        },
+        {
+          "name": "Длина, см",
+          "nameOrig": "l_см",
+          "value": {
+            "group": null,
+            "individual": "7.7000",
+            "transport": "44.0000"
+          }
+        },
+        {
+          "name": "Ширина, см",
+          "nameOrig": "b_см",
+          "value": {
+            "group": null,
+            "individual": "4.8000",
+            "transport": "27.5000"
+          }
+        },
+        {
+          "name": "Высота, см",
+          "nameOrig": "h_см",
+          "value": {
+            "group": null,
+            "individual": "8.8000",
+            "transport": "21.5000"
+          }
+        },
+        {
+          "name": "Способ нанесения информации",
+          "nameOrig": "СпособНанесенИнф",
+          "value": {
+            "group": null,
+            "individual": "На стикер",
+            "transport": "На стикер"
+          }
+        }
+      ],
+      "logisticParamsData": {
+        "singlePackage": {
+          "multiplicity": 1,
+          "unit": "шт"
+        }
+      },
+      "etim": {
+        "class": {
+          "id": "EC000066",
+          "name": "Магнитный пуск-ль или контактор переменного тока"
+        },
+        "features": [
+          {
+            "id": "EF001392",
+            "name": "Номин рабочий ток Ie при AC-3 400 В",
+            "sort": 10,
+            "unit": "А",
+            "value": "12"
+          },
+          {
+            "id": "EF001364",
+            "name": "Номин коммутируем мощность при AC-3 400 В",
+            "sort": 20,
+            "unit": "кВт",
+            "value": "5,5"
+          },
+          {
+            "id": "EF003978",
+            "name": "Номин напряжение питания цепи управ Us AC 50 Гц",
+            "sort": 30,
+            "unit": "В",
+            "value": "230"
+          },
+          {
+            "id": "EF003980",
+            "name": "Номин напряж питания цепи управ Us пост тока DC",
+            "sort": 40,
+            "unit": "В",
+            "value": "-"
+          },
+          {
+            "id": "EF001393",
+            "name": "Номин рабочий ток Ie при AC-1 400 В",
+            "sort": 50,
+            "unit": "А",
+            "value": "-"
+          },
+          {
+            "id": "EF005474",
+            "name": "Степень защиты - IP",
+            "sort": 400,
+            "unit": null,
+            "value": "IP20"
+          },
+          {
+            "id": "EF001376",
+            "name": "Кол-во вспомогат норм разомкнутых-НО конт",
+            "sort": 400,
+            "unit": null,
+            "value": "1"
+          },
+          {
+            "id": "EF006819",
+            "name": "Тип подключения силовой электрич цепи",
+            "sort": 400,
+            "unit": null,
+            "value": "Винтовое соединение"
+          },
+          {
+            "id": "IEK_F000575",
+            "name": "Номин напряжение изоляции Ui-гц",
+            "sort": 400,
+            "unit": "В",
+            "value": "660"
+          },
+          {
+            "id": "EF001126",
+            "name": "Модульное исполнение",
+            "sort": 400,
+            "unit": null,
+            "value": "Нет"
+          },
+          {
+            "id": "EF001374",
+            "name": "Кол-во норм разомкнутых-НО силовых конт",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF001375",
+            "name": "Кол-во норм замкн-НЗ силовых контактов",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF001377",
+            "name": "Кол-во вспомогат норм замкнутых-НЗ конт",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF008242",
+            "name": "Тип напряжения управления",
+            "sort": 400,
+            "unit": null,
+            "value": "Переменный (AC)"
+          }
+        ]
+      },
+      "imageUrls": [
+        "https://cdn-01.iek.ru/media/original/ccf1061b857fd1ed1bf2f50666d18ce6b0b63af10002f63f53a2e13781368278.png"
+      ],
+      "feacn": "8536490000",
+      "isMarked": true
+    },
+    {
+      "article": "KKME11-018-230-10",
+      "name": "Контактор КМИе-11810 18А 230В/АС3 1NO GENERICA",
+      "shortName": "Контактор КМИе-11810 18А 230В/АС3 1NO GENERICA",
+      "description": "Малогабаритные контакторы серии КМИе на ток нагрузки от 9 до 95 А предназначены для пуска, остановки и реверсирования асинхронных электродвигателей с короткозамкнутым ротором на напряжение до 660 В (категория применения АС-3), а также для дистанционного управления цепями освещения, нагревательными цепями и различными малоиндуктивными нагрузками (категория применения АС-1).\n\nОбласть применения малогабаритных контакторов серии КМИе - управление вентиляторами, насосами, тепловыми завесами, печами, кран-балками, станками, освещением, в системах автоматического ввода резерва (АВР).\n\nПо своим конструктивным и техническим характеристикам контакторы малогабаритные серии КМИе соответствуют требованиям международных и российских стандартов ГОСТ Р 50030.4.1-2002 (МЭК 60947-4-1-2000).",
+      "tm": "GENERICA",
+      "priceRrc": 808.61,
+      "multiplicity": 1,
+      "logisticParams": [
+        {
+          "name": "Количество",
+          "nameOrig": "Количество",
+          "value": {
+            "group": null,
+            "individual": "1",
+            "transport": "50.0"
+          }
+        },
+        {
+          "name": "Единицы измерения",
+          "nameOrig": "ЕдИзмерен",
+          "value": {
+            "group": null,
+            "individual": "шт",
+            "transport": "шт"
+          }
+        },
+        {
+          "name": "Тип упаковки",
+          "nameOrig": "ТипУпаковки",
+          "value": {
+            "group": null,
+            "individual": "КОРОБКА/БОКС",
+            "transport": "ГОФРОКОРОБ"
+          }
+        },
+        {
+          "name": "Материал упаковки",
+          "nameOrig": "МатериалУпаковки",
+          "value": {
+            "group": null,
+            "individual": "ГОФРОКАРТОН ТРЕХСЛОЙНЫЙ",
+            "transport": "ГОФРОКАРТОН ПЯТИСЛОЙНЫЙ"
+          }
+        },
+        {
+          "name": "Штрихкод",
+          "nameOrig": "Штрихкод",
+          "value": {
+            "group": null,
+            "individual": "4606056315103",
+            "transport": "4606056315110"
+          }
+        },
+        {
+          "name": "Вес брутто, кг",
+          "nameOrig": "ВесБрутто",
+          "value": {
+            "group": null,
+            "individual": "0.3760000",
+            "transport": "18.8000000"
+          }
+        },
+        {
+          "name": "Объем, м^3",
+          "nameOrig": "ОбъемКуб",
+          "value": {
+            "group": null,
+            "individual": "0.0005200",
+            "transport": "0.0260150"
+          }
+        },
+        {
+          "name": "Длина, см",
+          "nameOrig": "l_см",
+          "value": {
+            "group": null,
+            "individual": "7.7000",
+            "transport": "44.0000"
+          }
+        },
+        {
+          "name": "Ширина, см",
+          "nameOrig": "b_см",
+          "value": {
+            "group": null,
+            "individual": "4.8000",
+            "transport": "27.5000"
+          }
+        },
+        {
+          "name": "Высота, см",
+          "nameOrig": "h_см",
+          "value": {
+            "group": null,
+            "individual": "8.8000",
+            "transport": "21.5000"
+          }
+        },
+        {
+          "name": "Способ нанесения информации",
+          "nameOrig": "СпособНанесенИнф",
+          "value": {
+            "group": null,
+            "individual": "На стикер",
+            "transport": "На стикер"
+          }
+        }
+      ],
+      "logisticParamsData": {
+        "singlePackage": {
+          "multiplicity": 1,
+          "unit": "шт"
+        }
+      },
+      "etim": {
+        "class": {
+          "id": "EC000066",
+          "name": "Магнитный пуск-ль или контактор переменного тока"
+        },
+        "features": [
+          {
+            "id": "EF001392",
+            "name": "Номин рабочий ток Ie при AC-3 400 В",
+            "sort": 10,
+            "unit": "А",
+            "value": "18"
+          },
+          {
+            "id": "EF001364",
+            "name": "Номин коммутируем мощность при AC-3 400 В",
+            "sort": 20,
+            "unit": "кВт",
+            "value": "7,5"
+          },
+          {
+            "id": "EF003978",
+            "name": "Номин напряжение питания цепи управ Us AC 50 Гц",
+            "sort": 30,
+            "unit": "В",
+            "value": "230"
+          },
+          {
+            "id": "EF003980",
+            "name": "Номин напряж питания цепи управ Us пост тока DC",
+            "sort": 40,
+            "unit": "В",
+            "value": "-"
+          },
+          {
+            "id": "EF001393",
+            "name": "Номин рабочий ток Ie при AC-1 400 В",
+            "sort": 50,
+            "unit": "А",
+            "value": "-"
+          },
+          {
+            "id": "EF001376",
+            "name": "Кол-во вспомогат норм разомкнутых-НО конт",
+            "sort": 400,
+            "unit": null,
+            "value": "1"
+          },
+          {
+            "id": "EF005474",
+            "name": "Степень защиты - IP",
+            "sort": 400,
+            "unit": null,
+            "value": "IP20"
+          },
+          {
+            "id": "EF001377",
+            "name": "Кол-во вспомогат норм замкнутых-НЗ конт",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF006819",
+            "name": "Тип подключения силовой электрич цепи",
+            "sort": 400,
+            "unit": null,
+            "value": "Винтовое соединение"
+          },
+          {
+            "id": "EF001126",
+            "name": "Модульное исполнение",
+            "sort": 400,
+            "unit": null,
+            "value": "Нет"
+          },
+          {
+            "id": "EF001375",
+            "name": "Кол-во норм замкн-НЗ силовых контактов",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF008242",
+            "name": "Тип напряжения управления",
+            "sort": 400,
+            "unit": null,
+            "value": "Переменный (AC)"
+          },
+          {
+            "id": "EF001374",
+            "name": "Кол-во норм разомкнутых-НО силовых конт",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "IEK_F000575",
+            "name": "Номин напряжение изоляции Ui-гц",
+            "sort": 400,
+            "unit": "В",
+            "value": "660"
+          }
+        ]
+      },
+      "imageUrls": [
+        "https://cdn-01.iek.ru/media/original/1882aaff29bd863f2378e00e9c5af1176713b518c3786df27685c1b1b0579eb7.png",
+        "https://cdn-01.iek.ru/media/original/2c05a4644bc0b69e2457e7db065707afa399be7ffc1ce2a09d511c758e14085c.png",
+        "https://cdn-01.iek.ru/media/original/c677706d3bead3fc2e91bd340ef6eafff8ddb951eb366f47909f649b83394527.jpg",
+        "https://cdn-01.iek.ru/media/original/e5cdd143764fda02fe8db484a42328b2579956839610ae3b0a38a8af594f7886.jpg",
+        "https://cdn-01.iek.ru/media/original/8b4d83e7d7b1bd9fca92a5017b001561cd5fabad94b1f502bdedb400e630e31c.jpg",
+        "https://cdn-01.iek.ru/media/original/fbb0efc80771891b89b6dc42072354e302546cddb95e85745aa109f4a40b84d0.jpg",
+        "https://cdn-01.iek.ru/media/original/a73f379f1635c1306e1dd152a5e7c24112da487a2223cf45506996934b533912.jpg",
+        "https://cdn-01.iek.ru/media/original/79cbf63c835422fa06f5b9a4df6732a1f27d6e033abbfc7b80032a17395ca7a3.jpg",
+        "https://cdn-01.iek.ru/media/original/dbbc95b476934287dcb004796033e8c3ada48a33b2c91bd144a9071cf9985f8f.jpg",
+        "https://cdn-01.iek.ru/media/original/503390cc990c5ee12ef2996b2e4e4cc649b8a058fb2957970d552f172d7c45c9.jpg"
+      ],
+      "feacn": "8536490000",
+      "isMarked": true
+    },
+    {
+      "article": "KKME11-009-230-10",
+      "name": "Контактор КМИе-10910 9А 230В/АС3 1NO GENERICA",
+      "shortName": "Контактор КМИе-10910 9А 230В/АС3 1NO GENERICA",
+      "description": "Малогабаритные контакторы серии КМИе на ток нагрузки от 9 до 95 А предназначены для пуска, остановки и реверсирования асинхронных электродвигателей с короткозамкнутым ротором на напряжение до 660 В (категория применения АС-3), а также для дистанционного управления цепями освещения, нагревательными цепями и различными малоиндуктивными нагрузками (категория применения АС-1).\n\nОбласть применения малогабаритных контакторов серии КМИе - управление вентиляторами, насосами, тепловыми завесами, печами, кран-балками, станками, освещением, в системах автоматического ввода резерва (АВР).\n\nПо своим конструктивным и техническим характеристикам контакторы малогабаритные серии КМИе соответствуют требованиям международных и российских стандартов ГОСТ Р 50030.4.1-2002 (МЭК 60947-4-1-2000).",
+      "tm": "GENERICA",
+      "priceRrc": 645.36,
+      "multiplicity": 1,
+      "logisticParams": [
+        {
+          "name": "Количество",
+          "nameOrig": "Количество",
+          "value": {
+            "group": null,
+            "individual": "1",
+            "transport": "50.0"
+          }
+        },
+        {
+          "name": "Единицы измерения",
+          "nameOrig": "ЕдИзмерен",
+          "value": {
+            "group": null,
+            "individual": "шт",
+            "transport": "шт"
+          }
+        },
+        {
+          "name": "Тип упаковки",
+          "nameOrig": "ТипУпаковки",
+          "value": {
+            "group": null,
+            "individual": "КОРОБКА/БОКС",
+            "transport": "ГОФРОКОРОБ"
+          }
+        },
+        {
+          "name": "Материал упаковки",
+          "nameOrig": "МатериалУпаковки",
+          "value": {
+            "group": null,
+            "individual": "ГОФРОКАРТОН ТРЕХСЛОЙНЫЙ",
+            "transport": "ГОФРОКАРТОН ПЯТИСЛОЙНЫЙ"
+          }
+        },
+        {
+          "name": "Штрихкод",
+          "nameOrig": "Штрихкод",
+          "value": {
+            "group": null,
+            "individual": "4606056259803",
+            "transport": "4606056259810"
+          }
+        },
+        {
+          "name": "Вес брутто, кг",
+          "nameOrig": "ВесБрутто",
+          "value": {
+            "group": null,
+            "individual": "0.3600000",
+            "transport": "18.0000000"
+          }
+        },
+        {
+          "name": "Объем, м^3",
+          "nameOrig": "ОбъемКуб",
+          "value": {
+            "group": null,
+            "individual": "0.0005200",
+            "transport": "0.0260150"
+          }
+        },
+        {
+          "name": "Длина, см",
+          "nameOrig": "l_см",
+          "value": {
+            "group": null,
+            "individual": "7.7000",
+            "transport": "44.0000"
+          }
+        },
+        {
+          "name": "Ширина, см",
+          "nameOrig": "b_см",
+          "value": {
+            "group": null,
+            "individual": "4.8000",
+            "transport": "27.5000"
+          }
+        },
+        {
+          "name": "Высота, см",
+          "nameOrig": "h_см",
+          "value": {
+            "group": null,
+            "individual": "8.8000",
+            "transport": "21.5000"
+          }
+        },
+        {
+          "name": "Способ нанесения информации",
+          "nameOrig": "СпособНанесенИнф",
+          "value": {
+            "group": null,
+            "individual": "На стикер",
+            "transport": "На стикер"
+          }
+        }
+      ],
+      "logisticParamsData": {
+        "singlePackage": {
+          "multiplicity": 1,
+          "unit": "шт"
+        }
+      },
+      "etim": {
+        "class": {
+          "id": "EC000066",
+          "name": "Магнитный пуск-ль или контактор переменного тока"
+        },
+        "features": [
+          {
+            "id": "EF001392",
+            "name": "Номин рабочий ток Ie при AC-3 400 В",
+            "sort": 10,
+            "unit": "А",
+            "value": "9"
+          },
+          {
+            "id": "EF001364",
+            "name": "Номин коммутируем мощность при AC-3 400 В",
+            "sort": 20,
+            "unit": "кВт",
+            "value": "4"
+          },
+          {
+            "id": "EF003978",
+            "name": "Номин напряжение питания цепи управ Us AC 50 Гц",
+            "sort": 30,
+            "unit": "В",
+            "value": "230"
+          },
+          {
+            "id": "EF003980",
+            "name": "Номин напряж питания цепи управ Us пост тока DC",
+            "sort": 40,
+            "unit": "В",
+            "value": "-"
+          },
+          {
+            "id": "EF001393",
+            "name": "Номин рабочий ток Ie при AC-1 400 В",
+            "sort": 50,
+            "unit": "А",
+            "value": "-"
+          },
+          {
+            "id": "EF001374",
+            "name": "Кол-во норм разомкнутых-НО силовых конт",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF005474",
+            "name": "Степень защиты - IP",
+            "sort": 400,
+            "unit": null,
+            "value": "IP20"
+          },
+          {
+            "id": "EF006819",
+            "name": "Тип подключения силовой электрич цепи",
+            "sort": 400,
+            "unit": null,
+            "value": "Винтовое соединение"
+          },
+          {
+            "id": "EF001126",
+            "name": "Модульное исполнение",
+            "sort": 400,
+            "unit": null,
+            "value": "Нет"
+          },
+          {
+            "id": "EF001375",
+            "name": "Кол-во норм замкн-НЗ силовых контактов",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "IEK_F000575",
+            "name": "Номин напряжение изоляции Ui-гц",
+            "sort": 400,
+            "unit": "В",
+            "value": "660"
+          },
+          {
+            "id": "EF001376",
+            "name": "Кол-во вспомогат норм разомкнутых-НО конт",
+            "sort": 400,
+            "unit": null,
+            "value": "1"
+          },
+          {
+            "id": "EF001377",
+            "name": "Кол-во вспомогат норм замкнутых-НЗ конт",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF008242",
+            "name": "Тип напряжения управления",
+            "sort": 400,
+            "unit": null,
+            "value": "Переменный (AC)"
+          }
+        ]
+      },
+      "imageUrls": [
+        "https://cdn-01.iek.ru/media/original/611d17efe211a17708e49e2798fdc07c44e5c3240e8f3f89e4955b5af1619399.png",
+        "https://cdn-01.iek.ru/media/original/8f5c23fc7fde67e3a24dca8f82b2bad340d53265780a91a4a02ef88817bb1c64.png",
+        "https://cdn-01.iek.ru/media/original/a2282899fce45d4fc6501d8c9c3def300e0055481990376e3fac0dd83bcdd3c3.jpg",
+        "https://cdn-01.iek.ru/media/original/bfbc90d20d3daee2f7e19bc7f72e6efef687cfd5c05b0971511fd5c076fc97ca.jpg",
+        "https://cdn-01.iek.ru/media/original/9359dc1e8665c07d88ce38a8903ecd02aa3d02469fa3d8e83d46dabb8dee4a3a.jpg",
+        "https://cdn-01.iek.ru/media/original/00739039f39479de8005175e4acc252f24e10d0e52905f812da2ccde23daeb20.jpg",
+        "https://cdn-01.iek.ru/media/original/43cd0d342eac06440c7584a74981653608fd5b60944962ab1802930f6e67f2b7.jpg",
+        "https://cdn-01.iek.ru/media/original/870dc1b6a8e7b7c63daabd8967d358f54369b29978cedce3c746980e94bbd798.jpg",
+        "https://cdn-01.iek.ru/media/original/1e8b84c9af70382ec2dde4eaa3839d81d0bf509bfe54701dcf2032824e3722f4.jpg",
+        "https://cdn-01.iek.ru/media/original/51997e8b3e1da40446912ded83d4da6a18d0f72adb4ea2b1a9a4de25611d9db9.jpg"
+      ],
+      "feacn": "8536490000",
+      "isMarked": true
+    },
+    {
+      "article": "KKME21-025-110-10",
+      "name": "Контактор КМИе-22510 25А 110В/АС3 1NO GENERICA",
+      "shortName": "Контактор КМИе-22510 25А 110В/АС3 1NO GENERICA",
+      "description": "Малогабаритные контакторы серии КМИе на ток нагрузки от 9 до 95 А предназначены для пуска, остановки и реверсирования асинхронных электродвигателей с короткозамкнутым ротором на напряжение до 660 В (категория применения АС-3), а также для дистанционного управления цепями освещения, нагревательными цепями и различными малоиндуктивными нагрузками (категория применения АС-1).\n\nОбласть применения малогабаритных контакторов серии КМИе - управление вентиляторами, насосами, тепловыми завесами, печами, кран-балками, станками, освещением, в системах автоматического ввода резерва (АВР).\n\nПо своим конструктивным и техническим характеристикам контакторы малогабаритные серии КМИе соответствуют требованиям международных и российских стандартов ГОСТ Р 50030.4.1-2002 (МЭК 60947-4-1-2000).",
+      "tm": "GENERICA",
+      "priceRrc": 1390.64,
+      "multiplicity": 1,
+      "logisticParams": [
+        {
+          "name": "Количество",
+          "nameOrig": "Количество",
+          "value": {
+            "group": null,
+            "individual": "1",
+            "transport": "50.0"
+          }
+        },
+        {
+          "name": "Единицы измерения",
+          "nameOrig": "ЕдИзмерен",
+          "value": {
+            "group": null,
+            "individual": "шт",
+            "transport": "шт"
+          }
+        },
+        {
+          "name": "Тип упаковки",
+          "nameOrig": "ТипУпаковки",
+          "value": {
+            "group": null,
+            "individual": "КОРОБКА/БОКС",
+            "transport": "ГОФРОКОРОБ"
+          }
+        },
+        {
+          "name": "Материал упаковки",
+          "nameOrig": "МатериалУпаковки",
+          "value": {
+            "group": null,
+            "individual": "ГОФРОКАРТОН ТРЕХСЛОЙНЫЙ",
+            "transport": "ГОФРОКАРТОН ПЯТИСЛОЙНЫЙ"
+          }
+        },
+        {
+          "name": "Штрихкод",
+          "nameOrig": "Штрихкод",
+          "value": {
+            "group": null,
+            "individual": "4606056315240",
+            "transport": "4606056315257"
+          }
+        },
+        {
+          "name": "Вес брутто, кг",
+          "nameOrig": "ВесБрутто",
+          "value": {
+            "group": null,
+            "individual": "0.5380000",
+            "transport": "26.9000000"
+          }
+        },
+        {
+          "name": "Объем, м^3",
+          "nameOrig": "ОбъемКуб",
+          "value": {
+            "group": null,
+            "individual": "0.0007130",
+            "transport": "0.0356730"
+          }
+        },
+        {
+          "name": "Длина, см",
+          "nameOrig": "l_см",
+          "value": {
+            "group": null,
+            "individual": "8.5000",
+            "transport": "47.0000"
+          }
+        },
+        {
+          "name": "Ширина, см",
+          "nameOrig": "b_см",
+          "value": {
+            "group": null,
+            "individual": "5.8000",
+            "transport": "33.0000"
+          }
+        },
+        {
+          "name": "Высота, см",
+          "nameOrig": "h_см",
+          "value": {
+            "group": null,
+            "individual": "10.0000",
+            "transport": "23.0000"
+          }
+        },
+        {
+          "name": "Способ нанесения информации",
+          "nameOrig": "СпособНанесенИнф",
+          "value": {
+            "group": null,
+            "individual": "На стикер",
+            "transport": "На стикер"
+          }
+        }
+      ],
+      "logisticParamsData": {
+        "singlePackage": {
+          "multiplicity": 1,
+          "unit": "шт"
+        }
+      },
+      "etim": {
+        "class": {
+          "id": "EC000066",
+          "name": "Магнитный пуск-ль или контактор переменного тока"
+        },
+        "features": [
+          {
+            "id": "EF001392",
+            "name": "Номин рабочий ток Ie при AC-3 400 В",
+            "sort": 10,
+            "unit": "А",
+            "value": "25"
+          },
+          {
+            "id": "EF001364",
+            "name": "Номин коммутируем мощность при AC-3 400 В",
+            "sort": 20,
+            "unit": "кВт",
+            "value": "11"
+          },
+          {
+            "id": "EF003978",
+            "name": "Номин напряжение питания цепи управ Us AC 50 Гц",
+            "sort": 30,
+            "unit": "В",
+            "value": "110"
+          },
+          {
+            "id": "EF003980",
+            "name": "Номин напряж питания цепи управ Us пост тока DC",
+            "sort": 40,
+            "unit": "В",
+            "value": "-"
+          },
+          {
+            "id": "EF001393",
+            "name": "Номин рабочий ток Ie при AC-1 400 В",
+            "sort": 50,
+            "unit": "А",
+            "value": "-"
+          },
+          {
+            "id": "IEK_F000575",
+            "name": "Номин напряжение изоляции Ui-гц",
+            "sort": 400,
+            "unit": "В",
+            "value": "660"
+          },
+          {
+            "id": "EF001126",
+            "name": "Модульное исполнение",
+            "sort": 400,
+            "unit": null,
+            "value": "Нет"
+          },
+          {
+            "id": "EF001377",
+            "name": "Кол-во вспомогат норм замкнутых-НЗ конт",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF005474",
+            "name": "Степень защиты - IP",
+            "sort": 400,
+            "unit": null,
+            "value": "IP20"
+          },
+          {
+            "id": "EF006819",
+            "name": "Тип подключения силовой электрич цепи",
+            "sort": 400,
+            "unit": null,
+            "value": "Винтовое соединение"
+          },
+          {
+            "id": "EF008242",
+            "name": "Тип напряжения управления",
+            "sort": 400,
+            "unit": null,
+            "value": "Переменный (AC)"
+          },
+          {
+            "id": "EF001376",
+            "name": "Кол-во вспомогат норм разомкнутых-НО конт",
+            "sort": 400,
+            "unit": null,
+            "value": "1"
+          },
+          {
+            "id": "EF001374",
+            "name": "Кол-во норм разомкнутых-НО силовых конт",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF001375",
+            "name": "Кол-во норм замкн-НЗ силовых контактов",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          }
+        ]
+      },
+      "imageUrls": [
+        "https://cdn-01.iek.ru/media/original/35b5ffe6af9e17a4ed9d75f93783db93d2253a45c2aa96d676f79019c0634563.png"
+      ],
+      "feacn": "8536490000",
+      "isMarked": true
+    },
+    {
+      "article": "KKME31-040-230-11",
+      "name": "Контактор КМИе-34012 40А 230В/АС3 1NO;1NC GENERICA",
+      "shortName": "Контактор КМИе-34012 40А 230В/АС3 1NO;1NC GENERICA",
+      "description": "Малогабаритные контакторы серии КМИе на ток нагрузки от 9 до 95 А предназначены для пуска, остановки и реверсирования асинхронных электродвигателей с короткозамкнутым ротором на напряжение до 660 В (категория применения АС-3), а также для дистанционного управления цепями освещения, нагревательными цепями и различными малоиндуктивными нагрузками (категория применения АС-1).\n\nОбласть применения малогабаритных контакторов серии КМИе - управление вентиляторами, насосами, тепловыми завесами, печами, кран-балками, станками, освещением, в системах автоматического ввода резерва (АВР).\n\nПо своим конструктивным и техническим характеристикам контакторы малогабаритные серии КМИе соответствуют требованиям международных и российских стандартов ГОСТ Р 50030.4.1-2002 (МЭК 60947-4-1-2000).",
+      "tm": "GENERICA",
+      "priceRrc": 2756.18,
+      "multiplicity": 1,
+      "logisticParams": [
+        {
+          "name": "Количество",
+          "nameOrig": "Количество",
+          "value": {
+            "group": null,
+            "individual": "1",
+            "transport": "20.0"
+          }
+        },
+        {
+          "name": "Единицы измерения",
+          "nameOrig": "ЕдИзмерен",
+          "value": {
+            "group": null,
+            "individual": "шт",
+            "transport": "шт"
+          }
+        },
+        {
+          "name": "Тип упаковки",
+          "nameOrig": "ТипУпаковки",
+          "value": {
+            "group": null,
+            "individual": "КОРОБКА/БОКС",
+            "transport": "ГОФРОКОРОБ"
+          }
+        },
+        {
+          "name": "Материал упаковки",
+          "nameOrig": "МатериалУпаковки",
+          "value": {
+            "group": null,
+            "individual": "ГОФРОКАРТОН ТРЕХСЛОЙНЫЙ",
+            "transport": "ГОФРОКАРТОН ПЯТИСЛОЙНЫЙ"
+          }
+        },
+        {
+          "name": "Штрихкод",
+          "nameOrig": "Штрихкод",
+          "value": {
+            "group": null,
+            "individual": "4606056315547",
+            "transport": "4606056315554"
+          }
+        },
+        {
+          "name": "Вес брутто, кг",
+          "nameOrig": "ВесБрутто",
+          "value": {
+            "group": null,
+            "individual": "1.2400000",
+            "transport": "24.8000000"
+          }
+        },
+        {
+          "name": "Объем, м^3",
+          "nameOrig": "ОбъемКуб",
+          "value": {
+            "group": null,
+            "individual": "0.0014980",
+            "transport": "0.0299500"
+          }
+        },
+        {
+          "name": "Длина, см",
+          "nameOrig": "l_см",
+          "value": {
+            "group": null,
+            "individual": "12.8000",
+            "transport": "43.5000"
+          }
+        },
+        {
+          "name": "Ширина, см",
+          "nameOrig": "b_см",
+          "value": {
+            "group": null,
+            "individual": "8.1000",
+            "transport": "27.0000"
+          }
+        },
+        {
+          "name": "Высота, см",
+          "nameOrig": "h_см",
+          "value": {
+            "group": null,
+            "individual": "12.0000",
+            "transport": "25.5000"
+          }
+        },
+        {
+          "name": "Способ нанесения информации",
+          "nameOrig": "СпособНанесенИнф",
+          "value": {
+            "group": null,
+            "individual": "На стикер",
+            "transport": "На стикер"
+          }
+        }
+      ],
+      "logisticParamsData": {
+        "singlePackage": {
+          "multiplicity": 1,
+          "unit": "шт"
+        }
+      },
+      "etim": {
+        "class": {
+          "id": "EC000066",
+          "name": "Магнитный пуск-ль или контактор переменного тока"
+        },
+        "features": [
+          {
+            "id": "EF001392",
+            "name": "Номин рабочий ток Ie при AC-3 400 В",
+            "sort": 10,
+            "unit": "А",
+            "value": "40"
+          },
+          {
+            "id": "EF001364",
+            "name": "Номин коммутируем мощность при AC-3 400 В",
+            "sort": 20,
+            "unit": "кВт",
+            "value": "18,5"
+          },
+          {
+            "id": "EF003978",
+            "name": "Номин напряжение питания цепи управ Us AC 50 Гц",
+            "sort": 30,
+            "unit": "В",
+            "value": "230"
+          },
+          {
+            "id": "EF003980",
+            "name": "Номин напряж питания цепи управ Us пост тока DC",
+            "sort": 40,
+            "unit": "В",
+            "value": "-"
+          },
+          {
+            "id": "EF001393",
+            "name": "Номин рабочий ток Ie при AC-1 400 В",
+            "sort": 50,
+            "unit": "А",
+            "value": "-"
+          },
+          {
+            "id": "EF001126",
+            "name": "Модульное исполнение",
+            "sort": 400,
+            "unit": null,
+            "value": "Нет"
+          },
+          {
+            "id": "EF001377",
+            "name": "Кол-во вспомогат норм замкнутых-НЗ конт",
+            "sort": 400,
+            "unit": null,
+            "value": "1"
+          },
+          {
+            "id": "EF006819",
+            "name": "Тип подключения силовой электрич цепи",
+            "sort": 400,
+            "unit": null,
+            "value": "Винтовое соединение"
+          },
+          {
+            "id": "EF001374",
+            "name": "Кол-во норм разомкнутых-НО силовых конт",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF001375",
+            "name": "Кол-во норм замкн-НЗ силовых контактов",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF005474",
+            "name": "Степень защиты - IP",
+            "sort": 400,
+            "unit": null,
+            "value": "IP20"
+          },
+          {
+            "id": "IEK_F000575",
+            "name": "Номин напряжение изоляции Ui-гц",
+            "sort": 400,
+            "unit": "В",
+            "value": "660"
+          },
+          {
+            "id": "EF001376",
+            "name": "Кол-во вспомогат норм разомкнутых-НО конт",
+            "sort": 400,
+            "unit": null,
+            "value": "1"
+          },
+          {
+            "id": "EF008242",
+            "name": "Тип напряжения управления",
+            "sort": 400,
+            "unit": null,
+            "value": "Переменный (AC)"
+          }
+        ]
+      },
+      "imageUrls": [
+        "https://cdn-01.iek.ru/media/original/618e8f03d37b50e5272e410494c9615185b4d1ffe55b88e6e7cfe8b8ab139eef.png",
+        "https://cdn-01.iek.ru/media/original/6bd8fe1a19fd3f3d07733e6fa11eb27e2bd34e46f8f6dfcea850147074850103.png",
+        "https://cdn-01.iek.ru/media/original/2435366528ff40972844111bbba639ce07ce060cff6845c1b1540e10e6dbc85c.jpg",
+        "https://cdn-01.iek.ru/media/original/2c19b510eaa1e6c36745200859795a790a6144d0012ece4befa4282149ec1fda.jpg",
+        "https://cdn-01.iek.ru/media/original/1377e8113c18ffd87df210138219b79486a0018c9b4693f15224ff34cf9e87d0.jpg",
+        "https://cdn-01.iek.ru/media/original/f2abb78bac49200288b22eb2981c9e78833555f783b8014051384ee3d39f07d5.jpg",
+        "https://cdn-01.iek.ru/media/original/dd478d9dc4b525c9b700af822501525007fec6622bda08f492e94a79e7bbfcf2.jpg",
+        "https://cdn-01.iek.ru/media/original/689d6eb5351716940514e22f0d5ac71284f06699b902b84a3dfe6c11b60cbe54.jpg",
+        "https://cdn-01.iek.ru/media/original/ddacbefc6b584cb45fe88d462386eca996287df76759abfb2dd262d85ecfc2d9.jpg",
+        "https://cdn-01.iek.ru/media/original/7fd2c857a50da49b83e5c4b4c73396f1214214e83479b31572cedb434965351b.jpg"
+      ],
+      "feacn": "8536490000",
+      "isMarked": true
+    },
+    {
+      "article": "KKME41-095-230-11",
+      "name": "Контактор КМИе-49512 95А 230В/АС3 1NO;1NC GENERICA",
+      "shortName": "Контактор КМИе-49512 95А 230В/АС3 1NO;1NC GENERICA",
+      "description": "Малогабаритные контакторы серии КМИе на ток нагрузки от 9 до 95 А предназначены для пуска, остановки и реверсирования асинхронных электродвигателей с короткозамкнутым ротором на напряжение до 660 В (категория применения АС-3), а также для дистанционного управления цепями освещения, нагревательными цепями и различными малоиндуктивными нагрузками (категория применения АС-1).\n\nОбласть применения малогабаритных контакторов серии КМИе - управление вентиляторами, насосами, тепловыми завесами, печами, кран-балками, станками, освещением, в системах автоматического ввода резерва (АВР).\n\nПо своим конструктивным и техническим характеристикам контакторы малогабаритные серии КМИе соответствуют требованиям международных и российских стандартов ГОСТ Р 50030.4.1-2002 (МЭК 60947-4-1-2000).",
+      "tm": "GENERICA",
+      "priceRrc": 3981.12,
+      "multiplicity": 1,
+      "logisticParams": [
+        {
+          "name": "Количество",
+          "nameOrig": "Количество",
+          "value": {
+            "group": null,
+            "individual": "1",
+            "transport": "10.0"
+          }
+        },
+        {
+          "name": "Единицы измерения",
+          "nameOrig": "ЕдИзмерен",
+          "value": {
+            "group": null,
+            "individual": "шт",
+            "transport": "шт"
+          }
+        },
+        {
+          "name": "Тип упаковки",
+          "nameOrig": "ТипУпаковки",
+          "value": {
+            "group": null,
+            "individual": "КОРОБКА/БОКС",
+            "transport": "ГОФРОКОРОБ"
+          }
+        },
+        {
+          "name": "Материал упаковки",
+          "nameOrig": "МатериалУпаковки",
+          "value": {
+            "group": null,
+            "individual": "ГОФРОКАРТОН ТРЕХСЛОЙНЫЙ",
+            "transport": "ГОФРОКАРТОН ПЯТИСЛОЙНЫЙ"
+          }
+        },
+        {
+          "name": "Штрихкод",
+          "nameOrig": "Штрихкод",
+          "value": {
+            "group": null,
+            "individual": "4606056315783",
+            "transport": "4606056315790"
+          }
+        },
+        {
+          "name": "Вес брутто, кг",
+          "nameOrig": "ВесБрутто",
+          "value": {
+            "group": null,
+            "individual": "1.4700000",
+            "transport": "14.7000000"
+          }
+        },
+        {
+          "name": "Объем, м^3",
+          "nameOrig": "ОбъемКуб",
+          "value": {
+            "group": null,
+            "individual": "0.0019590",
+            "transport": "0.0195940"
+          }
+        },
+        {
+          "name": "Длина, см",
+          "nameOrig": "l_см",
+          "value": {
+            "group": null,
+            "individual": "13.0000",
+            "transport": "47.5000"
+          }
+        },
+        {
+          "name": "Ширина, см",
+          "nameOrig": "b_см",
+          "value": {
+            "group": null,
+            "individual": "9.0000",
+            "transport": "27.5000"
+          }
+        },
+        {
+          "name": "Высота, см",
+          "nameOrig": "h_см",
+          "value": {
+            "group": null,
+            "individual": "13.1000",
+            "transport": "15.0000"
+          }
+        },
+        {
+          "name": "Способ нанесения информации",
+          "nameOrig": "СпособНанесенИнф",
+          "value": {
+            "group": null,
+            "individual": "На стикер",
+            "transport": "На стикер"
+          }
+        }
+      ],
+      "logisticParamsData": {
+        "singlePackage": {
+          "multiplicity": 1,
+          "unit": "шт"
+        }
+      },
+      "etim": {
+        "class": {
+          "id": "EC000066",
+          "name": "Магнитный пуск-ль или контактор переменного тока"
+        },
+        "features": [
+          {
+            "id": "EF001392",
+            "name": "Номин рабочий ток Ie при AC-3 400 В",
+            "sort": 10,
+            "unit": "А",
+            "value": "95"
+          },
+          {
+            "id": "EF001364",
+            "name": "Номин коммутируем мощность при AC-3 400 В",
+            "sort": 20,
+            "unit": "кВт",
+            "value": "45"
+          },
+          {
+            "id": "EF003978",
+            "name": "Номин напряжение питания цепи управ Us AC 50 Гц",
+            "sort": 30,
+            "unit": "В",
+            "value": "230"
+          },
+          {
+            "id": "EF003980",
+            "name": "Номин напряж питания цепи управ Us пост тока DC",
+            "sort": 40,
+            "unit": "В",
+            "value": "-"
+          },
+          {
+            "id": "EF001393",
+            "name": "Номин рабочий ток Ie при AC-1 400 В",
+            "sort": 50,
+            "unit": "А",
+            "value": "-"
+          },
+          {
+            "id": "EF001375",
+            "name": "Кол-во норм замкн-НЗ силовых контактов",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "IEK_F000575",
+            "name": "Номин напряжение изоляции Ui-гц",
+            "sort": 400,
+            "unit": "В",
+            "value": "660"
+          },
+          {
+            "id": "EF001126",
+            "name": "Модульное исполнение",
+            "sort": 400,
+            "unit": null,
+            "value": "Нет"
+          },
+          {
+            "id": "EF008242",
+            "name": "Тип напряжения управления",
+            "sort": 400,
+            "unit": null,
+            "value": "Переменный (AC)"
+          },
+          {
+            "id": "EF001374",
+            "name": "Кол-во норм разомкнутых-НО силовых конт",
+            "sort": 400,
+            "unit": null,
+            "value": "0"
+          },
+          {
+            "id": "EF001376",
+            "name": "Кол-во вспомогат норм разомкнутых-НО конт",
+            "sort": 400,
+            "unit": null,
+            "value": "1"
+          },
+          {
+            "id": "EF001377",
+            "name": "Кол-во вспомогат норм замкнутых-НЗ конт",
+            "sort": 400,
+            "unit": null,
+            "value": "1"
+          },
+          {
+            "id": "EF006819",
+            "name": "Тип подключения силовой электрич цепи",
+            "sort": 400,
+            "unit": null,
+            "value": "Винтовое соединение"
+          },
+          {
+            "id": "EF005474",
+            "name": "Степень защиты - IP",
+            "sort": 400,
+            "unit": null,
+            "value": "IP20"
+          }
+        ]
+      },
+      "imageUrls": [
+        "https://cdn-01.iek.ru/media/original/544c1ecb8049ac1f76186c2899ba48f15a5c5243e5e7792b5ae454cb85da8827.png",
+        "https://cdn-01.iek.ru/media/original/1f6d7f75cb33c0013d05261e45ef5cc2fb34f02255b6d7a3fa81313090296a83.png",
+        "https://cdn-01.iek.ru/media/original/2b710d3d82cbc207c1ef83163b85263c28449b3c1398c79f4078ae8a7cbef210.jpg",
+        "https://cdn-01.iek.ru/media/original/1127d8c5ea1af32f7f83584a20643ff4556511a52eba3c46a30434b0dba2df33.jpg",
+        "https://cdn-01.iek.ru/media/original/3c167d14629e22d088c8e4693d1c5c49a3040ee2b879ffa562b94ef8f62093fc.jpg",
+        "https://cdn-01.iek.ru/media/original/ab0b89ba6da5b0f322192c31570f84c5ff8fa0c56fcf941d91e973f0920b473d.jpg",
+        "https://cdn-01.iek.ru/media/original/0966acf01358d6e19664880d6b0e81c61014b66d2404c880d8a3c06ec432d371.jpg",
+        "https://cdn-01.iek.ru/media/original/6dd58173b23c94a4f37bbd6fa09f6571b92b0a17074c6e0931e79622ad508513.jpg",
+        "https://cdn-01.iek.ru/media/original/5852355b3f66e2d91fa8d93f94edf910fe8140db2f20ca1b2514b1b440ae5f2a.jpg",
+        "https://cdn-01.iek.ru/media/original/1102079498defba989cb29fb71e28e3fb4fcdd149d4f6ba5f9f5b6672bab5cb8.jpg"
+      ],
+      "feacn": "8536490000",
+      "isMarked": true
+    }
+  ],
+  "mainPolesProof": {
+    "value": 3,
+    "reference": "physical-poles-verification-safe.md",
+    "catalogue": "official-iek-kmie-catalog-safe.json",
+    "sixthModel": "49512",
+    "sixthPdfPage": 12
+  },
+  "ipDictionaryIdUnverified": false,
+  "dictionarySearchProof": {
+    "observedAt": "2026-10-09T11:10:03.102Z",
+    "readOnly": true,
+    "categoryId": 17028654,
+    "typeId": 99040,
+    "queries": [
+      {
+        "endpoint": "/v1/description-category/attribute/values/search",
+        "attributeId": 85,
+        "searchedValue": "Generica",
+        "httpStatus": 200,
+        "values": [
+          {
+            "id": 5643327,
+            "value": "Generica",
+            "info": "Электротехника"
+          },
+          {
+            "id": 115844465,
+            "value": "Generica spol. sp.o. SK",
+            "info": ""
+          },
+          {
+            "id": 970894438,
+            "value": "Collagenerica (Коллаген)",
+            "info": "Красота и здоровье"
+          }
+        ],
+        "responseFieldNames": [
+          "result"
+        ]
+      },
+      {
+        "endpoint": "/v1/description-category/attribute/values/search",
+        "attributeId": 6980,
+        "searchedValue": "IP20",
+        "httpStatus": 200,
+        "values": [
+          {
+            "id": 83627,
+            "value": "IP20",
+            "info": ""
+          }
+        ],
+        "responseFieldNames": [
+          "result"
+        ]
+      },
+      {
+        "endpoint": "/v1/description-category/attribute/values/search",
+        "attributeId": 22232,
+        "searchedValue": "8536490000",
+        "httpStatus": 200,
+        "values": [
+          {
+            "id": 971400163,
+            "value": "8536490000 - Прочие реле, на напряжение не более 1000 в",
+            "info": ""
+          },
+          {
+            "id": 972997573,
+            "value": "8536490000 - Прочие реле, на напряжение не более 1000 в.",
+            "info": ""
+          }
+        ],
+        "responseFieldNames": [
+          "result"
+        ]
+      },
+      {
+        "endpoint": "/v1/description-category/attribute/values/search",
+        "attributeId": 8229,
+        "searchedValue": "Контактор",
+        "httpStatus": 200,
+        "values": [
+          {
+            "id": 99040,
+            "value": "Контактор",
+            "info": ""
+          },
+          {
+            "id": 970859599,
+            "value": "Аксессуар для контактора",
+            "info": ""
+          }
+        ],
+        "responseFieldNames": [
+          "result"
+        ]
+      },
+      {
+        "endpoint": "/v1/description-category/attribute/values/search",
+        "attributeId": 22963,
+        "searchedValue": "3NO",
+        "httpStatus": 200,
+        "values": [
+          {
+            "id": 971977924,
+            "value": "3NO",
+            "info": ""
+          },
+          {
+            "id": 971977925,
+            "value": "3NO+1NC",
+            "info": ""
+          },
+          {
+            "id": 971977926,
+            "value": "3NO+3NC",
+            "info": ""
+          }
+        ],
+        "responseFieldNames": [
+          "result"
+        ]
+      }
+    ]
+  },
+  "mainWorkingVoltageManufacturerProof": {
+    "reference": "main-voltage-verification-safe.md",
+    "pdfSha256": "f1ccd2f0df1c5ba50a2edc37e7b844625dc07fc75d5e524805c366c294b3ed37",
+    "pageIndex11Printed722": true,
+    "ratingsV": [
+      230,
+      400,
+      660
+    ],
+    "selectedRatingV": 660,
+    "appliesOnlyArticles": [
+      "KKME11-012-230-10",
+      "KKME11-018-230-10",
+      "KKME11-009-230-10",
+      "KKME21-025-110-10",
+      "KKME31-040-230-11",
+      "KKME41-095-230-11"
+    ],
+    "freshApiHasNoExplicitMainWorkingVoltage": true,
+    "doNotInferFromInsulationUi": true
+  }
+}

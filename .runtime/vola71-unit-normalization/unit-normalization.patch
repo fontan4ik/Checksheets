@@ -1,0 +1,109 @@
+diff --git a/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/independent-fixtures-after/runs/20261009T124001142185Z/examined/worker/index.js b/.runtime/vola71-unit-normalization/candidate/worker/index.js
+index 9885c08e..33611416 100644
+--- a/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/independent-fixtures-after/runs/20261009T124001142185Z/examined/worker/index.js
++++ b/.runtime/vola71-unit-normalization/candidate/worker/index.js
+@@ -212,47 +212,47 @@ function sourceDecimal(value) {
+   return number(value);
+ }
+ 
+-function normalizedDimension(p, keys, aliases, etimNames, unitNames, fallbackValues = []) {
++function normalizedDimension(p, keys, aliases, etimNames, unitNames, fallbackValues = [], kind = "dimension") {
++  const convert = (raw, unit, key = "") => {
++    const value = sourceDecimal(raw);
++    if (value === null) return null;
++    const normalizedUnit = text(unit).toLocaleLowerCase("ru-RU").replaceAll(".", "").trim();
++    if (kind === "weight") {
++      if (["kg", "кг", "килограмм", "килограмма", "килограммов"].includes(normalizedUnit)) return value;
++      if (["g", "г", "гр", "грамм", "грамма", "граммов"].includes(normalizedUnit)) return value / 1000;
++      if (/_kg$/i.test(key) || /kg$/i.test(key)) return value;
++      if (/_g$/i.test(key) || /grams?$/i.test(key)) return value / 1000;
++      return null;
++    }
++    if (["mm", "мм", "millimeter", "millimeters"].includes(normalizedUnit) || /(?:mm|_mm)$/i.test(key)) return value;
++    if (["cm", "см", "centimeter", "centimeters"].includes(normalizedUnit) || /(?:cm|_cm)$/i.test(key)) return value * 10;
++    return null;
++  };
+   for (const key of keys) {
+     if (p[key] === undefined || p[key] === null || p[key] === "") continue;
+-    const value = sourceDecimal(p[key]);
+-    const declaredUnit = text(p[`${key}Unit`] || p[`${key}_unit`]).toLowerCase();
+-    const conventionalCmKey = /cm$/i.test(key) || /_cm$/i.test(key);
+-    if (declaredUnit === "cm" || conventionalCmKey) return value === null ? null : value * 10;
+-    if (["mm", "millimeter", "millimeters"].includes(declaredUnit)) return value;
+-    return value;
++    const unit = p[`${key}Unit`] ?? p[`${key}_unit`] ?? (/grams?$/i.test(key) || /_g$/i.test(key) ? "g" : /(?:mm|_mm)$/i.test(key) ? "mm" : /(?:cm|_cm)$/i.test(key) ? "cm" : "");
++    const normalized = convert(p[key], unit, key);
++    if (normalized !== null) return normalized;
+   }
++  const expected = new Set(aliases.map((alias) => alias.toLocaleLowerCase("ru-RU")));
+   for (const item of p.logisticParams || []) {
+-    const sourceName = text(item.nameOrig || item.name);
+-    const normalizedSourceName = sourceName.toLocaleLowerCase("ru-RU").replaceAll("_cm", "_см");
+-    if (!aliases.some((alias) => normalizedSourceName === alias.toLocaleLowerCase("ru-RU"))) continue;
+-    const value = sourceDecimal(item.value && typeof item.value === "object" ? item.value.individual : item.value);
+-    const nestedIndividualUnit = text(item.value && typeof item.value === "object" ? item.value.unit : "");
+-    const unit = text(item.unit || nestedIndividualUnit || item.name || item.nameOrig);
+-    const inferredKg = /Вес|Масса|weight/i.test(sourceName) && /кг|kg/i.test(unit);
+-    if (value !== null && inferredKg) return value;
+-    const explicitCm = /см/i.test(sourceName) || /см/i.test(unit);
+-    const explicitMm = /мм/i.test(sourceName) || /мм/i.test(unit);
+-    if (value === null) return null;
+-    if (aliases.includes("gross_weight_kg") && /г|gram/i.test(text(item.unit))) return value;
+-    return explicitCm ? value * 10 : explicitMm ? value : null;
++    const candidates = [text(item.nameOrig), text(item.name)].filter(Boolean);
++    const matched = candidates.find((candidate) => expected.has(candidate.toLocaleLowerCase("ru-RU").replaceAll("_cm", "_см")));
++    if (!matched) continue;
++    const source = item.value && typeof item.value === "object" ? item.value.individual : item.value;
++    const nestedUnit = item.value && typeof item.value === "object" ? item.value.unit : "";
++    const unit = nestedUnit || item.unit || matched;
++    const normalized = convert(source, unit, matched);
++    if (normalized !== null) return normalized;
+   }
+   for (const fallback of fallbackValues) {
+     if (fallback === null || fallback === undefined || fallback === "") continue;
+-    const value = sourceDecimal(fallback.value);
+-    if (value === null) continue;
+-    const sourceUnit = text(fallback.unit).toLowerCase();
+-    const cm = sourceUnit === "cm" || sourceUnit === "см";
+-    const mm = sourceUnit === "mm" || sourceUnit === "мм";
+-    const grams = sourceUnit === "g" || sourceUnit === "г";
+-    const kg = sourceUnit === "kg" || sourceUnit === "кг";
+-    return cm ? value * 10 : kg ? value * 1000 : value;
++    const normalized = convert(fallback.value, fallback.unit ?? (/grams?$/i.test(fallback.key || "") || /_g$/i.test(fallback.key || "") ? "g" : ""), fallback.key || "");
++    if (normalized !== null) return normalized;
+   }
+   const feature = (Array.isArray(p.etim?.features) ? p.etim.features : []).find((entry) => etimNames.some((name) => text(entry.name).toLocaleLowerCase("ru-RU") === name.toLocaleLowerCase("ru-RU")));
+   if (!feature) return null;
+-  const value = sourceDecimal(feature.value);
+-  const unit = text(feature.unit).toLowerCase();
+-  return value === null ? null : ["mm", "мм"].includes(unit) ? value : ["cm", "см"].includes(unit) ? value * 10 : null;
++  return convert(feature.value, feature.unit, "");
+ }
+ 
+ export function normalizeSupplier(p) {
+@@ -275,8 +275,8 @@ export function normalizeSupplier(p) {
+   const barcode = text(firstValue(p.barcode, p.gtin, p.ean, p.ean13, p.barcodeValue, p.gtin13,
+     logisticValue(p, ["Штрихкод", "Штрихкод товара", "EAN", "EAN13", "GTIN", "GTIN-13", "barcode", "ean", "gtin"]),
+     etimFeatureValue(rows, ["Штрихкод", "EAN", "EAN13", "GTIN", "GTIN-13"])));
+-  const dimension = (keys, aliases, etimNames, packageValues = [], unitKind = "mm") => normalizedDimension(
+-    p, keys, aliases, etimNames, [], packageValues.map((value) => ({ value, unit: unitKind }))
++  const dimension = (keys, aliases, etimNames, packageValues = [], kind = "dimension") => normalizedDimension(
++    p, keys, aliases, etimNames, [], packageValues, kind
+   );
+   const article = text(p.article);
+   const coilFeature = etimFeatureById(rows, "EF003978");
+@@ -313,10 +313,10 @@ export function normalizeSupplier(p) {
+     feacn: text(p.feacn || p.tnVed || p.tn_ved),
+     isMarked: typeof p.isMarked === "boolean" ? p.isMarked : null,
+     currency: text(p.currency || p.currencyCode),
+-    length: dimension(["lengthMm", "length_mm", "lengthCm", "length_cm", "length", "depth"], ["l_см", "length_cm", "Длина", "Длина упаковки", "Длина, мм"], ["Длина", "Длина упаковки"], packageData ? [packageData.lengthMm, packageData.length_mm, packageData.length, packageData.depth] : []),
+-    width: dimension(["widthMm", "width_mm", "widthCm", "width_cm", "width"], ["b_см", "width_cm", "Ширина", "Ширина упаковки", "Ширина, мм"], ["Ширина", "Ширина упаковки"], packageData ? [packageData.widthMm, packageData.width_mm, packageData.width] : []),
+-    height: dimension(["heightMm", "height_mm", "heightCm", "height_cm", "height"], ["h_см", "height_cm", "Высота", "Высота упаковки", "Высота, мм"], ["Высота", "Высота упаковки"], packageData ? [packageData.heightMm, packageData.height_mm, packageData.height] : []),
+-    weight: dimension(["weightBrutto", "grossWeight", "gross_weight_kg", "weight"], ["ВесБрутто", "gross_weight_kg", "Вес брутто", "Масса брутто"], ["Вес брутто", "Масса брутто"], packageData ? [packageData.weightGrams, packageData.weight_g, packageData.weight] : [], "weight-grams"),
++    length: dimension(["lengthMm", "length_mm", "lengthCm", "length_cm", "length", "depth"], ["l_см", "length_cm", "Длина", "Длина упаковки", "Длина, мм"], ["Длина", "Длина упаковки"], packageData ? [{ key: "lengthMm", value: packageData.lengthMm }, { key: "length_mm", value: packageData.length_mm }, { key: "lengthCm", value: packageData.lengthCm }, { key: "length_cm", value: packageData.length_cm }, { key: "length", value: packageData.length }, { key: "depth", value: packageData.depth }] : []),
++    width: dimension(["widthMm", "width_mm", "widthCm", "width_cm", "width"], ["b_см", "width_cm", "Ширина", "Ширина упаковки", "Ширина, мм"], ["Ширина", "Ширина упаковки"], packageData ? [{ key: "widthMm", value: packageData.widthMm }, { key: "width_mm", value: packageData.width_mm }, { key: "widthCm", value: packageData.widthCm }, { key: "width_cm", value: packageData.width_cm }, { key: "width", value: packageData.width }] : []),
++    height: dimension(["heightMm", "height_mm", "heightCm", "height_cm", "height"], ["h_см", "height_cm", "Высота", "Высота упаковки", "Высота, мм"], ["Высота", "Высота упаковки"], packageData ? [{ key: "heightMm", value: packageData.heightMm }, { key: "height_mm", value: packageData.height_mm }, { key: "heightCm", value: packageData.heightCm }, { key: "height_cm", value: packageData.height_cm }, { key: "height", value: packageData.height }] : []),
++    weight: dimension(["weightBrutto", "grossWeight", "gross_weight_kg", "weightGrams", "weight_g", "weight"], ["ВесБрутто", "Вес брутто", "Вес брутто, кг", "Масса брутто", "gross_weight_kg", "weightGrams", "weight_g"], ["Вес брутто", "Масса брутто"], packageData ? [{ key: "weightGrams", value: packageData.weightGrams }, { key: "weight_g", value: packageData.weight_g }, { key: "weight", value: packageData.weight, unit: packageData.weightUnit || packageData.weight_unit }] : [], "weight"),
+     fetchedAt: new Date().toISOString(),
+   };
+ }

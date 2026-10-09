@@ -1,0 +1,39 @@
+{
+  "baseWorkerSha256": "8e5a70b86edb1d6828b1aaa56c2cf23a9bc7ebb5e25b5e8f53096d34c86bb279",
+  "candidateWorkerSha256": "60d98ce1ecc99a6621bcc4523d10205f4c2eb57350aa4d9728ae20cfa8142129",
+  "patchSha256": "9aa6decc9188f6f5f469cbe6e922b1f7dedb022b57d0aa98fd77df08ce898d72",
+  "baseSnapshot": "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/independent-fixtures-after/runs/20261009T124001142185Z/examined",
+  "scope": "isolated reference only; not native handoff or production deployment",
+  "ownership": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/.runtime/vola71-unit-reference-root",
+  "mutations": [
+    "candidate/worker/index.js unit normalization only"
+  ],
+  "nonUnitWorkerSuffixUnchanged": true,
+  "validation": {
+    "observedAt": "2026-10-09T12:59:27.768967+00:00",
+    "full76": {
+      "passed": 76,
+      "failed": 0,
+      "immutableEvidence": "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/independent-fixtures-after/runs/20261009T125720662574Z/evidence-safe.json",
+      "copy": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/.runtime/vola71-unit-reference-root/validation/full76-evidence-safe.json",
+      "evidenceSha256": "55f4daeafc5e0f0a926abf73f7c950ac001344209d25a18db4bb550d5a766f62"
+    },
+    "extraUnitControls": {
+      "passed": 6,
+      "failed": 0,
+      "copy": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/.runtime/vola71-unit-reference-root/validation/extra-unit-controls-safe.json"
+    },
+    "syntax": "node --check passed",
+    "full76RunCount": 1,
+    "networkCalls": 0,
+    "productionMutations": 0
+  },
+  "patchStats": {
+    "addedLines": 46,
+    "removedLines": 39,
+    "changedFiles": [
+      "worker/index.js"
+    ]
+  },
+  "handoffState": "reference for native review only; not merged/published or accepted as production result"
+}

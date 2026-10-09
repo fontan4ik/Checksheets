@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `import_runs_principal_idempotency` ON `import_runs` (`principal_id`,`idempotency_key`);

@@ -1,0 +1,4 @@
+8e5a70b86edb1d6828b1aaa56c2cf23a9bc7ebb5e25b5e8f53096d34c86bb279  /Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/independent-fixtures-after/runs/20261009T124001142185Z/examined/worker/index.js
+694c12d87c1bd5ba7b52628c080fcf53e8b529d724953005a4715e8aae1cbc40  .runtime/vola71-unit-normalization/candidate/worker/index.js
+06cb90fafdee7764a38facb2e57adfbc9fc967bfc01f8d99601ed22f078ca341  .runtime/vola71-unit-normalization/candidate/test/unit-normalization.test.mjs
+e012845673edaaaceb015bc0cf68c792b854b89b36d619a9852e2e28c8252088  .runtime/vola71-unit-normalization/reference.patch

@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1791313499462,
+      "tag": "0000_keen_marauders",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791378000000,
+      "tag": "0001_refresh_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791435175421,
+      "tag": "0002_durable_import_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791435306619,
+      "tag": "0003_import_run_payloads",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791440320699,
+      "tag": "0004_unique_import_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791545617294,
+      "tag": "0005_import_submission_claim",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,1649 @@
+{
+  "observedAt": "20261009T124001142185Z",
+  "sourcePath": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/sites/iek-operator-correction-20261009",
+  "inputSourceSnapshot": null,
+  "sourceCommit": "d35f71e3ff56a1361b75b73f3e49dc912c66f9f4",
+  "sourceHashes": {
+    "worker/index.js": "8e5a70b86edb1d6828b1aaa56c2cf23a9bc7ebb5e25b5e8f53096d34c86bb279",
+    "worker/article-id.js": "7ed0719f50d637bcd40c375ab5db0c9a1dc66b563a16e0e3e6dc5470c2162356",
+    "worker/articles.js": "9f6f7723683922412c715decae451e71eed78d537446be1845a0ebc6d00a82c6",
+    "src/article-import.js": "de3b7a9f144590ae36bb797e1ae21aa6cada91266c4d8e758b2d32aa3a05d9c0",
+    "drizzle/0000_keen_marauders.sql": "d14df63e26862a885a5a4c1b606491ed977eb2c4de085fac652ed7cab9bc1a12",
+    "drizzle/0001_refresh_limit.sql": "3e4751bd32b20b5d6540e427be28c92e49bb2f0f2e1713559cc4524f9f866756",
+    "drizzle/0002_durable_import_runs.sql": "f4e8d802d0bcc225e8b2a4efea6df8d3c776686b136a5e6f67b0c0af628c25e8",
+    "drizzle/0003_import_run_payloads.sql": "567b82d3f2c85f65e671eb8459915ac858296e0c38b8f96c01ffa89eecd18531",
+    "drizzle/0004_unique_import_identity.sql": "9fdc4a0fb0ffe2fd9bde439cbc6ea901c7c91bec192a9a726770ed1f1128ceb3",
+    "drizzle/0005_import_submission_claim.sql": "2f145c030aae0c95f2cacb63ba9407b558015539e5380b0a5c83fefbee1aaff2",
+    "drizzle/meta/0000_snapshot.json": "77b9f88059a790bcdb99110a66ec6d83ef324f720ee62da9f8e44163dff72861",
+    "drizzle/meta/0002_snapshot.json": "531b51a5f01c865b2b8ce50f034bae654b765f9912b60c68248a20cd2379f282",
+    "drizzle/meta/0003_snapshot.json": "d8221710bf953882c75db79b1f123c3ee1bd09e7b19d22f2b76bf447af7eefd1",
+    "drizzle/meta/0004_snapshot.json": "d5770c88cedf48716546b4b18cf86882ad551f2fee0424497a861b44a4236689",
+    "drizzle/meta/0005_snapshot.json": "02b372830d05cf1361683993fa8384509ca8ea879fbb14a23ccff54e343067da",
+    "drizzle/meta/_journal.json": "3287fed3d4c071bcb2479b6eff1457b0c035f73716aa975d2a93958154f4cd1d",
+    "diagnostic/mapping-input-safe.json": "bcea77669bee9265645726fff360e61e800eba3a99a0c722a7af3c31e2a286f5"
+  },
+  "examinedSnapshot": "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/independent-fixtures-after/runs/20261009T124001142185Z/examined",
+  "harnessAppendedExports": [
+    "ozonLocalPayload",
+    "compareOzonReadback",
+    "verifyOzonProduct"
+  ],
+  "sourceExistingExports": [
+    "handle",
+    "missingRequiredAttributes",
+    "normalizeSupplier",
+    "pollOzonSellerCreate",
+    "processImportItem",
+    "reconcileOzonReadOnly"
+  ],
+  "activeAgentCode": true,
+  "ready": false,
+  "externalNetworkCalls": 0,
+  "productionMutations": 0,
+  "fakeProviderOnly": true,
+  "database": "in-memory SQLite with native migration SQL behind D1-shaped transport",
+  "commands": [
+    {
+      "argv": [
+        "node",
+        "--experimental-sqlite",
+        "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/independent-fixtures-after/runs/20261009T124001142185Z/runtime-regressions.mjs"
+      ],
+      "exitCode": 1,
+      "stderr": "(node:12109) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "argv": [
+        "node",
+        "--experimental-sqlite",
+        "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/independent-fixtures-after/runs/20261009T124001142185Z/ui-regressions.mjs"
+      ],
+      "exitCode": 0,
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "node",
+        "--experimental-sqlite",
+        "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/independent-fixtures-after/runs/20261009T124001142185Z/concurrency-regressions.mjs"
+      ],
+      "exitCode": 0,
+      "stderr": "(node:12219) ExperimentalWarning: SQLite is an experimental feature and might change at any time\n(Use `node --trace-warnings ...` to show where the warning was created)\n"
+    },
+    {
+      "argv": [
+        "node",
+        "--experimental-sqlite",
+        "/Users/vladimirgrebennikov/MultiAI/.runtime/evaluations/iek-card-correction-20261009/independent-fixtures-after/runs/20261009T124001142185Z/readback-regressions.mjs"
+      ],
+      "exitCode": 0,
+      "stderr": ""
+    }
+  ],
+  "outcomes": [
+    {
+      "case": "existing_mismatch_not_complete",
+      "status": "pass",
+      "observed": {
+        "http": 200,
+        "status": "failed",
+        "stage": "existing_product_validation",
+        "providerPaths": [
+          "/v3/product/info/list",
+          "/v1/description-category/attribute",
+          "/v1/description-category/attribute"
+        ]
+      }
+    },
+    {
+      "case": "matching_fields_but_failed_validation_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "existing_product_validation",
+        "validationStatus": "failed",
+        "errorLevel": "ERROR_LEVEL_ERROR",
+        "otherFields": "matching"
+      }
+    },
+    {
+      "case": "official_shapes_matching_positive_readback",
+      "status": "pass",
+      "observed": {
+        "status": "complete",
+        "stage": "existing_product_verified",
+        "providerPaths": [
+          "/v3/product/info/list",
+          "/v1/description-category/attribute",
+          "/v1/description-category/attribute",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ]
+      }
+    },
+    {
+      "case": "same_queued_concurrent_process_at_most_one_submit",
+      "status": "pass",
+      "observed": {
+        "submitCount": 1,
+        "http": [
+          200,
+          200
+        ],
+        "taskId": "1",
+        "status": "queued"
+      }
+    },
+    {
+      "case": "successful_submit_db_failure_retry_no_second_submit",
+      "status": "pass",
+      "observed": {
+        "submitCount": 1,
+        "afterFailureTaskId": null,
+        "afterFailureStatus": "uncertain",
+        "afterRetryTaskId": null
+      }
+    },
+    {
+      "case": "required_empty_values_rejected",
+      "status": "pass",
+      "observed": {
+        "missingIds": [
+          85
+        ]
+      }
+    },
+    {
+      "case": "logistic_mm_and_cm_units",
+      "status": "pass",
+      "observed": {
+        "mmInput": 120,
+        "mmOutputDepth": 120,
+        "cmInput": 12,
+        "cmOutputDepth": 120,
+        "units": [
+          "mm",
+          "mm"
+        ]
+      }
+    },
+    {
+      "case": "named_cm_dimension_fields",
+      "status": "pass",
+      "observed": {
+        "depth": 120,
+        "width": 80,
+        "height": 90,
+        "dimensionUnit": "mm"
+      }
+    },
+    {
+      "case": "single_package_dimensions_not_case_dimensions",
+      "status": "pass",
+      "observed": {
+        "depth": 120,
+        "width": 80,
+        "height": 90,
+        "weight": 500,
+        "multiplicity": 1
+      }
+    },
+    {
+      "case": "imported_requires_current_product_readback",
+      "status": "pass",
+      "observed": {
+        "status": "complete",
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute",
+          "/v3/product/info/list",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ]
+      }
+    },
+    {
+      "case": "technical_current_type_poles_coil_preserved",
+      "status": "pass",
+      "observed": {
+        "name": "Full GENERICA contactor 12A",
+        "brand": {
+          "dictionary_value_id": 5643327,
+          "value": "GENERICA"
+        },
+        "current": {
+          "dictionary_value_id": 0,
+          "value": "12"
+        },
+        "currentType": {
+          "dictionary_value_id": 970749122,
+          "value": "Переменный"
+        },
+        "poles": {
+          "dictionary_value_id": 41843,
+          "value": "3"
+        },
+        "coil": {
+          "dictionary_value_id": 0,
+          "value": "230"
+        },
+        "power": {
+          "dictionary_value_id": 0,
+          "value": "5.5"
+        }
+      }
+    },
+    {
+      "case": "whitespace_required_brand_rejected",
+      "status": "pass",
+      "observed": {
+        "schemaType": "String",
+        "dictionaryId": 28732849,
+        "missingIds": [
+          85
+        ]
+      }
+    },
+    {
+      "case": "unresolved_unknown_brand_dictionary_rejected",
+      "status": "pass",
+      "observed": {
+        "schemaType": "String",
+        "dictionaryId": 28732849,
+        "missingIds": [
+          85
+        ]
+      }
+    },
+    {
+      "case": "fractional_integer_coil_rejected",
+      "status": "pass",
+      "observed": {
+        "schemaType": "Integer",
+        "dictionaryId": 0,
+        "missingIds": [
+          20958
+        ]
+      }
+    },
+    {
+      "case": "nonnumeric_decimal_power_rejected",
+      "status": "pass",
+      "observed": {
+        "schemaType": "Decimal",
+        "dictionaryId": 0,
+        "missingIds": [
+          7225
+        ]
+      }
+    },
+    {
+      "case": "typed_required_positive_control",
+      "status": "pass",
+      "observed": {
+        "missingIds": []
+      }
+    },
+    {
+      "case": "readback_matching_positive_zero_differences",
+      "status": "pass",
+      "observed": {
+        "differenceFields": []
+      }
+    },
+    {
+      "case": "readback_wrong_cm_units_not_verified",
+      "status": "pass",
+      "observed": {
+        "differenceFields": [
+          "dimension_unit"
+        ]
+      }
+    },
+    {
+      "case": "readback_wrong_kg_units_not_verified",
+      "status": "pass",
+      "observed": {
+        "differenceFields": [
+          "weight_unit"
+        ]
+      }
+    },
+    {
+      "case": "readback_wrong_vat_not_verified",
+      "status": "pass",
+      "observed": {
+        "differenceFields": [
+          "vat"
+        ]
+      }
+    },
+    {
+      "case": "readback_wrong_currency_not_verified",
+      "status": "pass",
+      "observed": {
+        "differenceFields": [
+          "currency"
+        ]
+      }
+    },
+    {
+      "case": "readback_wrong_brand_dictionary_not_verified",
+      "status": "pass",
+      "observed": {
+        "differenceFields": [
+          "attribute_85_dictionary"
+        ]
+      }
+    },
+    {
+      "case": "existing_wrong_cm_units_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "existing_product_verification",
+        "providerPaths": [
+          "/v3/product/info/list",
+          "/v1/description-category/attribute",
+          "/v1/description-category/attribute",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "readback": null
+      }
+    },
+    {
+      "case": "existing_wrong_kg_units_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "existing_product_verification",
+        "providerPaths": [
+          "/v3/product/info/list",
+          "/v1/description-category/attribute",
+          "/v1/description-category/attribute",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "readback": null
+      }
+    },
+    {
+      "case": "existing_wrong_vat_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "existing_product_verification",
+        "providerPaths": [
+          "/v3/product/info/list",
+          "/v1/description-category/attribute",
+          "/v1/description-category/attribute",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "readback": null
+      }
+    },
+    {
+      "case": "existing_wrong_currency_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "existing_product_verification",
+        "providerPaths": [
+          "/v3/product/info/list",
+          "/v1/description-category/attribute",
+          "/v1/description-category/attribute",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "readback": null
+      }
+    },
+    {
+      "case": "existing_wrong_brand_dictionary_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "existing_product_verification",
+        "providerPaths": [
+          "/v3/product/info/list",
+          "/v1/description-category/attribute",
+          "/v1/description-category/attribute",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "readback": null
+      }
+    },
+    {
+      "case": "fresh_six_card_mapper_KKME11-012-230-10",
+      "status": "pass",
+      "observed": {
+        "article": "KKME11-012-230-10",
+        "name": "Контактор КМИе-11210 12А 230В/АС3 1NО GENERICA",
+        "price": "715.11",
+        "current": {
+          "dictionary_value_id": 0,
+          "value": "12"
+        },
+        "currentType": {
+          "dictionary_value_id": 970749122,
+          "value": "Переменный"
+        },
+        "ip": {
+          "dictionary_value_id": 83627,
+          "value": "IP20"
+        },
+        "quantity": {
+          "dictionary_value_id": 0,
+          "value": "1"
+        },
+        "poles": {
+          "dictionary_value_id": 41843,
+          "value": "3"
+        },
+        "coil": {
+          "dictionary_value_id": 0,
+          "value": "230"
+        },
+        "power": {
+          "dictionary_value_id": 0,
+          "value": "5.5"
+        },
+        "mainWorkingVoltage": {
+          "dictionary_value_id": 0,
+          "value": "660"
+        },
+        "annotationPresent": true,
+        "dimensions": {
+          "depth": 77,
+          "width": 48,
+          "height": 88,
+          "weight": 360
+        },
+        "expectedPhysicalDimensions": {
+          "depth": 77,
+          "width": 48,
+          "height": 88,
+          "weight": 360
+        },
+        "failedFields": []
+      }
+    },
+    {
+      "case": "fresh_six_card_mapper_KKME11-018-230-10",
+      "status": "pass",
+      "observed": {
+        "article": "KKME11-018-230-10",
+        "name": "Контактор КМИе-11810 18А 230В/АС3 1NO GENERICA",
+        "price": "808.61",
+        "current": {
+          "dictionary_value_id": 0,
+          "value": "18"
+        },
+        "currentType": {
+          "dictionary_value_id": 970749122,
+          "value": "Переменный"
+        },
+        "ip": {
+          "dictionary_value_id": 83627,
+          "value": "IP20"
+        },
+        "quantity": {
+          "dictionary_value_id": 0,
+          "value": "1"
+        },
+        "poles": {
+          "dictionary_value_id": 41843,
+          "value": "3"
+        },
+        "coil": {
+          "dictionary_value_id": 0,
+          "value": "230"
+        },
+        "power": {
+          "dictionary_value_id": 0,
+          "value": "7.5"
+        },
+        "mainWorkingVoltage": {
+          "dictionary_value_id": 0,
+          "value": "660"
+        },
+        "annotationPresent": true,
+        "dimensions": {
+          "depth": 77,
+          "width": 48,
+          "height": 88,
+          "weight": 376
+        },
+        "expectedPhysicalDimensions": {
+          "depth": 77,
+          "width": 48,
+          "height": 88,
+          "weight": 376
+        },
+        "failedFields": []
+      }
+    },
+    {
+      "case": "fresh_six_card_mapper_KKME11-009-230-10",
+      "status": "pass",
+      "observed": {
+        "article": "KKME11-009-230-10",
+        "name": "Контактор КМИе-10910 9А 230В/АС3 1NO GENERICA",
+        "price": "645.36",
+        "current": {
+          "dictionary_value_id": 0,
+          "value": "9"
+        },
+        "currentType": {
+          "dictionary_value_id": 970749122,
+          "value": "Переменный"
+        },
+        "ip": {
+          "dictionary_value_id": 83627,
+          "value": "IP20"
+        },
+        "quantity": {
+          "dictionary_value_id": 0,
+          "value": "1"
+        },
+        "poles": {
+          "dictionary_value_id": 41843,
+          "value": "3"
+        },
+        "coil": {
+          "dictionary_value_id": 0,
+          "value": "230"
+        },
+        "power": {
+          "dictionary_value_id": 0,
+          "value": "4"
+        },
+        "mainWorkingVoltage": {
+          "dictionary_value_id": 0,
+          "value": "660"
+        },
+        "annotationPresent": true,
+        "dimensions": {
+          "depth": 77,
+          "width": 48,
+          "height": 88,
+          "weight": 360
+        },
+        "expectedPhysicalDimensions": {
+          "depth": 77,
+          "width": 48,
+          "height": 88,
+          "weight": 360
+        },
+        "failedFields": []
+      }
+    },
+    {
+      "case": "fresh_six_card_mapper_KKME21-025-110-10",
+      "status": "pass",
+      "observed": {
+        "article": "KKME21-025-110-10",
+        "name": "Контактор КМИе-22510 25А 110В/АС3 1NO GENERICA",
+        "price": "1390.64",
+        "current": {
+          "dictionary_value_id": 0,
+          "value": "25"
+        },
+        "currentType": {
+          "dictionary_value_id": 970749122,
+          "value": "Переменный"
+        },
+        "ip": {
+          "dictionary_value_id": 83627,
+          "value": "IP20"
+        },
+        "quantity": {
+          "dictionary_value_id": 0,
+          "value": "1"
+        },
+        "poles": {
+          "dictionary_value_id": 41843,
+          "value": "3"
+        },
+        "coil": {
+          "dictionary_value_id": 0,
+          "value": "110"
+        },
+        "power": {
+          "dictionary_value_id": 0,
+          "value": "11"
+        },
+        "mainWorkingVoltage": {
+          "dictionary_value_id": 0,
+          "value": "660"
+        },
+        "annotationPresent": true,
+        "dimensions": {
+          "depth": 85,
+          "width": 58,
+          "height": 100,
+          "weight": 538
+        },
+        "expectedPhysicalDimensions": {
+          "depth": 85,
+          "width": 58,
+          "height": 100,
+          "weight": 538
+        },
+        "failedFields": []
+      }
+    },
+    {
+      "case": "fresh_six_card_mapper_KKME31-040-230-11",
+      "status": "pass",
+      "observed": {
+        "article": "KKME31-040-230-11",
+        "name": "Контактор КМИе-34012 40А 230В/АС3 1NO;1NC GENERICA",
+        "price": "2756.18",
+        "current": {
+          "dictionary_value_id": 0,
+          "value": "40"
+        },
+        "currentType": {
+          "dictionary_value_id": 970749122,
+          "value": "Переменный"
+        },
+        "ip": {
+          "dictionary_value_id": 83627,
+          "value": "IP20"
+        },
+        "quantity": {
+          "dictionary_value_id": 0,
+          "value": "1"
+        },
+        "poles": {
+          "dictionary_value_id": 41843,
+          "value": "3"
+        },
+        "coil": {
+          "dictionary_value_id": 0,
+          "value": "230"
+        },
+        "power": {
+          "dictionary_value_id": 0,
+          "value": "18.5"
+        },
+        "mainWorkingVoltage": {
+          "dictionary_value_id": 0,
+          "value": "660"
+        },
+        "annotationPresent": true,
+        "dimensions": {
+          "depth": 128,
+          "width": 81,
+          "height": 120,
+          "weight": 1240
+        },
+        "expectedPhysicalDimensions": {
+          "depth": 128,
+          "width": 81,
+          "height": 120,
+          "weight": 1240
+        },
+        "failedFields": []
+      }
+    },
+    {
+      "case": "fresh_six_card_mapper_KKME41-095-230-11",
+      "status": "pass",
+      "observed": {
+        "article": "KKME41-095-230-11",
+        "name": "Контактор КМИе-49512 95А 230В/АС3 1NO;1NC GENERICA",
+        "price": "3981.12",
+        "current": {
+          "dictionary_value_id": 0,
+          "value": "95"
+        },
+        "currentType": {
+          "dictionary_value_id": 970749122,
+          "value": "Переменный"
+        },
+        "ip": {
+          "dictionary_value_id": 83627,
+          "value": "IP20"
+        },
+        "quantity": {
+          "dictionary_value_id": 0,
+          "value": "1"
+        },
+        "poles": {
+          "dictionary_value_id": 41843,
+          "value": "3"
+        },
+        "coil": {
+          "dictionary_value_id": 0,
+          "value": "230"
+        },
+        "power": {
+          "dictionary_value_id": 0,
+          "value": "45"
+        },
+        "mainWorkingVoltage": {
+          "dictionary_value_id": 0,
+          "value": "660"
+        },
+        "annotationPresent": true,
+        "dimensions": {
+          "depth": 130,
+          "width": 90,
+          "height": 131,
+          "weight": 1470
+        },
+        "expectedPhysicalDimensions": {
+          "depth": 130,
+          "width": 90,
+          "height": 131,
+          "weight": 1470
+        },
+        "failedFields": []
+      }
+    },
+    {
+      "case": "existing_actual_warning_synonym_success",
+      "status": "pass",
+      "observed": {
+        "status": "complete",
+        "stage": "existing_product_verified",
+        "currentStatus": "success",
+        "errorLevels": [
+          "ERROR_LEVEL_WARNING"
+        ],
+        "providerPaths": [
+          "/v3/product/info/list",
+          "/v1/description-category/attribute",
+          "/v1/description-category/attribute",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ]
+      }
+    },
+    {
+      "case": "existing_actual_warning_other_level_unlisted_code_success",
+      "status": "pass",
+      "observed": {
+        "status": "complete",
+        "stage": "existing_product_verified",
+        "currentStatus": "success",
+        "errorLevels": [
+          "WARNING"
+        ],
+        "providerPaths": [
+          "/v3/product/info/list",
+          "/v1/description-category/attribute",
+          "/v1/description-category/attribute",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ]
+      }
+    },
+    {
+      "case": "existing_actual_nested_failed_no_errors",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "existing_product_validation",
+        "currentStatus": "failed",
+        "errorLevels": [],
+        "providerPaths": [
+          "/v3/product/info/list",
+          "/v1/description-category/attribute",
+          "/v1/description-category/attribute"
+        ]
+      }
+    },
+    {
+      "case": "existing_actual_nested_success_no_errors",
+      "status": "pass",
+      "observed": {
+        "status": "complete",
+        "stage": "existing_product_verified",
+        "currentStatus": "success",
+        "errorLevels": [],
+        "providerPaths": [
+          "/v3/product/info/list",
+          "/v1/description-category/attribute",
+          "/v1/description-category/attribute",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ]
+      }
+    },
+    {
+      "case": "imported_actual_warning_synonym_success",
+      "status": "pass",
+      "observed": {
+        "status": "complete",
+        "stage": "seller_create_verified",
+        "currentStatus": "success",
+        "errorLevels": [
+          "ERROR_LEVEL_WARNING"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute",
+          "/v3/product/info/list",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ]
+      }
+    },
+    {
+      "case": "imported_actual_warning_other_level_unlisted_code_success",
+      "status": "pass",
+      "observed": {
+        "status": "complete",
+        "stage": "seller_create_verified",
+        "currentStatus": "success",
+        "errorLevels": [
+          "WARNING"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute",
+          "/v3/product/info/list",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ]
+      }
+    },
+    {
+      "case": "imported_actual_nested_failed_no_errors",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_validation",
+        "currentStatus": "failed",
+        "errorLevels": [],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute",
+          "/v3/product/info/list"
+        ]
+      }
+    },
+    {
+      "case": "imported_actual_nested_success_no_errors",
+      "status": "pass",
+      "observed": {
+        "status": "complete",
+        "stage": "seller_create_verified",
+        "currentStatus": "success",
+        "errorLevels": [],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute",
+          "/v3/product/info/list",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ]
+      }
+    },
+    {
+      "case": "final_submit_resolves_official_dictionaries",
+      "status": "pass",
+      "observed": {
+        "status": "queued",
+        "submitCount": 1,
+        "dictionaryLookupIds": [
+          8229,
+          22232,
+          85,
+          10818,
+          10819
+        ],
+        "finalDictionaryIds": {
+          "85": 5643327,
+          "10818": 41843,
+          "10819": 970749122
+        },
+        "blockers": []
+      }
+    },
+    {
+      "case": "unknown_positive_brand_id_cannot_submit",
+      "status": "pass",
+      "observed": {
+        "status": "queued",
+        "submitCount": 1,
+        "dictionaryLookupIds": [
+          8229,
+          22232,
+          85,
+          10818,
+          10819
+        ],
+        "finalDictionaryIds": {
+          "85": 5643327,
+          "10818": 41843,
+          "10819": 970749122
+        },
+        "blockers": []
+      }
+    },
+    {
+      "case": "final_poles_dictionary_second_page_resolves",
+      "status": "pass",
+      "observed": {
+        "status": "queued",
+        "submitCount": 1,
+        "cursors": [
+          0,
+          41834
+        ],
+        "finalPoleDictionaryId": 41843
+      }
+    },
+    {
+      "case": "known_receipt_with_persisted_intent_next_process_polls",
+      "status": "pass",
+      "observed": {
+        "status": "complete",
+        "stage": "seller_create_verified",
+        "taskId": "1",
+        "submitCount": 0,
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute",
+          "/v3/product/info/list",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ]
+      }
+    },
+    {
+      "case": "poll_failure_retry_preserves_known_receipt_no_new_submit",
+      "status": "pass",
+      "observed": {
+        "pollCalls": 2,
+        "afterFailureTaskId": "1",
+        "afterFailureStatus": "failed",
+        "afterRetryTaskId": "1",
+        "afterRetryStatus": "complete",
+        "submitCount": 0
+      }
+    },
+    {
+      "case": "unknown_submission_intent_never_aggregates_complete",
+      "status": "pass",
+      "observed": {
+        "itemStatus": "uncertain",
+        "runStatus": "uncertain",
+        "responseStatus": "uncertain",
+        "submitCount": 0,
+        "stage": "read_only_reconciliation"
+      }
+    },
+    {
+      "case": "stale_pre_intent_claim_safely_recovers_once",
+      "status": "pass",
+      "observed": {
+        "submitCount": 1,
+        "processCalls": 2,
+        "states": [
+          {
+            "status": "queued",
+            "taskId": null,
+            "claimToken": null
+          },
+          {
+            "status": "queued",
+            "taskId": "1",
+            "claimToken": null
+          }
+        ],
+        "finalStatus": "queued",
+        "finalTaskId": "1",
+        "claimToken": null
+      }
+    },
+    {
+      "case": "stale_post_intent_claim_never_blind_resubmits",
+      "status": "pass",
+      "observed": {
+        "submitCount": 0,
+        "itemStatus": "uncertain",
+        "stage": "seller_create_submission_uncertain",
+        "runStatus": "uncertain",
+        "claimToken": null
+      }
+    },
+    {
+      "case": "unknown_sku_never_infers_main_working_voltage_from_insulation",
+      "status": "pass",
+      "observed": {
+        "article": "FIXTURE-UNSUPPORTED-SKU",
+        "mainWorkingVoltage": null,
+        "sourceInsulationUiFeature": "660",
+        "coil": "230"
+      }
+    },
+    {
+      "case": "typed_package_grams_reach_import_payload_once",
+      "status": "fail",
+      "reason": "Explicit package weightGrams230 must become230g in actual import payload, not230000g",
+      "observed": {
+        "normalized": {
+          "length": 120,
+          "width": 80,
+          "height": 90,
+          "weight": 230
+        },
+        "payload": {
+          "depth": 120,
+          "width": 80,
+          "height": 90,
+          "weight": 230000,
+          "dimensionUnit": "mm",
+          "weightUnit": "g"
+        }
+      }
+    },
+    {
+      "case": "explicit_logistic_grams_reach_import_payload_once",
+      "status": "fail",
+      "reason": "Explicit logistic235g must become235g in actual import payload, not235000g or transport weight",
+      "observed": {
+        "normalized": {
+          "length": 120,
+          "width": 80,
+          "height": 90,
+          "weight": 235
+        },
+        "payload": {
+          "depth": 120,
+          "width": 80,
+          "height": 90,
+          "weight": 235000,
+          "dimensionUnit": "mm",
+          "weightUnit": "g"
+        }
+      }
+    },
+    {
+      "case": "restored_queued_run_can_resume_same_run",
+      "status": "pass",
+      "observed": {
+        "processCount": 30,
+        "startCount": 0,
+        "resumeVisible": true
+      }
+    },
+    {
+      "case": "double_start_one_native_run",
+      "status": "pass",
+      "observed": {
+        "startRequests": 1,
+        "uniqueKeys": 1
+      }
+    },
+    {
+      "case": "bounded_poll_leaves_same_run_recovery",
+      "status": "pass",
+      "observed": {
+        "processCount": 30,
+        "sameRunRecoveryAvailable": true,
+        "queuedShown": true
+      }
+    },
+    {
+      "case": "uncertain_terminal_stops_polls_and_shows_manual_reconciliation",
+      "status": "pass",
+      "observed": {
+        "processCount": 0,
+        "continueVisible": false,
+        "statusMessage": "Запуск new-3: uncertain · Ручная сверка обязательна; безопасный повтор отправки отключён.",
+        "manualReconciliationVisible": true
+      }
+    },
+    {
+      "case": "two_os_processes_shared_db_at_most_one_submit",
+      "status": "pass",
+      "observed": {
+        "processCount": 2,
+        "readyCount": 2,
+        "submitCount": 1,
+        "results": [
+          {
+            "event": "result",
+            "http": 200,
+            "submits": 0
+          },
+          {
+            "event": "result",
+            "http": 200,
+            "submits": 1
+          }
+        ],
+        "status": "queued",
+        "taskId": "2"
+      }
+    },
+    {
+      "case": "readback_official_full_matching_rehosted_photos_positive",
+      "status": "pass",
+      "observed": {
+        "status": "complete",
+        "stage": "seller_create_verified",
+        "differenceFields": [],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute",
+          "/v3/product/info/list",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_wrong_main_working_voltage10823_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "attribute_10823_main_voltage",
+          "attribute_10823_main_voltage_type",
+          "attribute_10823"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_missing_main_working_voltage10823_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "attribute_10823_main_voltage",
+          "attribute_10823_main_voltage_type",
+          "attribute_10823"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_wrong_category_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "description_category_id"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_wrong_type_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "type_id"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_wrong_type_attribute8229_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "attribute_8229",
+          "attribute_8229_dictionary",
+          "attribute_8229",
+          "attribute_8229_dictionary"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_wrong_model9048_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "attribute_9048",
+          "attribute_9048"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_wrong_annotation4191_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "attribute_4191",
+          "attribute_4191"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_wrong_nested_v5_price_vat_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "vat"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_foreign_description_id_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "product_description"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_foreign_attribute_id_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "attribute_product"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_only_foreign_price_row_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "seller_price_row",
+          "seller_price",
+          "vat"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_correct_offer_wrong_price_id_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "seller_price_row",
+          "seller_price",
+          "vat"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_correct_id_wrong_price_offer_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "seller_price_row",
+          "seller_price",
+          "vat"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_only_foreign_picture_row_not_complete",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "picture_product",
+          "images",
+          "primary_image"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    },
+    {
+      "case": "readback_approved_photo_count_missing_secondary_no_errors",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "images"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 0
+      }
+    },
+    {
+      "case": "readback_primary_missing_total_count_unchanged_no_errors",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "primary_image"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 0,
+        "actualSecondaryCount": 2
+      }
+    },
+    {
+      "case": "readback_two_primary_total_count_unchanged_no_errors",
+      "status": "pass",
+      "observed": {
+        "status": "failed",
+        "stage": "seller_create_verification",
+        "differenceFields": [
+          "primary_image"
+        ],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 2,
+        "actualSecondaryCount": 0
+      }
+    },
+    {
+      "case": "readback_foreign_rows_before_correct_positive",
+      "status": "pass",
+      "observed": {
+        "status": "complete",
+        "stage": "seller_create_verified",
+        "differenceFields": [],
+        "providerPaths": [
+          "/v1/product/import/info",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute",
+          "/v3/product/info/list",
+          "/v1/product/info/description",
+          "/v4/product/info/attributes",
+          "/v5/product/info/prices",
+          "/v2/product/pictures/info",
+          "/v1/description-category/attribute"
+        ],
+        "approvedPhotoCount": 2,
+        "actualPrimaryCount": 1,
+        "actualSecondaryCount": 1
+      }
+    }
+  ],
+  "summary": {
+    "passed": 74,
+    "failed": 2
+  },
+  "limits": [
+    "Examined files are copied independently while the agent works; hashes identify the observed slice, not a readiness claim.",
+    "No Site deployment, real marketplace write or real credential read is performed.",
+    "Synthetic duplicate import calls do not imply duplicate Ozon product IDs.",
+    "Concurrency suite launches two OS processes against an isolated file SQLite database; it is not a production D1 concurrency proof."
+  ]
+}
