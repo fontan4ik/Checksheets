@@ -390,8 +390,10 @@ def sync_feron():
                     stats["non_zero"] += 1
             else:
                 stats["not_found"] += 1
-                formatted_results.append([""])
-                write_mask.append(False)
+                # A successfully loaded full snapshot has no stock for this
+                # product/warehouse. Clear old values and blanks with zero.
+                formatted_results.append([0])
+                write_mask.append(True)
         
         print(f"  - Match Rate: {stats['matched']}/{len(vendor_codes_raw)} articles found in API")
         print(f"  - Inventory: {stats['non_zero']} articles have stock > 0")
@@ -405,7 +407,7 @@ def sync_feron():
         send_telegram_alert("feron_sync (Аномалия остатков)", err)
         raise RuntimeError(err)
 
-    # Upload only resolved product/warehouse values; absent API rows retain their last known sheet value.
+    # Write every row with an article; absent product/warehouse entries become zero.
     for wh_name, (field_name, formatted_results, write_mask, stats) in prepared_results.items():
         try:
             print(f"  - Updating Google Sheet header '{FERON_TR_SCHEMA[field_name]}' ({wh_name})...")

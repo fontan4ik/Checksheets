@@ -521,7 +521,7 @@ def sync_rs():
             write_msk_mask.append(False)
             continue
 
-        stock = ""
+        stock = 0
         price = ""
         rs_code = None
 
@@ -541,27 +541,27 @@ def sync_rs():
                 break
 
         msk_code = next((msk_code_map[variant] for variant in search_variants if variant in msk_code_map), None)
-        if msk_code is None or str(msk_code) in msk_stocks.invalid_codes:
+        if msk_code is not None and str(msk_code) in msk_stocks.invalid_codes:
             results_msk_stock.append([""])
             write_msk_mask.append(False)
             if msk_code is not None:
                 skipped_invalid_msk += 1
         else:
-            # An absent residue row is unknown stock, not a confirmed zero.
-            results_msk_stock.append([msk_stocks.get(msk_code, "")])
+            # Missing products/residue rows have zero stock in the sheet.
+            results_msk_stock.append([msk_stocks.get(msk_code, 0)])
             write_msk_mask.append(True)
             if msk_code not in msk_stocks:
                 missing_stock_msk += 1
 
         if rs_code is not None and str(rs_code) not in all_stocks.invalid_codes:
-            stock = all_stocks.get(rs_code, "")
+            stock = all_stocks.get(rs_code, 0)
 
             if model in ['61950', '71650']:
                 print(f"DEBUG: Model '{model}' found RS code '{rs_code}', stock: {stock}")
 
-            if stock == "":
+            if rs_code not in all_stocks:
                 missing_stock_smr += 1
-            elif stock > 0:
+            if stock > 0:
                 found_with_stock += 1
             else:
                 found_zero_stock += 1
@@ -575,12 +575,12 @@ def sync_rs():
                     print(f"DEBUG: Found similar keys: {similar_keys[:5]}")
                     first_similar = similar_keys[0]
                     rs_code = code_map[first_similar]
-                    stock = all_stocks.get(rs_code, "")
+                    stock = all_stocks.get(rs_code, 0)
                     if rs_code not in all_stocks:
                         missing_stock_smr += 1
                     print(f"DEBUG: Using similar key '{first_similar}' -> RS code '{rs_code}', stock: {stock}")
 
-        rs_stock_valid = rs_code is not None and str(rs_code) not in all_stocks.invalid_codes
+        rs_stock_valid = rs_code is None or str(rs_code) not in all_stocks.invalid_codes
         if rs_code is not None and not rs_stock_valid:
             skipped_invalid_smr += 1
 
@@ -592,7 +592,7 @@ def sync_rs():
     print(f"  - Total processed: {total_processed}")
     print(f"  - Found with stock > 0: {found_with_stock}")
     print(f"  - Found with zero stock: {found_zero_stock}")
-    print(f"  - Missing residue rows written as blank: Samara={missing_stock_smr}, Moscow={missing_stock_msk}")
+    print(f"  - Missing stock entries written as zero: Samara={missing_stock_smr + not_found}, Moscow={missing_stock_msk}")
     print(f"  - Not found: {not_found}")
     print(f"  - Skipped incomplete stock rows: Samara={skipped_invalid_smr}, Moscow={skipped_invalid_msk}")
 

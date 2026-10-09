@@ -1,0 +1,112 @@
+{
+  "sheet": "StreamSupps",
+  "articles": 21108,
+  "sources": {
+    "smr": {
+      "rows": 21108,
+      "blanks": 0,
+      "zeros": 18120,
+      "positive": 2988,
+      "errors": 0
+    },
+    "msk": {
+      "rows": 21108,
+      "blanks": 0,
+      "zeros": 17912,
+      "positive": 3196,
+      "errors": 0
+    },
+    "fer_msk": {
+      "rows": 21108,
+      "blanks": 0,
+      "zeros": 14953,
+      "positive": 6155,
+      "errors": 0
+    },
+    "fer_smr": {
+      "rows": 21108,
+      "blanks": 0,
+      "zeros": 15817,
+      "positive": 5291,
+      "errors": 0
+    },
+    "fer_nsb": {
+      "rows": 21108,
+      "blanks": 0,
+      "zeros": 15438,
+      "positive": 5670,
+      "errors": 0
+    },
+    "fer_ekb": {
+      "rows": 21108,
+      "blanks": 0,
+      "zeros": 15712,
+      "positive": 5396,
+      "errors": 0
+    },
+    "etm_smr": {
+      "rows": 21108,
+      "blanks": 0,
+      "zeros": 16217,
+      "positive": 4891,
+      "errors": 0
+    },
+    "etm_msk": {
+      "rows": 21108,
+      "blanks": 0,
+      "zeros": 18432,
+      "positive": 2676,
+      "errors": 0
+    }
+  },
+  "samples": [
+    {
+      "row": 20031,
+      "model": "046674",
+      "smr": 0,
+      "msk": 0,
+      "fer_msk": 0,
+      "fer_smr": 0,
+      "fer_nsb": 0,
+      "fer_ekb": 0,
+      "etm_smr": 0,
+      "etm_msk": 0
+    },
+    {
+      "row": 20032,
+      "model": "9191558",
+      "smr": 0,
+      "msk": 0,
+      "fer_msk": 0,
+      "fer_smr": 0,
+      "fer_nsb": 0,
+      "fer_ekb": 0,
+      "etm_smr": 0,
+      "etm_msk": 0
+    },
+    {
+      "row": 20033,
+      "model": "470976",
+      "smr": 0,
+      "msk": 0,
+      "fer_msk": 0,
+      "fer_smr": 0,
+      "fer_nsb": 0,
+      "fer_ekb": 0,
+      "etm_smr": 0,
+      "etm_msk": 0
+    },
+    {
+      "row": 20034,
+      "model": "2364802",
+      "smr": 0,
+      "msk": 0,
+      "fer_msk": 0,
+      "fer_smr": 0,
+      "fer_nsb": 0,
+      "fer_ekb": 0,
+      "etm_smr": 0,
+      "etm_msk": 0
+    }
+  ]
+}

@@ -9,7 +9,7 @@ import rs_sync_local as rs
 
 
 class MissingStockTests(unittest.TestCase):
-    def test_missing_residue_clears_cell_but_explicit_zero_is_preserved(self):
+    def test_missing_product_or_residue_writes_zero(self):
         models = ["positive", "zero", "missing", "invalid", "unmatched", ""]
         catalog = {name: name for name in models[:4]}
         samara = rs.RSStockSnapshot()
@@ -26,16 +26,16 @@ class MissingStockTests(unittest.TestCase):
             patch.object(rs.gsheets_utils, "get_header_columns", return_value={"model": 2}),
             patch.object(rs, "fetch_rs_code_map", side_effect=[catalog, catalog]),
             patch.object(rs, "fetch_all_rs_stocks", side_effect=[samara, moscow]),
-            patch.object(rs.gsheets_utils, "update_column_by_header_masked", return_value=3) as write,
+            patch.object(rs.gsheets_utils, "update_column_by_header_masked", return_value=4) as write,
         ):
             rs.sync_rs()
 
         self.assertEqual(write.call_count, 2)
         for call, positive in zip(write.call_args_list, (12, 7)):
-            self.assertEqual(call.args[2], [[positive], [0], [""], [""], [""], [""]])
-            # Missing stock actively clears the old cell. Invalid and unmatched
-            # products retain their existing cells through the write mask.
-            self.assertEqual(call.args[3], [True, True, True, False, False, False])
+            self.assertEqual(call.args[2], [[positive], [0], [0], [""], [0], [""]])
+            # Missing products and missing residues actively write zero. Invalid
+            # API values and rows without an article retain existing cells.
+            self.assertEqual(call.args[3], [True, True, True, False, True, False])
 
 
 if __name__ == "__main__":
