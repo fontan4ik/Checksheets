@@ -162,9 +162,9 @@
     "semantic_hash": ""
   },
   "scripts/checksheets_github_sync.py": {
-    "mtime": 1790862084.5585241,
-    "seen": 1791306455.206819,
-    "ast_hash": "5c1b423bdfc87b16b09292e28ff5bacd",
+    "mtime": 1791496132.5659566,
+    "seen": 1791519874.0942569,
+    "ast_hash": "aeda860a393550dfaeedd26f16fe08fb",
     "semantic_hash": ""
   },
   "set_cpc_bids.py": {
@@ -1674,9 +1674,9 @@
     "semantic_hash": ""
   },
   "Docs/GITHUB_APPS_SCRIPT_SYNC.md": {
-    "mtime": 1783668107.120334,
-    "seen": 1789384191.7230542,
-    "ast_hash": "249cedea5d2a700d100fa040c0692cde",
+    "mtime": 1791496132.626449,
+    "seen": 1791519874.1124868,
+    "ast_hash": "389dbe80a60d7989d5274284611b2759",
     "semantic_hash": ""
   },
   "Docs/INSTRUCTIONS_OZON_REKLAMA_AU.md": {
@@ -2520,9 +2520,9 @@
     "semantic_hash": ""
   },
   "test/test_checksheets_github_sync.py": {
-    "mtime": 1790862134.6127849,
-    "seen": 1791306455.208639,
-    "ast_hash": "edd9762d2b8866b1022104e7f34dbfb3",
+    "mtime": 1791496140.1770015,
+    "seen": 1791519874.105083,
+    "ast_hash": "a0208ef44016d6ff8ab8ec86db95dc99",
     "semantic_hash": ""
   },
   "test/test_iek_card_preview.py": {
