@@ -2950,5 +2950,23 @@
     "seen": 1791453047.888839,
     "ast_hash": "484049f23952e8becb37e0f7846952fc",
     "semantic_hash": ""
+  },
+  "test/map_candidate_etm_codes.py": {
+    "mtime": 1791538733.5284421,
+    "seen": 1791539768.0760682,
+    "ast_hash": "6481a32909e51156c7501e3ec4c0cb96",
+    "semantic_hash": ""
+  },
+  "test/query_ozon_created_at.js": {
+    "mtime": 1791538277.1315036,
+    "seen": 1791539768.076262,
+    "ast_hash": "6ed03d4914bfe20fc79399418d4f4e23",
+    "semantic_hash": ""
+  },
+  "test/query_wb_card_candidates.js": {
+    "mtime": 1791538994.5480301,
+    "seen": 1791539768.076263,
+    "ast_hash": "fed80ea73e1451bf8fedaad6eb1a8abe",
+    "semantic_hash": ""
   }
 }

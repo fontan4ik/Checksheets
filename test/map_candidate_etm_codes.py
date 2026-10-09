@@ -55,6 +55,47 @@ def read_relevant_pairs(path: Path, wanted: set[tuple[str, str]]):
     return found
 
 
+def read_unbranded_matches(path: Path, candidates: list[dict]):
+    wanted: dict[str, list[dict]] = {}
+    for item in candidates:
+        for field in ("model", "article"):
+            key = normalize(item.get(field))
+            if key:
+                wanted.setdefault(key, []).append(item)
+
+    with path.open("rb") as stream:
+        sample = stream.read(65536)
+    encoding = source_encoding(sample)
+    sample_text = sample.decode(encoding, errors="replace")
+    try:
+        dialect = csv.Sniffer().sniff(sample_text[:4096], delimiters=";\t,|")
+    except csv.Error:
+        dialect = csv.excel
+        dialect.delimiter = ";"
+
+    result: dict[str, set[tuple[str, str, str]]] = {}
+    with path.open("r", encoding=encoding, newline="") as stream:
+        reader = csv.reader(stream, dialect)
+        headers = next(reader, None)
+        columns = _source_columns(headers)
+        name_col = next((i for i, header in enumerate(headers or []) if normalize(header) == normalize("Полное наименование")), None)
+        for row in reader:
+            if len(row) <= max(columns.values()):
+                continue
+            article = normalize(row[columns["article"]])
+            matches = wanted.get(article, [])
+            if not matches:
+                continue
+            code = normalize_code(row[columns["code"]])
+            producer = normalize(row[columns["brand"]])
+            name = str(row[name_col]).strip() if name_col is not None and len(row) > name_col else ""
+            if not code:
+                continue
+            for item in matches:
+                result.setdefault(item["article"], set()).add((code, producer, name))
+    return result
+
+
 def unique_code(mapping, key):
     values = mapping.get(key, set())
     return next(iter(values)) if len(values) == 1 else None
@@ -100,6 +141,23 @@ for item in CANDIDATES:
 
 output = {"mapped": mapped, "unmatched": unmatched, "ambiguous": ambiguous}
 Path("/tmp/etm_candidate_codes.json").write_text(json.dumps(output), encoding="utf-8")
+weak_matches = {}
+needs_review = [item for item in CANDIDATES if item["article"] in set(unmatched) | {x["article"] for x in ambiguous}]
+for label, path in SOURCES:
+    if path.is_file():
+        weak_matches[label] = read_unbranded_matches(path, needs_review)
+review = {
+    item["article"]: {
+        "model": item.get("model"),
+        "brand": item.get("brand"),
+        "sources": {
+            label: sorted([list(x) for x in mapping.get(item["article"], set())])
+            for label, mapping in weak_matches.items()
+            if mapping.get(item["article"])
+        },
+    }
+    for item in needs_review
+}
 print(json.dumps({
     "candidate_count": len(CANDIDATES),
     "mapped_count": len(mapped),
@@ -109,4 +167,5 @@ print(json.dumps({
     "ambiguous_count": len(ambiguous),
     "unmatched_examples": unmatched[:12],
     "ambiguous_examples": ambiguous[:8],
+    "unbranded_matches": review,
 }, ensure_ascii=False))
