@@ -1,6 +1,6 @@
 {
   "started_at": "2026-10-12T03:45:26.335720+00:00",
-  "state": "updates_accepted_readback_pending",
+  "state": "readback_needs_review",
   "planned_cards": 969,
   "planned_documents": 1001,
   "chunks": [
@@ -17,5 +17,17 @@
         "additionalErrors": {}
       }
     }
-  ]
+  ],
+  "readback": {
+    "checked_at": "2026-10-12T03:49:51.213109+00:00",
+    "complete": true,
+    "cards_checked": 969,
+    "all_documents_visible": false,
+    "all_unrelated_fields_preserved": true,
+    "all_preexisting_documents_preserved": true,
+    "documents_visible_count": 0,
+    "fields_preserved_count": 969,
+    "pending_or_returned_verdicts": 0
+  },
+  "finished_at": "2026-10-12T03:49:51.867838+00:00"
 }
