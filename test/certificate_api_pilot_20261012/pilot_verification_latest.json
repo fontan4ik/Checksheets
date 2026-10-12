@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-12T03:13:18.305029+00:00",
+  "checked_at": "2026-10-12T03:20:51.200981+00:00",
   "pilots": [
     {
       "spec": {
@@ -55,13 +55,19 @@
             "startDate": "2022-10-07T00:00:00Z",
             "endDate": "2027-10-05T00:00:00Z",
             "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:31.806255+03:00"
+            },
             "createdAt": "2026-10-12T05:50:00.438795+03:00"
           }
         ],
         "overallVerdict": {
           "isFullyChecked": true,
-          "status": 2,
-          "reason": "documents_missing",
+          "status": 1,
+          "reason": "",
           "createdAt": "2026-09-04T00:15:59.844378+03:00"
         },
         "excludeDocuments": false
@@ -74,12 +80,18 @@
           "startDate": "2022-10-07T00:00:00Z",
           "endDate": "2027-10-05T00:00:00Z",
           "isEndless": false,
+          "verdict": {
+            "verified": true,
+            "status": 1,
+            "reason": "valid",
+            "createdAt": "2026-10-12T06:14:31.806255+03:00"
+          },
           "createdAt": "2026-10-12T05:50:00.438795+03:00"
         }
       ],
       "ozon_final": true,
-      "wb_final": false,
-      "both_final": false
+      "wb_final": true,
+      "both_final": true
     },
     {
       "spec": {
@@ -135,13 +147,19 @@
             "startDate": "2025-05-23T00:00:00Z",
             "endDate": "2030-05-22T00:00:00Z",
             "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:30.546732+03:00"
+            },
             "createdAt": "2026-10-12T05:50:01.059079+03:00"
           }
         ],
         "overallVerdict": {
           "isFullyChecked": true,
-          "status": 2,
-          "reason": "documents_missing",
+          "status": 1,
+          "reason": "",
           "createdAt": "2026-09-03T19:16:09.797598+03:00"
         },
         "excludeDocuments": false
@@ -154,12 +172,18 @@
           "startDate": "2025-05-23T00:00:00Z",
           "endDate": "2030-05-22T00:00:00Z",
           "isEndless": false,
+          "verdict": {
+            "verified": true,
+            "status": 1,
+            "reason": "valid",
+            "createdAt": "2026-10-12T06:14:30.546732+03:00"
+          },
           "createdAt": "2026-10-12T05:50:01.059079+03:00"
         }
       ],
       "ozon_final": true,
-      "wb_final": false,
-      "both_final": false
+      "wb_final": true,
+      "both_final": true
     },
     {
       "spec": {
@@ -214,6 +238,12 @@
             "startDate": "2026-04-14T00:00:00Z",
             "endDate": "2031-04-13T00:00:00Z",
             "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:31.659272+03:00"
+            },
             "createdAt": "2026-10-12T05:49:56.20955+03:00"
           },
           {
@@ -223,13 +253,19 @@
             "startDate": "2026-05-06T00:00:00Z",
             "endDate": "2030-04-27T00:00:00Z",
             "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:31.659272+03:00"
+            },
             "createdAt": "2026-10-12T05:49:56.20955+03:00"
           }
         ],
         "overallVerdict": {
           "isFullyChecked": true,
-          "status": 2,
-          "reason": "documents_missing",
+          "status": 1,
+          "reason": "",
           "createdAt": "2026-10-02T20:49:24.004715+03:00"
         },
         "excludeDocuments": false
@@ -242,12 +278,18 @@
           "startDate": "2026-04-14T00:00:00Z",
           "endDate": "2031-04-13T00:00:00Z",
           "isEndless": false,
+          "verdict": {
+            "verified": true,
+            "status": 1,
+            "reason": "valid",
+            "createdAt": "2026-10-12T06:14:31.659272+03:00"
+          },
           "createdAt": "2026-10-12T05:49:56.20955+03:00"
         }
       ],
       "ozon_final": true,
-      "wb_final": false,
-      "both_final": false
+      "wb_final": true,
+      "both_final": true
     },
     {
       "spec": {
@@ -302,6 +344,12 @@
             "startDate": "2026-04-14T00:00:00Z",
             "endDate": "2031-04-13T00:00:00Z",
             "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:31.659272+03:00"
+            },
             "createdAt": "2026-10-12T05:49:56.20955+03:00"
           },
           {
@@ -311,13 +359,19 @@
             "startDate": "2026-05-06T00:00:00Z",
             "endDate": "2030-04-27T00:00:00Z",
             "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:31.659272+03:00"
+            },
             "createdAt": "2026-10-12T05:49:56.20955+03:00"
           }
         ],
         "overallVerdict": {
           "isFullyChecked": true,
-          "status": 2,
-          "reason": "documents_missing",
+          "status": 1,
+          "reason": "",
           "createdAt": "2026-10-02T20:49:24.004715+03:00"
         },
         "excludeDocuments": false
@@ -330,12 +384,18 @@
           "startDate": "2026-05-06T00:00:00Z",
           "endDate": "2030-04-27T00:00:00Z",
           "isEndless": false,
+          "verdict": {
+            "verified": true,
+            "status": 1,
+            "reason": "valid",
+            "createdAt": "2026-10-12T06:14:31.659272+03:00"
+          },
           "createdAt": "2026-10-12T05:49:56.20955+03:00"
         }
       ],
       "ozon_final": true,
-      "wb_final": false,
-      "both_final": false
+      "wb_final": true,
+      "both_final": true
     }
   ],
   "card_preservation": [

@@ -1,0 +1,488 @@
+{
+  "checked_at": "2026-10-12T03:20:51.200981+00:00",
+  "pilots": [
+    {
+      "spec": {
+        "offer": "14048-1",
+        "product_id": 6023323036,
+        "sku": 5523523330,
+        "nmID": 1514673182,
+        "number": "ЕАЭС N RU Д-CN.РА07.В.18481/22",
+        "type": 2,
+        "issue": "2022-10-07",
+        "expiry": "2027-10-05",
+        "file": "group_2/NAVIGATOR/documents/NAV_declaration_14048_bb50bd4efe46.pdf",
+        "sha256": "bb50bd4efe4688c07913e4153ec1067a8004842f7d22199311f4e8982e33a85e",
+        "registry": "https://pub.fsa.gov.ru/rds/declaration/view/17092904"
+      },
+      "ozon": [
+        {
+          "certificate": {
+            "certificate_id": 5605326,
+            "certificate_name": "Декларация о соответствии № ЕАЭС N RU Д-CN.РА07.В.18481/22",
+            "certificate_number": "ЕАЭС N RU Д-CN.РА07.В.18481/22",
+            "type_code": "declaration",
+            "status_code": "approved",
+            "accordance_type_code": "EAEU",
+            "rejection_reason_code": "",
+            "issue_date": "2022-10-07T00:00:00Z",
+            "expire_date": "2027-10-05T00:00:00Z",
+            "products_count": 1,
+            "verification_comment": ""
+          },
+          "target_bindings": [
+            {
+              "product_id": 6023323036,
+              "product_status_code": "approved",
+              "sku": 5523523330
+            }
+          ],
+          "all_bindings": [
+            {
+              "product_id": 6023323036,
+              "product_status_code": "approved",
+              "sku": 5523523330
+            }
+          ]
+        }
+      ],
+      "wb_documents": {
+        "items": [
+          {
+            "id": "4a7c07da-f351-46bd-a5be-dc488a7be1ac",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.РА07.В.18481/22",
+            "startDate": "2022-10-07T00:00:00Z",
+            "endDate": "2027-10-05T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:31.806255+03:00"
+            },
+            "createdAt": "2026-10-12T05:50:00.438795+03:00"
+          }
+        ],
+        "overallVerdict": {
+          "isFullyChecked": true,
+          "status": 1,
+          "reason": "",
+          "createdAt": "2026-09-04T00:15:59.844378+03:00"
+        },
+        "excludeDocuments": false
+      },
+      "wb_exact_items": [
+        {
+          "id": "4a7c07da-f351-46bd-a5be-dc488a7be1ac",
+          "type": 2,
+          "number": "ЕАЭС N RU Д-CN.РА07.В.18481/22",
+          "startDate": "2022-10-07T00:00:00Z",
+          "endDate": "2027-10-05T00:00:00Z",
+          "isEndless": false,
+          "verdict": {
+            "verified": true,
+            "status": 1,
+            "reason": "valid",
+            "createdAt": "2026-10-12T06:14:31.806255+03:00"
+          },
+          "createdAt": "2026-10-12T05:50:00.438795+03:00"
+        }
+      ],
+      "ozon_final": true,
+      "wb_final": true,
+      "both_final": true
+    },
+    {
+      "spec": {
+        "offer": "14320-1",
+        "product_id": 6023415662,
+        "sku": 5523622453,
+        "nmID": 1508521338,
+        "number": "ЕАЭС N RU Д-CN.РА04.В.60713/25",
+        "type": 2,
+        "issue": "2025-05-23",
+        "expiry": "2030-05-22",
+        "file": "group_2/NAVIGATOR/documents/NAV_declaration_14320_3aed124818bf.pdf",
+        "sha256": "3aed124818bf8c2bf1ead157f3e3540964881e3abaed4b9b6f67b253ef9ae036",
+        "registry": "https://pub.fsa.gov.ru/rds/declaration/view/20206039"
+      },
+      "ozon": [
+        {
+          "certificate": {
+            "certificate_id": 5605327,
+            "certificate_name": "Декларация о соответствии № ЕАЭС N RU Д-CN.РА04.В.60713/25",
+            "certificate_number": "ЕАЭС N RU Д-CN.РА04.В.60713/25",
+            "type_code": "declaration",
+            "status_code": "approved",
+            "accordance_type_code": "EAEU",
+            "rejection_reason_code": "",
+            "issue_date": "2025-05-23T00:00:00Z",
+            "expire_date": "2030-05-22T00:00:00Z",
+            "products_count": 1,
+            "verification_comment": ""
+          },
+          "target_bindings": [
+            {
+              "product_id": 6023415662,
+              "product_status_code": "approved",
+              "sku": 5523622453
+            }
+          ],
+          "all_bindings": [
+            {
+              "product_id": 6023415662,
+              "product_status_code": "approved",
+              "sku": 5523622453
+            }
+          ]
+        }
+      ],
+      "wb_documents": {
+        "items": [
+          {
+            "id": "270df637-cfc7-4ba7-8d37-0a4772b26532",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.РА04.В.60713/25",
+            "startDate": "2025-05-23T00:00:00Z",
+            "endDate": "2030-05-22T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:30.546732+03:00"
+            },
+            "createdAt": "2026-10-12T05:50:01.059079+03:00"
+          }
+        ],
+        "overallVerdict": {
+          "isFullyChecked": true,
+          "status": 1,
+          "reason": "",
+          "createdAt": "2026-09-03T19:16:09.797598+03:00"
+        },
+        "excludeDocuments": false
+      },
+      "wb_exact_items": [
+        {
+          "id": "270df637-cfc7-4ba7-8d37-0a4772b26532",
+          "type": 2,
+          "number": "ЕАЭС N RU Д-CN.РА04.В.60713/25",
+          "startDate": "2025-05-23T00:00:00Z",
+          "endDate": "2030-05-22T00:00:00Z",
+          "isEndless": false,
+          "verdict": {
+            "verified": true,
+            "status": 1,
+            "reason": "valid",
+            "createdAt": "2026-10-12T06:14:30.546732+03:00"
+          },
+          "createdAt": "2026-10-12T05:50:01.059079+03:00"
+        }
+      ],
+      "ozon_final": true,
+      "wb_final": true,
+      "both_final": true
+    },
+    {
+      "spec": {
+        "offer": "WTP10-16-03-ZK-K01-1",
+        "product_id": 5609487591,
+        "sku": 5171062886,
+        "nmID": 1301546821,
+        "number": "ЕАЭС N RU Д-CN.РА03.В.40430/26",
+        "type": 2,
+        "issue": "2026-04-14",
+        "expiry": "2031-04-13",
+        "file": "group_2/IEK_GENERICA/documents/Адаптеры-переходники_тройники_._BOYANG_937ed62024.pdf",
+        "sha256": "a368e136b16c9c2674f401170d2d58ec4bce981e6a1b722f861f9e0b23df81b1"
+      },
+      "ozon": [
+        {
+          "certificate": {
+            "certificate_id": 5448253,
+            "certificate_name": "Декларация о соответствии № ЕАЭС N RU Д-CN.РА03.В.40430/26",
+            "certificate_number": "ЕАЭС N RU Д-CN.РА03.В.40430/26",
+            "type_code": "declaration",
+            "status_code": "approved",
+            "accordance_type_code": "EAEU",
+            "rejection_reason_code": "",
+            "issue_date": "2026-04-14T00:00:00Z",
+            "expire_date": "2031-04-13T00:00:00Z",
+            "products_count": 1,
+            "verification_comment": ""
+          },
+          "target_bindings": [
+            {
+              "product_id": 5609487591,
+              "product_status_code": "approved",
+              "sku": 5171062886
+            }
+          ],
+          "all_bindings": [
+            {
+              "product_id": 5609487591,
+              "product_status_code": "approved",
+              "sku": 5171062886
+            }
+          ]
+        }
+      ],
+      "wb_documents": {
+        "items": [
+          {
+            "id": "31f0b239-ef47-4557-b2d6-614ba962df3f",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.РА03.В.40430/26",
+            "startDate": "2026-04-14T00:00:00Z",
+            "endDate": "2031-04-13T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:31.659272+03:00"
+            },
+            "createdAt": "2026-10-12T05:49:56.20955+03:00"
+          },
+          {
+            "id": "e88ac7b5-0490-4faf-94bd-955255675240",
+            "type": 1,
+            "number": "ЕАЭС RU С-CN.АЯ46.В.47896/26",
+            "startDate": "2026-05-06T00:00:00Z",
+            "endDate": "2030-04-27T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:31.659272+03:00"
+            },
+            "createdAt": "2026-10-12T05:49:56.20955+03:00"
+          }
+        ],
+        "overallVerdict": {
+          "isFullyChecked": true,
+          "status": 1,
+          "reason": "",
+          "createdAt": "2026-10-02T20:49:24.004715+03:00"
+        },
+        "excludeDocuments": false
+      },
+      "wb_exact_items": [
+        {
+          "id": "31f0b239-ef47-4557-b2d6-614ba962df3f",
+          "type": 2,
+          "number": "ЕАЭС N RU Д-CN.РА03.В.40430/26",
+          "startDate": "2026-04-14T00:00:00Z",
+          "endDate": "2031-04-13T00:00:00Z",
+          "isEndless": false,
+          "verdict": {
+            "verified": true,
+            "status": 1,
+            "reason": "valid",
+            "createdAt": "2026-10-12T06:14:31.659272+03:00"
+          },
+          "createdAt": "2026-10-12T05:49:56.20955+03:00"
+        }
+      ],
+      "ozon_final": true,
+      "wb_final": true,
+      "both_final": true
+    },
+    {
+      "spec": {
+        "offer": "WTP10-16-03-ZK-K01-1",
+        "product_id": 5609487591,
+        "sku": 5171062886,
+        "nmID": 1301546821,
+        "number": "ЕАЭС RU С-CN.АЯ46.В.47896/26",
+        "type": 1,
+        "issue": "2026-05-06",
+        "expiry": "2030-04-27",
+        "file": "group_2/IEK_GENERICA/documents/Адаптеры_-_переходники_тройники_товарного_знака_IEK._BOYANG_89d29602ae.pdf",
+        "sha256": "bcd11f7733154e0d09615636e5c319a34c9382d8e3f500ac7f2a92975ff4e150"
+      },
+      "ozon": [
+        {
+          "certificate": {
+            "certificate_id": 5448257,
+            "certificate_name": "Сертификат соответствия № ЕАЭС RU С-CN.АЯ46.В.47896/26",
+            "certificate_number": "ЕАЭС RU С-CN.АЯ46.В.47896/26",
+            "type_code": "certificate_of_conformity",
+            "status_code": "approved",
+            "accordance_type_code": "EAEU",
+            "rejection_reason_code": "",
+            "issue_date": "2026-05-06T00:00:00Z",
+            "expire_date": "2030-04-27T00:00:00Z",
+            "products_count": 1,
+            "verification_comment": ""
+          },
+          "target_bindings": [
+            {
+              "product_id": 5609487591,
+              "product_status_code": "approved",
+              "sku": 5171062886
+            }
+          ],
+          "all_bindings": [
+            {
+              "product_id": 5609487591,
+              "product_status_code": "approved",
+              "sku": 5171062886
+            }
+          ]
+        }
+      ],
+      "wb_documents": {
+        "items": [
+          {
+            "id": "31f0b239-ef47-4557-b2d6-614ba962df3f",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.РА03.В.40430/26",
+            "startDate": "2026-04-14T00:00:00Z",
+            "endDate": "2031-04-13T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:31.659272+03:00"
+            },
+            "createdAt": "2026-10-12T05:49:56.20955+03:00"
+          },
+          {
+            "id": "e88ac7b5-0490-4faf-94bd-955255675240",
+            "type": 1,
+            "number": "ЕАЭС RU С-CN.АЯ46.В.47896/26",
+            "startDate": "2026-05-06T00:00:00Z",
+            "endDate": "2030-04-27T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-12T06:14:31.659272+03:00"
+            },
+            "createdAt": "2026-10-12T05:49:56.20955+03:00"
+          }
+        ],
+        "overallVerdict": {
+          "isFullyChecked": true,
+          "status": 1,
+          "reason": "",
+          "createdAt": "2026-10-02T20:49:24.004715+03:00"
+        },
+        "excludeDocuments": false
+      },
+      "wb_exact_items": [
+        {
+          "id": "e88ac7b5-0490-4faf-94bd-955255675240",
+          "type": 1,
+          "number": "ЕАЭС RU С-CN.АЯ46.В.47896/26",
+          "startDate": "2026-05-06T00:00:00Z",
+          "endDate": "2030-04-27T00:00:00Z",
+          "isEndless": false,
+          "verdict": {
+            "verified": true,
+            "status": 1,
+            "reason": "valid",
+            "createdAt": "2026-10-12T06:14:31.659272+03:00"
+          },
+          "createdAt": "2026-10-12T05:49:56.20955+03:00"
+        }
+      ],
+      "ozon_final": true,
+      "wb_final": true,
+      "both_final": true
+    }
+  ],
+  "card_preservation": [
+    {
+      "nmID": 1514673182,
+      "present": true,
+      "changed_unrelated_fields": [],
+      "server_added_document_characteristics": [
+        {
+          "id": 15001137,
+          "name": "Дата регистрации сертификата/декларации",
+          "value": [
+            "07.10.2022"
+          ]
+        },
+        {
+          "id": 15001138,
+          "name": "Дата окончания действия сертификата/декларации",
+          "value": [
+            "05.10.2027"
+          ]
+        },
+        {
+          "id": 15001135,
+          "name": "Номер декларации соответствия",
+          "value": [
+            "ЕАЭС N RU Д-CN.РА07.В.18481/22"
+          ]
+        }
+      ]
+    },
+    {
+      "nmID": 1508521338,
+      "present": true,
+      "changed_unrelated_fields": [],
+      "server_added_document_characteristics": [
+        {
+          "id": 15001135,
+          "name": "Номер декларации соответствия",
+          "value": [
+            "ЕАЭС N RU Д-CN.РА04.В.60713/25"
+          ]
+        },
+        {
+          "id": 15001137,
+          "name": "Дата регистрации сертификата/декларации",
+          "value": [
+            "23.05.2025"
+          ]
+        },
+        {
+          "id": 15001138,
+          "name": "Дата окончания действия сертификата/декларации",
+          "value": [
+            "22.05.2030"
+          ]
+        }
+      ]
+    },
+    {
+      "nmID": 1301546821,
+      "present": true,
+      "changed_unrelated_fields": [],
+      "server_added_document_characteristics": [
+        {
+          "id": 15001137,
+          "name": "Дата регистрации сертификата/декларации",
+          "value": [
+            "14.04.2026"
+          ]
+        },
+        {
+          "id": 15001138,
+          "name": "Дата окончания действия сертификата/декларации",
+          "value": [
+            "13.04.2031"
+          ]
+        },
+        {
+          "id": 15001135,
+          "name": "Номер декларации соответствия",
+          "value": [
+            "ЕАЭС N RU Д-CN.РА03.В.40430/26"
+          ]
+        }
+      ]
+    }
+  ],
+  "all_unrelated_card_fields_preserved": true
+}
