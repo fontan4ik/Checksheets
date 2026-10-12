@@ -162,9 +162,9 @@
     "semantic_hash": ""
   },
   "scripts/checksheets_github_sync.py": {
-    "mtime": 1791772996.162951,
-    "seen": 1791773843.231497,
-    "ast_hash": "7add22860d5d5e2cf2e50b9a5b46e7a4",
+    "mtime": 1791775788.8157008,
+    "seen": 1791776537.665985,
+    "ast_hash": "d5f9200360daf4d3b2c5cf9b72cff060",
     "semantic_hash": ""
   },
   "set_cpc_bids.py": {
@@ -1674,9 +1674,9 @@
     "semantic_hash": ""
   },
   "Docs/GITHUB_APPS_SCRIPT_SYNC.md": {
-    "mtime": 1791496132.626449,
-    "seen": 1791519874.1124868,
-    "ast_hash": "389dbe80a60d7989d5274284611b2759",
+    "mtime": 1791775789.0554013,
+    "seen": 1791776537.8285508,
+    "ast_hash": "4f9730810d4f1548e15ffe182411580f",
     "semantic_hash": ""
   },
   "Docs/INSTRUCTIONS_OZON_REKLAMA_AU.md": {
@@ -2520,9 +2520,9 @@
     "semantic_hash": ""
   },
   "test/test_checksheets_github_sync.py": {
-    "mtime": 1791772996.1634429,
-    "seen": 1791773843.237649,
-    "ast_hash": "db734fe28a8d309ad246250e46a4237c",
+    "mtime": 1791775900.23688,
+    "seen": 1791776537.692076,
+    "ast_hash": "47dd9d309b62557b111afac958b9f631",
     "semantic_hash": ""
   },
   "test/test_iek_card_preview.py": {
@@ -4070,7 +4070,7 @@
   "test/certificate_api_pilot_20261012/wb_live.json": {
     "mtime": 1791775403.250187,
     "seen": 1791775408.233213,
-    "ast_hash": "653191172701cc195b06d0546edda942",
+    "ast_hash": "",
     "semantic_hash": ""
   },
   "test/test_additional_legacy_trigger_bindings.js": {
@@ -4089,6 +4089,126 @@
     "mtime": 1791774471.768469,
     "seen": 1791775408.268193,
     "ast_hash": "74391e76142156255d0185064ffb416e",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/audit_ozon_new_offers.py": {
+    "mtime": 1791775926.6862993,
+    "seen": 1791776537.669508,
+    "ast_hash": "ff85bdec100614100a2721b20b0dbd22",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/group4_ozon.py": {
+    "mtime": 1791775617.6915991,
+    "seen": 1791776537.669615,
+    "ast_hash": "b5707fbb780afc42cfd464e366dab21c",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/group4_ozon_execution.json": {
+    "mtime": 1791775734.8471966,
+    "seen": 1791776537.669615,
+    "ast_hash": "6c4b0547b035bdc686178086d3d5f3c5",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/group4_ozon_plan.json": {
+    "mtime": 1791775722.5059817,
+    "seen": 1791776537.6696162,
+    "ast_hash": "9d6868dc03230e56d608b507706bb9ff",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/group4_wb.py": {
+    "mtime": 1791776005.9050975,
+    "seen": 1791776537.669617,
+    "ast_hash": "627add557957eeb359593e056cf26b04",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/group4_wb_before.json": {
+    "mtime": 1791775899.517558,
+    "seen": 1791776537.669617,
+    "ast_hash": "833388a9fb4403496249135c9568d2d5",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/group4_wb_execution.json": {
+    "mtime": 1791776027.0159605,
+    "seen": 1791776537.669617,
+    "ast_hash": "15f295d8a8b2b4305f82c9a95c6b321f",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/group4_wb_plan.json": {
+    "mtime": 1791775899.520516,
+    "seen": 1791776537.669618,
+    "ast_hash": "9dfd172b8738f0726e93a27e8a3cfd22",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/group4_wb_readback.json": {
+    "mtime": 1791776027.0147874,
+    "seen": 1791776537.6696188,
+    "ast_hash": "27a2b02907b9559c13450ab8c443f102",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/group4_wb_update_payload.json": {
+    "mtime": 1791775899.52113,
+    "seen": 1791776537.6696188,
+    "ast_hash": "fa772c1bec297a9691d85252f56c05e5",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/reconcile_approved_ozon_docs_to_wb.py": {
+    "mtime": 1791776437.7085133,
+    "seen": 1791776537.672405,
+    "ast_hash": "aa519212eb45323b08bc4cc1a403845a",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/pdf_check/kvt-1.png": {
+    "mtime": 1791775686.3056242,
+    "seen": 1791776537.836067,
+    "ast_hash": "1053fef6692e6f86c741003d15595500",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/pdf_check/systeme_ba_cert.png": {
+    "mtime": 1791775828.4898014,
+    "seen": 1791776537.8360739,
+    "ast_hash": "6f62955cd5bf73ee9c9c9de87412f3a9",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/pdf_check/systeme_ba_decl.png": {
+    "mtime": 1791775829.2449102,
+    "seen": 1791776537.836076,
+    "ast_hash": "308f289816d4e6fb2a4d2aec407eb685",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/pdf_check/systeme_pa_cert.png": {
+    "mtime": 1791775829.66638,
+    "seen": 1791776537.836077,
+    "ast_hash": "6864ba50da0ca51006e414f2717e7d24",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/pdf_check/systeme_pa_decl.png": {
+    "mtime": 1791775830.0833578,
+    "seen": 1791776537.8360782,
+    "ast_hash": "f12ef3e642e5fedb03044b6a13fd4e7f",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/pdf_check/tdm-1.png": {
+    "mtime": 1791775686.5296316,
+    "seen": 1791776537.8360791,
+    "ast_hash": "5fe1aba651e5635220f862bff40d5e63",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/pdf_check/tdm-2.png": {
+    "mtime": 1791775686.7940347,
+    "seen": 1791776537.8360808,
+    "ast_hash": "79dc819e226ca043ba772c29cc8b933a",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/pdf_check/tdm-3.png": {
+    "mtime": 1791775686.9821868,
+    "seen": 1791776537.836082,
+    "ast_hash": "d8318f5b25778e5fa3fc7009ff8c3deb",
+    "semantic_hash": ""
+  },
+  "test/certificate_api_pilot_20261012/pdf_check/tdm-4.png": {
+    "mtime": 1791775687.1182868,
+    "seen": 1791776537.836083,
+    "ast_hash": "f10edaddb7f745faf9aed0d7f5e313d2",
     "semantic_hash": ""
   }
 }
