@@ -1,11 +1,7 @@
 {
-  "checked_at": "2026-10-12T03:21:14.003654+00:00",
+  "checked_at": "2026-10-12T03:37:17.503271+00:00",
   "certificate_statuses": {
     "result": [
-      {
-        "code": "approved",
-        "name": "Одобрены"
-      },
       {
         "code": "awaiting_verification",
         "name": "Ожидают проверки"
@@ -17,6 +13,10 @@
       {
         "code": "verification",
         "name": "На проверке"
+      },
+      {
+        "code": "approved",
+        "name": "Одобрены"
       }
     ]
   },
@@ -41,6 +41,48 @@
     ]
   },
   "certificates": [
+    {
+      "certificate_id": 5605464,
+      "certificate_name": "Декларация о соответствии № ЕАЭС N RU Д-CN.РА04.В.68365/23",
+      "certificate_number": "ЕАЭС N RU Д-CN.РА04.В.68365/23",
+      "type_code": "declaration",
+      "status_code": "approved",
+      "accordance_type_code": "EAEU",
+      "rejection_reason_code": "",
+      "issue_date": "2023-06-15T00:00:00Z",
+      "expire_date": "2028-06-14T00:00:00Z",
+      "products_count": 1,
+      "verification_comment": "",
+      "live_bindings": [
+        {
+          "product_id": 75339283,
+          "product_status_code": "approved",
+          "sku": 267770402
+        }
+      ],
+      "live_binding_count": 1
+    },
+    {
+      "certificate_id": 5605462,
+      "certificate_name": "Декларация о соответствии № ЕАЭС N RU Д-CN.РА07.В.27606/25",
+      "certificate_number": "ЕАЭС N RU Д-CN.РА07.В.27606/25",
+      "type_code": "declaration",
+      "status_code": "approved",
+      "accordance_type_code": "EAEU",
+      "rejection_reason_code": "",
+      "issue_date": "2025-08-22T00:00:00Z",
+      "expire_date": "2030-08-19T00:00:00Z",
+      "products_count": 1,
+      "verification_comment": "",
+      "live_bindings": [
+        {
+          "product_id": 73731212,
+          "product_status_code": "approved",
+          "sku": 262716853
+        }
+      ],
+      "live_binding_count": 1
+    },
     {
       "certificate_id": 5605327,
       "certificate_name": "Декларация о соответствии № ЕАЭС N RU Д-CN.РА04.В.60713/25",
