@@ -249,6 +249,23 @@ class GithubSyncRepositoryTests(unittest.TestCase):
         self.assertTrue((self.root / 'graphify-out/cache/query.json').exists())
         self.assertEqual(self.git('stash', 'list'), '')
 
+    def test_unfinished_apps_script_source_is_not_deployed(self):
+        with (
+            patch.object(sys, "argv", ["checksheets_github_sync.py", "--once"]),
+            patch.object(sync, "configure_logging"),
+            patch.object(sync, "exclusive_lock", return_value=contextlib.nullcontext()),
+            patch.object(sync, "read_state", return_value={}),
+            patch.object(sync, "reconcile_git", return_value=("new", "new")),
+            patch.object(sync, "git_changed_paths", return_value=None),
+            patch.object(sync, "clasp_status", return_value=["Flow_Триггеры__Основные.js"]),
+            patch.object(sync, "status_paths", return_value=["Flow_Триггеры__Основные.js"]),
+            patch.object(sync, "push_apps_script") as push,
+            patch.object(sync, "write_state") as write,
+        ):
+            self.assertEqual(sync.main(), 0)
+            push.assert_not_called()
+            write.assert_not_called()
+
 
 class BackupRetentionTests(unittest.TestCase):
     def test_keeps_recent_snapshots_and_one_per_day_for_older_window(self):
