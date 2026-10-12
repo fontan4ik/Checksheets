@@ -1,0 +1,593 @@
+{
+  "started_at": "2026-10-12T03:31:39.521362+00:00",
+  "updates": [
+    {
+      "response": {
+        "data": {},
+        "error": false,
+        "errorText": "",
+        "additionalErrors": {}
+      },
+      "cards": 2,
+      "documents": 4
+    }
+  ],
+  "readback": {
+    "BA10-001B-1": {
+      "card": {
+        "nmID": 566941140,
+        "imtID": 580729702,
+        "nmUUID": "0199e6ef-bcdd-760b-878c-7fc8a09462fe",
+        "subjectID": 1149,
+        "subjectName": "Выключатели",
+        "vendorCode": "BA10-001B-1",
+        "brand": "Schneider electriс",
+        "title": "Выключатель одноклавишный открытой установки 10А/250В 1шт",
+        "description": "Выключатель одноклавишный Schneider electriс BA10-001B - это надежное и стильное решение для управления освещением в вашем доме. Модель BA10-001B с белой квадратной клавишей идеально впишется в любой интерьер, а прочный пластиковый корпус гарантирует долгий срок службы. Этот выключатель рассчитан на напряжение 230 В и ток до 10 А, что позволяет использовать его для подключения различных осветительных приборов. Благодаря наружному типу монтажа установка выключателя проста и не требует специальных навыков. Выключатель Schneider electriс BA10-001B - это оптимальный выбор для тех, кто ценит качество, надежность и современный дизайн.",
+        "needKiz": false,
+        "kizMarked": false,
+        "photos": [
+          {
+            "big": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/big/1.webp",
+            "c246x328": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/c246x328/1.webp",
+            "c516x688": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/c516x688/1.webp",
+            "hq": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/hq/1.webp",
+            "square": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/square/1.webp",
+            "tm": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/tm/1.webp"
+          },
+          {
+            "big": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/big/2.webp",
+            "c246x328": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/c246x328/2.webp",
+            "c516x688": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/c516x688/2.webp",
+            "hq": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/hq/2.webp",
+            "square": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/square/2.webp",
+            "tm": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/tm/2.webp"
+          },
+          {
+            "big": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/big/3.webp",
+            "c246x328": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/c246x328/3.webp",
+            "c516x688": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/c516x688/3.webp",
+            "hq": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/hq/3.webp",
+            "square": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/square/3.webp",
+            "tm": "https://basket-29.wbbasket.ru/vol5669/part566941/566941140/images/tm/3.webp"
+          }
+        ],
+        "dimensions": {
+          "width": 6,
+          "height": 4,
+          "length": 6,
+          "weightBrutto": 0.1,
+          "isValid": true
+        },
+        "characteristics": [
+          {
+            "id": 90652,
+            "name": "Глубина предмета",
+            "value": 4
+          },
+          {
+            "id": 15001136,
+            "name": "Номер сертификата соответствия",
+            "value": [
+              "ЕАЭС RU C-RU.АТ21.В.00153/25"
+            ]
+          },
+          {
+            "id": 14177449,
+            "name": "Цвет",
+            "value": [
+              "белый"
+            ]
+          },
+          {
+            "id": 60301,
+            "name": "Тип монтажа",
+            "value": [
+              "наружный"
+            ]
+          },
+          {
+            "id": 15001138,
+            "name": "Дата окончания действия сертификата/декларации",
+            "value": [
+              "17.03.2030"
+            ]
+          },
+          {
+            "id": 15925,
+            "name": "Количество клавиш",
+            "value": [
+              "1 клавиша"
+            ]
+          },
+          {
+            "id": 5023,
+            "name": "Модель",
+            "value": [
+              "BA10-001B"
+            ]
+          },
+          {
+            "id": 15001137,
+            "name": "Дата регистрации сертификата/декларации",
+            "value": [
+              "18.03.2025"
+            ]
+          },
+          {
+            "id": 14177451,
+            "name": "Страна производства",
+            "value": [
+              "Россия"
+            ]
+          },
+          {
+            "id": 15000368,
+            "name": "Форма выключателя",
+            "value": [
+              "квадратная"
+            ]
+          },
+          {
+            "id": 90673,
+            "name": "Ширина предмета",
+            "value": 6
+          },
+          {
+            "id": 378533,
+            "name": "Комплектация",
+            "value": [
+              "1 розетка BA10-001B-1"
+            ]
+          },
+          {
+            "id": 4370,
+            "name": "Материал корпуса",
+            "value": [
+              "пластик"
+            ]
+          },
+          {
+            "id": 355421,
+            "name": "Напряжение (В)",
+            "value": 230
+          },
+          {
+            "id": 15000369,
+            "name": "Степень защиты (IP)",
+            "value": [
+              "IP20"
+            ]
+          }
+        ],
+        "sizes": [
+          {
+            "chrtID": 777458272,
+            "techSize": "0",
+            "wbSize": "",
+            "skus": [
+              "2046697276357"
+            ]
+          }
+        ],
+        "createdAt": "2025-10-15T08:14:58.165348Z",
+        "updatedAt": "2026-10-12T03:31:46.59962Z",
+        "documents": {
+          "items": [
+            {
+              "id": "1ae70f9c-a2e0-41eb-8c57-86c2a3a0db27",
+              "type": 1,
+              "number": "ЕАЭС RU C-RU.АТ21.В.00153/25",
+              "startDate": "2025-03-18T00:00:00Z",
+              "endDate": "2030-03-17T00:00:00Z",
+              "isEndless": false,
+              "createdAt": "2026-10-12T06:31:46.991366+03:00"
+            },
+            {
+              "id": "e23ed663-6215-403d-9814-364ebdf41634",
+              "type": 2,
+              "number": "ЕАЭС N RU Д-RU.РА01.В.69737/25",
+              "startDate": "2025-02-05T00:00:00Z",
+              "endDate": "2030-02-04T00:00:00Z",
+              "isEndless": false,
+              "createdAt": "2026-10-12T06:31:46.991366+03:00"
+            }
+          ],
+          "excludeDocuments": false
+        }
+      },
+      "wanted_documents_present": true,
+      "documents": [
+        {
+          "id": "1ae70f9c-a2e0-41eb-8c57-86c2a3a0db27",
+          "type": 1,
+          "number": "ЕАЭС RU C-RU.АТ21.В.00153/25",
+          "startDate": "2025-03-18T00:00:00Z",
+          "endDate": "2030-03-17T00:00:00Z",
+          "isEndless": false,
+          "createdAt": "2026-10-12T06:31:46.991366+03:00"
+        },
+        {
+          "id": "e23ed663-6215-403d-9814-364ebdf41634",
+          "type": 2,
+          "number": "ЕАЭС N RU Д-RU.РА01.В.69737/25",
+          "startDate": "2025-02-05T00:00:00Z",
+          "endDate": "2030-02-04T00:00:00Z",
+          "isEndless": false,
+          "createdAt": "2026-10-12T06:31:46.991366+03:00"
+        }
+      ],
+      "unrelated_fields_preserved": {
+        "preserved": true,
+        "fields": {
+          "nmID": true,
+          "vendorCode": true,
+          "brand": true,
+          "title": true,
+          "gtin": true,
+          "description": true,
+          "dimensions": true,
+          "characteristics": true,
+          "sizes": true,
+          "kizMarked": true
+        },
+        "differences": {
+          "characteristics": {
+            "missing_or_changed": {},
+            "added": {
+              "15001136": {
+                "id": 15001136,
+                "name": "Номер сертификата соответствия",
+                "value": [
+                  "ЕАЭС RU C-RU.АТ21.В.00153/25"
+                ]
+              },
+              "15001137": {
+                "id": 15001137,
+                "name": "Дата регистрации сертификата/декларации",
+                "value": [
+                  "18.03.2025"
+                ]
+              },
+              "15001138": {
+                "id": 15001138,
+                "name": "Дата окончания действия сертификата/декларации",
+                "value": [
+                  "17.03.2030"
+                ]
+              }
+            },
+            "unexpected_added": {}
+          }
+        }
+      },
+      "readback_outcome": "documents_visible_other_fields_preserved"
+    },
+    "PA16-007B-1": {
+      "card": {
+        "nmID": 566950370,
+        "imtID": 580737133,
+        "nmUUID": "0199e6f3-793a-737b-95d1-a2b732ba1789",
+        "subjectID": 1148,
+        "subjectName": "Розетки",
+        "vendorCode": "PA16-007B-1",
+        "brand": "Schneider-Electric",
+        "title": "Розетка двойная накладная Этюд PA16-007B с заземлением 1 шт",
+        "description": "Розетка двойная накладная Этюд PA16-007B с заземлением от Schneider-Electric – это надежное и практичное решение для подключения электроприборов в вашем доме. Эта модель оснащена двумя гнездами, что позволяет одновременно подключать несколько устройств. Накладной тип монтажа упрощает установку розетки, делая ее доступной для самостоятельного монтажа.  Белый цвет розетки гармонично впишется в любой интерьер, а прямоугольная форма обеспечивает удобное размещение.  Степень защиты IP20 гарантирует безопасность использования в сухих помещениях.  Розетка рассчитана на напряжение 230 В и силу тока 16 А, что позволяет подключать к ней широкий спектр бытовых приборов.  Эта модель станет надежным помощником в организации электросети вашего дома.",
+        "needKiz": false,
+        "kizMarked": false,
+        "photos": [
+          {
+            "big": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/big/1.webp",
+            "c246x328": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c246x328/1.webp",
+            "c516x688": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c516x688/1.webp",
+            "hq": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/hq/1.webp",
+            "square": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/square/1.webp",
+            "tm": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/tm/1.webp"
+          },
+          {
+            "big": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/big/2.webp",
+            "c246x328": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c246x328/2.webp",
+            "c516x688": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c516x688/2.webp",
+            "hq": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/hq/2.webp",
+            "square": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/square/2.webp",
+            "tm": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/tm/2.webp"
+          },
+          {
+            "big": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/big/3.webp",
+            "c246x328": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c246x328/3.webp",
+            "c516x688": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c516x688/3.webp",
+            "hq": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/hq/3.webp",
+            "square": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/square/3.webp",
+            "tm": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/tm/3.webp"
+          },
+          {
+            "big": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/big/4.webp",
+            "c246x328": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c246x328/4.webp",
+            "c516x688": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c516x688/4.webp",
+            "hq": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/hq/4.webp",
+            "square": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/square/4.webp",
+            "tm": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/tm/4.webp"
+          },
+          {
+            "big": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/big/5.webp",
+            "c246x328": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c246x328/5.webp",
+            "c516x688": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c516x688/5.webp",
+            "hq": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/hq/5.webp",
+            "square": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/square/5.webp",
+            "tm": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/tm/5.webp"
+          },
+          {
+            "big": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/big/6.webp",
+            "c246x328": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c246x328/6.webp",
+            "c516x688": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/c516x688/6.webp",
+            "hq": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/hq/6.webp",
+            "square": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/square/6.webp",
+            "tm": "https://basket-29.wbbasket.ru/vol5669/part566950/566950370/images/tm/6.webp"
+          }
+        ],
+        "dimensions": {
+          "width": 4,
+          "height": 4,
+          "length": 6,
+          "weightBrutto": 0.1,
+          "isValid": true
+        },
+        "characteristics": [
+          {
+            "id": 14177451,
+            "name": "Страна производства",
+            "value": [
+              "Россия"
+            ]
+          },
+          {
+            "id": 90673,
+            "name": "Ширина предмета",
+            "value": 6
+          },
+          {
+            "id": 15001137,
+            "name": "Дата регистрации сертификата/декларации",
+            "value": [
+              "27.06.2025"
+            ]
+          },
+          {
+            "id": 5023,
+            "name": "Модель",
+            "value": [
+              "PA16-007B-1"
+            ]
+          },
+          {
+            "id": 9623,
+            "name": "Гарантийный срок",
+            "value": [
+              "1 год"
+            ]
+          },
+          {
+            "id": 156782,
+            "name": "Количество вводов",
+            "value": [
+              "2 шт."
+            ]
+          },
+          {
+            "id": 81589,
+            "name": "Сила тока (А)",
+            "value": 16
+          },
+          {
+            "id": 15000280,
+            "name": "Тип розетки",
+            "value": [
+              "двойная"
+            ]
+          },
+          {
+            "id": 14177449,
+            "name": "Цвет",
+            "value": [
+              "белый"
+            ]
+          },
+          {
+            "id": 90652,
+            "name": "Глубина предмета",
+            "value": 4
+          },
+          {
+            "id": 14207,
+            "name": "Напряжение",
+            "value": [
+              "230 В"
+            ]
+          },
+          {
+            "id": 15001136,
+            "name": "Номер сертификата соответствия",
+            "value": [
+              "ЕАЭС RU C-RU.АТ21.В.00159/25"
+            ]
+          },
+          {
+            "id": 15000369,
+            "name": "Степень защиты (IP)",
+            "value": [
+              "IP20"
+            ]
+          },
+          {
+            "id": 60301,
+            "name": "Тип монтажа",
+            "value": [
+              "наружный"
+            ]
+          },
+          {
+            "id": 171114,
+            "name": "Форма изделия",
+            "value": [
+              "прямоугольная"
+            ]
+          },
+          {
+            "id": 15001138,
+            "name": "Дата окончания действия сертификата/декларации",
+            "value": [
+              "26.06.2030"
+            ]
+          },
+          {
+            "id": 90660,
+            "name": "Количество гнезд/розеток",
+            "value": [
+              "2 гнезда/розетки"
+            ]
+          },
+          {
+            "id": 378533,
+            "name": "Комплектация",
+            "value": [
+              "1 розетка PA16-007B-1"
+            ]
+          }
+        ],
+        "sizes": [
+          {
+            "chrtID": 777468874,
+            "techSize": "0",
+            "wbSize": "",
+            "skus": [
+              "2046697358671"
+            ]
+          }
+        ],
+        "createdAt": "2025-10-15T08:19:04.248961Z",
+        "updatedAt": "2026-10-12T03:31:48.221321Z",
+        "documents": {
+          "items": [
+            {
+              "id": "e9cdb7d0-917e-47b8-9bc1-03e7fd6a4fea",
+              "type": 1,
+              "number": "ЕАЭС RU C-RU.АТ21.В.00159/25",
+              "startDate": "2025-06-27T00:00:00Z",
+              "endDate": "2030-06-26T00:00:00Z",
+              "isEndless": false,
+              "verdict": {
+                "verified": true,
+                "status": 1,
+                "reason": "valid",
+                "createdAt": "2026-10-12T06:31:51.544562+03:00"
+              },
+              "createdAt": "2026-10-12T06:31:47.72636+03:00"
+            },
+            {
+              "id": "46188829-6b52-4f4e-96f0-f5a032e0312d",
+              "type": 2,
+              "number": "ЕАЭС N RU Д-RU.РА01.В.70012/25",
+              "startDate": "2025-02-05T00:00:00Z",
+              "endDate": "2030-02-04T00:00:00Z",
+              "isEndless": false,
+              "verdict": {
+                "verified": true,
+                "status": 1,
+                "reason": "valid",
+                "createdAt": "2026-10-12T06:31:51.544562+03:00"
+              },
+              "createdAt": "2026-10-12T06:31:47.72636+03:00"
+            }
+          ],
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-10-12T06:31:51.544562+03:00"
+          },
+          "excludeDocuments": false
+        }
+      },
+      "wanted_documents_present": true,
+      "documents": [
+        {
+          "id": "e9cdb7d0-917e-47b8-9bc1-03e7fd6a4fea",
+          "type": 1,
+          "number": "ЕАЭС RU C-RU.АТ21.В.00159/25",
+          "startDate": "2025-06-27T00:00:00Z",
+          "endDate": "2030-06-26T00:00:00Z",
+          "isEndless": false,
+          "verdict": {
+            "verified": true,
+            "status": 1,
+            "reason": "valid",
+            "createdAt": "2026-10-12T06:31:51.544562+03:00"
+          },
+          "createdAt": "2026-10-12T06:31:47.72636+03:00"
+        },
+        {
+          "id": "46188829-6b52-4f4e-96f0-f5a032e0312d",
+          "type": 2,
+          "number": "ЕАЭС N RU Д-RU.РА01.В.70012/25",
+          "startDate": "2025-02-05T00:00:00Z",
+          "endDate": "2030-02-04T00:00:00Z",
+          "isEndless": false,
+          "verdict": {
+            "verified": true,
+            "status": 1,
+            "reason": "valid",
+            "createdAt": "2026-10-12T06:31:51.544562+03:00"
+          },
+          "createdAt": "2026-10-12T06:31:47.72636+03:00"
+        }
+      ],
+      "unrelated_fields_preserved": {
+        "preserved": true,
+        "fields": {
+          "nmID": true,
+          "vendorCode": true,
+          "brand": true,
+          "title": true,
+          "gtin": true,
+          "description": true,
+          "dimensions": true,
+          "characteristics": true,
+          "sizes": true,
+          "kizMarked": true
+        },
+        "differences": {
+          "characteristics": {
+            "missing_or_changed": {},
+            "added": {
+              "15001136": {
+                "id": 15001136,
+                "name": "Номер сертификата соответствия",
+                "value": [
+                  "ЕАЭС RU C-RU.АТ21.В.00159/25"
+                ]
+              },
+              "15001137": {
+                "id": 15001137,
+                "name": "Дата регистрации сертификата/декларации",
+                "value": [
+                  "27.06.2025"
+                ]
+              },
+              "15001138": {
+                "id": 15001138,
+                "name": "Дата окончания действия сертификата/декларации",
+                "value": [
+                  "26.06.2030"
+                ]
+              }
+            },
+            "unexpected_added": {}
+          }
+        }
+      },
+      "readback_outcome": "documents_visible_other_fields_preserved"
+    }
+  },
+  "finished_at": "2026-10-12T03:32:09.765843+00:00"
+}
