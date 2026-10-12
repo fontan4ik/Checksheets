@@ -1,0 +1,21 @@
+{
+  "started_at": "2026-10-12T03:45:26.335720+00:00",
+  "state": "updates_accepted_readback_pending",
+  "planned_cards": 969,
+  "planned_documents": 1001,
+  "chunks": [
+    {
+      "index": 1,
+      "cards": 969,
+      "documents": 1001,
+      "request_bytes": 241928,
+      "state": "accepted",
+      "response": {
+        "data": {},
+        "error": false,
+        "errorText": "",
+        "additionalErrors": {}
+      }
+    }
+  ]
+}
