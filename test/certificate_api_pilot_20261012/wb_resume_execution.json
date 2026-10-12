@@ -1,0 +1,12 @@
+{
+  "started_at": "2026-10-12T02:49:54.959203+00:00",
+  "phase": "response",
+  "cards": 3,
+  "response": {
+    "data": {},
+    "error": false,
+    "errorText": "",
+    "additionalErrors": {}
+  },
+  "finished_at": "2026-10-12T02:49:56.170966+00:00"
+}

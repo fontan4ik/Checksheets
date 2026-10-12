@@ -1,0 +1,381 @@
+[
+  {
+    "nmID": 1514673182,
+    "imtID": 4077406733,
+    "nmUUID": "01a06665-feb8-73d1-a5aa-22c7653424c5",
+    "subjectID": 264,
+    "subjectName": "Гирлянды интерьерные",
+    "vendorCode": "14048-1",
+    "brand": "Navigator",
+    "title": "Гирлянда NGF-D010-10WW-2AA золотые шарики - ткань 1.8м",
+    "description": "<ul><li>Количество светодиодов: 10, 20 шт.</li><li>Расстояние между фигурками: 10, 15 см</li><li>Режим свечения: постоянное свечение</li><li>Питание: 2 АА*</li></ul>",
+    "needKiz": false,
+    "kizMarked": false,
+    "photos": [
+      {
+        "big": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/big/1.webp",
+        "c246x328": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/c246x328/1.webp",
+        "c516x688": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/c516x688/1.webp",
+        "hq": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/hq/1.webp",
+        "square": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/square/1.webp",
+        "tm": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/tm/1.webp"
+      }
+    ],
+    "dimensions": {
+      "width": 10,
+      "height": 10,
+      "length": 10,
+      "weightBrutto": 0.15,
+      "isValid": true
+    },
+    "characteristics": [
+      {
+        "id": 355308,
+        "name": "Цвет провода",
+        "value": [
+          "прозрачный"
+        ]
+      },
+      {
+        "id": 90611,
+        "name": "Количество ламп",
+        "value": 10
+      },
+      {
+        "id": 378533,
+        "name": "Комплектация",
+        "value": [
+          "Гирлянда 1 шт"
+        ]
+      },
+      {
+        "id": 16758,
+        "name": "Степень пылевлагозащиты",
+        "value": [
+          "IP20"
+        ]
+      },
+      {
+        "id": 14177451,
+        "name": "Страна производства",
+        "value": [
+          "Китай"
+        ]
+      },
+      {
+        "id": 15000001,
+        "name": "ТНВЭД",
+        "value": [
+          "9405310000"
+        ]
+      },
+      {
+        "id": 19030,
+        "name": "Тип гирлянды",
+        "value": [
+          "Электрическая"
+        ]
+      },
+      {
+        "id": 83280,
+        "name": "Тип лампы",
+        "value": [
+          "светодиодная"
+        ]
+      },
+      {
+        "id": 179792,
+        "name": "Количество предметов в упаковке",
+        "value": [
+          "1"
+        ]
+      },
+      {
+        "id": 5556,
+        "name": "Питание",
+        "value": [
+          "от сети"
+        ]
+      },
+      {
+        "id": 15001405,
+        "name": "Ставка НДС",
+        "value": [
+          "22"
+        ]
+      }
+    ],
+    "sizes": [
+      {
+        "chrtID": 2304687547,
+        "techSize": "0",
+        "wbSize": "",
+        "skus": [
+          "2055884367310"
+        ]
+      }
+    ],
+    "createdAt": "2026-09-03T08:32:37.744077Z",
+    "updatedAt": "2026-09-21T12:33:29.715708Z",
+    "documents": {
+      "overallVerdict": {
+        "isFullyChecked": true,
+        "status": 2,
+        "reason": "documents_missing",
+        "createdAt": "2026-09-04T00:15:59.844378+03:00"
+      },
+      "excludeDocuments": false
+    }
+  },
+  {
+    "nmID": 1508521338,
+    "imtID": 4073702009,
+    "nmUUID": "01a061ff-932b-7d50-971a-e59d40a05fe6",
+    "subjectID": 4223,
+    "subjectName": "Вилки силовые",
+    "vendorCode": "14320-1",
+    "brand": "Navigator",
+    "title": "Вилка 14 320 NCA-SR515-16-380 стационарная 16А 3P+N+PE IP44",
+    "description": "Разъемы штепсельные силовые Navigator серии NCA-SR предназначены для подключения мобильного и стационарного электро- оборудования к сети переменного тока частотой 50 Гц с напряжением до 415 В. Применяются для обеспечения электропитанием строительного, промышленного и торгового оборудования, а также мобильных инфраструктурных объектов (передвижные киоски, бытовки и т. п.). Огнестойкие материалы гарантируют безопасность использования разъемов.<ul><li>Корпус разъема изготовлен из ударопрочного полиамида 6.6, не поддерживающего горение</li><li>Контактные части выполнены из латуни и не подвержены коррозии</li><li>Крышки надежно защищают разъем от попадания внутрь влаги и пыли (IP44, IP54)</li><li>Сальник подходит для кабелей различного диаметра</li><li>Соответствие требованиям ГОСТ IEC 60309-1-2016 и ГОСТ IEC 60309-2-2016</li><li>Гарантия 5 лет</li></ul>",
+    "needKiz": false,
+    "kizMarked": false,
+    "photos": [
+      {
+        "big": "https://basket-48.wbbasket.ru/vol15085/part1508521/1508521338/images/big/1.webp",
+        "c246x328": "https://basket-48.wbbasket.ru/vol15085/part1508521/1508521338/images/c246x328/1.webp",
+        "c516x688": "https://basket-48.wbbasket.ru/vol15085/part1508521/1508521338/images/c516x688/1.webp",
+        "hq": "https://basket-48.wbbasket.ru/vol15085/part1508521/1508521338/images/hq/1.webp",
+        "square": "https://basket-48.wbbasket.ru/vol15085/part1508521/1508521338/images/square/1.webp",
+        "tm": "https://basket-48.wbbasket.ru/vol15085/part1508521/1508521338/images/tm/1.webp"
+      }
+    ],
+    "dimensions": {
+      "width": 10,
+      "height": 10,
+      "length": 10,
+      "weightBrutto": 0.205,
+      "isValid": true
+    },
+    "characteristics": [
+      {
+        "id": 14177451,
+        "name": "Страна производства",
+        "value": [
+          "Китай"
+        ]
+      },
+      {
+        "id": 15000001,
+        "name": "ТНВЭД",
+        "value": [
+          "8536699008"
+        ]
+      },
+      {
+        "id": 14177449,
+        "name": "Цвет",
+        "value": [
+          "красный"
+        ]
+      },
+      {
+        "id": 81589,
+        "name": "Сила тока (А)",
+        "value": 16
+      },
+      {
+        "id": 378533,
+        "name": "Комплектация",
+        "value": [
+          "Вилка 1 шт"
+        ]
+      },
+      {
+        "id": 15001405,
+        "name": "Ставка НДС",
+        "value": [
+          "22"
+        ]
+      },
+      {
+        "id": 16758,
+        "name": "Степень пылевлагозащиты",
+        "value": [
+          "IP44"
+        ]
+      }
+    ],
+    "sizes": [
+      {
+        "chrtID": 2286410650,
+        "techSize": "0",
+        "wbSize": "",
+        "skus": [
+          "2055811946595"
+        ]
+      }
+    ],
+    "createdAt": "2026-09-02T12:02:27.44386Z",
+    "updatedAt": "2026-09-02T12:02:38.86098Z",
+    "documents": {
+      "overallVerdict": {
+        "isFullyChecked": true,
+        "status": 2,
+        "reason": "documents_missing",
+        "createdAt": "2026-09-03T19:16:09.797598+03:00"
+      },
+      "excludeDocuments": false
+    }
+  },
+  {
+    "nmID": 1301546821,
+    "imtID": 3321263920,
+    "nmUUID": "019fa803-e0f4-725e-abc4-18040636e1b9",
+    "subjectID": 2931,
+    "subjectName": "Разветвители электрические",
+    "vendorCode": "WTP10-16-03-ZK-K01-1",
+    "brand": "",
+    "title": "Тройник Т-01/03В 3 места с заземлением 16А с выключателем",
+    "description": "Тройник с выключателем предназначен для подключения нескольких электроприборов к стационарной одноместной розетке.\n",
+    "needKiz": false,
+    "kizMarked": false,
+    "photos": [
+      {
+        "big": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/big/1.webp",
+        "c246x328": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/c246x328/1.webp",
+        "c516x688": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/c516x688/1.webp",
+        "hq": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/hq/1.webp",
+        "square": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/square/1.webp",
+        "tm": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/tm/1.webp"
+      },
+      {
+        "big": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/big/2.webp",
+        "c246x328": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/c246x328/2.webp",
+        "c516x688": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/c516x688/2.webp",
+        "hq": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/hq/2.webp",
+        "square": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/square/2.webp",
+        "tm": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/tm/2.webp"
+      },
+      {
+        "big": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/big/3.webp",
+        "c246x328": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/c246x328/3.webp",
+        "c516x688": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/c516x688/3.webp",
+        "hq": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/hq/3.webp",
+        "square": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/square/3.webp",
+        "tm": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/tm/3.webp"
+      },
+      {
+        "big": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/big/4.webp",
+        "c246x328": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/c246x328/4.webp",
+        "c516x688": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/c516x688/4.webp",
+        "hq": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/hq/4.webp",
+        "square": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/square/4.webp",
+        "tm": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/tm/4.webp"
+      },
+      {
+        "big": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/big/5.webp",
+        "c246x328": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/c246x328/5.webp",
+        "c516x688": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/c516x688/5.webp",
+        "hq": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/hq/5.webp",
+        "square": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/square/5.webp",
+        "tm": "https://basket-45.wbbasket.ru/vol13015/part1301546/1301546821/images/tm/5.webp"
+      }
+    ],
+    "dimensions": {
+      "width": 9,
+      "height": 6,
+      "length": 19,
+      "weightBrutto": 0.088,
+      "isValid": true
+    },
+    "characteristics": [
+      {
+        "id": 81589,
+        "name": "Сила тока (А)",
+        "value": 16
+      },
+      {
+        "id": 15001405,
+        "name": "Ставка НДС",
+        "value": [
+          "22"
+        ]
+      },
+      {
+        "id": 378533,
+        "name": "Комплектация",
+        "value": [
+          "тройник 1 шт"
+        ]
+      },
+      {
+        "id": 4370,
+        "name": "Материал корпуса",
+        "value": [
+          "пластик"
+        ]
+      },
+      {
+        "id": 16758,
+        "name": "Степень пылевлагозащиты",
+        "value": [
+          "IP20"
+        ]
+      },
+      {
+        "id": 14177451,
+        "name": "Страна производства",
+        "value": [
+          "Китай"
+        ]
+      },
+      {
+        "id": 15000001,
+        "name": "ТНВЭД",
+        "value": [
+          "8536699008"
+        ]
+      },
+      {
+        "id": 14177449,
+        "name": "Цвет",
+        "value": [
+          "белый"
+        ]
+      },
+      {
+        "id": 90660,
+        "name": "Количество гнезд/розеток",
+        "value": [
+          "3 гнезда/розетки"
+        ]
+      },
+      {
+        "id": 355421,
+        "name": "Напряжение (В)",
+        "value": 250
+      }
+    ],
+    "sizes": [
+      {
+        "chrtID": 1922760009,
+        "techSize": "0",
+        "wbSize": "",
+        "skus": [
+          "2053958277800"
+        ]
+      }
+    ],
+    "createdAt": "2026-07-28T09:17:35.013925Z",
+    "updatedAt": "2026-10-02T16:40:49.90946Z",
+    "documents": {
+      "overallVerdict": {
+        "isFullyChecked": true,
+        "status": 2,
+        "reason": "documents_missing",
+        "createdAt": "2026-10-02T20:49:24.004715+03:00"
+      },
+      "excludeDocuments": false
+    }
+  }
+]

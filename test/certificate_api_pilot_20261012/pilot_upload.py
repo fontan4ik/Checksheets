@@ -34,6 +34,12 @@ FIELDS = ('nmID', 'vendorCode', 'brand', 'title', 'gtin', 'description', 'dimens
 DOC_FIELDS = ('id', 'type', 'number', 'productNumber', 'tradeName', 'applicant', 'startDate', 'endDate', 'isEndless')
 
 
+def canonical_card(card):
+    result = json.loads(json.dumps(card))
+    result['characteristics'] = sorted(result.get('characteristics', []), key=lambda x: x['id'])
+    return result
+
+
 def norm(number):
     # Preserve country/year; only whitespace/punctuation and visual C/С are equivalent.
     return ''.join(x for x in str(number).upper().replace('С', 'C') if x.isalnum())
@@ -155,7 +161,7 @@ def main(execute=False):
     for row in plan['wb_payloads']:
         fresh = client.wb_cards(row['vendorCode'])
         current = next((c for c in fresh if c['nmID'] == row['nmID']), None)
-        if current != cards[row['nmID']]:
+        if canonical_card(current) != canonical_card(cards[row['nmID']]):
             raise RuntimeError('WB card changed since preflight; rebuild rather than overwrite')
         payloads.append(row['payload'])
     if payloads:
