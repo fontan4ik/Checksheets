@@ -1,0 +1,633 @@
+{
+  "checked_at": "2026-10-12T03:03:48.602435+00:00",
+  "proof_file_sha256": "9276a542dca3cdbe2a461b6b3bd07ab8ec3f28620ffc4b62fc329e1caf860416",
+  "accepted": [
+    {
+      "number": "ЕАЭС N RU Д-RU.РА05.В.33655/22",
+      "sha256": "478389982b1380a5d3272eccd8702a7a57f439a906f8061ff98ef54381a18307",
+      "files": [
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/00_Оригиналы_файлов/Декларация__33655_Потолочные_светильники_встраиваемые_накладные_общего_и_направленного_света_серии_Декларация_по_ТР_ТС_004_020_037__478389982b.pdf",
+          "size": 224562,
+          "sha256": "478389982b1380a5d3272eccd8702a7a57f439a906f8061ff98ef54381a18307"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/53025-1/01_Декларация.pdf",
+          "size": 224562,
+          "sha256": "478389982b1380a5d3272eccd8702a7a57f439a906f8061ff98ef54381a18307"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/53026-1/01_Декларация.pdf",
+          "size": 224562,
+          "sha256": "478389982b1380a5d3272eccd8702a7a57f439a906f8061ff98ef54381a18307"
+        }
+      ],
+      "source_proof": {
+        "identity": "Visual inspection of actual original PDF page2 extracted image candidate_evidence_478389982b13_page2_0.jpg; fixes workbook OCR 8 instead of В only after reading original",
+        "applicability": "Feron official product attachment workbook rows7838/7839 maps same exact file to53025-1/53026-1, both names explicitly seriesTR street console lamps. Original page1 explicitly covers TR street lamps. No category-only deduction.",
+        "workbook_rows": [
+          {
+            "row": 7838,
+            "offer": "53025-1",
+            "title": "Светодиодный уличный консольный светильник Feron серии TR 100W 5000K AC90-300V, СЕРЫЙ",
+            "source_url": "https://feron.ru/postup/certificate/33655_Потолочные_светильники_встраиваемые_накладные_общего_и_направленного_света_серии_Декларация_по_ТР_ТС_004_020_037.pdf"
+          },
+          {
+            "row": 7839,
+            "offer": "53026-1",
+            "title": "Светодиодный уличный консольный светильник Feron серии TR 150W 5000K AC90-300V, СЕРЫЙ",
+            "source_url": "https://feron.ru/postup/certificate/33655_Потолочные_светильники_встраиваемые_накладные_общего_и_направленного_света_серии_Декларация_по_ТР_ТС_004_020_037.pdf"
+          }
+        ]
+      },
+      "ozon_certificate": {
+        "certificate_id": 5423333,
+        "certificate_name": "Декларация № ЕАЭС N RU Д-RU.PA05.В.33655/22",
+        "certificate_number": "ЕАЭС N RU Д-RU.РА05.В.33655/22",
+        "type_code": "declaration",
+        "status_code": "approved",
+        "accordance_type_code": "EAEU",
+        "rejection_reason_code": "",
+        "issue_date": "2022-09-14T00:00:00Z",
+        "expire_date": "2027-08-02T00:00:00Z",
+        "products_count": 2,
+        "verification_comment": ""
+      },
+      "ozon_required_pairs": [
+        [
+          "5622281632",
+          "6137611224"
+        ],
+        [
+          "5622282724",
+          "6137612160"
+        ]
+      ],
+      "ozon_readback": [
+        {
+          "product_id": 6137611224,
+          "product_status_code": "approved",
+          "sku": 5622281632
+        },
+        {
+          "product_id": 6137612160,
+          "product_status_code": "approved",
+          "sku": 5622282724
+        }
+      ],
+      "wb_readback": [
+        {
+          "vendorCode": "53025-1",
+          "nmID": 1535429358,
+          "document": {
+            "id": "07b8e3af-1d8f-455b-9231-8d2f61f87e0b",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-RU.PA05.В.33655/22",
+            "startDate": "2022-09-14T00:00:00Z",
+            "endDate": "2027-08-02T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:33.659651+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:30.04234+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-07T11:55:22.675632+03:00"
+          }
+        },
+        {
+          "vendorCode": "53026-1",
+          "nmID": 1535430019,
+          "document": {
+            "id": "e872fbe8-12ff-474b-9c36-dbb242fa6b51",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-RU.PA05.В.33655/22",
+            "startDate": "2022-09-14T00:00:00Z",
+            "endDate": "2027-08-02T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:30.165424+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:28.245947+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-07T11:55:27.276475+03:00"
+          }
+        }
+      ],
+      "verified_at": "2026-10-12T03:03:35.569268+00:00"
+    },
+    {
+      "number": "ЕАЭС N RU Д-CN.РА06.В.53577/22",
+      "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763",
+      "files": [
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/00_Оригиналы_файлов/Декларация__53577_22_Лампы_люминесцентные_(ультрафиолетовые),_тм_Feron,_серии_EST,_FLU._Декларация_по_037_1__5eaa7ecf9e.jpg",
+          "size": 811887,
+          "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/04278-1/02_Декларация.jpg",
+          "size": 811887,
+          "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/04278-2/02_Декларация.jpg",
+          "size": 811887,
+          "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/04280-1/02_Декларация.jpg",
+          "size": 811887,
+          "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/04280-2/02_Декларация.jpg",
+          "size": 811887,
+          "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/04577-1/02_Декларация.jpg",
+          "size": 811887,
+          "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/04577-2/02_Декларация.jpg",
+          "size": 811887,
+          "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/04578-1/02_Декларация.jpg",
+          "size": 811887,
+          "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/04578-2/02_Декларация.jpg",
+          "size": 811887,
+          "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/25426-1/02_Декларация.jpg",
+          "size": 811887,
+          "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763"
+        },
+        {
+          "path": "/Users/vladimirgrebennikov/Downloads/Новая папка/Документы_качества_Feron/По_артикулам/25426-2/02_Декларация.jpg",
+          "size": 811887,
+          "sha256": "5eaa7ecf9e3176afc6d4d8a4732380ae989ccb06a53d1e7dc1d34e0bdd369763"
+        }
+      ],
+      "source_proof": {
+        "identity": "Direct visual inspection of actual originalJPEG full page; corrects malformed workbook OCR only after original verification",
+        "applicability": "Direct visual inspection of the actual originalJPEG declaration shows Feron fluorescent single-base,double-base andUV lamps seriesEST,FLU. All10 workbook titles were read and explicitly name Feron single-base fluorescent lampsEST1 orEST9 with one/two-pack variants. Complete workbook scan for exact source filename53577_22 finds exactly rows33,35,37,39,41,43,45,47,818,820, identical to all10 local_map offers. Workbook records official Feron product attachment URL; original and10copies freshly SHA/size verified. Applicability combines exact official attachment mapping and printed series/product scope, not category-only inference.",
+        "workbook_rows": [
+          {
+            "row": 33,
+            "offer": "04278-1",
+            "title": "Лампа люминесцентная одноцокольная Feron EST1 1U T4 2P G23 9W 230V 6400K 1 шт",
+            "source_url": "https://feron.ru/postup/certificate/53577 22 Лампы люминесцентные (ультрафиолетовые), тм Feron, серии  EST, FLU. Декларация по 037_1.jpg"
+          },
+          {
+            "row": 35,
+            "offer": "04278-2",
+            "title": "Лампа люминесцентная одноцокольная Feron EST1 1U T4 2P G23 9W 230V 6400K 2 шт",
+            "source_url": "https://feron.ru/postup/certificate/53577 22 Лампы люминесцентные (ультрафиолетовые), тм Feron, серии  EST, FLU. Декларация по 037_1.jpg"
+          },
+          {
+            "row": 37,
+            "offer": "04280-1",
+            "title": "Лампа люминесцентная одноцокольная Feron EST1 1U T4 2P G23 11W 230V 6400K 1 шт",
+            "source_url": "https://feron.ru/postup/certificate/53577 22 Лампы люминесцентные (ультрафиолетовые), тм Feron, серии  EST, FLU. Декларация по 037_1.jpg"
+          },
+          {
+            "row": 39,
+            "offer": "04280-2",
+            "title": "Лампа люминесцентная одноцокольная Feron EST1 1U T4 2P G23 11W 230V 6400K 2 шт",
+            "source_url": "https://feron.ru/postup/certificate/53577 22 Лампы люминесцентные (ультрафиолетовые), тм Feron, серии  EST, FLU. Декларация по 037_1.jpg"
+          },
+          {
+            "row": 41,
+            "offer": "04577-1",
+            "title": "Лампа люминесцентная одноцокольная Feron EST1 1U T4 2P G23 11W 230V 4000K 1 шт",
+            "source_url": "https://feron.ru/postup/certificate/53577 22 Лампы люминесцентные (ультрафиолетовые), тм Feron, серии  EST, FLU. Декларация по 037_1.jpg"
+          },
+          {
+            "row": 43,
+            "offer": "04577-2",
+            "title": "Лампа люминесцентная одноцокольная Feron EST1 1U T4 2P G23 11W 230V 4000K 2 шт",
+            "source_url": "https://feron.ru/postup/certificate/53577 22 Лампы люминесцентные (ультрафиолетовые), тм Feron, серии  EST, FLU. Декларация по 037_1.jpg"
+          },
+          {
+            "row": 45,
+            "offer": "04578-1",
+            "title": "Лампа люминесцентная одноцокольная Feron EST1 1U T4 2P G23 9W 230V 4000K 1 шт",
+            "source_url": "https://feron.ru/postup/certificate/53577 22 Лампы люминесцентные (ультрафиолетовые), тм Feron, серии  EST, FLU. Декларация по 037_1.jpg"
+          },
+          {
+            "row": 47,
+            "offer": "04578-2",
+            "title": "Лампа люминесцентная одноцокольная Feron EST1 1U T4 2P G23 9W 230V 4000K 2 шт",
+            "source_url": "https://feron.ru/postup/certificate/53577 22 Лампы люминесцентные (ультрафиолетовые), тм Feron, серии  EST, FLU. Декларация по 037_1.jpg"
+          },
+          {
+            "row": 818,
+            "offer": "25426-1",
+            "title": "Лампа люминесцентная одноцокольная Feron EST9 1U 2G7 11W 230V 4000K 1 шт",
+            "source_url": "https://feron.ru/postup/certificate/53577 22 Лампы люминесцентные (ультрафиолетовые), тм Feron, серии  EST, FLU. Декларация по 037_1.jpg"
+          },
+          {
+            "row": 820,
+            "offer": "25426-2",
+            "title": "Лампа люминесцентная одноцокольная Feron EST9 1U 2G7 11W 230V 4000K 2 шт",
+            "source_url": "https://feron.ru/postup/certificate/53577 22 Лампы люминесцентные (ультрафиолетовые), тм Feron, серии  EST, FLU. Декларация по 037_1.jpg"
+          }
+        ]
+      },
+      "ozon_certificate": {
+        "certificate_id": 5423304,
+        "certificate_name": "Декларация № ЕАЭС N RU Д-CN.PA06.В.53577/22",
+        "certificate_number": "ЕАЭС N RU Д-CN.РА06.В.53577/22",
+        "type_code": "declaration",
+        "status_code": "approved",
+        "accordance_type_code": "EAEU",
+        "rejection_reason_code": "",
+        "issue_date": "2022-09-15T00:00:00Z",
+        "expire_date": "2027-09-14T00:00:00Z",
+        "products_count": 10,
+        "verification_comment": ""
+      },
+      "ozon_required_pairs": [
+        [
+          "4356310504",
+          "4645564339"
+        ],
+        [
+          "4356310929",
+          "4645563831"
+        ],
+        [
+          "4356311283",
+          "4645565300"
+        ],
+        [
+          "4356312912",
+          "4645566078"
+        ],
+        [
+          "4356314825",
+          "4645567470"
+        ],
+        [
+          "4356315986",
+          "4645568362"
+        ],
+        [
+          "4356322153",
+          "4645570320"
+        ],
+        [
+          "4356322329",
+          "4645569263"
+        ],
+        [
+          "4404989471",
+          "4645572168"
+        ],
+        [
+          "4404995602",
+          "4645571506"
+        ]
+      ],
+      "ozon_readback": [
+        {
+          "product_id": 4645563831,
+          "product_status_code": "approved",
+          "sku": 4356310929
+        },
+        {
+          "product_id": 4645564339,
+          "product_status_code": "approved",
+          "sku": 4356310504
+        },
+        {
+          "product_id": 4645565300,
+          "product_status_code": "approved",
+          "sku": 4356311283
+        },
+        {
+          "product_id": 4645566078,
+          "product_status_code": "approved",
+          "sku": 4356312912
+        },
+        {
+          "product_id": 4645567470,
+          "product_status_code": "approved",
+          "sku": 4356314825
+        },
+        {
+          "product_id": 4645568362,
+          "product_status_code": "approved",
+          "sku": 4356315986
+        },
+        {
+          "product_id": 4645569263,
+          "product_status_code": "approved",
+          "sku": 4356322329
+        },
+        {
+          "product_id": 4645570320,
+          "product_status_code": "approved",
+          "sku": 4356322153
+        },
+        {
+          "product_id": 4645571506,
+          "product_status_code": "approved",
+          "sku": 4404995602
+        },
+        {
+          "product_id": 4645572168,
+          "product_status_code": "approved",
+          "sku": 4404989471
+        }
+      ],
+      "wb_readback": [
+        {
+          "vendorCode": "04278-1",
+          "nmID": 1055044615,
+          "document": {
+            "id": "0e7be917-beea-449b-8bb8-2ab9bdc5725c",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.PA06.В.53577/22",
+            "startDate": "2022-09-15T00:00:00Z",
+            "endDate": "2027-09-14T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:24.976545+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:19.96983+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-25T16:58:34.387062+03:00"
+          }
+        },
+        {
+          "vendorCode": "04278-2",
+          "nmID": 1055044619,
+          "document": {
+            "id": "26027110-99eb-46e3-ad7e-be986933b46f",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.PA06.В.53577/22",
+            "startDate": "2022-09-15T00:00:00Z",
+            "endDate": "2027-09-14T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:24.661945+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:19.96983+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-25T16:58:57.787251+03:00"
+          }
+        },
+        {
+          "vendorCode": "04280-1",
+          "nmID": 1055044616,
+          "document": {
+            "id": "86a1b67d-f773-4829-8478-7a933f3b3ba2",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.PA06.В.53577/22",
+            "startDate": "2022-09-15T00:00:00Z",
+            "endDate": "2027-09-14T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:24.85816+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:19.96983+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-30T02:23:56.402933+03:00"
+          }
+        },
+        {
+          "vendorCode": "04280-2",
+          "nmID": 1055044620,
+          "document": {
+            "id": "8dc8fdd7-20e2-4e99-934a-2195786bf1ee",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.PA06.В.53577/22",
+            "startDate": "2022-09-15T00:00:00Z",
+            "endDate": "2027-09-14T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:25.058014+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:19.96983+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-30T00:17:29.23855+03:00"
+          }
+        },
+        {
+          "vendorCode": "04577-1",
+          "nmID": 1055044617,
+          "document": {
+            "id": "f70dd5ca-c119-4328-9390-9e218fc9609d",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.PA06.В.53577/22",
+            "startDate": "2022-09-15T00:00:00Z",
+            "endDate": "2027-09-14T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:24.964922+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:19.96983+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-29T23:23:30.936247+03:00"
+          }
+        },
+        {
+          "vendorCode": "04577-2",
+          "nmID": 1055044621,
+          "document": {
+            "id": "3fe171bd-63f0-413e-a37f-521e190f3c68",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.PA06.В.53577/22",
+            "startDate": "2022-09-15T00:00:00Z",
+            "endDate": "2027-09-14T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:24.561549+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:19.96983+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-30T02:25:00.155567+03:00"
+          }
+        },
+        {
+          "vendorCode": "04578-1",
+          "nmID": 1055044618,
+          "document": {
+            "id": "edc5e718-03cd-4567-aa05-41bb5e8b403f",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.PA06.В.53577/22",
+            "startDate": "2022-09-15T00:00:00Z",
+            "endDate": "2027-09-14T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:24.958488+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:19.96983+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-30T01:33:28.94256+03:00"
+          }
+        },
+        {
+          "vendorCode": "04578-2",
+          "nmID": 1055044622,
+          "document": {
+            "id": "4328fe1c-851a-4cc4-8c9b-3511effc733e",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.PA06.В.53577/22",
+            "startDate": "2022-09-15T00:00:00Z",
+            "endDate": "2027-09-14T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:24.976545+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:19.96983+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-30T03:40:34.123678+03:00"
+          }
+        },
+        {
+          "vendorCode": "25426-1",
+          "nmID": 1055044613,
+          "document": {
+            "id": "e348e28b-45f1-48e2-a44e-a180bc83dce8",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.PA06.В.53577/22",
+            "startDate": "2022-09-15T00:00:00Z",
+            "endDate": "2027-09-14T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:25.058014+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:19.96983+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-30T00:00:28.763639+03:00"
+          }
+        },
+        {
+          "vendorCode": "25426-2",
+          "nmID": 1055044614,
+          "document": {
+            "id": "e9f5706a-c689-4cfe-8171-24dfe8e46931",
+            "type": 2,
+            "number": "ЕАЭС N RU Д-CN.PA06.В.53577/22",
+            "startDate": "2022-09-15T00:00:00Z",
+            "endDate": "2027-09-14T00:00:00Z",
+            "isEndless": false,
+            "verdict": {
+              "verified": true,
+              "status": 1,
+              "reason": "valid",
+              "createdAt": "2026-10-05T15:32:24.957536+03:00"
+            },
+            "createdAt": "2026-10-05T15:32:19.96983+03:00"
+          },
+          "overallVerdict": {
+            "isFullyChecked": true,
+            "status": 1,
+            "reason": "",
+            "createdAt": "2026-09-30T02:18:22.20582+03:00"
+          }
+        }
+      ],
+      "verified_at": "2026-10-12T03:03:48.602193+00:00"
+    }
+  ],
+  "blocked": [
+    {
+      "number": "ЕАЭС N RU Д-CN.РА02.В.87159/22",
+      "reason": "Ozon certificate not finally approved or metadata mismatch"
+    }
+  ],
+  "summary": {
+    "documents": 2,
+    "files": 14,
+    "bytes": 9604443,
+    "ozon_target_pairs": 12,
+    "wb_cards": 12
+  }
+}

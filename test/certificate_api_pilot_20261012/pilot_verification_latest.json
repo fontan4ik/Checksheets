@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-12T02:51:02.570420+00:00",
+  "checked_at": "2026-10-12T03:04:28.170356+00:00",
   "pilots": [
     {
       "spec": {
@@ -342,24 +342,87 @@
     {
       "nmID": 1514673182,
       "present": true,
-      "changed_unrelated_fields": [
-        "characteristics"
+      "changed_unrelated_fields": [],
+      "server_added_document_characteristics": [
+        {
+          "id": 15001137,
+          "name": "Дата регистрации сертификата/декларации",
+          "value": [
+            "07.10.2022"
+          ]
+        },
+        {
+          "id": 15001138,
+          "name": "Дата окончания действия сертификата/декларации",
+          "value": [
+            "05.10.2027"
+          ]
+        },
+        {
+          "id": 15001135,
+          "name": "Номер декларации соответствия",
+          "value": [
+            "ЕАЭС N RU Д-CN.РА07.В.18481/22"
+          ]
+        }
       ]
     },
     {
       "nmID": 1508521338,
       "present": true,
-      "changed_unrelated_fields": [
-        "characteristics"
+      "changed_unrelated_fields": [],
+      "server_added_document_characteristics": [
+        {
+          "id": 15001135,
+          "name": "Номер декларации соответствия",
+          "value": [
+            "ЕАЭС N RU Д-CN.РА04.В.60713/25"
+          ]
+        },
+        {
+          "id": 15001137,
+          "name": "Дата регистрации сертификата/декларации",
+          "value": [
+            "23.05.2025"
+          ]
+        },
+        {
+          "id": 15001138,
+          "name": "Дата окончания действия сертификата/декларации",
+          "value": [
+            "22.05.2030"
+          ]
+        }
       ]
     },
     {
       "nmID": 1301546821,
       "present": true,
-      "changed_unrelated_fields": [
-        "characteristics"
+      "changed_unrelated_fields": [],
+      "server_added_document_characteristics": [
+        {
+          "id": 15001137,
+          "name": "Дата регистрации сертификата/декларации",
+          "value": [
+            "14.04.2026"
+          ]
+        },
+        {
+          "id": 15001138,
+          "name": "Дата окончания действия сертификата/декларации",
+          "value": [
+            "13.04.2031"
+          ]
+        },
+        {
+          "id": 15001135,
+          "name": "Номер декларации соответствия",
+          "value": [
+            "ЕАЭС N RU Д-CN.РА03.В.40430/26"
+          ]
+        }
       ]
     }
   ],
-  "all_unrelated_card_fields_preserved": false
+  "all_unrelated_card_fields_preserved": true
 }

@@ -3,7 +3,8 @@ const OZON_ANALYTICS_BATCH_INDEX_KEY = "OZON_ANALYTICS_BATCH_INDEX";
 const OZON_ANALYTICS_PERIOD_RETRY_KEY = "OZON_ANALYTICS_PERIOD_RETRY_COUNT";
 const OZON_ANALYTICS_RUN_ID_KEY = "OZON_ANALYTICS_RUN_ID";
 const OZON_ANALYTICS_RANGE_SIGNATURE_KEY = "OZON_ANALYTICS_RANGE_SIGNATURE";
-const OZON_ANALYTICS_TEMP_FILE_ID_KEY = "OZON_ANALYTICS_TEMP_FILE_ID";
+const OZON_ANALYTICS_TEMP_FILE_ID_KEY = "OZON_ANALYTICS_TEMP_FILE_ID"; // Legacy migration only
+const OZON_ANALYTICS_TEMP_SHEET = "_OZON_ANALYTICS_STATE";
 const OZON_ANALYTICS_CONTINUATION_HANDLER = "continueFetchAndWriteAnalytics";
 const OZON_ANALYTICS_RPS = 1 / 8;
 const OZON_ANALYTICS_BATCH_SIZE = 500;
@@ -37,6 +38,7 @@ function fetchAndWriteAnalytics_(resetState) {
 
   try {
   const props = PropertiesService.getScriptProperties();
+  migrateOzonAnalyticsTempStorage_(props);
   const monthRange = get3rdTo3rdDateRangeFormatted();
   const quarterRange = getOzonAnalyticsQuarterRangeFormatted_();
   const yearRange = getYearDateRangeFormatted();
@@ -61,6 +63,8 @@ function fetchAndWriteAnalytics_(resetState) {
       : "Состояние Ozon analytics сброшено: начинается новый полный цикл");
   }
 
+  // Проверяем checkpoint до новых API запросов и до продвижения cursor.
+  readOzonAnalyticsTempPayload_();
   const sheet = mainSheet();
   const lastRow = sheet.getLastRow();
   const skuRange = sheet.getRange("V2:V" + lastRow);
@@ -89,7 +93,8 @@ function fetchAndWriteAnalytics_(resetState) {
       payload: JSON.stringify(body),
       muteHttpExceptions: true
     };
-    const response = fetchOzonAnalyticsResponse_(ozonAnalyticsData(), options, OZON_ANALYTICS_MAX_RETRIES);
+    const response = fetchOzonAnalyticsResponse_(ozonAnalyticsData(), options,
+      OZON_ANALYTICS_MAX_RETRIES, Number(startTime) + OZON_ANALYTICS_MAX_RUN_MS);
 
     if (!response) {
       Logger.log(`Пакет Ozon analytics временно не получен, будет повторён следующим запуском`);
@@ -338,6 +343,9 @@ function continueFetchAndWriteAnalytics() {
 
 function continueFetchAndWriteAnalytics_() {
   deleteOzonAnalyticsContinuationTriggers_();
+  // Другой владелец мог уже завершить общий проход. Старое продолжение
+  // должно закончиться, а не создавать новый цикл аналитики.
+  if (!PropertiesService.getScriptProperties().getProperty(OZON_ANALYTICS_RUN_ID_KEY)) return;
   fetchAndWriteAnalytics();
 }
 
@@ -355,10 +363,12 @@ function stopOzonAnalyticsTriggers() {
   Logger.log("Ozon analytics остановлен: триггеры продолжения, состояние и временные данные очищены");
 }
 
-function fetchOzonAnalyticsResponse_(url, options, maxRetries) {
+function fetchOzonAnalyticsResponse_(url, options, maxRetries, deadline) {
   const retries = maxRetries || 2;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
+    // Leave time for an in-flight request and persisting the current batch.
+    if (deadline && Date.now() + 60000 >= deadline) return null;
     try {
       const response = UrlFetchApp.fetch(url, options);
       const responseCode = response.getResponseCode();
@@ -379,6 +389,7 @@ function fetchOzonAnalyticsResponse_(url, options, maxRetries) {
 
     if (attempt < retries) {
       const waitTime = Math.pow(2, attempt - 1) * OZON_ANALYTICS_RETRY_BASE_DELAY_MS;
+      if (deadline && Date.now() + waitTime + 60000 >= deadline) return null;
       Logger.log(`Пауза перед повтором Ozon analytics: ${Math.round(waitTime / 1000)} сек`);
       Utilities.sleep(waitTime);
     }
@@ -412,62 +423,86 @@ function loadOzonAnalyticsTempMap_(runId, periodIndex) {
   return result;
 }
 
+/** Called only while fetchAndWriteAnalytics_ holds the shared script lock. */
+function migrateOzonAnalyticsTempStorage_(props) {
+  if (!props.getProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY)) return;
+  // Другой владелец триггера мог сохранить приватный Drive-файл. Начинаем
+  // полный проход заново: старый cursor нельзя сочетать с пустым checkpoint.
+  [OZON_ANALYTICS_STATE_KEY, OZON_ANALYTICS_BATCH_INDEX_KEY,
+    OZON_ANALYTICS_PERIOD_RETRY_KEY, OZON_ANALYTICS_RUN_ID_KEY,
+    OZON_ANALYTICS_RANGE_SIGNATURE_KEY, OZON_ANALYTICS_TEMP_FILE_ID_KEY]
+    .forEach(key => props.deleteProperty(key));
+  clearOzonAnalyticsTempStorage_();
+  deleteOzonAnalyticsContinuationTriggers_();
+  Logger.log('Ozon analytics: переход с приватного Drive checkpoint; все периоды будут получены заново. Файл прежнего владельца не изменён.');
+}
+
+/**
+ * Shared service layout, documented fixed-column exception:
+ * _OZON_ANALYTICS_STATE!A1 = JSON metadata; A2:A = gzip/base64 parts
+ * (32000 characters per cell). This hidden tab is accessible to both owners.
+ */
 function readOzonAnalyticsTempPayload_() {
   const props = PropertiesService.getScriptProperties();
-  const fileId = props.getProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY);
-
-  if (!fileId) {
+  if (props.getProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY)) {
+    throw new Error('Ozon analytics: старый Drive checkpoint требует сброса cursor под общей блокировкой');
+  }
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(OZON_ANALYTICS_TEMP_SHEET);
+  if (!sheet || !sheet.getLastRow()) {
+    // Новый проход всегда создаёт пустой checkpoint перед первым API пакетом.
+    // Потеря уже начатого checkpoint является ошибкой, а не пустой аналитикой.
+    if (props.getProperty(OZON_ANALYTICS_RUN_ID_KEY)) throw new Error('Ozon analytics checkpoint отсутствует; запись результатов отменена');
     return { rows: [] };
   }
-
   try {
-    const text = DriveApp.getFileById(fileId).getBlob().getDataAsString();
-    return JSON.parse(text || '{"rows":[]}');
-  } catch (e) {
-    Logger.log(`Не удалось прочитать временный файл Ozon analytics: ${e.toString()}`);
-    // ID мог стать недействительным: файл удалён, перемещён в корзину
-    // или стал недоступен аккаунту, выполняющему триггер. Не оставляем
-    // такой ID в свойствах, иначе следующая запись снова упадёт.
-    props.deleteProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY);
-    return { rows: [] };
+    const metadata = JSON.parse(sheet.getRange(1, 1).getValue());
+    const runId = props.getProperty(OZON_ANALYTICS_RUN_ID_KEY);
+    const signature = props.getProperty(OZON_ANALYTICS_RANGE_SIGNATURE_KEY);
+    if (metadata.version !== 1 || metadata.runId !== runId || metadata.signature !== signature ||
+        !Number.isSafeInteger(metadata.count) || metadata.count < 1 || metadata.count + 1 > sheet.getLastRow()) {
+      throw new Error('Неверный runId/диапазон/число частей');
+    }
+    const parts = sheet.getRange(2, 1, metadata.count, 1).getValues().map(row => row[0]);
+    if (parts.some(part => typeof part !== 'string' || !part)) throw new Error('Checkpoint неполон');
+    const encoded = parts.join('');
+    const checksum = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, encoded));
+    if (checksum !== metadata.checksum) throw new Error('Checksum checkpoint не совпадает');
+    const payload = JSON.parse(Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(encoded))).getDataAsString());
+    if (!payload || !Array.isArray(payload.rows) || payload.rows.some(row => !Array.isArray(row) ||
+        row.length !== 5 || String(row[0]) !== runId || !Number.isSafeInteger(row[1]) || row[1] < 0 || row[1] > 2)) {
+      throw new Error('Checkpoint содержит неверную структуру строк');
+    }
+    return payload;
+  } catch (error) {
+    throw new Error('Ozon analytics checkpoint повреждён; запись результатов отменена: ' + error.message);
   }
 }
 
 function writeOzonAnalyticsTempPayload_(payload) {
   const props = PropertiesService.getScriptProperties();
-  let fileId = props.getProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY);
-  const content = JSON.stringify(payload);
-
-  if (fileId) {
-    try {
-      DriveApp.getFileById(fileId).setContent(content);
-      return;
-    } catch (e) {
-      Logger.log(`Не удалось обновить временный файл Ozon analytics: ${e.toString()}`);
-      // Файл мог быть удалён между чтением и записью. Сбрасываем ID и
-      // создаём новый файл ниже, чтобы триггер мог продолжить работу.
-      props.deleteProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY);
-    }
-  }
-
-  const runId = props.getProperty(OZON_ANALYTICS_RUN_ID_KEY) || String(Date.now());
-  const file = DriveApp.createFile(`ozon_analytics_tmp_${runId}.json`, content, MimeType.PLAIN_TEXT);
-  props.setProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY, file.getId());
+  const runId = props.getProperty(OZON_ANALYTICS_RUN_ID_KEY);
+  if (!runId) throw new Error('Ozon analytics: запись checkpoint без runId запрещена');
+  const encoded = Utilities.base64Encode(Utilities.gzip(Utilities.newBlob(JSON.stringify(payload))).getBytes());
+  const count = Math.ceil(encoded.length / 32000);
+  const metadata = { version: 1, runId: runId,
+    signature: props.getProperty(OZON_ANALYTICS_RANGE_SIGNATURE_KEY), count: count,
+    checksum: Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, encoded)) };
+  const values = [[JSON.stringify(metadata)]];
+  for (let i = 0; i < count; i++) values.push([encoded.slice(i * 32000, (i + 1) * 32000)]);
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = spreadsheet.getSheetByName(OZON_ANALYTICS_TEMP_SHEET);
+  if (!sheet) { sheet = spreadsheet.insertSheet(OZON_ANALYTICS_TEMP_SHEET); sheet.hideSheet(); }
+  if (sheet.getMaxRows() < values.length) sheet.insertRowsAfter(sheet.getMaxRows(), values.length - sheet.getMaxRows());
+  sheet.getRange(1, 1, values.length, 1).setValues(values);
 }
 
 function clearOzonAnalyticsTempStorage_() {
   const props = PropertiesService.getScriptProperties();
-  const fileId = props.getProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY);
-
-  if (fileId) {
-    try {
-      DriveApp.getFileById(fileId).setTrashed(true);
-    } catch (e) {
-      Logger.log(`Не удалось удалить временный файл Ozon analytics: ${e.toString()}`);
-    }
-  }
-
+  // Detach the legacy file reference without reading, sharing, or trashing it.
   props.deleteProperty(OZON_ANALYTICS_TEMP_FILE_ID_KEY);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(OZON_ANALYTICS_TEMP_SHEET);
+  if (sheet) sheet.clearContents();
+  if (props.getProperty(OZON_ANALYTICS_RUN_ID_KEY)) writeOzonAnalyticsTempPayload_({ rows: [] });
 }
 
 function scheduleOzonAnalyticsContinuation_(delayMs) {

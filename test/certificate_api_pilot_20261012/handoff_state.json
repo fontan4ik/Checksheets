@@ -1,0 +1,47 @@
+{
+  "checked_at": "2026-10-12T03:04:28.170356+00:00",
+  "pending_wb": [
+    {
+      "offer": "14048-1",
+      "nmID": 1514673182,
+      "number": "ЕАЭС N RU Д-CN.РА07.В.18481/22",
+      "ozon_final": true,
+      "reason": "WB document verdict absent; retain original file; do not resend update"
+    },
+    {
+      "offer": "14320-1",
+      "nmID": 1508521338,
+      "number": "ЕАЭС N RU Д-CN.РА04.В.60713/25",
+      "ozon_final": true,
+      "reason": "WB document verdict absent; retain original file; do not resend update"
+    },
+    {
+      "offer": "WTP10-16-03-ZK-K01-1",
+      "nmID": 1301546821,
+      "number": "ЕАЭС N RU Д-CN.РА03.В.40430/26",
+      "ozon_final": true,
+      "reason": "WB document verdict absent; retain original file; do not resend update"
+    },
+    {
+      "offer": "WTP10-16-03-ZK-K01-1",
+      "nmID": 1301546821,
+      "number": "ЕАЭС RU С-CN.АЯ46.В.47896/26",
+      "ozon_final": true,
+      "reason": "WB document verdict absent; retain original file; do not resend update"
+    }
+  ],
+  "metadata_discrepancy": {
+    "number": "ЕАЭС N RU Д-CN.РА02.В.87159/22",
+    "printed_registration_date": "2022-04-04",
+    "ozon_issue_date": "2022-04-05",
+    "retained_files": 8
+  },
+  "cleanup_completed": {
+    "documents": 2,
+    "files": 14,
+    "bytes": 9604443,
+    "ozon_target_pairs": 12,
+    "wb_cards": 12
+  },
+  "read_only_recheck_command": "python3 test/certificate_api_pilot_20261012/verify_pilot.py"
+}

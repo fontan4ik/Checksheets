@@ -32,8 +32,8 @@ function columnLetterToIndex(letter) {
 
 /**
  * Точка входа для уже существующего триггера updateProductsV2.
- * Сначала актуализирует список товаров и product_id в A/U, затем обновляет
- * карточки. Новый триггер для этой последовательности не нужен.
+ * Обновляет поля карточек по артикулам из A. Тот же обработчик используется
+ * существующим maintainArticleColumn; A/U обновляет OzonMain/syncOfferIdWithProductId.
  */
 function updateProductsV2() {
   return runWithTelegramAlertGAS_("updateProductsV2", updateProductsV2AlertCore_);

@@ -136,10 +136,10 @@ function scheduleNextWbStep(nextStep, toastMessage, delayMs) {
  * Вызывается триггерами в 03:23 и 08:14 (текущее расписание)
  *
  * ✅ АВТОНОМНАЯ ФУНКЦИЯ - работает независимо от порядка выполнения
- * ✅ Читает SKU из V (22) который заполняет OzonMain
+ * Читает SKU из V (22), который обновляет maintainArticleColumn/updateProductsV2.
  *
  * ЧИТАЕТ ИЗ:
- * - V (22): SKU Ozon (заполняется в OzonMain → updateProductsV2)
+ * - V (22): SKU Ozon (maintainArticleColumn → updateProductsV2Core_)
  *
  * ЗАПОЛНЯЕТ:
  * - I (9): Уход Мес ОЗОН
@@ -148,7 +148,7 @@ function scheduleNextWbStep(nextStep, toastMessage, delayMs) {
  */
 function OzonSKUAndAnalyticCore_(){
   try {
-    fetchAndWriteAnalytics();      // Получение и запись аналитики
+    return startFetchAndWriteAnalytics_();
   } catch (err) {
     Logger.log("❌ Ошибка в OzonSKUAndAnalytic: " + err);
     throw err;
@@ -157,11 +157,19 @@ function OzonSKUAndAnalyticCore_(){
 
 
 /**
- * maintainArticleColumn - Проверка артикулов
- * Вызывается триггером в 02:22
- * Работает без ошибок (0%)
+ * Старое имя триггера: обогащение карточек Ozon по уже имеющимся артикулам.
+ * Общий lock и курсор updateProductsV2 ограничивают проход 2.5 минутами.
  */
 function maintainArticleColumnCore_() {
+  return updateProductsV2AlertCore_();
+}
+
+/** Прежняя проверка колонки A доступна для отдельного ручного запуска. */
+function auditArticleColumn() {
+  return runWithTelegramAlertGAS_('auditArticleColumn', auditArticleColumnCore_);
+}
+
+function auditArticleColumnCore_() {
   const sheet = mainSheet();
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return;

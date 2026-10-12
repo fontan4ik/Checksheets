@@ -41,8 +41,13 @@ def canonical_card(card):
 
 
 def norm(number):
-    # Preserve country/year; only whitespace/punctuation and visual C/С are equivalent.
-    return ''.join(x for x in str(number).upper().replace('С', 'C') if x.isalnum())
+    # Full legal identity: preserve country/year/type; only visual glyph variants,
+    # presentation prefix and punctuation are equivalent. Never correct OCR digits.
+    text = re.sub(r'^(?:ЕАЭС|EAEU|EAEC|EAC)\s*', '', str(number).strip().upper())
+    text = re.sub(r'^(?:N|№)\s+', '', text)
+    tr = str.maketrans({'А':'A', 'В':'B', 'Е':'E', 'К':'K', 'М':'M', 'Н':'H', 'О':'O',
+                       'Р':'P', 'С':'C', 'Т':'T', 'У':'Y', 'Х':'X', 'Д':'D'})
+    return ''.join(x for x in text.translate(tr) if x.isalnum())
 
 
 def list_certificates(client):

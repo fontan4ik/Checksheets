@@ -1,0 +1,15 @@
+{
+  "result": {
+    "certificate_id": 5605326,
+    "certificate_name": "Декларация о соответствии № ЕАЭС N RU Д-CN.РА07.В.18481/22",
+    "certificate_number": "ЕАЭС N RU Д-CN.РА07.В.18481/22",
+    "type_code": "declaration",
+    "status_code": "approved",
+    "accordance_type_code": "EAEU",
+    "rejection_reason_code": "",
+    "issue_date": "2022-10-07T00:00:00Z",
+    "expire_date": "2027-10-05T00:00:00Z",
+    "products_count": 1,
+    "verification_comment": ""
+  }
+}

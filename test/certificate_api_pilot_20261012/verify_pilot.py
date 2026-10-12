@@ -20,8 +20,20 @@ def main():
         differences = []
         if current:
             a, b = canonical_card(source), canonical_card(current)
-            differences = [k for k in FIELDS + ('photos', 'video', 'tags', 'needKiz', 'subjectID', 'imtID', 'nmUUID') if a.get(k) != b.get(k)]
-        result['card_preservation'].append({'nmID': nm, 'present': current is not None, 'changed_unrelated_fields': differences})
+            differences = [k for k in FIELDS + ('photos', 'video', 'tags', 'needKiz', 'subjectID', 'imtID', 'nmUUID') if k != 'characteristics' and a.get(k) != b.get(k)]
+            old_chars = {c['id']: c for c in a.get('characteristics', [])}
+            new_chars = {c['id']: c for c in b.get('characteristics', [])}
+            # WB mirrors document metadata into these three document characteristics.
+            expected_doc_ids = {15001135, 15001137, 15001138}
+            changed_original = [cid for cid, c in old_chars.items() if new_chars.get(cid) != c]
+            unexpected_added = [cid for cid in new_chars.keys() - old_chars.keys() if cid not in expected_doc_ids]
+            if changed_original or unexpected_added:
+                differences.append('characteristics')
+            document_attribute_additions = [new_chars[cid] for cid in new_chars.keys() - old_chars.keys() if cid in expected_doc_ids]
+        else:
+            document_attribute_additions = []
+        result['card_preservation'].append({'nmID': nm, 'present': current is not None, 'changed_unrelated_fields': differences,
+                                            'server_added_document_characteristics': document_attribute_additions})
     for p in PILOTS:
         matches = [c for c in certs if norm(c['certificate_number']) == norm(p['number']) and c['type_code'] == ('declaration' if p['type'] == 2 else 'certificate_of_conformity')]
         ozon = []
