@@ -1,0 +1,74 @@
+{
+  "checked_at": "2026-10-12T03:13:18.305029+00:00",
+  "documents_checked": 4,
+  "wb_final_documents": 0,
+  "deleted_files": 0,
+  "retained_files": [
+    {
+      "number": "ЕАЭС N RU Д-CN.РА07.В.18481/22",
+      "offer": "14048-1",
+      "nmID": 1514673182,
+      "source": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_2/NAVIGATOR/documents/NAV_declaration_14048_bb50bd4efe46.pdf",
+      "sha256": "bb50bd4efe4688c07913e4153ec1067a8004842f7d22199311f4e8982e33a85e",
+      "size": 810483,
+      "decision": "retain",
+      "reason": "WB final document verdict absent",
+      "ozon_final": true,
+      "wb_final": false,
+      "both_final": false,
+      "wb_document_ids": [
+        "4a7c07da-f351-46bd-a5be-dc488a7be1ac"
+      ]
+    },
+    {
+      "number": "ЕАЭС N RU Д-CN.РА04.В.60713/25",
+      "offer": "14320-1",
+      "nmID": 1508521338,
+      "source": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_2/NAVIGATOR/documents/NAV_declaration_14320_3aed124818bf.pdf",
+      "sha256": "3aed124818bf8c2bf1ead157f3e3540964881e3abaed4b9b6f67b253ef9ae036",
+      "size": 430100,
+      "decision": "retain",
+      "reason": "WB final document verdict absent",
+      "ozon_final": true,
+      "wb_final": false,
+      "both_final": false,
+      "wb_document_ids": [
+        "270df637-cfc7-4ba7-8d37-0a4772b26532"
+      ]
+    },
+    {
+      "number": "ЕАЭС N RU Д-CN.РА03.В.40430/26",
+      "offer": "WTP10-16-03-ZK-K01-1",
+      "nmID": 1301546821,
+      "source": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_2/IEK_GENERICA/documents/Адаптеры-переходники_тройники_._BOYANG_937ed62024.pdf",
+      "sha256": "a368e136b16c9c2674f401170d2d58ec4bce981e6a1b722f861f9e0b23df81b1",
+      "size": 4898845,
+      "decision": "retain",
+      "reason": "WB final document verdict absent",
+      "ozon_final": true,
+      "wb_final": false,
+      "both_final": false,
+      "wb_document_ids": [
+        "31f0b239-ef47-4557-b2d6-614ba962df3f"
+      ]
+    },
+    {
+      "number": "ЕАЭС RU С-CN.АЯ46.В.47896/26",
+      "offer": "WTP10-16-03-ZK-K01-1",
+      "nmID": 1301546821,
+      "source": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_2/IEK_GENERICA/documents/Адаптеры_-_переходники_тройники_товарного_знака_IEK._BOYANG_89d29602ae.pdf",
+      "sha256": "bcd11f7733154e0d09615636e5c319a34c9382d8e3f500ac7f2a92975ff4e150",
+      "size": 1158135,
+      "decision": "retain",
+      "reason": "WB final document verdict absent",
+      "ozon_final": true,
+      "wb_final": false,
+      "both_final": false,
+      "wb_document_ids": [
+        "e88ac7b5-0490-4faf-94bd-955255675240"
+      ]
+    }
+  ],
+  "unrelated_card_fields_preserved": true,
+  "coverage_check": "Cleanup blocked at WB verdict gate for every document; full coverage recheck still required before any later cleanup."
+}

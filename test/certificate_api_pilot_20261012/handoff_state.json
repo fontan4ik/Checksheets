@@ -1,5 +1,5 @@
 {
-  "checked_at": "2026-10-12T03:04:28.170356+00:00",
+  "checked_at": "2026-10-12T03:13:18.305029+00:00",
   "pending_wb": [
     {
       "offer": "14048-1",
@@ -43,5 +43,13 @@
     "ozon_target_pairs": 12,
     "wb_cards": 12
   },
-  "read_only_recheck_command": "python3 test/certificate_api_pilot_20261012/verify_pilot.py"
+  "read_only_recheck_command": "python3 test/certificate_api_pilot_20261012/verify_pilot.py",
+  "latest_followup": {
+    "checked_at": "2026-10-12T03:13:18.305029+00:00",
+    "documents_checked": 4,
+    "wb_final_documents": 0,
+    "retained_files": 4,
+    "deleted_files": 0,
+    "evidence": "wb_followup_latest.json"
+  }
 }
