@@ -1,0 +1,182 @@
+{
+  "started_at": "2026-10-12T03:28:42.506469+00:00",
+  "actions": [
+    {
+      "number": "ЕАЭС RU C-RU.АТ21.В.00153/25",
+      "outcome": "already_attached_pending_or_declined"
+    },
+    {
+      "number": "ЕАЭС N RU Д-RU.РА01.В.69737/25",
+      "outcome": "already_bound"
+    },
+    {
+      "number": "ЕАЭС RU C-RU.АТ21.В.00159/25",
+      "outcome": "already_bound"
+    },
+    {
+      "number": "ЕАЭС N RU Д-RU.РА01.В.70012/25",
+      "outcome": "already_bound"
+    },
+    {
+      "number": "ЕАЭС N RU Д-CN.РА07.В.27606/25",
+      "response": {
+        "params": [
+          {
+            "name": "CERTIFICATE_TYPE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "CERTIFICATE_COUNTRY",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "ACCORDANCE_TYPE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "NAME",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "NUMBER",
+            "state": "VALID",
+            "error": null,
+            "number_mask": [
+              "^ЕАЭС N RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}(?:/\\d{2})?$",
+              "^ТС RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}$",
+              "^ТС N RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}(?:/\\d{2})?$"
+            ]
+          },
+          {
+            "name": "ISSUE_DATE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "EXPIRED_DATE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "INFINITE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "SKUS",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          }
+        ],
+        "certificate_id": "5605462",
+        "status": "COMPLETED"
+      },
+      "certificate_id": 5605462,
+      "status": "COMPLETED",
+      "invalid_params": [],
+      "outcome": "created_and_bound_readback_present",
+      "live_status": "approved",
+      "live_binding_readback": [
+        {
+          "product_id": 73731212,
+          "product_status_code": "approved",
+          "sku": 262716853
+        }
+      ],
+      "all_target_pairs_present": true
+    },
+    {
+      "number": "ЕАЭС N RU Д-CN.РА04.В.68365/23",
+      "response": {
+        "params": [
+          {
+            "name": "CERTIFICATE_TYPE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "CERTIFICATE_COUNTRY",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "ACCORDANCE_TYPE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "NAME",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "NUMBER",
+            "state": "VALID",
+            "error": null,
+            "number_mask": [
+              "^ЕАЭС N RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}(?:/\\d{2})?$",
+              "^ТС RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}$",
+              "^ТС N RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}(?:/\\d{2})?$"
+            ]
+          },
+          {
+            "name": "ISSUE_DATE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "EXPIRED_DATE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "INFINITE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "SKUS",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          }
+        ],
+        "certificate_id": "5605464",
+        "status": "COMPLETED"
+      },
+      "certificate_id": 5605464,
+      "status": "COMPLETED",
+      "invalid_params": [],
+      "outcome": "created_and_bound_readback_present",
+      "live_status": "approved",
+      "live_binding_readback": [
+        {
+          "product_id": 75339283,
+          "product_status_code": "approved",
+          "sku": 267770402
+        }
+      ],
+      "all_target_pairs_present": true
+    }
+  ],
+  "finished_at": "2026-10-12T03:28:54.846882+00:00"
+}

@@ -157,7 +157,7 @@ def git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
 def git_status() -> str:
     # Nested app worktrees are maintained independently. Their dirty files are
     # not root source edits; a changed gitlink commit is still reported.
-    return git("status", "--porcelain=v1", "--ignore-submodules=dirty").stdout
+    return git("status", "--porcelain=v1", "--ignore-submodules=dirty", "--untracked-files=all").stdout
 
 
 def git_sha(ref: str = "HEAD") -> str:
@@ -221,7 +221,7 @@ def write_state(payload: dict) -> None:
 
 def status_paths() -> list[str]:
     paths: list[str] = []
-    entries = iter(git("status", "--porcelain=v1", "--ignore-submodules=dirty", "-z").stdout.split("\x00"))
+    entries = iter(git("status", "--porcelain=v1", "--ignore-submodules=dirty", "--untracked-files=all", "-z").stdout.split("\x00"))
     for entry in entries:
         if not entry:
             continue
@@ -234,30 +234,47 @@ def status_paths() -> list[str]:
 
 
 def stash_runtime_changes() -> str | None:
-    paths = [path for path in status_paths() if is_runtime_path(path)]
-    non_runtime = [path for path in status_paths() if not is_runtime_path(path)]
+    changed = status_paths()
+    non_runtime = [path for path in changed if not is_runtime_path(path)]
     if non_runtime:
-        raise SyncDeferred(
-            "source-файлы ещё меняются: " + ", ".join(non_runtime[:10])
-        )
+        raise SyncDeferred("source-файлы ещё меняются: " + ", ".join(non_runtime[:10]))
+    candidates = [path for path in changed if is_runtime_path(path)]
+    if not candidates:
+        return None
+    # Untracked runtime files stay in place: stash without --include-untracked
+    # rejects their pathspecs, and removing live cache files is unnecessary.
+    tracked = set(git("ls-files", "-z", "--", *candidates).stdout.split("\x00"))
+    paths = [path for path in candidates if path in tracked]
     if not paths:
         return None
+    previous = git("rev-parse", "--verify", "refs/stash", check=False).stdout.strip()
     result = git("stash", "push", "-m", "checksheets-sync-runtime", "--", *paths, check=False)
     if result.returncode != 0:
-        raise RuntimeError("Не удалось временно убрать runtime-изменения в stash")
-    stash_ref = git("stash", "list", "-1", "--format=%gd", check=False).stdout.strip() or None
-    log.info("Runtime-изменения временно убраны в stash на время git sync")
-    return stash_ref
+        detail = (result.stderr or result.stdout).strip().splitlines()[-3:]
+        raise RuntimeError("Не удалось временно убрать runtime-изменения в stash: " + " | ".join(detail))
+    current = git("rev-parse", "--verify", "refs/stash", check=False).stdout.strip()
+    if not current or current == previous:
+        return None
+    log.info("Runtime-изменения сохранены в stash %s", current[:12])
+    return current
 
 
 def restore_runtime_changes(stash_ref: str | None) -> None:
     if not stash_ref:
         return
-    result = git("stash", "pop", stash_ref, check=False)
+    # Restore our exact object even if another Git client created a newer stash.
+    result = git("stash", "apply", "--index", stash_ref, check=False)
     if result.returncode != 0:
-        log.error("Runtime stash не удалось автоматически восстановить; он сохранён в git stash")
-    else:
-        log.info("Runtime-изменения восстановлены")
+        log.error("Runtime stash %s не удалось восстановить; объект сохранён", stash_ref[:12])
+        return
+    entries = git("stash", "list", "--format=%gd %H").stdout.splitlines()
+    for entry in entries:
+        ref, oid = entry.split(" ", 1)
+        if oid == stash_ref:
+            if git_sha(ref) == stash_ref:
+                git("stash", "drop", ref)
+            break
+    log.info("Runtime-изменения восстановлены")
 
 
 def fetch_origin() -> None:
@@ -274,58 +291,56 @@ def fetch_origin() -> None:
     raise RuntimeError(f"Не удалось получить origin/{BRANCH}: {last_error}")
 
 
+def source_snapshot() -> dict[str, tuple]:
+    snapshot = {}
+    for path in status_paths():
+        target = PROJECT_ROOT / path
+        if is_runtime_path(path) or (is_sensitive_path(path) and target.exists()):
+            continue
+        try:
+            if target.is_symlink():
+                signature = ("symlink", os.readlink(target))
+            elif target.is_file():
+                signature = ("file", sha256(target))
+            elif target.is_dir():
+                # With --untracked-files=all, directories here are gitlinks.
+                signature = ("gitlink", git("-C", str(target), "rev-parse", "HEAD").stdout.strip())
+            else:
+                signature = ("deleted",)
+        except FileNotFoundError:
+            # A writer changed the file while it was being observed.
+            continue
+        snapshot[path] = signature
+    return snapshot
+
+
 def commit_stable_local_changes(dry_run: bool) -> str | None:
-    before = git_status()
+    before = source_snapshot()
     if not before:
         return None
-    if all(is_runtime_path(path) for path in status_paths()):
-        log.info("Изменены только runtime-файлы; commit не требуется")
-        return None
-
-    log.info("Найдены локальные изменения; жду %s секунд для завершения записи", SETTLE_SECONDS)
+    log.info("Проверяю стабильность %s source-файлов за %s секунд", len(before), SETTLE_SECONDS)
     if SETTLE_SECONDS:
         time.sleep(SETTLE_SECONDS)
-    after = git_status()
-    if after != before:
-        log.info("Файлы ещё меняются; этот цикл пропущен")
+    after = source_snapshot()
+    stable = [path for path, signature in before.items() if after.get(path) == signature]
+    if not stable:
+        log.info("Source-файлы ещё меняются; готовые коммиты можно отправить отдельно")
         return None
-
     if dry_run:
-        log.info("dry-run: были бы добавлены все безопасные изменения локалки")
+        log.info("dry-run: было бы сохранено %s стабильных source-файлов", len(stable))
         return None
-
-    # Do not stage thousands of generated cache files and then reset each one.
-    # That used to acquire the index lock once per file, racing editor Git polls.
-    candidates = [path for path in status_paths() if not is_runtime_path(path)]
-    safe = [path for path in candidates if not is_sensitive_path(path) or not (PROJECT_ROOT / path).exists()]
-    if safe:
-        git("add", "-A", "--", *safe)
-    staged = [path for path in git("diff", "--cached", "--name-only", "-z").stdout.split("\x00") if path]
-    deletions = {
-        path
-        for path in git("diff", "--cached", "--diff-filter=D", "--name-only", "-z").stdout.split("\x00")
-        if path
-    }
-    blocked: list[str] = []
-    excluded: list[str] = []
-    for path in staged:
-        if is_runtime_path(path):
-            excluded.append(path)
-            continue
-        if is_sensitive_path(path) and path not in deletions and (PROJECT_ROOT / path).exists():
-            excluded.append(path)
-            blocked.append(path)
-    if excluded:
-        git("reset", "--", *excluded)
-    if blocked:
-        log.warning("Секретные локальные файлы не добавлены в Git: %s", ", ".join(blocked))
-
-    staged = [path for path in git("diff", "--cached", "--name-only", "-z").stdout.split("\x00") if path]
-    if not staged:
+    git("add", "-A", "--", *stable)
+    # Check content again after staging. Never commit an unrelated user's index
+    # entries, and leave generated/sensitive staging untouched.
+    latest = source_snapshot()
+    stable = [path for path in stable if latest.get(path) == before[path]]
+    if not stable:
+        raise SyncDeferred("Source-файлы изменились во время подготовки commit")
+    changed = git("diff", "--cached", "--name-only", "-z", "--", *stable).stdout
+    if not changed:
         return None
-
     timestamp = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    git("commit", "-m", f"chore: sync local Checksheets changes ({timestamp})")
+    git("commit", "--only", "-m", f"chore: sync local Checksheets changes ({timestamp})", "--", *stable)
     commit = git_sha()
     log.info("Создан локальный commit %s", commit[:12])
     return commit
@@ -337,39 +352,40 @@ def reconcile_git(dry_run: bool) -> tuple[str, str]:
     if dry_run:
         return git_sha(), git_sha(f"origin/{BRANCH}")
 
-    runtime_stash = stash_runtime_changes()
-    try:
-        fetch_origin()
-        local = git_sha()
-        remote = git_sha(f"origin/{BRANCH}")
-        if local == remote:
-            return local, remote
-
-        if git_is_ancestor(local, remote):
-            log.info("GitHub впереди; fast-forward локальной ветки до %s", remote[:12])
-            git("merge", "--ff-only", f"origin/{BRANCH}")
-        elif git_is_ancestor(remote, local):
-            log.info("Локалка впереди; отправляю commit %s в GitHub", local[:12])
-            git("push", "origin", f"HEAD:{BRANCH}")
-        else:
-            log.warning("Ветки разошлись; выполняю безопасный rebase на origin/%s", BRANCH)
-            try:
-                git("rebase", f"origin/{BRANCH}")
-                git("push", "origin", f"HEAD:{BRANCH}")
-            except Exception:
-                git("rebase", "--abort", check=False)
-                raise RuntimeError(
-                    "Ветки GitHub и локалки разошлись, автоматический rebase остановлен. "
-                    "Нужна ручная проверка конфликта."
-                )
-
-        local = git_sha()
-        remote = git_sha(f"origin/{BRANCH}")
-        if local != remote:
-            raise RuntimeError("После git-синхронизации локальный HEAD и origin/main не совпали")
+    fetch_origin()
+    local = git_sha()
+    remote = git_sha(f"origin/{BRANCH}")
+    if local == remote:
         return local, remote
-    finally:
-        restore_runtime_changes(runtime_stash)
+    if git_is_ancestor(remote, local):
+        # Push does not modify the checkout. Live cache files and unfinished
+        # edits must not block commits which are already ready for GitHub.
+        log.info("Локалка впереди; отправляю commit %s в GitHub", local[:12])
+        git("push", "origin", f"HEAD:{BRANCH}")
+    else:
+        # Only operations changing the checkout require a clean source tree.
+        runtime_stash = stash_runtime_changes()
+        try:
+            if git_is_ancestor(local, remote):
+                log.info("GitHub впереди; fast-forward до %s", remote[:12])
+                git("merge", "--ff-only", f"origin/{BRANCH}")
+            else:
+                log.warning("Ветки разошлись; выполняю rebase на origin/%s", BRANCH)
+                try:
+                    git("rebase", f"origin/{BRANCH}")
+                    git("push", "origin", f"HEAD:{BRANCH}")
+                except Exception:
+                    git("rebase", "--abort", check=False)
+                    raise RuntimeError("Автоматический rebase остановлен; нужна проверка конфликта.")
+        finally:
+            restore_runtime_changes(runtime_stash)
+    # Fetch instead of assuming the push updated the tracking ref.
+    fetch_origin()
+    local = git_sha()
+    remote = git_sha(f"origin/{BRANCH}")
+    if local != remote:
+        raise RuntimeError("После git-синхронизации HEAD и origin/main не совпали")
+    return local, remote
 
 
 def read_claspignore() -> list[str]:
@@ -576,6 +592,10 @@ def main() -> int:
             should_push = apps_script_synced_sha is None or apps_script_change(apps_script_changed)
             result = {"pushed": False, "verified": False, "file_count": 0}
             if should_push:
+                upload_files = set(clasp_status())
+                unfinished = [path for path in status_paths() if path in upload_files]
+                if unfinished:
+                    raise SyncDeferred("Apps Script source-файлы ещё меняются: " + ", ".join(unfinished[:10]))
                 log.info("Есть Apps Script-изменения; запускаю clasp push")
                 result = push_apps_script(False)
             else:

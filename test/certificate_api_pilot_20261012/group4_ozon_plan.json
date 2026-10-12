@@ -1,0 +1,236 @@
+{
+  "planned_at": "2026-10-12T03:28:42.502522+00:00",
+  "ozon_catalog_checked_at": "2026-10-12T03:21:43.549370+00:00",
+  "ozon_certificates_checked_at": "2026-10-12T03:21:14.003654+00:00",
+  "actions": [
+    {
+      "number": "ЕАЭС RU C-RU.АТ21.В.00153/25",
+      "type_code": "certificate_of_conformity",
+      "ozon_create_type": "CERTIFICATE_OF_CONFORMITY",
+      "certificate_country": "RU",
+      "accordance_type": "EAEU",
+      "issue_date": "2025-03-18",
+      "expire_date": "2030-03-17",
+      "file": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_4/docs/systeme/BA10-001B_RU_-RU._21._.00153_25.pdf",
+      "file_name": "BA10-001B_RU_-RU._21._.00153_25.pdf",
+      "file_sha256": "c08331cfbccc8aa9dfcbc0f061473af731ff996131ff5661346e65599505c67f",
+      "file_size": 5656164,
+      "source_url": "https://api.systeme.ru/certificates/default/download/3435",
+      "evidence": "Официальная запись Systeme Electric по exact ref BA10-001B; сертификат включает выключатели серии «Этюд»; артикул Ozon BA10-001B",
+      "offers": {
+        "BA10-001B-1": {
+          "product_id": "2867264757",
+          "sku": "2963510406"
+        },
+        "BA10-001B-2": {
+          "product_id": "2867309750",
+          "sku": "2963545886"
+        },
+        "BA10-001B-5": {
+          "product_id": "2867315262",
+          "sku": "2963551870"
+        }
+      },
+      "bound_approved": [
+        "BA10-001B-1",
+        "BA10-001B-5"
+      ],
+      "bound_pending_or_declined": [
+        "BA10-001B-2"
+      ],
+      "unbound_offers": [],
+      "certificate_id": 5448305,
+      "action": "already_attached_pending_or_declined"
+    },
+    {
+      "number": "ЕАЭС N RU Д-RU.РА01.В.69737/25",
+      "type_code": "declaration",
+      "ozon_create_type": "DECLARATION",
+      "certificate_country": "RU",
+      "accordance_type": "EAEU",
+      "issue_date": "2025-02-05",
+      "expire_date": "2030-02-04",
+      "file": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_4/docs/systeme/BA10-001B_N_RU_-RU._01._.69737_25.pdf",
+      "file_name": "BA10-001B_N_RU_-RU._01._.69737_25.pdf",
+      "file_sha256": "7368ad0e1142d1492d0a9f244b09060b4f3777b0b065797d90bee9ffef900a19",
+      "file_size": 610460,
+      "source_url": "https://api.systeme.ru/certificates/default/download/3411",
+      "evidence": "Официальная запись Systeme Electric по exact ref BA10-001B; декларация на выключатели серии «Этюд»",
+      "offers": {
+        "BA10-001B-1": {
+          "product_id": "2867264757",
+          "sku": "2963510406"
+        },
+        "BA10-001B-2": {
+          "product_id": "2867309750",
+          "sku": "2963545886"
+        },
+        "BA10-001B-5": {
+          "product_id": "2867315262",
+          "sku": "2963551870"
+        }
+      },
+      "bound_approved": [
+        "BA10-001B-1",
+        "BA10-001B-2",
+        "BA10-001B-5"
+      ],
+      "bound_pending_or_declined": [],
+      "unbound_offers": [],
+      "certificate_id": 5448307,
+      "action": "already_bound"
+    },
+    {
+      "number": "ЕАЭС RU C-RU.АТ21.В.00159/25",
+      "type_code": "certificate_of_conformity",
+      "ozon_create_type": "CERTIFICATE_OF_CONFORMITY",
+      "certificate_country": "RU",
+      "accordance_type": "EAEU",
+      "issue_date": "2025-06-27",
+      "expire_date": "2030-06-26",
+      "file": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_4/docs/systeme/PA16-007B_RU_-RU._21._.00159_25.pdf",
+      "file_name": "PA16-007B_RU_-RU._21._.00159_25.pdf",
+      "file_sha256": "d5b761bc58a1f90a2fcdd8c71e8be524fa30fe13d88d4aa1798c2acb46baa454",
+      "file_size": 5045756,
+      "source_url": "https://api.systeme.ru/certificates/default/download/3460",
+      "evidence": "Официальная запись Systeme Electric по exact ref PA16-007B; сертификат включает розетки серии «Этюд»; артикул Ozon PA16-007B",
+      "offers": {
+        "PA16-007B-2": {
+          "product_id": "2867295116",
+          "sku": "2963536119"
+        },
+        "PA16-007B-5": {
+          "product_id": "2867304105",
+          "sku": "2963543279"
+        },
+        "PA16-007B-1": {
+          "product_id": "2867247544",
+          "sku": "2963498580"
+        }
+      },
+      "bound_approved": [
+        "PA16-007B-2",
+        "PA16-007B-5",
+        "PA16-007B-1"
+      ],
+      "bound_pending_or_declined": [],
+      "unbound_offers": [],
+      "certificate_id": 5448308,
+      "action": "already_bound"
+    },
+    {
+      "number": "ЕАЭС N RU Д-RU.РА01.В.70012/25",
+      "type_code": "declaration",
+      "ozon_create_type": "DECLARATION",
+      "certificate_country": "RU",
+      "accordance_type": "EAEU",
+      "issue_date": "2025-02-05",
+      "expire_date": "2030-02-04",
+      "file": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_4/docs/systeme/PA16-007B_N_RU_-RU._01._.70012_25.pdf",
+      "file_name": "PA16-007B_N_RU_-RU._01._.70012_25.pdf",
+      "file_sha256": "a92bb79e48ed33a1b5214589efa32fc5b5bdae7309b580ddff68d2e795b9c461",
+      "file_size": 735711,
+      "source_url": "https://api.systeme.ru/certificates/default/download/3410",
+      "evidence": "Официальная запись Systeme Electric по exact ref PA16-007B; декларация на розетки серии «Этюд»",
+      "offers": {
+        "PA16-007B-2": {
+          "product_id": "2867295116",
+          "sku": "2963536119"
+        },
+        "PA16-007B-5": {
+          "product_id": "2867304105",
+          "sku": "2963543279"
+        },
+        "PA16-007B-1": {
+          "product_id": "2867247544",
+          "sku": "2963498580"
+        }
+      },
+      "bound_approved": [
+        "PA16-007B-2",
+        "PA16-007B-5",
+        "PA16-007B-1"
+      ],
+      "bound_pending_or_declined": [],
+      "unbound_offers": [],
+      "certificate_id": 5448309,
+      "action": "already_bound"
+    },
+    {
+      "number": "ЕАЭС N RU Д-CN.РА07.В.27606/25",
+      "type_code": "declaration",
+      "ozon_create_type": "DECLARATION",
+      "certificate_country": "RU",
+      "accordance_type": "EAEU",
+      "issue_date": "2025-08-22",
+      "expire_date": "2030-08-19",
+      "file": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_4/docs/kvt/eac_measure_proline.pdf",
+      "file_name": "eac_measure_proline.pdf",
+      "file_sha256": "79f9624c6091a5b06cff32253d0369070aca0fa192c66827525b55ffe54e5df6",
+      "file_size": 1096737,
+      "source_url": "https://kvt-pro.ru/pdfs/sert-eac-measure.pdf",
+      "evidence": "Официальная страница КВТ-PRO для KT106D ссылается на декларацию; в scope явно указаны тестеры розеток и УЗО PROLINE",
+      "offers": {
+        "79136-1": {
+          "product_id": "73731212",
+          "sku": "262716853"
+        }
+      },
+      "action": "create"
+    },
+    {
+      "number": "ЕАЭС N RU Д-CN.РА04.В.68365/23",
+      "type_code": "declaration",
+      "ozon_create_type": "DECLARATION",
+      "certificate_country": "RU",
+      "accordance_type": "EAEU",
+      "issue_date": "2023-06-15",
+      "expire_date": "2028-06-14",
+      "file": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_4/docs/tdm/tdm_rohs.pdf",
+      "file_name": "tdm_rohs.pdf",
+      "file_sha256": "5f70c039729edf0b8686e5750320332aa873850e551e0bbd3b79af2299f6f859",
+      "file_size": 935813,
+      "source_url": "https://storage-lk.tdme.ru/storage/internal/file_storage/2205.pdf",
+      "evidence": "Приложение декларации прямо перечисляет SQ0602-0008; товарная карточка TDM подтверждает 63А/380В/IP54/5 полюсов",
+      "offers": {
+        "sq0602-0008": {
+          "product_id": "75339283",
+          "sku": "267770402"
+        }
+      },
+      "action": "create"
+    }
+  ],
+  "excluded": [
+    {
+      "offer": "4690612003030-1",
+      "number": "ЕАЭС KG417/045.CN.02.02339",
+      "reason": "source_file_missing_or_symlink"
+    },
+    {
+      "offer": "4690612003030-25",
+      "number": "ЕАЭС KG417/045.CN.02.02339",
+      "reason": "source_file_missing_or_symlink"
+    },
+    {
+      "offer": "4690612004921-1",
+      "number": "ЕАЭС KG417/045.CN.02.02339",
+      "reason": "source_file_missing_or_symlink"
+    },
+    {
+      "offer": "4690612004921-25",
+      "number": "ЕАЭС KG417/045.CN.02.02339",
+      "reason": "source_file_missing_or_symlink"
+    },
+    {
+      "offer": "4690612028804-1",
+      "number": "ЕАЭС KG417/045.CN.02.02339",
+      "reason": "source_file_missing_or_symlink"
+    },
+    {
+      "offer": "sq0602-0008",
+      "number": "ЕАЭС RU C-CN.РТ01.В.03790/21",
+      "reason": "expired_or_not_current"
+    }
+  ]
+}
