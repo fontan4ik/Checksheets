@@ -6,6 +6,7 @@ const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsBroadcastReport } = re
 const { createWbStockAudit } = require("./wb_stock_audit");
 const { createWbStockRateLimiter } = require("./wb_stock_rate_limiter");
 const { buildStockReport, throwOnStockSyncFailures } = require("./stock_sync_report");
+const { reconcileOzonStockResults, isOzonWarehouseRestriction, ozonRestrictionDetails } = require("./ozon_stock_results");
 const {
   STREAM_SUPPS_HEADERS,
   resolveStreamSuppsColumns,
@@ -573,10 +574,16 @@ async function repairETMOzonMismatches(stocks, initialMismatches, verifyOptions 
   const attempts = Math.max(0, STOCK_REPAIR_ATTEMPTS);
 
   for (let attempt = 1; attempt <= attempts && mismatches.length > 0; attempt++) {
-    const repairItems = mismatches.map((item) => ({
+    const repairItems = mismatches
+      .filter((item) => !verifyOptions.restrictedOfferIds?.has(String(item.offer_id)))
+      .map((item) => ({
       offer_id: item.offer_id,
       stock: item.sheet,
     }));
+    if (!repairItems.length) {
+      log(`⚠️ Ozon repair: ${mismatches.length} расхождений требуют исправления габаритов карточек или совместимого склада; повторная запись не устранит ограничение`);
+      break;
+    }
     const batchSize = 100;
     let updated = 0;
     let errors = 0;
@@ -594,17 +601,9 @@ async function repairETMOzonMismatches(stocks, initialMismatches, verifyOptions 
       );
 
       if (result.ok && result.data?.result) {
-        result.data.result.forEach((r) => {
-          if (r.updated) {
-            updated++;
-          } else if (r.errors && r.errors.length > 0) {
-            const isError = !r.errors.some((e) => e.code === "TOO_MANY_REQUESTS");
-            if (isError) {
-              errors++;
-            } else {
-              updated++;
-            }
-          }
+        reconcileOzonStockResults(batch, result.data, ETM_TR_OZON_WAREHOUSE).forEach((r) => {
+          if (r.updated === true) updated++;
+          else errors++;
         });
       } else {
         errors += batch.length;
@@ -712,6 +711,7 @@ async function updateETMStocksOzon(stocks) {
   let errorCount = 0;
   let loggedOzonErrors = 0;
   const skippedOfferIds = new Set();
+  const restrictedOfferIds = new Set();
 
   for (let i = 0; i < batches; i++) {
       lastRequestTime = await rateLimitRPS(lastRequestTime, OZON_STOCKS_RPS);
@@ -724,13 +724,14 @@ async function updateETMStocksOzon(stocks) {
     );
 
     if (result.ok && result.data?.result) {
-      const itemResults = result.data.result;
+      const itemResults = reconcileOzonStockResults(batch, result.data, ETM_TR_OZON_WAREHOUSE);
       itemResults.forEach((r) => {
         if (r.updated) {
           successCount++;
         } else if (r.errors && r.errors.length > 0) {
           const terminal = r.errors.every((e) => OZON_TERMINAL_PRODUCT_ERRORS.has(e.code));
           if (!terminal) {
+            if (isOzonWarehouseRestriction(r)) restrictedOfferIds.add(String(r.offer_id));
             errorCount++;
             if (loggedOzonErrors < 20) {
               log(
@@ -778,6 +779,7 @@ async function updateETMStocksOzon(stocks) {
     attemptedSku: validStocks.length,
     acceptedSku: successCount,
     skippedSku: skippedCount,
+    restrictedOfferIds,
     errorSku: errorCount,
     skippedOfferIds,
   };
@@ -889,7 +891,7 @@ async function sendETMStocksBatch(batch, warehouseId, retryCount = 0) {
       return { ok: false, code, text: "MAX_RETRIES_EXCEEDED" };
     }
 
-    if (isTransportError(code, text) && retryCount < WB_MAX_RETRIES) {
+    if ((isTransportError(code, text) || [408, 500, 502, 503, 504].includes(code)) && retryCount < WB_MAX_RETRIES) {
       const delay = WB_BASE_DELAY * Math.pow(2, retryCount);
       log(
         "⏳ WB transport error: ожидание " +
@@ -937,11 +939,13 @@ async function processETMConflictIndividually(
       auditContext?.audit.recordItemResult({
         warehouseId,
         batchIndex: auditContext.batchIndex,
+        checksum: auditContext.checksum,
         offerId: auditItem?.offerId,
         chrtId: item.chrtId,
         amount: item.amount,
         status: "success",
         code: result.code,
+        responseText: result.ok ? undefined : result.text,
       });
       continue;
     }
@@ -951,14 +955,17 @@ async function processETMConflictIndividually(
         `⏸️ ${batchLabel}: пропущен ODC/CD+ chrtId=${item.chrtId}, amount=${item.amount}`,
       );
       skippedCount++;
+      if (result.cargoRestriction) auditContext?.cargoRestrictedChrtIds?.add(Number(item.chrtId));
       auditContext?.audit.recordItemResult({
         warehouseId,
         batchIndex: auditContext.batchIndex,
+        checksum: auditContext.checksum,
         offerId: auditItem?.offerId,
         chrtId: item.chrtId,
         amount: item.amount,
         status: "cargo_restriction",
         code: result.code,
+        responseText: result.ok ? undefined : result.text,
       });
       continue;
     }
@@ -967,15 +974,17 @@ async function processETMConflictIndividually(
       log(
         `⏭️ ${batchLabel}: chrtId=${item.chrtId} - 429 превышен лимит, пропущен`,
       );
-      skippedCount++;
+      errorCount++;
       auditContext?.audit.recordItemResult({
         warehouseId,
         batchIndex: auditContext.batchIndex,
+        checksum: auditContext.checksum,
         offerId: auditItem?.offerId,
         chrtId: item.chrtId,
         amount: item.amount,
         status: "rate_limited",
         code: result.code,
+        responseText: result.ok ? undefined : result.text,
       });
       continue;
     }
@@ -987,11 +996,13 @@ async function processETMConflictIndividually(
     auditContext?.audit.recordItemResult({
       warehouseId,
       batchIndex: auditContext.batchIndex,
+        checksum: auditContext.checksum,
       offerId: auditItem?.offerId,
       chrtId: item.chrtId,
       amount: item.amount,
       status: "error",
       code: result.code,
+        responseText: result.ok ? undefined : result.text,
     });
   }
 
@@ -1024,6 +1035,7 @@ async function updateETMStocksWB(stocks) {
   });
   log(`🧾 WB payload audit: ${audit.filePath} (runId=${audit.runId})`);
 
+  const cargoRestrictedChrtIds = new Set();
   let successCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
@@ -1062,7 +1074,7 @@ async function updateETMStocksWB(stocks) {
       items: auditItems,
     });
     if (auditPayload.shouldWarn) {
-      log(`⚠️ WB STALE SNAPSHOT: снимку уже ${auditPayload.ageSeconds} сек; batch=${i + 1}/${batches}, source=${stocks.wbSourceColumn || "AC"}`);
+      log(`⚠️ WB STALE SNAPSHOT: снимку уже ${auditPayload.ageSeconds} сек; batch=${i + 1}/${batches}, source=${stocks.wbSourceColumn || "AB:WB ВОЛЬТМИР ИТОГ"}`);
     }
 
     const result = await sendETMStocksBatch(validBatch, ETM_TR_WB_WAREHOUSE);
@@ -1092,6 +1104,8 @@ async function updateETMStocksWB(stocks) {
         {
           audit,
           batchIndex: i + 1,
+          checksum: auditPayload.checksum,
+          cargoRestrictedChrtIds,
           itemsByChrtId: new Map(auditItems.map((item) => [item.chrtId, item])),
         },
       );
@@ -1115,14 +1129,14 @@ async function updateETMStocksWB(stocks) {
       log(
         `⏭️ WB 429 (пачка ${i + 1}/${batches}): превышен лимит, пропущено ${validBatch.length} товаров`,
       );
-      skippedCount += validBatch.length;
+      errorCount += validBatch.length;
       audit.recordBatchResult({
         warehouseId: ETM_TR_WB_WAREHOUSE,
         batchIndex: i + 1,
         checksum: auditPayload.checksum,
         status: "rate_limited",
         code: result.code,
-        skippedCount: validBatch.length,
+        errorCount: validBatch.length,
       });
       continue;
     }
@@ -1148,6 +1162,7 @@ async function updateETMStocksWB(stocks) {
     acceptedSku: successCount,
     skippedSku: skippedCount,
     errorSku: errorCount,
+    cargoRestrictedChrtIds,
     runId: audit.runId,
     snapshotReadAt: stocks.snapshotReadAt || null,
     snapshotSources: { wb_stock: stocks.wbSourceColumn || "AB:WB ВОЛЬТМИР ИТОГ" },
@@ -1270,7 +1285,7 @@ async function verifyETMWBStocks(stocks) {
 
   const excludedText = excludedCount > 0 ? `, исключено из сравнения=${excludedCount}` : "";
   log(
-    `📊 WB non-zero check (склад ВольтМир ${ETM_TR_WB_WAREHOUSE}): Google AC>0=${sheetPositiveCount}, marketplace amount>0=${marketplacePositiveCount}, pieces=${marketplaceTotalPieces}, delta=${marketplacePositiveCount - sheetPositiveCount}${excludedText}`,
+    `📊 WB non-zero check (склад ВольтМир ${ETM_TR_WB_WAREHOUSE}): Google AB>0=${sheetPositiveCount}, marketplace amount>0=${marketplacePositiveCount}, pieces=${marketplaceTotalPieces}, delta=${marketplacePositiveCount - sheetPositiveCount}${excludedText}`,
   );
 
   mismatches.stats = {
@@ -1297,69 +1312,71 @@ async function verifyETMWBStocks(stocks) {
   return mismatches;
 }
 
-async function repairETMWBMismatches(stocks, initialMismatches) {
+async function repairETMWBMismatches(stocks, initialMismatches, cargoRestrictedChrtIds = new Set()) {
   let mismatches = initialMismatches || [];
   const attempts = Math.max(0, STOCK_REPAIR_ATTEMPTS);
+  let audit;
+  let repairBatchIndex = 0;
+  const maxRepairBatches = attempts * Math.ceil(mismatches.length / 200);
+  const offersByChrtId = new Map(stocks.map((item) => [Number(item.chrlid), item.offer_id]));
 
   for (let attempt = 1; attempt <= attempts && mismatches.length > 0; attempt++) {
-    const validBatch = [];
-    let skippedInvalid = 0;
-
-    mismatches.forEach((item) => {
-      const chrtId = Number(item.chrtId);
-      const amount = Number(item.sheet);
-      if (!Number.isFinite(chrtId) || chrtId <= 0 || !Number.isInteger(amount) || amount < 0) {
-        skippedInvalid++;
-        return;
-      }
-      validBatch.push({ chrtId, amount });
-    });
-
-    if (validBatch.length === 0) {
-      log(`🛠️ WB repair ${attempt}/${attempts}: нет валидных chrtId для повторной записи`);
-      break;
+    const repairable = mismatches.filter((item) => !cargoRestrictedChrtIds.has(Number(item.chrtId)));
+    const blockedCount = mismatches.length - repairable.length;
+    if (blockedCount) {
+      log(`⏸️ WB repair: ${blockedCount} расхождений заблокированы ODC/CD+; WB уже подтвердил ограничение склада, повтор не поможет`);
     }
+    const validBatch = repairable.filter((item) => Number.isFinite(Number(item.chrtId)) && Number(item.chrtId) > 0 && Number.isInteger(Number(item.sheet)) && Number(item.sheet) >= 0)
+      .map((item) => ({ chrtId: Number(item.chrtId), amount: Number(item.sheet) }));
+    if (validBatch.length === 0) break;
 
-    log(
-      `🛠️ WB repair ${attempt}/${attempts}: повторно пишем ${validBatch.length} расхождений на склад ВольтМир`,
-    );
-
+    audit ||= createWbStockAudit({
+      scriptName: "sync-etm-stocks-repair",
+      sheetName: SHEET_NAME,
+      sourceReadAt: stocks.snapshotReadAt,
+    });
+    log(`🛠️ WB repair ${attempt}/${attempts}: повторно пишем ${validBatch.length} расхождений на склад ВольтМир`);
     const batchSize = 200;
     let successCount = 0;
     let skippedCount = 0;
-    let errorCount = skippedInvalid;
-
+    let errorCount = repairable.length - validBatch.length;
     for (let i = 0; i < validBatch.length; i += batchSize) {
       const batch = validBatch.slice(i, i + batchSize);
+      const batchIndex = ++repairBatchIndex;
+      const auditItems = batch.map((item) => ({ ...item, offerId: offersByChrtId.get(item.chrtId) }));
+      const payload = audit.recordPayload({
+        warehouseId: ETM_TR_WB_WAREHOUSE, warehouseName: "ВольтМир",
+        sourceColumn: stocks.wbSourceColumn || "AB:WB ВОЛЬТМИР ИТОГ",
+        batchIndex, totalBatches: maxRepairBatches, items: auditItems,
+      });
+      if (payload.shouldWarn) log(`⚠️ WB STALE SNAPSHOT: снимку уже ${payload.ageSeconds} сек; WB repair ${attempt}/${attempts}`);
       const result = await sendETMStocksBatch(batch, ETM_TR_WB_WAREHOUSE);
-
+      let counts = { successCount: 0, skippedCount: 0, errorCount: 0 };
+      let status = "error";
       if (result.ok) {
-        successCount += batch.length;
-        continue;
+        counts.successCount = batch.length;
+        status = "success";
+      } else if (result.cargoRestriction) {
+        counts = await processETMConflictIndividually(batch, ETM_TR_WB_WAREHOUSE,
+          `WB repair ${attempt}/${attempts} пачка ${Math.floor(i / batchSize) + 1}`, {
+            audit, batchIndex, checksum: payload.checksum, cargoRestrictedChrtIds,
+            itemsByChrtId: new Map(auditItems.map((item) => [item.chrtId, item])),
+          });
+        status = "individual_fallback";
+      } else {
+        counts.errorCount = batch.length;
       }
-
-      if (result.cargoRestriction) {
-        const fallback = await processETMConflictIndividually(
-          batch,
-          ETM_TR_WB_WAREHOUSE,
-          `WB repair ${attempt}/${attempts} пачка ${Math.floor(i / batchSize) + 1}`,
-        );
-        successCount += fallback.successCount;
-        skippedCount += fallback.skippedCount;
-        errorCount += fallback.errorCount;
-        continue;
-      }
-
-      errorCount += batch.length;
+      audit.recordBatchResult({ warehouseId: ETM_TR_WB_WAREHOUSE, batchIndex,
+        checksum: payload.checksum, status, code: result.code, ...counts });
+      successCount += counts.successCount;
+      skippedCount += counts.skippedCount;
+      errorCount += counts.errorCount;
     }
-
-    log(
-      `🛠️ WB repair ${attempt}/${attempts}: ✅ ${successCount}, ⏸️ ${skippedCount}, ❌ ${errorCount}; ждём ${Math.round(STOCK_REPAIR_DELAY_MS / 1000)} сек и перепроверяем`,
-    );
+    log(`🛠️ WB repair ${attempt}/${attempts}: ✅ ${successCount}, ⏸️ ${skippedCount}, ❌ ${errorCount}; ждём ${Math.round(STOCK_REPAIR_DELAY_MS / 1000)} сек и перепроверяем`);
     await sleep(STOCK_REPAIR_DELAY_MS);
     mismatches = await verifyETMWBStocks(stocks);
   }
-
+  mismatches.cargoRestrictedSku = mismatches.filter((item) => cargoRestrictedChrtIds.has(Number(item.chrtId))).length;
   return mismatches;
 }
 
@@ -1432,9 +1449,10 @@ async function main() {
   log("");
   log("🟣 Шаг 3: Обновление остатков WB (ВольтМир)...");
   let wbSyncStats = null;
+  let wbStocks = [];
   if (marketplace !== "ozon") {
     log("📊 Перечитываем StreamSupps непосредственно перед WB записью, чтобы не отправлять снимок до долгой Ozon синхронизации...");
-    const wbStocks = await readETMStocksFromSheet(client);
+    wbStocks = await readETMStocksFromSheet(client);
     if (wbStocks.length === 0) {
       throw new Error("Перед WB записью лист StreamSupps прочитан пустым; старый снимок не отправляю");
     }
@@ -1458,6 +1476,7 @@ async function main() {
   );
   const ozonVerifyOptions = {
     ignoredOfferIds: ozonSyncStats?.skippedOfferIds || new Set(),
+    restrictedOfferIds: ozonSyncStats?.restrictedOfferIds || new Set(),
   };
   const finalOzonMismatches = await verifyETMOzonStocks(stocks, ozonVerifyOptions);
   remainingOzonMismatches = await repairETMOzonMismatches(
@@ -1472,8 +1491,8 @@ async function main() {
   if (marketplace !== "ozon") {
   log("🟣 Шаг 5: Ожидание 15 минут перед финальным WB post-check...");
   await new Promise((resolve) => setTimeout(resolve, 15 * 60 * 1000));
-  const finalWBMismatches = await verifyETMWBStocks(stocks);
-  remainingWBMismatches = await repairETMWBMismatches(stocks, finalWBMismatches);
+  const finalWBMismatches = await verifyETMWBStocks(wbStocks);
+  remainingWBMismatches = await repairETMWBMismatches(wbStocks, finalWBMismatches, wbSyncStats?.cargoRestrictedChrtIds);
   wbStats = remainingWBMismatches?.stats || finalWBMismatches?.stats;
   }
 
@@ -1507,6 +1526,7 @@ async function main() {
         acceptedSku: ozonSyncStats?.acceptedSku ?? 0,
         skippedSku: ozonSyncStats?.skippedSku ?? 0,
         errorSku: ozonSyncStats?.errorSku ?? 0,
+        failureDetails: ozonRestrictionDetails(ozonSyncStats?.restrictedOfferIds),
         verification: {
           status: remainingOzonMismatches.length ? "mismatch" : "verified",
           positiveSku: ozonStats?.marketplacePositiveCount ?? null,
@@ -1529,6 +1549,7 @@ async function main() {
       marketplaceTotalPieces: wbStats?.marketplaceTotalPieces ?? null,
       durationSec: duration,
       ...buildStockReport({
+        cargoRestrictedSku: remainingWBMismatches.cargoRestrictedSku || 0,
         sourcePositiveSku: wbSyncStats?.sourcePositiveSku ?? wbActive,
         attemptedSku: wbSyncStats?.attemptedSku ?? 0,
         acceptedSku: wbSyncStats?.acceptedSku ?? 0,
@@ -1555,10 +1576,12 @@ async function main() {
     acceptedSku: ozonSyncStats?.acceptedSku ?? 0,
     skippedSku: ozonSyncStats?.skippedSku ?? 0,
     errorSku: ozonSyncStats?.errorSku ?? 0,
+        failureDetails: ozonRestrictionDetails(ozonSyncStats?.restrictedOfferIds),
     verification: { status: remainingOzonMismatches.length ? "mismatch" : "verified", mismatchSku: remainingOzonMismatches.length },
   }));
   if (marketplace !== "ozon") reports.push(buildStockReport({
     marketplace: "ВБ", warehouseName: "ВольтМир",
+    cargoRestrictedSku: remainingWBMismatches.cargoRestrictedSku || 0,
     sourcePositiveSku: wbSyncStats?.sourcePositiveSku ?? 0,
     attemptedSku: wbSyncStats?.attemptedSku ?? 0,
     acceptedSku: wbSyncStats?.acceptedSku ?? 0,

@@ -1,0 +1,32 @@
+{
+  "result": {
+    "base": [
+      {
+        "title": "ГОСТ",
+        "code": "gost"
+      },
+      {
+        "title": "Технический регламент РФ",
+        "code": "technical_regulations_rf"
+      },
+      {
+        "title": "Технический регламент ТС",
+        "code": "technical_regulations_cu"
+      }
+    ],
+    "hazard": [
+      {
+        "title": "ПБ химической продукции",
+        "code": "chemical_products"
+      },
+      {
+        "title": "Safety Data Sheet (SDS)",
+        "code": "safety_data_sheet"
+      },
+      {
+        "title": "Отказное письмо",
+        "code": "rejection_letter"
+      }
+    ]
+  }
+}

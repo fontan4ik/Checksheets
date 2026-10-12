@@ -56,7 +56,7 @@ async function sheetsClient() {
 }
 
 async function request(url, body, limiter) {
-  const maxAttempts = 5;
+  const maxAttempts = 8;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     await limiter();
@@ -71,7 +71,9 @@ async function request(url, body, limiter) {
 
         const retryAfter = Number(response.headers?.['retry-after']);
         const retryAfterMs = Number.isFinite(retryAfter) ? Math.max(0, retryAfter * 1000) : 0;
-        const backoffMs = Math.min(60000, 10000 * 2 ** attempt);
+        const backoffMs = response.status === 429
+          ? Math.min(120000, 30000 * 2 ** attempt)
+          : Math.min(60000, 10000 * 2 ** attempt);
         const delayMs = Math.max(retryAfterMs, backoffMs);
         console.warn(`Ozon HTTP ${response.status}; повтор через ${Math.ceil(delayMs / 1000)} сек`);
         await sleep(delayMs);
@@ -176,7 +178,7 @@ async function main({ dryRun = false, probe = false } = {}) {
   }
   // Give the shared Ozon Analytics quota a buffer and recover from 429s
   // without abandoning the whole refresh and leaving yesterday's columns.
-  const analyticsThrottle = limiter(10000);
+  const analyticsThrottle = limiter(15000);
   const fbsThrottle = limiter(5000);
   const totalMonth = await analyticsSales(...range.month, analyticsThrottle);
   const totalQuarter = await analyticsSales(...range.quarter, analyticsThrottle);
@@ -199,4 +201,4 @@ if (require.main === module) main({ dryRun: process.argv.includes('--dry-run'), 
   process.exitCode = 1;
 });
 
-module.exports = { periods, resultRows, verifySheetHeaders, FBS_STATUSES };
+module.exports = { request, periods, resultRows, verifySheetHeaders, FBS_STATUSES };

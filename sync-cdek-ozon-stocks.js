@@ -115,19 +115,27 @@ function yandexHeaders() {
   return { "Api-Key": apiKey, "Content-Type": "application/json" };
 }
 
-async function verifyYandexWarehouse(headers, httpClient = axios) {
-  const response = await postWithRetry(
-    `${YANDEX_API_URL}/v3/businesses/${YANDEX_BUSINESS_ID}/warehouses`,
-    {}, headers, 0, httpClient,
-  );
-  const matches = (response.data?.result?.warehouses || []).filter((warehouse) =>
-    Number(warehouse.id) === YANDEX_WAREHOUSE_ID && warehouse.name === YANDEX_WAREHOUSE_NAME,
-  );
-  if (matches.length !== 1 || !matches[0].models?.some((model) =>
-    model.placementType === "DBS" && model.apiAvailability === "AVAILABLE",
-  )) {
-    throw new Error(`Яндекс: склад «${YANDEX_WAREHOUSE_NAME}» (${YANDEX_WAREHOUSE_ID}) недоступен для DBS`);
+async function verifyYandexWarehouse(headers, httpClient = axios, wait = sleep) {
+  // Availability can briefly change even with HTTP 200. Re-read the warehouse
+  // before aborting; never upload stocks while its DBS API is unavailable.
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
+    const response = await postWithRetry(
+      `${YANDEX_API_URL}/v3/businesses/${YANDEX_BUSINESS_ID}/warehouses`,
+      {}, headers, 0, httpClient,
+    );
+    const warehouses = response.data?.result?.warehouses;
+    if (!Array.isArray(warehouses)) {
+      throw new Error("Яндекс: ответ проверки складов не содержит result.warehouses");
+    }
+    const matches = warehouses.filter((warehouse) =>
+      Number(warehouse.id) === YANDEX_WAREHOUSE_ID && warehouse.name === YANDEX_WAREHOUSE_NAME,
+    );
+    if (matches.length === 1 && matches[0].models?.some((model) =>
+      model.placementType === "DBS" && model.apiAvailability === "AVAILABLE",
+    )) return;
+    if (attempt < MAX_RETRIES) await wait(5000 * attempt);
   }
+  throw new Error(`Яндекс: склад «${YANDEX_WAREHOUSE_NAME}» (${YANDEX_WAREHOUSE_ID}) недоступен для DBS после ${MAX_RETRIES} проверок`);
 }
 
 async function uploadYandexStocks(stocks, headers, httpClient = axios) {

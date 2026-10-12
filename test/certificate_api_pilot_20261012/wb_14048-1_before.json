@@ -1,0 +1,130 @@
+[
+  {
+    "nmID": 1514673182,
+    "imtID": 4077406733,
+    "nmUUID": "01a06665-feb8-73d1-a5aa-22c7653424c5",
+    "subjectID": 264,
+    "subjectName": "Гирлянды интерьерные",
+    "vendorCode": "14048-1",
+    "brand": "Navigator",
+    "title": "Гирлянда NGF-D010-10WW-2AA золотые шарики - ткань 1.8м",
+    "description": "<ul><li>Количество светодиодов: 10, 20 шт.</li><li>Расстояние между фигурками: 10, 15 см</li><li>Режим свечения: постоянное свечение</li><li>Питание: 2 АА*</li></ul>",
+    "needKiz": false,
+    "kizMarked": false,
+    "photos": [
+      {
+        "big": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/big/1.webp",
+        "c246x328": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/c246x328/1.webp",
+        "c516x688": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/c516x688/1.webp",
+        "hq": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/hq/1.webp",
+        "square": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/square/1.webp",
+        "tm": "https://basket-48.wbbasket.ru/vol15146/part1514673/1514673182/images/tm/1.webp"
+      }
+    ],
+    "dimensions": {
+      "width": 10,
+      "height": 10,
+      "length": 10,
+      "weightBrutto": 0.15,
+      "isValid": true
+    },
+    "characteristics": [
+      {
+        "id": 90611,
+        "name": "Количество ламп",
+        "value": 10
+      },
+      {
+        "id": 378533,
+        "name": "Комплектация",
+        "value": [
+          "Гирлянда 1 шт"
+        ]
+      },
+      {
+        "id": 15001405,
+        "name": "Ставка НДС",
+        "value": [
+          "22"
+        ]
+      },
+      {
+        "id": 16758,
+        "name": "Степень пылевлагозащиты",
+        "value": [
+          "IP20"
+        ]
+      },
+      {
+        "id": 15000001,
+        "name": "ТНВЭД",
+        "value": [
+          "9405310000"
+        ]
+      },
+      {
+        "id": 19030,
+        "name": "Тип гирлянды",
+        "value": [
+          "Электрическая"
+        ]
+      },
+      {
+        "id": 179792,
+        "name": "Количество предметов в упаковке",
+        "value": [
+          "1"
+        ]
+      },
+      {
+        "id": 5556,
+        "name": "Питание",
+        "value": [
+          "от сети"
+        ]
+      },
+      {
+        "id": 14177451,
+        "name": "Страна производства",
+        "value": [
+          "Китай"
+        ]
+      },
+      {
+        "id": 83280,
+        "name": "Тип лампы",
+        "value": [
+          "светодиодная"
+        ]
+      },
+      {
+        "id": 355308,
+        "name": "Цвет провода",
+        "value": [
+          "прозрачный"
+        ]
+      }
+    ],
+    "sizes": [
+      {
+        "chrtID": 2304687547,
+        "techSize": "0",
+        "wbSize": "",
+        "skus": [
+          "2055884367310"
+        ]
+      }
+    ],
+    "createdAt": "2026-09-03T08:32:37.744077Z",
+    "updatedAt": "2026-09-21T12:33:29.715708Z",
+    "documents": {
+      "overallVerdict": {
+        "isFullyChecked": true,
+        "status": 2,
+        "reason": "documents_missing",
+        "createdAt": "2026-09-04T00:15:59.844378+03:00"
+      },
+      "excludeDocuments": false
+    }
+  }
+]

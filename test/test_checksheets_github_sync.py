@@ -3,6 +3,7 @@ import datetime as dt
 import importlib.util
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -15,6 +16,67 @@ SPEC.loader.exec_module(sync)
 
 
 class GithubSyncDeferralTests(unittest.TestCase):
+    def test_git_contention_retries_and_defers_without_removing_lock(self):
+        failure = subprocess.CompletedProcess(['git'], 128, '', "index.lock: File exists; Another git process seems to be running")
+        with patch.object(sync, 'run', return_value=failure) as runner, patch.object(sync.time, 'sleep'):
+            with self.assertRaises(sync.SyncDeferred):
+                sync.git('add', '-A')
+            self.assertEqual(runner.call_count, 3)
+
+    def test_git_transient_contention_recovers(self):
+        failure = subprocess.CompletedProcess(['git'], 128, '', 'index.lock: File exists')
+        success = subprocess.CompletedProcess(['git'], 0, '', '')
+        with patch.object(sync, 'run', side_effect=[failure, success]), patch.object(sync.time, 'sleep'):
+            self.assertIs(sync.git('add', '-A'), success)
+
+    def test_git_other_failure_is_not_hidden(self):
+        failure = subprocess.CompletedProcess(['git'], 128, '', 'authentication failed')
+        with patch.object(sync, 'run', return_value=failure):
+            with self.assertRaises(RuntimeError):
+                sync.git('fetch')
+
+    def test_clasp_uses_persistent_install_without_npm_cache(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            binary = Path(temporary) / 'tools/node_modules/.bin/clasp'
+            binary.parent.mkdir(parents=True)
+            binary.write_text('test binary')
+            with patch.object(sync, 'STATE_ROOT', Path(temporary)):
+                self.assertEqual(sync.clasp_command('status'), (str(binary), 'status'))
+
+    def test_status_ignores_nested_worktree_but_not_gitlink_changes(self):
+        success = subprocess.CompletedProcess(['git'], 0, '', '')
+        with patch.object(sync, 'git', return_value=success) as git:
+            sync.git_status()
+            self.assertIn('--ignore-submodules=dirty', git.call_args.args)
+            sync.status_paths()
+            self.assertIn('--ignore-submodules=dirty', git.call_args.args)
+
+    def test_commit_excludes_cache_and_handles_unicode_paths(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            def git(*args):
+                return subprocess.run(['git', *args], cwd=root, text=True, capture_output=True, check=True)
+            git('init', '-q')
+            git('config', 'user.email', 'test@example.invalid')
+            git('config', 'user.name', 'Sync Test')
+            (root / 'initial').write_text('base')
+            git('add', '.')
+            git('commit', '-qm', 'base')
+            cache = root / 'graphify-out/cache'
+            cache.mkdir(parents=True)
+            for index in range(100):
+                (cache / f'{index}.json').write_text('{}')
+            (root / 'Тест файл.js').write_text('const value = 1;')
+            git('add', 'graphify-out')  # leftover staged cache from older worker
+            real_run = sync.run
+            def run_here(command, **kwargs):
+                return real_run(command, cwd=root, **kwargs)
+            with patch.object(sync, 'PROJECT_ROOT', root), patch.object(sync, 'run', side_effect=run_here), patch.object(sync, 'SETTLE_SECONDS', 0):
+                self.assertIsNotNone(sync.commit_stable_local_changes(False))
+            names = git('show', '--pretty=', '--name-only', '-z', 'HEAD').stdout
+            self.assertEqual(names.strip('\x00'), 'Тест файл.js')
+            self.assertEqual(len(list(cache.glob('*.json'))), 100)
+
     def test_generated_graphify_cache_is_runtime(self):
         self.assertTrue(sync.is_runtime_path("graphify-out/cache/last_query_stamp"))
         self.assertFalse(sync.is_runtime_path("sync-cdek-ozon-stocks.js"))

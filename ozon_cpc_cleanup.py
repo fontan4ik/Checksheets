@@ -437,6 +437,31 @@ def _resolve_token(token: str | TokenManager | None, force_refresh: bool = False
     return str(token) if token else None
 
 
+def _request_read_with_retry(call, max_attempts: int = 5):
+    """Recover transient read/token failures without replaying marketplace writes."""
+    for attempt in range(max_attempts):
+        response = None
+        try:
+            response = call()
+        except (requests.ConnectionError, requests.Timeout):
+            if attempt == max_attempts - 1:
+                raise
+        else:
+            if response.status_code not in {408, 429, 500, 502, 503, 504} or attempt == max_attempts - 1:
+                return response
+        delay = min(2 ** (attempt + 1), 60)
+        if response is not None:
+            try:
+                retry_after = float(getattr(response, "headers", {}).get("Retry-After", 0))
+            except (TypeError, ValueError):
+                retry_after = 0
+            # Very long cooldowns should fail explicitly instead of blocking the scheduler.
+            if retry_after > 300:
+                return response
+            delay = max(delay, retry_after)
+        time.sleep(delay)
+
+
 def request_json(
     session: requests.Session,
     method: str,
@@ -452,7 +477,7 @@ def request_json(
         headers = {"Content-Type": "application/json"}
         if token_value:
             headers["Authorization"] = f"Bearer {token_value}"
-        response = session.request(
+        request_call = lambda: session.request(
             method,
             f"{BASE_URL}{path}",
             headers=headers,
@@ -460,6 +485,9 @@ def request_json(
             json=payload,
             timeout=timeout,
         )
+        response = (_request_read_with_retry(request_call)
+                    if method.upper() == "GET" or path == "/api/client/token"
+                    else request_call())
         if response.status_code in (401, 403) and isinstance(token, TokenManager):
             if not auth_retry_attempted:
                 auth_retry_attempted = True
@@ -486,11 +514,11 @@ def request_bytes(
     auth_retry_attempted = False
     while True:
         token_value = _resolve_token(token, force_refresh=auth_retry_attempted)
-        response = session.get(
+        response = _request_read_with_retry(lambda: session.get(
             path if path.startswith("http") else f"{BASE_URL}{path}",
             headers={"Authorization": f"Bearer {token_value}"},
             timeout=timeout,
-        )
+        ))
         if response.status_code in (401, 403) and isinstance(token, TokenManager):
             if not auth_retry_attempted:
                 auth_retry_attempted = True

@@ -1,0 +1,140 @@
+{
+  "items": [
+    {
+      "id": 6023415662,
+      "name": "Вилка Navigator 14 320 NCA-SR515-16-380 стационарная 16А 3P+N+PE IP44",
+      "offer_id": "14320-1",
+      "is_archived": false,
+      "is_autoarchived": false,
+      "barcodes": [
+        "OZN5523622453"
+      ],
+      "description_category_id": 17028654,
+      "type_id": 94801,
+      "created_at": "2026-08-19T06:05:38.040737Z",
+      "images": [],
+      "currency_code": "RUB",
+      "min_price": "1504.00",
+      "old_price": "2407.00",
+      "price": "1504.00",
+      "sources": [
+        {
+          "sku": 5523622453,
+          "source": "sds",
+          "created_at": "2026-08-19T06:07:33.738423Z",
+          "shipment_type": "SHIPMENT_TYPE_GENERAL",
+          "quant_code": ""
+        }
+      ],
+      "model_info": {
+        "model_id": 6179006348,
+        "count": 1
+      },
+      "commissions": [
+        {
+          "delivery_amount": 25,
+          "percent": 31,
+          "return_amount": 115,
+          "sale_schema": "FBO",
+          "value": 466.24
+        },
+        {
+          "delivery_amount": 25,
+          "percent": 31,
+          "return_amount": 205,
+          "sale_schema": "FBS",
+          "value": 466.24
+        },
+        {
+          "percent": 31,
+          "sale_schema": "RFBS",
+          "value": 466.24
+        },
+        {
+          "percent": 45,
+          "sale_schema": "FBP",
+          "value": 676.8
+        }
+      ],
+      "is_prepayment_allowed": true,
+      "volume_weight": 0.2,
+      "has_discounted_fbo_item": false,
+      "is_discounted": false,
+      "discounted_fbo_stocks": 0,
+      "stocks": {
+        "has_stock": false,
+        "stocks": [
+          {
+            "present": 0,
+            "reserved": 0,
+            "sku": 5523622453,
+            "source": "fbs"
+          }
+        ]
+      },
+      "errors": [],
+      "updated_at": "2026-08-19T06:07:34.667280Z",
+      "vat": "0.22",
+      "visibility_details": {
+        "has_price": true,
+        "has_stock": false
+      },
+      "price_indexes": {
+        "color_index": "COLOR_INDEX_WITHOUT_INDEX",
+        "external_index_data": {
+          "minimal_price": "",
+          "minimal_price_currency": "",
+          "price_index_value": 0
+        },
+        "ozon_index_data": {
+          "minimal_price": "",
+          "minimal_price_currency": "",
+          "price_index_value": 0
+        },
+        "self_marketplaces_index_data": {
+          "minimal_price": "",
+          "minimal_price_currency": "",
+          "price_index_value": 0
+        }
+      },
+      "images360": [],
+      "is_kgt": false,
+      "color_image": [],
+      "primary_image": [
+        "https://ir.ozone.ru/s3/multimedia-1-1/14061862513.jpg"
+      ],
+      "statuses": {
+        "status": "price_sent",
+        "status_failed": "",
+        "moderate_status": "approved",
+        "validation_status": "success",
+        "status_name": "Готов к продаже",
+        "status_description": "Нет на складе",
+        "is_created": true,
+        "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+        "status_updated_at": "2026-08-19T06:07:34.157970Z"
+      },
+      "is_super": false,
+      "is_seasonal": false,
+      "promotions": [
+        {
+          "is_enabled": false,
+          "type": "REVIEWS_PROMO"
+        }
+      ],
+      "sku": 5523622453,
+      "availabilities": [
+        {
+          "availability": "AVAILABLE",
+          "reasons": [],
+          "sku": 5523622453,
+          "source": "sds"
+        }
+      ],
+      "declared_price": {
+        "amount": "0",
+        "currency": "RUB"
+      }
+    }
+  ]
+}

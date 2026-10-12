@@ -24,13 +24,15 @@ const OZON_BUYOUT_UNIT_API_QUANTITY_FIXED_COLUMN = 36; // AJ
 const OZON_BUYOUT_UNIT_API_TRIGGER_HANDLER = 'updateOzonBuyoutOrdersUnitApi';
 const OZON_BUYOUT_UNIT_API_TRIGGER_HOUR = 6;
 const OZON_BUYOUT_UNIT_API_TRIGGER_NEAR_MINUTE = 40;
+const OZON_BUYOUT_UNIT_API_RETRY_HANDLER = 'retryOzonBuyoutOrdersUnitApi';
+const OZON_BUYOUT_UNIT_API_RETRY_KEY = 'ozonBuyoutUnitApiRetry';
 
 function updateOzonBuyoutOrdersUnitApiCore_() {
   const range = getOzonBuyoutOrdersDateRange_();
-  updateOzonBuyoutOrdersUnitApiForDates(range.from, range.to);
+  updateOzonBuyoutOrdersUnitApiForDates(range.from, range.to, 0);
 }
 
-function updateOzonBuyoutOrdersUnitApiForDates(dateFrom, dateTo) {
+function updateOzonBuyoutOrdersUnitApiForDates(dateFrom, dateTo, retryAttempt) {
   return withOzonBuyoutOrdersLock_('updateOzonBuyoutOrdersUnitApiForDates', function() {
     const sheet = getOzonBuyoutOrdersUnitApiSheet_();
     const lastRow = sheet.getLastRow();
@@ -45,7 +47,19 @@ function updateOzonBuyoutOrdersUnitApiForDates(dateFrom, dateTo) {
 
     const targetCol = ensureOzonBuyoutOrdersColumn_(sheet);
     const quantityCol = ensureOzonBuyoutOrdersQuantityColumn_(sheet);
-    const buyoutMap = fetchOzonBuyoutOrdersMap_(dateFrom, dateTo);
+    let buyoutMap;
+    try {
+      buyoutMap = fetchOzonBuyoutOrdersMap_(dateFrom, dateTo);
+    } catch (error) {
+      // A long 429 cooldown cannot fit into the six-minute GAS execution.
+      // Keep the existing values and retry the original dates in a new run.
+      if (error.ozonBuyoutRetryable && Number.isInteger(retryAttempt) && retryAttempt < 4) {
+        scheduleOzonBuyoutOrdersRetry_(dateFrom, dateTo, retryAttempt + 1, error.retryAfterMs);
+        return;
+      }
+      if (Number.isInteger(retryAttempt)) clearOzonBuyoutOrdersRetry_();
+      throw error;
+    }
 
     const rowCount = lastRow - 1;
     const skuValues = sheet.getRange(2, skuCol, rowCount, 1).getDisplayValues();
@@ -62,6 +76,7 @@ function updateOzonBuyoutOrdersUnitApiForDates(dateFrom, dateTo) {
     sheet.getRange(2, targetCol, values.length, 1).setNumberFormat('#,##0.00');
     sheet.getRange(2, quantityCol, quantityValues.length, 1).setValues(quantityValues);
     sheet.getRange(2, quantityCol, quantityValues.length, 1).setNumberFormat('#,##0');
+    if (Number.isInteger(retryAttempt)) clearOzonBuyoutOrdersRetry_();
 
     const total = values.reduce(function(sum, row) { return sum + (Number(row[0]) || 0); }, 0);
     const nonZero = values.filter(function(row) { return Number(row[0]) !== 0; }).length;
@@ -167,12 +182,19 @@ function fetchOzonBuyoutOrdersMap_(dateFrom, dateTo) {
       muteHttpExceptions: true
     });
 
-    if (!response) throw new Error('Ozon Buyout API: пустой ответ за период ' + period.from + ' → ' + period.to);
+    if (!response) {
+      const error = new Error('Ozon Buyout API: пустой ответ за период ' + period.from + ' → ' + period.to);
+      error.ozonBuyoutRetryable = true;
+      throw error;
+    }
 
     const code = response.getResponseCode();
     const text = response.getContentText();
     if (code !== 200) {
-      throw new Error('Ozon Buyout API вернул ' + code + ' за период ' + period.from + ' → ' + period.to + ': ' + text.substring(0, 500));
+      const error = new Error('Ozon Buyout API вернул ' + code + ' за период ' + period.from + ' → ' + period.to + ': ' + text.substring(0, 500));
+      error.ozonBuyoutRetryable = code === 429 || code >= 500;
+      if (code === 429 && typeof retryAfterDelayMs_ === 'function') error.retryAfterMs = retryAfterDelayMs_(response);
+      throw error;
     }
 
     const data = JSON.parse(text || '{}');
@@ -383,5 +405,40 @@ function updateOzonBuyoutOrdersUnitApi() {
   var args = arguments;
   return runWithTelegramAlertGAS_('updateOzonBuyoutOrdersUnitApi', function() {
     return updateOzonBuyoutOrdersUnitApiCore_.apply(null, args);
+  });
+}
+
+function clearOzonBuyoutOrdersRetry_() {
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === OZON_BUYOUT_UNIT_API_RETRY_HANDLER) ScriptApp.deleteTrigger(trigger);
+  });
+  PropertiesService.getScriptProperties().deleteProperty(OZON_BUYOUT_UNIT_API_RETRY_KEY);
+}
+
+function scheduleOzonBuyoutOrdersRetry_(from, to, attempt, retryAfterMs) {
+  clearOzonBuyoutOrdersRetry_();
+  PropertiesService.getScriptProperties().setProperty(OZON_BUYOUT_UNIT_API_RETRY_KEY,
+    JSON.stringify({ from: from, to: to, attempt: attempt }));
+  try {
+    const delay = Math.max(5 * 60 * 1000 * attempt, Number(retryAfterMs) || 0);
+    ScriptApp.newTrigger(OZON_BUYOUT_UNIT_API_RETRY_HANDLER).timeBased()
+      .after(delay).create();
+    Logger.log('Ozon Buyout: временный отказ API; повтор ' + attempt + '/4 через ' + Math.ceil(delay / 60000) + ' минут');
+  } catch (error) {
+    PropertiesService.getScriptProperties().deleteProperty(OZON_BUYOUT_UNIT_API_RETRY_KEY);
+    throw error;
+  }
+}
+
+function retryOzonBuyoutOrdersUnitApi() {
+  return runWithTelegramAlertGAS_('retryOzonBuyoutOrdersUnitApi', function() {
+    const raw = PropertiesService.getScriptProperties().getProperty(OZON_BUYOUT_UNIT_API_RETRY_KEY);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    if (!state.from || !state.to || !Number.isInteger(state.attempt) || state.attempt < 1 || state.attempt > 4) {
+      clearOzonBuyoutOrdersRetry_();
+      throw new Error('Ozon Buyout: повреждено состояние отложенного запуска');
+    }
+    return updateOzonBuyoutOrdersUnitApiForDates(state.from, state.to, state.attempt);
   });
 }

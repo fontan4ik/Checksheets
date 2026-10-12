@@ -4,14 +4,11 @@
 // ============================================
 
 /**
- * OzonMain — устаревший триггер другого пользователя. Действующие отдельные
- * триггеры обновляют U, карточки, остатки, цены и FBS склады без этого прохода.
+ * Старое имя чужого триггера: добавление отсутствующих товаров Ozon в A/U.
+ * Использует тот же lock и сохранённый курсор, что syncOfferIdWithProductId.
  */
 function OzonMainCore_(){
-  // Триггер другого пользователя нельзя удалить из текущего аккаунта. Все
-  // перечисленные выше операции уже имеют отдельные действующие триггеры.
-  // Повторный полный проход здесь превышал 6 минут и конкурировал за записи.
-  Logger.log("OzonMain: устаревший составной триггер пропущен; работают отдельные триггеры Ozon.");
+  return syncOfferIdWithProductIdAlertCore_();
 }
 
 
@@ -38,11 +35,12 @@ function refreshOzonProductsNow() {
  * - L (12) используется только Ozon заказами.gs
  */
 function WbMainCore_() {
-  SpreadsheetApp.getActiveSpreadsheet().toast("Запуск обновления WB (Шаг 1 из 8)", "WB Аналитика", 5);
-  PropertiesService.getScriptProperties().deleteProperty("wb_main_step");
-
+  // Старый постоянный триггер также подхватывает незавершённый проход.
+  const props = PropertiesService.getScriptProperties();
+  if (Date.now() < Number(props.getProperty("wb_main_not_before"))) return;
+  const step = Number(props.getProperty("wb_main_step")) || 1;
   clearWbTriggers();
-  processWbStep(1);
+  processWbStep(step);
 }
 function clearWbTriggers() {
   const triggers = ScriptApp.getProjectTriggers();
@@ -69,44 +67,67 @@ function resumeWbMainCore_(e) {
   }
 }
 function processWbStep(step) {
-  Logger.log(`=== WB MAIN ШАГ ${step} ===`);
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) {
+    Logger.log("WB Main: другой запуск занят; сохранённый шаг подхватит следующий триггер.");
+    return;
+  }
+  const props = PropertiesService.getScriptProperties();
   try {
-    switch(step) {
-      case 1:
-        updateWBStocksFromStatisticsAPI();
-        scheduleNextWbStep(2, "Остатки загружены. Шаг 2: Сумма заказов...");
-        break;
-      case 2:
-        updateOrdersSummaryV2();
-        scheduleNextWbStep(3, "Шаг 3: Цены и картинки...");
-        break;
-      case 3:
-        updatePricesAndImages();
-        scheduleNextWbStep(4, "Шаг 4: Основная функция ВБ...");
-        break;
-      case 4:
-        main();
-        scheduleNextWbStep(5, "Шаг 5: Аналитика уходимость...");
-        break;
-      case 5:
-        // updateWBArticles(); - Убрано по вашей старой конфигурации
-        updateWBAnalytics();
-        scheduleNextWbStep(6, "Шаг 6: Склады WB...");
-        break;
-      case 6:
-        updateWBWarehousesByName();
-        PropertiesService.getScriptProperties().deleteProperty("wb_main_step");
-        SpreadsheetApp.getActiveSpreadsheet().toast("Обновление Wildberries полностью завершено!", "Готово", 5);
-        break;
+    if (Date.now() < Number(props.getProperty("wb_main_not_before"))) {
+      Logger.log("WB Main: ожидаем разрешённое время продолжения.");
+      return;
+    }
+    const savedStep = Number(props.getProperty("wb_main_step"));
+    if (savedStep && savedStep !== step) step = savedStep;
+    props.setProperty("wb_main_step", String(step));
+    wbMainContext_ = { deadline: Date.now() + 180000, state: loadWbMainState_(step), step: step };
+    Logger.log(`=== WB MAIN ШАГ ${step}/6 ===`);
+    const handlers = [updateWBStocksFromStatisticsAPI, updateOrdersSummaryV2,
+      updatePricesAndImages, main, updateWBAnalytics, updateWBWarehousesByName];
+    if (!handlers[step - 1]) throw new Error("Некорректный шаг WB Main: " + step);
+    handlers[step - 1]();
+    clearWbMainState_();
+    wbMainContext_.state = {};
+    wbMainContext_.beforeRequest = null;
+    if (step < handlers.length) {
+      scheduleNextWbStep(step + 1, "WB: следующий шаг " + (step + 1) + "/6");
+    } else {
+      props.deleteProperty("wb_main_step");
+      props.deleteProperty("wb_main_not_before");
+      SpreadsheetApp.getActiveSpreadsheet().toast("Обновление Wildberries завершено", "Готово", 5);
     }
   } catch (err) {
-    Logger.log(`❌ Ошибка в WB Main на шаге ${step}: ` + err);
+    if (wbMainContext_ && Object.keys(wbMainContext_.state).length) {
+      const safeState = !(err && err.wbMainYield) && wbMainContext_.beforeRequest
+        ? JSON.parse(wbMainContext_.beforeRequest) : wbMainContext_.state;
+      saveWbMainState_(safeState);
+    }
+    if (err && err.wbMainYield) {
+      scheduleNextWbStep(step, "WB: продолжение шага " + step + "/6", err.delayMs);
+      Logger.log("WB Main: прогресс сохранён; " + err.message);
+      return;
+    }
+    Logger.log(`Ошибка WB Main на шаге ${step}: ${err}`);
     throw err;
+  } finally {
+    wbMainContext_ = null;
+    lock.releaseLock();
   }
 }
-function scheduleNextWbStep(nextStep, toastMessage) {
-  PropertiesService.getScriptProperties().setProperty("wb_main_step", nextStep.toString());
-  ScriptApp.newTrigger("resumeWbMain").timeBased().after(1000).create();
+function scheduleNextWbStep(nextStep, toastMessage, delayMs) {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty("wb_main_step", String(nextStep));
+  const delay = Math.max(60000, Number(delayMs) || 60000);
+  props.setProperty("wb_main_not_before", String(Date.now() + delay));
+  try {
+    clearWbTriggers();
+    ScriptApp.newTrigger("resumeWbMain").timeBased().after(delay).create();
+  } catch (err) {
+    // При лимите триггеров сохранённый шаг подхватит постоянный WbMain.
+    if (!/too many triggers|слишком много триггер|maximum number of triggers/i.test(String(err))) throw err;
+    Logger.log("WB: достигнут лимит триггеров; продолжение при следующем WbMain.");
+  }
   SpreadsheetApp.getActiveSpreadsheet().toast(toastMessage, "WB Аналитика", 5);
 }
 

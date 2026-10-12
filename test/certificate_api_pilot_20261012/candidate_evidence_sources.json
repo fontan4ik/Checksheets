@@ -1,0 +1,112 @@
+{
+  "checked_at": "2026-10-12T02:44:52.754581+00:00",
+  "iek_live_xml": {
+    "url": "https://www.iek.ru/local/cron/xmlapi/file-certificatesPrice.xml",
+    "status": 200,
+    "bytes": 252391876,
+    "sha256": "bb14e04e4752961f1f47dbae8a43522f2d0c25f6e5fa280a547bf2fdbf0c1c88",
+    "Article": "WTP10-16-03-ZK-K01",
+    "Name": "Тройник Т-01/03В 3 места с заземлением 16А с выключателем белый IEK",
+    "exact_links_match_manifest": true
+  },
+  "iek_documents": [
+    {
+      "manifest": {
+        "Бренд": "IEK",
+        "Артикул продавца": "WTP10-16-03-ZK-K01-1",
+        "Название товара": "Тройник Т-01/03В 3 места с заземлением 16А с выключателем белый IEK",
+        "Категория Ozon": "Электроника › Сетевые фильтры, разветвители и удлинители",
+        "Тип товара Ozon": "Электроника › Сетевые фильтры, разветвители и удлинители › Разветвитель электрический",
+        "Артикул официального каталога": "WTP10-16-03-ZK-K01",
+        "Название товара в каталоге IEK": "Тройник Т-01/03В 3 места с заземлением 16А с выключателем белый IEK",
+        "Тип документа": "Декларация 037",
+        "Наименование документа": "Адаптеры-переходники (тройники). BOYANG",
+        "Номер документа": "ЕАЭС N RU Д-CN.РА03.В.40430/26",
+        "Дата начала": "2026-04-14",
+        "Дата окончания": "2031-04-13",
+        "Статус документа на 2026-10-01": "Действует",
+        "Основание связи и scope": "IEK XML attaches this cert/declaration to official Article=WTP10-16-03-ZK-K01; совпадает после удаления конечного SKU/упаковочного суффикса; для IEK LLE pack-20 сопоставлен по 20шт в официальном названии. Official product record: Тройник Т-01/03В 3 места с заземлением 16А с выключателем белый IEK; supporting type/name: Адаптеры-переходники (тройники). BOYANG",
+        "URL официального XML-каталога": "https://www.iek.ru/local/cron/xmlapi/file-certificatesPrice.xml",
+        "URL файла из официального CDN": "https://cdn-01.iek.ru/media/original/a368e136b16c9c2674f401170d2d58ec4bce981e6a1b722f861f9e0b23df81b1.pdf",
+        "Локальный файл": "documents/Адаптеры-переходники_тройники_._BOYANG_937ed62024.pdf",
+        "Размер, байт": "4898845",
+        "SHA-256": "a368e136b16c9c2674f401170d2d58ec4bce981e6a1b722f861f9e0b23df81b1",
+        "Статус загрузки": "downloaded"
+      },
+      "local_path": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_2/IEK_GENERICA/documents/Адаптеры-переходники_тройники_._BOYANG_937ed62024.pdf",
+      "local_sha256": "a368e136b16c9c2674f401170d2d58ec4bce981e6a1b722f861f9e0b23df81b1",
+      "live_pdf": {
+        "url": "https://cdn-01.iek.ru/media/original/a368e136b16c9c2674f401170d2d58ec4bce981e6a1b722f861f9e0b23df81b1.pdf",
+        "status": 200,
+        "size": 4898845,
+        "sha256": "a368e136b16c9c2674f401170d2d58ec4bce981e6a1b722f861f9e0b23df81b1",
+        "matches_local": true
+      }
+    },
+    {
+      "manifest": {
+        "Бренд": "IEK",
+        "Артикул продавца": "WTP10-16-03-ZK-K01-1",
+        "Название товара": "Тройник Т-01/03В 3 места с заземлением 16А с выключателем белый IEK",
+        "Категория Ozon": "Электроника › Сетевые фильтры, разветвители и удлинители",
+        "Тип товара Ozon": "Электроника › Сетевые фильтры, разветвители и удлинители › Разветвитель электрический",
+        "Артикул официального каталога": "WTP10-16-03-ZK-K01",
+        "Название товара в каталоге IEK": "Тройник Т-01/03В 3 места с заземлением 16А с выключателем белый IEK",
+        "Тип документа": "Сертификат 004",
+        "Наименование документа": "Адаптеры - переходники (тройники) товарного знака IEK. BOYANG",
+        "Номер документа": "ЕАЭС RU С-CN.АЯ46.В.47896/26",
+        "Дата начала": "2026-05-06",
+        "Дата окончания": "2030-04-27",
+        "Статус документа на 2026-10-01": "Действует",
+        "Основание связи и scope": "IEK XML attaches this cert/declaration to official Article=WTP10-16-03-ZK-K01; совпадает после удаления конечного SKU/упаковочного суффикса; для IEK LLE pack-20 сопоставлен по 20шт в официальном названии. Official product record: Тройник Т-01/03В 3 места с заземлением 16А с выключателем белый IEK; supporting type/name: Адаптеры - переходники (тройники) товарного знака IEK. BOYANG",
+        "URL официального XML-каталога": "https://www.iek.ru/local/cron/xmlapi/file-certificatesPrice.xml",
+        "URL файла из официального CDN": "https://cdn-01.iek.ru/media/original/bcd11f7733154e0d09615636e5c319a34c9382d8e3f500ac7f2a92975ff4e150.pdf",
+        "Локальный файл": "documents/Адаптеры_-_переходники_тройники_товарного_знака_IEK._BOYANG_89d29602ae.pdf",
+        "Размер, байт": "1158135",
+        "SHA-256": "bcd11f7733154e0d09615636e5c319a34c9382d8e3f500ac7f2a92975ff4e150",
+        "Статус загрузки": "downloaded"
+      },
+      "local_path": "/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/output_to_user/certificates/group_2/IEK_GENERICA/documents/Адаптеры_-_переходники_тройники_товарного_знака_IEK._BOYANG_89d29602ae.pdf",
+      "local_sha256": "bcd11f7733154e0d09615636e5c319a34c9382d8e3f500ac7f2a92975ff4e150",
+      "live_pdf": {
+        "url": "https://cdn-01.iek.ru/media/original/bcd11f7733154e0d09615636e5c319a34c9382d8e3f500ac7f2a92975ff4e150.pdf",
+        "status": 200,
+        "size": 1158135,
+        "sha256": "bcd11f7733154e0d09615636e5c319a34c9382d8e3f500ac7f2a92975ff4e150",
+        "matches_local": true
+      }
+    }
+  ],
+  "navigator_live_sources": [
+    {
+      "url": "http://www.batteryteam.ru/sert/1123.pdf",
+      "status": 200,
+      "size": 810483,
+      "sha256": "bb50bd4efe4688c07913e4153ec1067a8004842f7d22199311f4e8982e33a85e",
+      "matches_local": true,
+      "registration_date": "2022-10-07",
+      "valid_until": "2027-10-05",
+      "exact_model": "NGF-D010-10WW-2AA",
+      "pdf_scope_page": 2
+    },
+    {
+      "url": "http://www.batteryteam.ru/sert/1602.pdf",
+      "status": 200,
+      "size": 430100,
+      "sha256": "3aed124818bf8c2bf1ead157f3e3540964881e3abaed4b9b6f67b253ef9ae036",
+      "matches_local": true,
+      "registration_date": "2025-05-23",
+      "valid_until": "2030-05-22",
+      "exact_model": "NCA-SR515-16-380",
+      "pdf_scope_page": 1
+    }
+  ],
+  "navigator_registry_check": {
+    "urls": [
+      "https://pub.fsa.gov.ru/rds/declaration/view/17092904",
+      "https://pub.fsa.gov.ru/rds/declaration/view/20206039"
+    ],
+    "http_status": 200,
+    "result": "SPA shell only; status NOT established by HTTP200"
+  }
+}

@@ -44,10 +44,10 @@ function buildStockReport({
 
 function stockSyncFailure(report) {
   if (numberOrZero(report?.errorSku) > 0) {
-    return `${report.marketplace || "marketplace"} ${report.warehouseName || "warehouse"}: необработанных ошибок записи ${report.errorSku}`;
+    return `${report.marketplace || "marketplace"} ${report.warehouseName || "warehouse"}: необработанных ошибок записи ${report.errorSku}${report.failureDetails ? ` (${report.failureDetails})` : ""}`;
   }
   if (report?.verificationStatus === "mismatch" && numberOrZero(report?.mismatchSku) > 0) {
-    return `${report.marketplace || "marketplace"} ${report.warehouseName || "warehouse"}: после post-check остались расхождения ${report.mismatchSku}`;
+    return `${report.marketplace || "marketplace"} ${report.warehouseName || "warehouse"}: после post-check остались расхождения ${report.mismatchSku}${numberOrZero(report.cargoRestrictedSku) ? ` (из них ODC/CD+: ${report.cargoRestrictedSku}; WB запрещает этот тип товара на складе)` : ""}`;
   }
   if (report?.verificationStatus === "incomplete") {
     return `${report.marketplace || "marketplace"} ${report.warehouseName || "warehouse"}: post-check выполнен неполностью`;

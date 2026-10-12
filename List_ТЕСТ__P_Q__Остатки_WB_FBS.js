@@ -3,7 +3,11 @@ function main(){
   // Не перезаписываем его старым запросом Marketplace API с payload {skus}.
 
   // P (16): Остаток ФБС ВБ — Marketplace API по chrtId.
-  updateWBStocksFBSByChrtId(798761, "Остаток ФБС ВБ");
+  const state = wbMainState_("mainFbs", { firstDone: false });
+  if (!state.firstDone) {
+    updateWBStocksFBSByChrtId(798761, "Остаток ФБС ВБ");
+    state.firstDone = true;
+  }
 
   // Q (17): ОСТ ФБС МСК ВБ - склад Москва
   updateWBFBSMoscow();             // Остатки FBS на складе Москва
@@ -78,17 +82,20 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetHeader = "Ост�
   // URL для API запроса
   const url = `https://marketplace-api.wildberries.ru/api/v3/stocks/${warehouseId}`;
 
+  const state = wbMainState_("fbs_" + warehouseId, { chunkIndex: 0, ids: uniqueChrtIds });
   let updatedCount = 0;
   let foundCount = 0;
+  let lastRequestTime = Date.now() - 1000 / WB_RPS();
 
   // Обработка чанков
-  for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
-    const chunk = chunks[chunkIndex];
+  for (let chunkIndex = state.chunkIndex; chunkIndex < Math.ceil(state.ids.length / chunkSize); chunkIndex++) {
+    wbMainCheckBudget_();
+    const chunk = state.ids.slice(chunkIndex * chunkSize, (chunkIndex + 1) * chunkSize);
 
     Logger.log(`Обработка чанка ${chunkIndex + 1}/${chunks.length}: ${chunk.length} chrtId`);
 
     // Ограничиваем частоту запросов
-    const lastRequestTime = rateLimitRPS(Date.now() - 1000 / WB_RPS(), WB_RPS());
+    lastRequestTime = rateLimitRPS(lastRequestTime, WB_RPS());
 
     const options = {
       method: "post",
@@ -101,7 +108,7 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetHeader = "Ост�
     };
 
     try {
-      const response = retryFetch(url, options);
+      const response = wbMainFetch_(url, options);
 
       if (!response) {
         throw new Error(`Не удалось получить данные для чанка ${chunkIndex + 1}`);
@@ -117,7 +124,7 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetHeader = "Ост�
       // Проверяем структуру ответа
       if (!data || !Array.isArray(data.stocks)) {
         Logger.log(`❌ Неверная структура ответа API для чанка ${chunkIndex + 1}: ${JSON.stringify(data).substring(0, 200)}`);
-        continue;
+        throw new Error("WB FBS вернул неполную структуру остатков");
       }
 
       // Обрабатываем ответ
@@ -145,6 +152,9 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetHeader = "Ост�
           writeMask[rowIndex] = true;
         });
       });
+      wbMainWriteMasked_(sheet, targetColumn, newStocks, writeMask);
+      writeMask.fill(false);
+      state.chunkIndex = chunkIndex + 1;
     } catch (e) {
       Logger.log(`❌ Ошибка при обработке чанка ${chunkIndex + 1}: ${e.message}; таблица не обновлена`);
       throw e;
@@ -156,7 +166,7 @@ function updateWBStocksFBSByChrtId(warehouseId = 798761, targetHeader = "Ост�
       updatedCount++;
     }
   }
-  const written = writeMaskedColumnValues_(sheet, targetColumn, newStocks, writeMask);
+  const written = wbMainWriteMasked_(sheet, targetColumn, newStocks, writeMask);
 
   Logger.log(``);
   Logger.log(`Найдено остатков в API: ${foundCount}`);

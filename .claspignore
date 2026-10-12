@@ -4,6 +4,7 @@
 
 # Local Node helpers; do not upload to Apps Script on clasp push.
 ozon_fbs_warehouse_api.js
+ozon_stock_results.js
 sync-etm-stocks.js
 sync-rs-stocks.js
 sync-feron-stocks.js

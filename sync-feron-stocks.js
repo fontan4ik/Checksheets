@@ -6,6 +6,7 @@ const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsMultiWarehouseReport, 
 const { createWbStockAudit } = require("./wb_stock_audit");
 const { createWbStockRateLimiter } = require("./wb_stock_rate_limiter");
 const { buildStockReport, throwOnStockSyncFailures } = require("./stock_sync_report");
+const { reconcileOzonStockResults, isOzonWarehouseRestriction, ozonRestrictionDetails } = require("./ozon_stock_results");
 const {
   STREAM_SUPPS_HEADERS,
   resolveStreamSuppsColumns,
@@ -561,6 +562,7 @@ async function updateFeronStocksOzon(stocks, pausedWarehouseKeys, zeroPausedWare
     let warehouseSkipped = 0;
     let warehouseError = 0;
     const skippedOfferIds = new Set();
+    const restrictedOfferIds = new Set();
 
     for (let i = 0; i < batches; i++) {
       lastRequestTime = await rateLimitRPS(lastRequestTime, OZON_STOCKS_RPS);
@@ -578,7 +580,7 @@ async function updateFeronStocksOzon(stocks, pausedWarehouseKeys, zeroPausedWare
       );
 
       if (result.ok && result.data?.result) {
-        const itemResults = result.data.result;
+        const itemResults = reconcileOzonStockResults(batch, result.data, wh.id);
         itemResults.forEach((r) => {
           if (r.updated) {
             warehouseSuccess++;
@@ -588,6 +590,7 @@ async function updateFeronStocksOzon(stocks, pausedWarehouseKeys, zeroPausedWare
               warehouseSkipped++;
               if (r.offer_id) skippedOfferIds.add(String(r.offer_id));
             } else {
+              if (isOzonWarehouseRestriction(r)) restrictedOfferIds.add(String(r.offer_id));
               warehouseError++;
               log(
                 `❌ Ozon ${wh.name}: ${r.offer_id || "(без offer_id)"}: ${JSON.stringify(r.errors).slice(0, 1000)}`,
@@ -637,6 +640,7 @@ async function updateFeronStocksOzon(stocks, pausedWarehouseKeys, zeroPausedWare
       acceptedSku: warehouseSuccess,
       skippedSku: warehouseSkipped,
       errorSku: warehouseError,
+      failureDetails: ozonRestrictionDetails(restrictedOfferIds),
       skippedOfferIds,
       mismatchSku: mismatches.length,
       verificationStatus: mismatches.length ? "pending" : "verified",
@@ -762,6 +766,13 @@ async function sendFeronWBStocksBatch(batch, warehouseId, retryCount = 0) {
       return { ok: false, code, text: "MAX_RETRIES_EXCEEDED" };
     }
 
+    if ((code === 0 || [408, 500, 502, 503, 504].includes(code)) && retryCount < WB_MAX_RETRIES) {
+      const delay = WB_BASE_DELAY * 2 ** retryCount;
+      log(`⏳ WB transient ${code || "transport"}: retry ${retryCount + 1}/${WB_MAX_RETRIES} через ${delay / 1000} сек.`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return sendFeronWBStocksBatch(batch, warehouseId, retryCount + 1);
+    }
+
     return {
       ok: false,
       code,
@@ -795,11 +806,13 @@ async function processFeronWBConflictIndividually(
       auditContext?.audit.recordItemResult({
         warehouseId,
         batchIndex: auditContext.batchIndex,
+        checksum: auditContext.checksum,
         offerId: auditItem?.offerId,
         chrtId: item.chrtId,
         amount: item.amount,
         status: "success",
         code: result.code,
+        responseText: result.ok ? undefined : result.text,
       });
       continue;
     }
@@ -809,14 +822,17 @@ async function processFeronWBConflictIndividually(
         `⏸️ ${batchLabel}: пропущен ODC/CD+ chrtId=${item.chrtId}, amount=${item.amount}`,
       );
       skippedCount++;
+      if (result.cargoRestriction) auditContext?.cargoRestrictedChrtIds?.add(Number(item.chrtId));
       auditContext?.audit.recordItemResult({
         warehouseId,
         batchIndex: auditContext.batchIndex,
+        checksum: auditContext.checksum,
         offerId: auditItem?.offerId,
         chrtId: item.chrtId,
         amount: item.amount,
         status: "cargo_restriction",
         code: result.code,
+        responseText: result.ok ? undefined : result.text,
       });
       continue;
     }
@@ -825,15 +841,17 @@ async function processFeronWBConflictIndividually(
       log(
         `⏭️ ${batchLabel}: chrtId=${item.chrtId} - 429 превышен лимит, пропущен`,
       );
-      skippedCount++;
+      errorCount++;
       auditContext?.audit.recordItemResult({
         warehouseId,
         batchIndex: auditContext.batchIndex,
+        checksum: auditContext.checksum,
         offerId: auditItem?.offerId,
         chrtId: item.chrtId,
         amount: item.amount,
         status: "rate_limited",
         code: result.code,
+        responseText: result.ok ? undefined : result.text,
       });
       continue;
     }
@@ -845,11 +863,13 @@ async function processFeronWBConflictIndividually(
     auditContext?.audit.recordItemResult({
       warehouseId,
       batchIndex: auditContext.batchIndex,
+        checksum: auditContext.checksum,
       offerId: auditItem?.offerId,
       chrtId: item.chrtId,
       amount: item.amount,
       status: "error",
       code: result.code,
+        responseText: result.ok ? undefined : result.text,
     });
   }
 
@@ -1033,6 +1053,7 @@ async function updateFeronStocksWB(stocks, pausedWarehouseKeys, zeroPausedWareho
           {
             audit,
             batchIndex: i + 1,
+            checksum: auditPayload.checksum,
             itemsByChrtId: new Map(auditItems.map((item) => [item.chrtId, item])),
           },
         );
@@ -1056,14 +1077,14 @@ async function updateFeronStocksWB(stocks, pausedWarehouseKeys, zeroPausedWareho
         log(
           `⏭️ WB 429 (пачка ${i + 1}/${batches}): превышен лимит, пропущено ${validBatch.length} товаров`,
         );
-        warehouseSkipped += validBatch.length;
+        warehouseError += validBatch.length;
         audit.recordBatchResult({
           warehouseId: wh.id,
           batchIndex: i + 1,
           checksum: auditPayload.checksum,
           status: "rate_limited",
           code: result.code,
-          skippedCount: validBatch.length,
+          errorCount: validBatch.length,
         });
         continue;
       }
@@ -1232,6 +1253,7 @@ async function main() {
           acceptedSku: st.acceptedSku,
           skippedSku: st.skippedSku,
           errorSku: st.errorSku,
+          failureDetails: st.failureDetails,
           verification: { status: st.verificationStatus === "pending" ? "mismatch" : st.verificationStatus, positiveSku: st.marketplacePositiveCount, pieces: st.marketplaceTotalPieces, mismatchSku: st.mismatchSku },
           snapshotReadAt: st.snapshotReadAt,
         }),
@@ -1272,6 +1294,7 @@ async function main() {
     marketplace: "Ozon", warehouseName: st.warehouseName,
     sourcePositiveSku: st.sourcePositiveSku, attemptedSku: st.attemptedSku,
     acceptedSku: st.acceptedSku, skippedSku: st.skippedSku, errorSku: st.errorSku,
+    failureDetails: st.failureDetails,
     verification: { status: st.verificationStatus === "pending" ? "mismatch" : st.verificationStatus, mismatchSku: st.mismatchSku },
     snapshotReadAt: st.snapshotReadAt,
   })));

@@ -1,0 +1,32 @@
+{
+  "result": [
+    {
+      "name": "Сертификат соответствия",
+      "value": "certificate_of_conformity"
+    },
+    {
+      "name": "Декларация о соответствии",
+      "value": "declaration"
+    },
+    {
+      "name": "Свидетельство о регистрации",
+      "value": "certificate_of_registration"
+    },
+    {
+      "name": "Регистрационное удостоверение",
+      "value": "registration_certificate"
+    },
+    {
+      "name": "Отказное письмо",
+      "value": "refused_letter"
+    },
+    {
+      "name": "Ветеринарное свидетельство",
+      "value": "veterinary_cover_document"
+    },
+    {
+      "name": "Паспорт безопасности",
+      "value": "safety_data_sheet"
+    }
+  ]
+}

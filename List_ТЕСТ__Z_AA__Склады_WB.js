@@ -45,7 +45,7 @@ function updateWBWarehousesByName() {
 
   let warehouses = [];
   try {
-    const response = retryFetch(warehousesUrl, warehouseOptions);
+    const response = wbMainFetch_(warehousesUrl, warehouseOptions);
 
     if (!response) throw new Error("WB API не вернул список складов; таблица не обновлена");
 
@@ -121,16 +121,18 @@ function updateWBWarehousesByName() {
   Logger.log("\n=== ШАГ 3: Content API - получение chrtId ===");
   Logger.log(`Загружаем карточки для ${uniqueNmIds.length} nmId...`);
 
-  const nmIdToChrtIds = {}; // nmId -> [chrtId]
+  const state = wbMainState_("warehouses", { mapping: {}, cursor: null, pageCount: 0, catalogDone: false, results: { feron: {}, volt: {} }, offsets: { feron: 0, volt: 0 } });
+  const nmIdToChrtIds = state.mapping; // nmId -> [chrtId]
   const requestedNmIdSet = new Set(uniqueNmIds.map(String));
-  const seenCatalogNmIds = new Set();
-  let foundCards = 0;
-  let totalChrtIds = 0;
-  let cursor = null;
-  let pageCount = 0;
+  const seenCatalogNmIds = new Set(Object.keys(nmIdToChrtIds));
+  let foundCards = Object.keys(nmIdToChrtIds).length;
+  let totalChrtIds = Object.values(nmIdToChrtIds).reduce((sum, ids) => sum + ids.length, 0);
+  let cursor = state.cursor;
+  let pageCount = state.pageCount;
   const pageSize = 100;
 
-  while (true) {
+  while (!state.catalogDone) {
+    wbMainCheckBudget_();
     const cursorPayload = { limit: pageSize };
     if (cursor) {
       cursorPayload.updatedAt = cursor.updatedAt;
@@ -151,7 +153,7 @@ function updateWBWarehousesByName() {
       muteHttpExceptions: true,
     };
 
-    const response = retryFetch(contentUrl + "/content/v2/get/cards/list", options);
+    const response = wbMainFetch_(contentUrl + "/content/v2/get/cards/list", options);
     if (!response) throw new Error("WB Content API не вернул страницу карточек; таблица не обновлена");
     const responseCode = response.getResponseCode();
     if (responseCode < 200 || responseCode >= 300) {
@@ -188,9 +190,10 @@ function updateWBWarehousesByName() {
     });
 
     pageCount++;
+    state.pageCount = pageCount;
     if (pageCount > 500) throw new Error("WB Content API pagination exceeded 500 pages");
     const total = responseTotal;
-    if (total < pageSize) break;
+    if (total < pageSize) { state.catalogDone = true; break; }
 
     const nextCursor = {
       updatedAt: String(data.cursor.updatedAt ?? "").trim(),
@@ -201,6 +204,7 @@ function updateWBWarehousesByName() {
       throw new Error("WB Content API cursor did not advance; таблица не обновлена");
     }
     cursor = nextCursor;
+    state.cursor = cursor;
     Utilities.sleep(650);
   }
 
@@ -240,10 +244,7 @@ function updateWBWarehousesByName() {
 
   Logger.log("\n=== ШАГ 5: Marketplace API - остатки ===");
 
-  const results = {
-    feron: {}, // chrtId -> amount
-    volt: {}   // chrtId -> amount
-  };
+  const results = state.results;
 
   // Функция для проверки одного склада
   const checkWarehouse = (warehouse, targetKey, columnName) => {
@@ -252,7 +253,8 @@ function updateWBWarehousesByName() {
     const chunkSize = 999;
     let totalChecked = 0;
 
-    for (let i = 0; i < uniqueChrtIds.length; i += chunkSize) {
+    for (let i = state.offsets[targetKey]; i < uniqueChrtIds.length; i += chunkSize) {
+      wbMainCheckBudget_();
       const chunk = uniqueChrtIds.slice(i, i + chunkSize);
 
       const url = `${marketplaceUrl}/api/v3/stocks/${warehouse.id}`;
@@ -269,7 +271,7 @@ function updateWBWarehousesByName() {
       };
 
       try {
-        const response = retryFetch(url, options);
+        const response = wbMainFetch_(url, options);
         if (!response) throw new Error(`WB не вернул остатки склада ${warehouse.name}`);
 
         const responseCode = response.getResponseCode();
@@ -296,6 +298,7 @@ function updateWBWarehousesByName() {
         });
 
         totalChecked += chunk.length;
+        state.offsets[targetKey] = i + chunkSize;
       } catch (e) {
         Logger.log(`   ❌ Ошибка: ${e.message}`);
         throw e;
@@ -328,6 +331,7 @@ function updateWBWarehousesByName() {
   // Для каждого nmId суммируем остатки по всем его chrtId
   for (const nmId in nmIdToChrtIds) {
     const rows = nmIdToRows[nmId];
+    if (!rows) continue;
     const chrtIds = nmIdToChrtIds[nmId];
 
     const chrtIdKeys = chrtIds.map(String);
@@ -353,10 +357,10 @@ function updateWBWarehousesByName() {
     });
   }
 
-  const feronWritten = writeMaskedColumnValues_(sheet, feronStockColumn, feronValues, feronWriteMask);
+  const feronWritten = wbMainWriteMasked_(sheet, feronStockColumn, feronValues, feronWriteMask);
   Logger.log(`✅ Z (26) ФЕРОН МОСКВА: ${feronCount} товаров с остатками; записано полных строк ${feronWritten}`);
 
-  const voltWritten = writeMaskedColumnValues_(sheet, voltStockColumn, voltValues, voltWriteMask);
+  const voltWritten = wbMainWriteMasked_(sheet, voltStockColumn, voltValues, voltWriteMask);
   Logger.log(`✅ AA (27) ВольтМир: ${voltCount} товаров с остатками; записано полных строк ${voltWritten}`);
 
   // ═══════════════════════════════════════════════════════════════════════════════

@@ -23,6 +23,7 @@ const {
 const { createWbStockAudit } = require("./wb_stock_audit");
 const { createWbStockRateLimiter } = require("./wb_stock_rate_limiter");
 const { buildStockReport, throwOnStockSyncFailures } = require("./stock_sync_report");
+const { reconcileOzonStockResults, isOzonWarehouseRestriction, ozonRestrictionDetails } = require("./ozon_stock_results");
 const {
   STREAM_SUPPS_HEADERS,
   normalizeStreamSuppsHeader,
@@ -274,6 +275,7 @@ async function updateRsStocksOzon(
   let errorCount = 0;
   let skippedCount = 0;
   const skippedOfferIds = new Set();
+  const restrictedOfferIds = new Set();
 
   log(`🟠 ${label}: ${valid.length} товаров, склад ${warehouseId}`);
   for (let index = 0; index < batches; index += 1) {
@@ -287,9 +289,8 @@ async function updateRsStocksOzon(
       continue;
     }
 
-    const items = Array.isArray(result.data?.result) ? result.data.result : [];
     const resultsByOfferId = new Map(
-      items.filter((item) => item.offer_id).map((item) => [String(item.offer_id), item]),
+      reconcileOzonStockResults(batch, result.data, warehouseId).map((item) => [String(item.offer_id), item]),
     );
     for (const requested of batch) {
       const item = resultsByOfferId.get(String(requested.offer_id));
@@ -310,6 +311,7 @@ async function updateRsStocksOzon(
         skippedOfferIds.add(String(item.offer_id));
         log(`⏸️ ${label}: ${item.offer_id} пропущен — ${details}`);
       } else {
+        if (isOzonWarehouseRestriction(item)) restrictedOfferIds.add(String(item.offer_id));
         errorCount += 1;
         log(`❌ ${label}: ${item.offer_id} не обновлён — ${details}`);
       }
@@ -323,6 +325,7 @@ async function updateRsStocksOzon(
     acceptedSku: successCount,
     skippedSku: skippedCount,
     errorSku: errorCount,
+    failureDetails: ozonRestrictionDetails(restrictedOfferIds),
     successCount,
     skippedCount,
     errorCount,
@@ -648,8 +651,8 @@ async function main({ dryRun = false, skipPostcheck = false, marketplace = "all"
       marketplace: "Ozon",
       totalSku: stocks.length,
       warehouses: [
-        { warehouseName: "RS (резерв)", activeSku: postcheck.stats.sheetPositiveCount, marketplaceStockSku: postcheck.stats.marketplacePositiveCount, marketplaceTotalPieces: postcheck.stats.marketplaceTotalPieces, ...buildStockReport({ sourcePositiveSku: ozonStats.sourcePositiveSku, attemptedSku: ozonStats.attemptedSku, acceptedSku: ozonStats.acceptedSku, skippedSku: ozonStats.skippedSku, errorSku: ozonStats.errorSku, verification: { status: skipPostcheck ? "not_run" : postcheck.mismatches.length ? "mismatch" : "verified", positiveSku: postcheck.stats.marketplacePositiveCount, pieces: postcheck.stats.marketplaceTotalPieces, mismatchSku: postcheck.mismatches.length }, snapshotReadAt: stocks.snapshotReadAt }) },
-        { warehouseName: "РУССКИЙ СВЕТ МОСКВА", activeSku: moscowPostcheck.stats.sheetPositiveCount, marketplaceStockSku: moscowPostcheck.stats.marketplacePositiveCount, marketplaceTotalPieces: moscowPostcheck.stats.marketplaceTotalPieces, ...buildStockReport({ sourcePositiveSku: ozonMoscowStats.sourcePositiveSku, attemptedSku: ozonMoscowStats.attemptedSku, acceptedSku: ozonMoscowStats.acceptedSku, skippedSku: ozonMoscowStats.skippedSku, errorSku: ozonMoscowStats.errorSku, verification: { status: skipPostcheck ? "not_run" : moscowPostcheck.mismatches.length ? "mismatch" : "verified", positiveSku: moscowPostcheck.stats.marketplacePositiveCount, pieces: moscowPostcheck.stats.marketplaceTotalPieces, mismatchSku: moscowPostcheck.mismatches.length }, snapshotReadAt: stocks.snapshotReadAt }) },
+        { warehouseName: "RS (резерв)", activeSku: postcheck.stats.sheetPositiveCount, marketplaceStockSku: postcheck.stats.marketplacePositiveCount, marketplaceTotalPieces: postcheck.stats.marketplaceTotalPieces, ...buildStockReport({ sourcePositiveSku: ozonStats.sourcePositiveSku, attemptedSku: ozonStats.attemptedSku, acceptedSku: ozonStats.acceptedSku, skippedSku: ozonStats.skippedSku, errorSku: ozonStats.errorSku, failureDetails: ozonStats.failureDetails, verification: { status: skipPostcheck ? "not_run" : postcheck.mismatches.length ? "mismatch" : "verified", positiveSku: postcheck.stats.marketplacePositiveCount, pieces: postcheck.stats.marketplaceTotalPieces, mismatchSku: postcheck.mismatches.length }, snapshotReadAt: stocks.snapshotReadAt }) },
+        { warehouseName: "РУССКИЙ СВЕТ МОСКВА", activeSku: moscowPostcheck.stats.sheetPositiveCount, marketplaceStockSku: moscowPostcheck.stats.marketplacePositiveCount, marketplaceTotalPieces: moscowPostcheck.stats.marketplaceTotalPieces, ...buildStockReport({ sourcePositiveSku: ozonMoscowStats.sourcePositiveSku, attemptedSku: ozonMoscowStats.attemptedSku, acceptedSku: ozonMoscowStats.acceptedSku, skippedSku: ozonMoscowStats.skippedSku, errorSku: ozonMoscowStats.errorSku, failureDetails: ozonMoscowStats.failureDetails, verification: { status: skipPostcheck ? "not_run" : moscowPostcheck.mismatches.length ? "mismatch" : "verified", positiveSku: moscowPostcheck.stats.marketplacePositiveCount, pieces: moscowPostcheck.stats.marketplaceTotalPieces, mismatchSku: moscowPostcheck.mismatches.length }, snapshotReadAt: stocks.snapshotReadAt }) },
       ],
       durationSec,
     });
@@ -665,8 +668,8 @@ async function main({ dryRun = false, skipPostcheck = false, marketplace = "all"
   }
   if (marketplace !== "wb") {
     reports.push(
-      buildStockReport({ marketplace: "Ozon", warehouseName: "RS (резерв)", sourcePositiveSku: ozonStats.sourcePositiveSku, attemptedSku: ozonStats.attemptedSku, acceptedSku: ozonStats.acceptedSku, skippedSku: ozonStats.skippedSku, errorSku: ozonStats.errorSku, verification: { status: skipPostcheck ? "not_run" : postcheck.mismatches.length ? "mismatch" : "verified", mismatchSku: postcheck.mismatches.length } }),
-      buildStockReport({ marketplace: "Ozon", warehouseName: "РУССКИЙ СВЕТ МОСКВА", sourcePositiveSku: ozonMoscowStats.sourcePositiveSku, attemptedSku: ozonMoscowStats.attemptedSku, acceptedSku: ozonMoscowStats.acceptedSku, skippedSku: ozonMoscowStats.skippedSku, errorSku: ozonMoscowStats.errorSku, verification: { status: skipPostcheck ? "not_run" : moscowPostcheck.mismatches.length ? "mismatch" : "verified", mismatchSku: moscowPostcheck.mismatches.length } }),
+      buildStockReport({ marketplace: "Ozon", warehouseName: "RS (резерв)", sourcePositiveSku: ozonStats.sourcePositiveSku, attemptedSku: ozonStats.attemptedSku, acceptedSku: ozonStats.acceptedSku, skippedSku: ozonStats.skippedSku, errorSku: ozonStats.errorSku, failureDetails: ozonStats.failureDetails, verification: { status: skipPostcheck ? "not_run" : postcheck.mismatches.length ? "mismatch" : "verified", mismatchSku: postcheck.mismatches.length } }),
+      buildStockReport({ marketplace: "Ozon", warehouseName: "РУССКИЙ СВЕТ МОСКВА", sourcePositiveSku: ozonMoscowStats.sourcePositiveSku, attemptedSku: ozonMoscowStats.attemptedSku, acceptedSku: ozonMoscowStats.acceptedSku, skippedSku: ozonMoscowStats.skippedSku, errorSku: ozonMoscowStats.errorSku, failureDetails: ozonMoscowStats.failureDetails, verification: { status: skipPostcheck ? "not_run" : moscowPostcheck.mismatches.length ? "mismatch" : "verified", mismatchSku: moscowPostcheck.mismatches.length } }),
     );
   }
   if (marketplace !== "ozon") reports.push(buildStockReport({ marketplace: "ВБ", warehouseName: "ВольтМир (RS)", sourcePositiveSku: wbStats.sourcePositiveSku, attemptedSku: wbStats.attemptedSku, acceptedSku: wbStats.acceptedSku, skippedSku: wbStats.skippedSku, errorSku: wbStats.errorSku, verification: { status: "not_run" }, runId: wbStats.runId, snapshotReadAt: wbStats.snapshotReadAt, snapshotSources: wbStats.snapshotSources }));

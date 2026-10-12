@@ -1,0 +1,140 @@
+{
+  "items": [
+    {
+      "id": 6023323036,
+      "name": "Гирлянда Navigator 14 048 NGF-D010-10WW-2AA (золотые шарики - ткань 1.8м)",
+      "offer_id": "14048-1",
+      "is_archived": false,
+      "is_autoarchived": false,
+      "barcodes": [
+        "OZN5523523330"
+      ],
+      "description_category_id": 17028733,
+      "type_id": 91672,
+      "created_at": "2026-08-19T05:59:26.120833Z",
+      "images": [],
+      "currency_code": "RUB",
+      "min_price": "1804.00",
+      "old_price": "2887.00",
+      "price": "1804.00",
+      "sources": [
+        {
+          "sku": 5523523330,
+          "source": "sds",
+          "created_at": "2026-08-19T06:00:47.280946Z",
+          "shipment_type": "SHIPMENT_TYPE_GENERAL",
+          "quant_code": ""
+        }
+      ],
+      "model_info": {
+        "model_id": 6178955664,
+        "count": 1
+      },
+      "commissions": [
+        {
+          "delivery_amount": 25,
+          "percent": 31,
+          "return_amount": 115,
+          "sale_schema": "FBO",
+          "value": 559.24
+        },
+        {
+          "delivery_amount": 25,
+          "percent": 31,
+          "return_amount": 205,
+          "sale_schema": "FBS",
+          "value": 559.24
+        },
+        {
+          "percent": 31,
+          "sale_schema": "RFBS",
+          "value": 559.24
+        },
+        {
+          "percent": 50,
+          "sale_schema": "FBP",
+          "value": 902
+        }
+      ],
+      "is_prepayment_allowed": true,
+      "volume_weight": 0.2,
+      "has_discounted_fbo_item": false,
+      "is_discounted": false,
+      "discounted_fbo_stocks": 0,
+      "stocks": {
+        "has_stock": true,
+        "stocks": [
+          {
+            "present": 49,
+            "reserved": 0,
+            "sku": 5523523330,
+            "source": "fbs"
+          }
+        ]
+      },
+      "errors": [],
+      "updated_at": "2026-08-19T06:00:48.551225Z",
+      "vat": "0.22",
+      "visibility_details": {
+        "has_price": true,
+        "has_stock": true
+      },
+      "price_indexes": {
+        "color_index": "COLOR_INDEX_RED",
+        "external_index_data": {
+          "minimal_price": "808.00",
+          "minimal_price_currency": "RUB",
+          "price_index_value": 1.41
+        },
+        "ozon_index_data": {
+          "minimal_price": "1072.00",
+          "minimal_price_currency": "RUB",
+          "price_index_value": 1.22
+        },
+        "self_marketplaces_index_data": {
+          "minimal_price": "1915.00",
+          "minimal_price_currency": "RUB",
+          "price_index_value": 0.72
+        }
+      },
+      "images360": [],
+      "is_kgt": false,
+      "color_image": [],
+      "primary_image": [
+        "https://ir.ozone.ru/s3/multimedia-o/6414310416.jpg"
+      ],
+      "statuses": {
+        "status": "price_sent",
+        "status_failed": "",
+        "moderate_status": "approved",
+        "validation_status": "success",
+        "status_name": "Продается",
+        "status_description": "",
+        "is_created": true,
+        "status_tooltip": "",
+        "status_updated_at": "2026-08-19T06:00:47.952137Z"
+      },
+      "is_super": false,
+      "is_seasonal": false,
+      "promotions": [
+        {
+          "is_enabled": false,
+          "type": "REVIEWS_PROMO"
+        }
+      ],
+      "sku": 5523523330,
+      "availabilities": [
+        {
+          "availability": "AVAILABLE",
+          "reasons": [],
+          "sku": 5523523330,
+          "source": "sds"
+        }
+      ],
+      "declared_price": {
+        "amount": "0",
+        "currency": "RUB"
+      }
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "started_at": "2026-10-12T02:48:16.818189+00:00",
+  "results": [
+    {
+      "platform": "ozon",
+      "offer": "14048-1",
+      "number": "ЕАЭС N RU Д-CN.РА07.В.18481/22",
+      "action": "create",
+      "response": {
+        "params": [
+          {
+            "name": "CERTIFICATE_TYPE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "CERTIFICATE_COUNTRY",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "ACCORDANCE_TYPE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "NAME",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "NUMBER",
+            "state": "VALID",
+            "error": null,
+            "number_mask": [
+              "^ЕАЭС N RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}(?:/\\d{2})?$",
+              "^ТС RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}$",
+              "^ТС N RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}(?:/\\d{2})?$"
+            ]
+          },
+          {
+            "name": "ISSUE_DATE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "EXPIRED_DATE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "INFINITE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "SKUS",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          }
+        ],
+        "certificate_id": "5605326",
+        "status": "COMPLETED"
+      }
+    },
+    {
+      "platform": "ozon",
+      "offer": "14320-1",
+      "number": "ЕАЭС N RU Д-CN.РА04.В.60713/25",
+      "action": "create",
+      "response": {
+        "params": [
+          {
+            "name": "CERTIFICATE_TYPE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "CERTIFICATE_COUNTRY",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "ACCORDANCE_TYPE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "NAME",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "NUMBER",
+            "state": "VALID",
+            "error": null,
+            "number_mask": [
+              "^ЕАЭС N RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}(?:/\\d{2})?$",
+              "^ТС RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}$",
+              "^ТС N RU Д-[A-Za-z]{2}\\.[А-ЯA-Za-zЁё0-9]{2,4}\\.[А-ЯA-ZЁ]\\.\\d{3,7}(?:/\\d{2})?$"
+            ]
+          },
+          {
+            "name": "ISSUE_DATE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "EXPIRED_DATE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "INFINITE",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          },
+          {
+            "name": "SKUS",
+            "state": "VALID",
+            "error": null,
+            "number_mask": []
+          }
+        ],
+        "certificate_id": "5605327",
+        "status": "COMPLETED"
+      }
+    }
+  ]
+}

@@ -28,14 +28,16 @@
 function fetchWBSalesFunnel(dateFrom, dateTo) {
   const formatDate = date => Utilities.formatDate(date, "GMT+3", "yyyy-MM-dd");
 
-  const stats = {};
-  let hasNextPage = true;
+  const state = wbMainState_("funnel_" + formatDate(dateFrom), { stats: {}, offset: 0, done: false });
+  const stats = state.stats;
+  let hasNextPage = !state.done;
   let pageCount = 0;
 
   Logger.log(`🔄 WB Sales Funnel запрос: ${formatDate(dateFrom)} → ${formatDate(dateTo)}`);
 
   try {
     while (hasNextPage) {
+      wbMainCheckBudget_();
       pageCount++;
 
       const body = {
@@ -43,7 +45,8 @@ function fetchWBSalesFunnel(dateFrom, dateTo) {
           start: formatDate(dateFrom),
           end: formatDate(dateTo)
         },
-        limit: 1000
+        limit: 1000,
+        offset: state.offset
       };
 
       const options = {
@@ -54,11 +57,11 @@ function fetchWBSalesFunnel(dateFrom, dateTo) {
         muteHttpExceptions: true
       };
 
-      const response = retryFetch(wbSalesFunnelProductsURL(), options);
+      const response = wbMainFetch_(wbSalesFunnelProductsURL(), options);
 
       if (!response) {
         Logger.log(`❌ Не удалось получить данные WB Sales Funnel (страница ${pageCount})`);
-        break;
+        throw new Error("WB Sales Funnel не вернул полную страницу");
       }
 
       const responseText = response.getContentText();
@@ -69,13 +72,13 @@ function fetchWBSalesFunnel(dateFrom, dateTo) {
         Logger.log(`   ${JSON.stringify(data).substring(0, 300)}`);
       }
 
-      if (!data || !data.data || !data.data.products) {
+      if (!data || !data.data || !Array.isArray(data.data.products)) {
         Logger.log(`❌ Ошибка ответа API: не найдена структура data.products`);
         Logger.log(`   Поля: ${Object.keys(data || {}).join(', ')}`);
         if (data.data) {
           Logger.log(`   data поля: ${Object.keys(data.data).join(', ')}`);
         }
-        break;
+        throw new Error("WB Sales Funnel не вернул полную страницу");
       }
 
       const products = data.data.products;
@@ -103,21 +106,15 @@ function fetchWBSalesFunnel(dateFrom, dateTo) {
         }
       });
 
-      // Проверяем пагинацию
-      if (data.data && data.data.cursor && data.data.cursor.hasNextPage === false) {
-        hasNextPage = false;
-      } else if (!data.data || !data.data.cursor) {
-        // Если нет поля cursor, значит это последняя страница
-        hasNextPage = false;
-      } else if (products.length === 0) {
-        // Если нет товаров, завершаем
-        hasNextPage = false;
+      // API v3 использует limit/offset: отсутствие cursor не означает конец.
+      state.offset += products.length;
+      hasNextPage = products.length === body.limit;
+      state.done = !hasNextPage;
+      if (hasNextPage) {
+        wbMainCheckBudget_();
+        Utilities.sleep(20000);
       }
 
-      // Небольшая пауза между запросами
-      if (hasNextPage) {
-        Utilities.sleep(500);
-      }
     }
 
     const totalNmIds = Object.keys(stats).length;
@@ -126,7 +123,7 @@ function fetchWBSalesFunnel(dateFrom, dateTo) {
     return stats;
   } catch (e) {
     Logger.log(`❌ Ошибка при получении данных: ${e.message}`);
-    return null;
+    throw e;
   }
 }
 
@@ -138,7 +135,8 @@ function updateOrdersSummaryV2() {
   Logger.log("Колонка N (14): Сумма заказов Мес ВБ");
   Logger.log("Колонка AP (42): Сумма заказов Год ВБ");
 
-  const today = new Date();
+  const runState = wbMainState_("ordersDates", { today: new Date().toISOString() });
+  const today = new Date(runState.today);
 
   // Месяц: с 24 числа предыдущего месяца по 24 число текущего месяца (например, 2026-01-24 по 2026-02-24)
   const dateFromMonth = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());

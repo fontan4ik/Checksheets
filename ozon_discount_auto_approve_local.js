@@ -105,13 +105,56 @@ async function createSheetsClient() {
   return google.sheets({ version: 'v4', auth: await auth.getClient() });
 }
 
+function mapDifferencesBySku(skuRows, skuColumn, differenceByArticle) {
+  const differenceBySku = Object.create(null);
+  const conflictingSkus = new Set();
+  let matchedRows = 0;
+  let matchedRowsWithoutSku = 0;
+  for (const row of skuRows.slice(1)) {
+    const article = normalizeArticle(row[0]);
+    if (!article || !differenceByArticle.has(article)) continue;
+    const sku = normalizeSku(row[skuColumn]);
+    if (!sku) {
+      matchedRowsWithoutSku++;
+      continue;
+    }
+    if (conflictingSkus.has(sku)) continue;
+    const difference = differenceByArticle.get(article);
+    if (Object.hasOwn(differenceBySku, sku) && differenceBySku[sku] !== difference) {
+      conflictingSkus.add(sku);
+      delete differenceBySku[sku];
+      continue;
+    }
+    differenceBySku[sku] = difference;
+    matchedRows++;
+  }
+
+  return { differenceBySku, matchedRows, matchedRowsWithoutSku, conflictingSkus: [...conflictingSkus] };
+}
+
+async function readSheetWithRetry(read) {
+  for (let attempt = 0; attempt < MAX_API_RETRIES; attempt++) {
+    try {
+      return await read();
+    } catch (error) {
+      const status = Number(error.response?.status || error.code);
+      const transient = status === 408 || status === 429 || status >= 500 ||
+        ['ECONNRESET', 'ETIMEDOUT', 'ECONNABORTED', 'EAI_AGAIN', 'ENOTFOUND'].includes(error.code) ||
+        error.name === 'AbortError' || /operation was aborted|timed?\s*out/i.test(error.message || '');
+      if (!transient || attempt === MAX_API_RETRIES - 1) throw error;
+      log(`Чтение Google Sheets: временный сбой, повтор ${attempt + 1}/${MAX_API_RETRIES - 1}`);
+      await sleep(5000 * 2 ** attempt);
+    }
+  }
+}
+
 async function refreshDifferenceCache() {
   const sheets = await createSheetsClient();
-  const response = await sheets.spreadsheets.values.batchGet({
+  const response = await readSheetWithRetry(() => sheets.spreadsheets.values.batchGet({
     spreadsheetId: SPREADSHEET_ID,
     ranges: [SHEETS_RANGE_DIFFERENCE, SHEETS_RANGE_SKU],
     valueRenderOption: 'FORMATTED_VALUE',
-  });
+  }, { timeout: 60000 }));
   const differenceRows = response.data.valueRanges?.[0]?.values || [];
   const skuRows = response.data.valueRanges?.[1]?.values || [];
   if (!differenceRows.length || !skuRows.length) throw new Error('В таблице отсутствует строка заголовков');
@@ -145,23 +188,10 @@ async function refreshDifferenceCache() {
     differenceByArticle.set(article, difference);
   }
 
-  const differenceBySku = Object.create(null);
-  let matchedRows = 0;
-  let matchedRowsWithoutSku = 0;
-  for (const row of skuRows.slice(1)) {
-    const article = normalizeArticle(row[0]);
-    if (!article || !differenceByArticle.has(article)) continue;
-    const sku = normalizeSku(row[skuColumn]);
-    if (!sku) {
-      matchedRowsWithoutSku++;
-      continue;
-    }
-    const difference = differenceByArticle.get(article);
-    if (Object.hasOwn(differenceBySku, sku) && differenceBySku[sku] !== difference) {
-      throw new Error(`Лист ${SKU_SHEET}: у одного SKU найдены разные значения РАЗНИЦА`);
-    }
-    differenceBySku[sku] = difference;
-    matchedRows++;
+  const { differenceBySku, matchedRows, matchedRowsWithoutSku, conflictingSkus } =
+    mapDifferencesBySku(skuRows, skuColumn, differenceByArticle);
+  if (conflictingSkus.length) {
+    log(`Кэш РАЗНИЦА: исключены SKU с разными процентами (${conflictingSkus.length}): ${conflictingSkus.slice(0, 50).join(', ')}; их заявки не одобряются`);
   }
 
   const skuCount = Object.keys(differenceBySku).length;
@@ -177,6 +207,7 @@ async function refreshDifferenceCache() {
     matchedRows,
     matchedRowsWithoutSku,
     unusableDifferenceRows,
+    conflictingSkus,
     skuCount,
     differenceBySku,
   };
@@ -340,7 +371,9 @@ async function main() {
   throw new Error(`Неизвестный режим: ${mode}`);
 }
 
-main().catch(error => {
+if (require.main === module) main().catch(error => {
   log(`Ошибка автоодобрения скидок: ${error.stack || error.message}`);
   process.exitCode = 1;
 });
+
+module.exports = { mapDifferencesBySku, readSheetWithRetry, ozonPost, serializeOzonBody };

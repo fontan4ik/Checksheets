@@ -119,9 +119,11 @@ function createWbStockAudit({
       });
     },
 
-    recordItemResult({ warehouseId, batchIndex, offerId, chrtId, amount, status, code }) {
+    recordItemResult({ warehouseId, batchIndex, checksum, offerId, chrtId, amount, status, code, responseText }) {
       append({
         event: "item_result",
+        checksum,
+        responseText: responseText ? String(responseText).slice(0, 2000) : undefined,
         warehouseId,
         batchIndex,
         offerId: String(offerId || ""),

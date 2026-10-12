@@ -3,7 +3,8 @@ function updatePricesAndImages() {
   const priceColumn = columnByHeader_(sheet, "ЦЕНА ВБ");
 
   const limit = 1000;
-  let offset = 0;
+  const state = wbMainState_("prices", { offset: 0, goods: null, itemIndex: 0 });
+  let offset = state.offset;
   let moreData = true;
 
   // Считаем, какие артикулы уже есть (vendorCode в столбце A)
@@ -36,6 +37,7 @@ function updatePricesAndImages() {
   let updatedCount = 0;
   let existingPricesChanged = false;
   while (moreData) {
+    wbMainCheckBudget_();
     lastRequestTime = rateLimitRPS(lastRequestTime, WB_RPS());
 
     const url = `https://discounts-prices-api.wildberries.ru/api/v2/list/goods/filter?limit=${limit}&offset=${offset}`;
@@ -45,27 +47,38 @@ function updatePricesAndImages() {
     };
 
     let response;
-    response = retryFetch(url, options);
+    response = state.goods ? null : wbMainFetch_(url, options);
 
-    if (!response) {
+    if (!response && !state.goods) {
       Logger.log(`❌ Не удалось получить цены WB (offset: ${offset})`);
       moreData = false;
       break;
     }
 
-    const data = JSON.parse(response.getContentText());
-    if (!data || !data.data || !data.data.listGoods || data.data.listGoods.length === 0) {
+    const data = state.goods ? { data: { listGoods: state.goods } } : JSON.parse(response.getContentText());
+    if (!data || !data.data || !Array.isArray(data.data.listGoods)) {
+      throw new Error("WB цены: ответ не содержит data.listGoods; страница не завершена.");
+    }
+    if (data.data.listGoods.length === 0) {
       moreData = false;
       break;
     }
     
     const listGoods = data.data.listGoods;
+    state.goods = listGoods;
 
-    listGoods.forEach(item => {
+    for (let itemIndex = state.itemIndex; itemIndex < listGoods.length; itemIndex++) {
+      if (wbMainContext_ && Date.now() > wbMainContext_.deadline - 60000) {
+        if (existingPricesChanged) {
+          sheet.getRange(2, priceColumn, existingPrices.length, 1).setValues(existingPrices.map(price => [price]));
+        }
+        wbMainPause_("Цены WB: продолжение страницы");
+      }
+      const item = listGoods[itemIndex];
       const vendorCode = item.vendorCode;
       const sizes = item.sizes || [];
       const price = sizes.length > 0 ? sizes[0].price : null;
-      if (!vendorCode || price === null) return;
+      if (!vendorCode || price === null) { state.itemIndex = itemIndex + 1; continue; }
 
       if (vendorCodeToRows[vendorCode]) {
         // Compare before updating
@@ -85,12 +98,21 @@ function updatePricesAndImages() {
         vendorCodeToRows[vendorCode] = { rows: [newRow], prices: [price] };
         updatedCount++;
       }
-    });
+      state.itemIndex = itemIndex + 1;
+    }
 
+    // Фиксируем только полностью обработанную страницу до продвижения offset.
+    if (existingPricesChanged) {
+      sheet.getRange(2, priceColumn, existingPrices.length, 1).setValues(existingPrices.map(price => [price]));
+      existingPricesChanged = false;
+    }
+    state.goods = null;
+    state.itemIndex = 0;
     if (listGoods.length < limit) {
       moreData = false;
     } else {
       offset += limit;
+      state.offset = offset;
     }
   };
 

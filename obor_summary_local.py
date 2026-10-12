@@ -12,6 +12,7 @@ import os
 import re
 import subprocess
 import time
+from copy import deepcopy
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -367,6 +368,15 @@ def retry_read(label: str, operation):
     return _retry_gsheet_call(label, operation)
 
 
+def write_summary_batch(target, updates):
+    # gspread qualifies ranges in-place before sending. Each retry needs a fresh
+    # payload, otherwise a connection failure turns K1 into 'ОБОР'!'ОБОР'!K1.
+    return retry_read(
+        "пакетная запись показателей ОБОР",
+        lambda: target.batch_update(deepcopy(updates), raw=True),
+    )
+
+
 @contextmanager
 def exclusive_run_lock():
     LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -503,10 +513,7 @@ def updateOborSummary(dry_run: bool = False) -> dict:
                 "range": f"{letter}2:{letter}{target_last_row}",
                 "values": [[value] for value in output[header]],
             })
-        retry_read(
-            "пакетная запись показателей ОБОР",
-            lambda: target.batch_update(updates, raw=True),
-        )
+        write_summary_batch(target, updates)
 
     print(
         f"ОБОР: {'dry-run; без записи' if dry_run else 'расчёт завершён'}; "

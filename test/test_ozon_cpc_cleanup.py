@@ -70,6 +70,44 @@ class FakeSession:
 
 
 class OzonCpcCleanupTests(unittest.TestCase):
+    @patch("ozon_cpc_cleanup.time.sleep")
+    def test_read_recovers_from_429_and_500(self, sleep):
+        session = FakeSession([FakeResponse(429, {}), FakeResponse(500, {}), FakeResponse(200, {"ok": True})])
+        self.assertEqual(request_json(session, "GET", "/api/client/campaign", token="token"), {"ok": True})
+        self.assertEqual(len(session.calls), 3)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], [2, 4])
+
+    @patch("ozon_cpc_cleanup.time.sleep")
+    def test_token_recovers_from_ssl_eof(self, sleep):
+        session = FakeSession([])
+        session.request = unittest.mock.Mock(side_effect=[requests.exceptions.SSLError("EOF"), FakeResponse(200, {"access_token": "token"})])
+        self.assertEqual(request_json(session, "POST", "/api/client/token"), {"access_token": "token"})
+        self.assertEqual(session.request.call_count, 2)
+
+    @patch("ozon_cpc_cleanup.time.sleep")
+    def test_write_is_not_replayed_on_500(self, sleep):
+        session = FakeSession([FakeResponse(500, {})])
+        with self.assertRaisesRegex(RuntimeError, "HTTP 500"):
+            request_json(session, "POST", "/api/client/campaign", token="token")
+        self.assertEqual(len(session.calls), 1)
+        sleep.assert_not_called()
+
+    @patch("ozon_cpc_cleanup.time.sleep")
+    def test_read_honors_retry_after(self, sleep):
+        limited = FakeResponse(429, {})
+        limited.headers = {"Retry-After": "30"}
+        session = FakeSession([limited, FakeResponse(200, {})])
+        request_json(session, "GET", "/api/client/campaign")
+        sleep.assert_called_once_with(30)
+
+    @patch("ozon_cpc_cleanup.time.sleep")
+    def test_read_failure_is_bounded(self, sleep):
+        session = FakeSession([FakeResponse(429, {}) for _ in range(5)])
+        with self.assertRaisesRegex(RuntimeError, "HTTP 429"):
+            request_json(session, "GET", "/api/client/campaign")
+        self.assertEqual(len(session.calls), 5)
+        self.assertEqual(sleep.call_count, 4)
+
     def test_daily_report_limit_marker_is_scoped_to_moscow_day(self):
         with tempfile.TemporaryDirectory() as tmp:
             marker = pathlib.Path(tmp) / "limit.json"

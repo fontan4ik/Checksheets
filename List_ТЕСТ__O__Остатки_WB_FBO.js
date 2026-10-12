@@ -62,22 +62,25 @@ function updateWBStocksFromStatisticsAPI() {
   }
 
   const url = `${WB_ANALYTICS_BASE_URL()}/api/analytics/v1/stocks-report/wb-warehouses`;
-  const stockMap = {};
-  const seenNmIds = new Set();
+  const state = wbMainState_("fbo", { ids: nmIds, stockMap: {}, filterStart: 0, offset: 0, requestCount: 0, totalRecords: 0 });
+  const stockMap = state.stockMap;
+  const seenNmIds = new Set(Object.keys(stockMap));
   const filterBatchSize = 1000;
-  let requestCount = 0;
-  let totalRecords = 0;
+  let requestCount = state.requestCount;
+  let totalRecords = state.totalRecords;
 
   try {
-    for (let filterStart = 0; filterStart < nmIds.length; filterStart += filterBatchSize) {
-      const nmIdBatch = nmIds.slice(filterStart, filterStart + filterBatchSize);
-      let offset = 0;
+    for (let filterStart = state.filterStart; filterStart < state.ids.length; filterStart += filterBatchSize) {
+      const nmIdBatch = state.ids.slice(filterStart, filterStart + filterBatchSize);
+      let offset = state.offset;
 
       while (true) {
+        wbMainCheckBudget_();
         if (requestCount > 0) {
           Utilities.sleep(12000);
         }
         requestCount++;
+        state.requestCount = requestCount;
 
         const payload = {
           nmIds: nmIdBatch,
@@ -91,7 +94,7 @@ function updateWBStocksFromStatisticsAPI() {
           payload: JSON.stringify(payload),
           muteHttpExceptions: true
         };
-        const response = retryFetch(url, options);
+        const response = wbMainFetch_(url, options);
 
         if (!response) {
           throw new Error("Не удалось получить остатки ФБО ВБ");
@@ -128,11 +131,15 @@ function updateWBStocksFromStatisticsAPI() {
 
         Logger.log(`✅ Получено записей: ${items.length} (offset: ${offset})`);
 
+        state.totalRecords = totalRecords;
         if (items.length < pageSize) {
+          state.filterStart = filterStart + filterBatchSize;
+          state.offset = 0;
           break;
         }
 
         offset += pageSize;
+        state.offset = offset;
         if (offset / pageSize > 100) throw new Error("WB FBO pagination exceeded 100 pages");
       }
     }
@@ -155,7 +162,7 @@ function updateWBStocksFromStatisticsAPI() {
       }
     }
 
-    const written = writeMaskedColumnValues_(sheet, stockColumn, updatedStocks, writeMask);
+    const written = wbMainWriteMasked_(sheet, stockColumn, updatedStocks, writeMask);
 
     Logger.log(`Найдено товаров с остатками: ${foundCount}`);
     Logger.log(`Полных строк записано: ${written}; получено товаров с остатками: ${foundCount}`);

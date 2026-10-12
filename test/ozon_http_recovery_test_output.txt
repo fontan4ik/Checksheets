@@ -1,0 +1,56 @@
+.........................................................Google Sheets transient error during test batch update (attempt 1/6): ConnectionError: Connection aborted. Retrying in 5.0s...
+Статусы кампаний записаны: строк=2
+Дневная SKU-аналитика записана: строк=1
+Ozon daily SKU endpoint: кампаний=205; батчей=3; строк статистики=3; период=2026-08-17..2026-08-17
+Ozon daily SKU endpoint: кампаний=1; батчей=1; строк статистики=1; период=2026-08-17..2026-08-17
+  Daily SKU batch получил 429 (попытка 1/4); повтор через 1 сек.
+Ozon daily SKU endpoint: кампаний=1; батчей=1; строк статистики=1; период=2026-08-17..2026-08-17
+Ozon Performance token refreshed (expires_in=1800s)
+Ozon Performance token refreshed (expires_in=1800s)
+Ozon Performance token refreshed (expires_in=1800s)
+Ozon Performance token refreshed (expires_in=1800s)
+Ozon API ограничил текущий запуск по дневной квоте; следующий запуск будет по расписанию
+Статусы кампаний записаны: строк=1
+Сверка статусов CPC: строк=3, изменений=1
+Ozon Performance token refreshed (expires_in=1800s)
+Ozon Performance token refreshed (expires_in=1800s)
+Временная ошибка чтения статусов кампаний (1/4); повтор через 2 сек: GET /api/client/campaign -> HTTP 429: max active requests is 1
+Лист СРС: строк с art+SKU=1; новых без CAMPAIN ID=1
+Sheet schema: СРС -> sku -> 'SKU OZON' -> column 2
+Sheet schema: СРС -> campaign -> 'CAMPAIN ID' -> column 3
+Sheet schema: СРС -> toggle -> 'Включение/отключение компании' -> column 4
+Sheet schema: СРС -> clicks -> 'Клики день' -> column 5
+Sheet schema: СРС -> clicks_limit -> 'Фильтр клики день' -> column 6
+Sheet schema: СРС -> drr -> 'ДРР в продвижении месяц' -> column 7
+Sheet schema: СРС -> drr_limit -> 'Фильтр ДРР месяц' -> column 8
+Ozon ограничил добавление SKU; повтор через 5 сек
+Ozon ограничил добавление SKU; повтор через 15 сек
+.....
+----------------------------------------------------------------------
+Ran 62 tests in 0.014s
+
+OK
+[1/1] row=2 art=A FAILED: RuntimeError: HTTP 429
+Создание остальных строк отложено до следующего запуска из-за лимита Ozon
+
+Создано: 0; ошибок: 1
+Лист СРС: строк с art+SKU=1; новых без CAMPAIN ID=1
+Sheet schema: СРС -> sku -> 'SKU OZON' -> column 2
+Sheet schema: СРС -> campaign -> 'CAMPAIN ID' -> column 3
+Sheet schema: СРС -> toggle -> 'Включение/отключение компании' -> column 4
+Sheet schema: СРС -> clicks -> 'Клики день' -> column 5
+Sheet schema: СРС -> clicks_limit -> 'Фильтр клики день' -> column 6
+Sheet schema: СРС -> drr -> 'ДРР в продвижении месяц' -> column 7
+Sheet schema: СРС -> drr_limit -> 'Фильтр ДРР месяц' -> column 8
+[1/1] row=2 art=A sku=101 -> campaign 1001 (я A)
+
+Создано: 1; ошибок: 0
+Записаны новые CAMPAIN ID для 1 строк: 2
+Лист СРС: строк с art+SKU=1; новых без CAMPAIN ID=0
+Нет новых строк для создания
+
+Создано: 0; ошибок: 0
+
+=== CPC-аналитика после создания (с записью в СРС) ===
+
+Восстановлена незавершённая кампания 1001 для A

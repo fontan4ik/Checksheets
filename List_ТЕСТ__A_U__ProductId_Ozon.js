@@ -27,115 +27,128 @@ function runWithOzonProductSyncLock_(sourceName, callback) {
   }
 }
 
+// Both legacy OzonMain and the dedicated trigger continue this same catalog scan.
+const OZON_PRODUCT_LIST_CURSOR_KEY = "OZON_PRODUCT_LIST_CURSOR";
+const OZON_PRODUCT_LIST_MAX_RUN_MS = 3 * 60 * 1000;
+
 function syncOfferIdWithProductIdCore_() {
+  const startedAt = Date.now();
   const sheet = mainSheet();
-  const lastRow = sheet.getLastRow();
-
-  if (lastRow < 2) return; // nothing to process
-
-  // Read existing data into memory
-  const offerIds = sheet.getRange(2, 1, lastRow - 1).getValues().flat(); // column A
-  const productIds = sheet.getRange(2, columnByHeader_(sheet, "Product_id Ozon"), lastRow - 1).getValues().flat();
-
-  // Map offerId -> row index in the sheet
+  const productColumn = columnByHeader_(sheet, "Product_id Ozon");
+  const rowCount = Math.max(0, sheet.getLastRow() - 1);
+  const offerIds = rowCount ? sheet.getRange(2, 1, rowCount, 1).getValues().flat() : [];
+  const productIds = rowCount ? sheet.getRange(2, productColumn, rowCount, 1).getValues().flat() : [];
   const offerMap = new Map();
-  const sheetData = [];
-  offerIds.forEach((id, index) => {
-    const trimmedId = id.toString().trim();
-    if (trimmedId) {
-      offerMap.set(trimmedId, index); // 0-based index in sheetData
-      sheetData.push({ offerId: trimmedId, productId: productIds[index] || "" });
-    } else {
-      sheetData.push({ offerId: "", productId: productIds[index] || "" });
-    }
+  offerIds.forEach((value, index) => {
+    const offerId = String(value == null ? "" : value).trim();
+    if (!offerId) return;
+    if (!offerMap.has(offerId)) offerMap.set(offerId, []);
+    offerMap.get(offerId).push(index);
   });
+  let lastOfferIndex = offerIds.length - 1;
+  while (lastOfferIndex >= 0 && !String(offerIds[lastOfferIndex] || "").trim()) lastOfferIndex--;
 
+  const props = PropertiesService.getScriptProperties();
+  const scope = sheet.getParent().getId() + ":" + sheet.getSheetId();
+  const savedRaw = props.getProperty(OZON_PRODUCT_LIST_CURSOR_KEY);
+  const saved = savedRaw ? JSON.parse(savedRaw) : null;
+  let cursor = saved && saved.scope === scope ? String(saved.cursor || "") : "";
+  const seenCursors = new Set([cursor]);
   const limit = 1000;
-  let last_id = "";
-  let processedCount = 0;
+  let pages = 0;
+  let added = 0;
+  let updated = 0;
   let lastRequestTime = Date.now() - 1000 / RPS();
 
-  const newRowsToAdd = []; // store new rows to add at the end
-
-  while (true) {
+  // Commit every page before advancing the cursor. A retry can repair A/U
+  // after a partial write without adding the same offer_id a second time.
+  while (Date.now() - startedAt < OZON_PRODUCT_LIST_MAX_RUN_MS) {
     lastRequestTime = rateLimitRPS(lastRequestTime, RPS());
-
-    const payload = { filter: {}, limit: limit, last_id: last_id };
-    const options = {
+    const response = retryFetch(ozonProductsApiURL(), {
       method: "post",
       contentType: "application/json",
       headers: ozonHeaders(),
-      payload: JSON.stringify(payload),
-    };
-
-    const response = retryFetch(ozonProductsApiURL(), options);
-
-    if (!response) {
-      Logger.log(`❌ Не удалось получить данные с Ozon API (last_id: ${last_id})`);
-      break;
+      payload: JSON.stringify({ filter: {}, limit: limit, last_id: cursor }),
+      muteHttpExceptions: true
+    }, 1);
+    if (!response || response.getResponseCode() === 429 || response.getResponseCode() >= 500) {
+      props.setProperty(OZON_PRODUCT_LIST_CURSOR_KEY, JSON.stringify({ scope: scope, cursor: cursor }));
+      Logger.log("Ozon A/U: временная ошибка API; следующий штатный запуск продолжит тот же пакет.");
+      return { complete: false, added: added, updated: updated };
     }
-
+    const code = response.getResponseCode();
+    if (code < 200 || code >= 300) throw new Error("Ozon A/U: HTTP " + code);
     const json = JSON.parse(response.getContentText());
-    const items = json?.result?.items || [];
-
-    if (!items.length) break;
-
-    items.forEach(product => {
-      const offerId = (product.offer_id || "").trim();
-      const productId = product.product_id;
-
-      if (!offerId || !productId) return;
-
-      if (offerMap.has(offerId)) {
-        // update existing row in memory
-        const index = offerMap.get(offerId);
-        if (sheetData[index].productId !== productId) {
-          sheetData[index].productId = productId;
-          processedCount++;
+    if (!json.result || !Array.isArray(json.result.items)) {
+      throw new Error("Ozon A/U: ответ не содержит result.items; курсор сохранён.");
+    }
+    const items = json.result.items;
+    const nextCursor = String(json.result.last_id || "");
+    const complete = items.length < limit;
+    if (!complete && (!nextCursor || seenCursors.has(nextCursor))) {
+      throw new Error("Ozon A/U: пагинация не продвигается; повторная страница не записана.");
+    }
+    const validated = items.map(product => {
+      const offerId = String(product.offer_id == null ? "" : product.offer_id).trim();
+      const productId = Number(product.product_id);
+      if (!offerId || !Number.isSafeInteger(productId) || productId <= 0) {
+        throw new Error("Ozon A/U: товар без корректных offer_id/product_id; пакет не записан.");
+      }
+      return { offerId: offerId, productId: productId };
+    });
+    const newRows = [];
+    const newOffers = new Map();
+    let existingChanged = false;
+    validated.forEach(product => {
+      if (offerMap.has(product.offerId)) {
+        offerMap.get(product.offerId).forEach(index => {
+          if (String(productIds[index]) !== String(product.productId)) {
+            productIds[index] = product.productId;
+            existingChanged = true;
+            updated++;
+          }
+        });
+      } else if (newOffers.has(product.offerId)) {
+        if (newOffers.get(product.offerId) !== product.productId) {
+          throw new Error("Ozon A/U: разные product_id для одного offer_id.");
         }
       } else {
-        // schedule new row
-        newRowsToAdd.push({ offerId, productId });
-        processedCount++;
+        newOffers.set(product.offerId, product.productId);
+        newRows.push(product);
       }
     });
-
-    if (items.length < limit) break;
-    last_id = json.result.last_id || "";
-  }
-
-  // Write updates back to sheet in batch
-  const productColumnRange = sheet.getRange(2, columnByHeader_(sheet, "Product_id Ozon"), sheetData.length, 1);
-  const updatedProductIds = sheetData.map(row => [row.productId]);
-  productColumnRange.setValues(updatedProductIds);
-
-  // Добавляем новые товары сразу после последнего артикула в A. getLastRow()
-  // здесь использовать нельзя: формулы в других колонках могут создать
-  // большой пустой разрыв перед новыми товарами.
-  if (newRowsToAdd.length > 0) {
-    let lastOfferIndex = -1;
-    for (let i = offerIds.length - 1; i >= 0; i--) {
-      if (String(offerIds[i] || "").trim()) {
-        lastOfferIndex = i;
-        break;
+    if (existingChanged && productIds.length) {
+      sheet.getRange(2, productColumn, productIds.length, 1).setValues(productIds.map(value => [value]));
+    }
+    if (newRows.length) {
+      const startRow = lastOfferIndex + 3;
+      const requiredLastRow = startRow + newRows.length - 1;
+      if (requiredLastRow > sheet.getMaxRows()) {
+        sheet.insertRowsAfter(sheet.getMaxRows(), requiredLastRow - sheet.getMaxRows());
       }
+      sheet.getRange(startRow, 1, newRows.length, 1).setNumberFormat('@');
+      sheet.getRange(startRow, 1, newRows.length, 1).setValues(newRows.map(product => [product.offerId]));
+      sheet.getRange(startRow, productColumn, newRows.length, 1).setValues(newRows.map(product => [product.productId]));
+      newRows.forEach(product => {
+        lastOfferIndex++;
+        offerIds[lastOfferIndex] = product.offerId;
+        productIds[lastOfferIndex] = product.productId;
+        offerMap.set(product.offerId, [lastOfferIndex]);
+      });
+      added += newRows.length;
     }
-    const startRow = lastOfferIndex >= 0 ? lastOfferIndex + 3 : 2;
-    const newOfferIds = newRowsToAdd.map(row => [row.offerId]);
-    const newProductIds = newRowsToAdd.map(row => [row.productId]);
-    const requiredLastRow = startRow + newRowsToAdd.length - 1;
-
-    if (requiredLastRow > sheet.getMaxRows()) {
-      sheet.insertRowsAfter(sheet.getMaxRows(), requiredLastRow - sheet.getMaxRows());
+    pages++;
+    if (complete) {
+      props.deleteProperty(OZON_PRODUCT_LIST_CURSOR_KEY);
+      Logger.log(`Ozon A/U: полный проход завершён; страниц ${pages}, добавлено ${added}, обновлено ${updated}.`);
+      return { complete: true, added: added, updated: updated };
     }
-
-    // Insert new offerIds in column A
-    sheet.getRange(startRow, 1, newOfferIds.length, 1).setValues(newOfferIds);
-    // Insert corresponding productIds in column U (21)
-    sheet.getRange(startRow, columnByHeader_(sheet, "Product_id Ozon"), newProductIds.length, 1).setValues(newProductIds);
+    cursor = nextCursor;
+    seenCursors.add(cursor);
+    props.setProperty(OZON_PRODUCT_LIST_CURSOR_KEY, JSON.stringify({ scope: scope, cursor: cursor }));
   }
-
-  Logger.log(`Синхронизация завершена. Обработано строк: ${processedCount}`);
+  Logger.log(`Ozon A/U: бюджет времени исчерпан; добавлено ${added}, обновлено ${updated}. Следующий штатный запуск продолжит проход.`);
+  return { complete: false, added: added, updated: updated };
 }
 
 /**

@@ -110,7 +110,10 @@ async function requestBuyouts(dateFrom, dateTo, headers, limiter) {
       }
 
       const retryAfter = Number(response.headers?.['retry-after']);
-      const delayMs = Math.max(Number.isFinite(retryAfter) ? retryAfter * 1000 : 0, Math.min(60000, 10000 * 2 ** attempt));
+      const backoffMs = response.status === 429
+        ? Math.min(300000, 60000 * 2 ** attempt)
+        : Math.min(60000, 10000 * 2 ** attempt);
+      const delayMs = Math.max(Number.isFinite(retryAfter) ? retryAfter * 1000 : 0, backoffMs);
       log(`Ozon HTTP ${response.status}: ${JSON.stringify(response.data).slice(0, 200)}; повтор через ${Math.ceil(delayMs / 1000)} сек`);
       await sleep(delayMs);
     } catch (error) {
@@ -371,4 +374,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { getDateRanges, splitPeriod };
+module.exports = { getDateRanges, splitPeriod, requestBuyouts };

@@ -10,7 +10,7 @@ const handlers = [
   'updateOzonReviewCountBL', 'fetchAndUpdateAll', 'maintainArticleColumn',
   'updateOzonFBOSales', 'updateWBFBOFBSSales', 'updateAllFBSStocks',
   'updateOzonPriceIndexBK', 'startFetchAndWriteAnalytics',
-  'updateOzonBuyoutOrdersUnitApi', 'updateStockFBO',
+  'updateOzonBuyoutOrdersUnitApi', 'retryOzonBuyoutOrdersUnitApi', 'updateStockFBO',
   'getOzonPricesOptimized', 'OzonSKUAndAnalytic', 'syncOfferIdWithProductId',
   'getStocksByWarehouseFBS', 'updateOborSummary',
   'syncUnitYnxNtcStocksToYandex', 'updateHucksterPrices',

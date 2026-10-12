@@ -131,11 +131,33 @@ def run(
 
 
 def git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return run(("git", *args), check=check)
+    # The editor and other Git clients do not share our deployment flock.
+    # Leave their lock alone and retry briefly; contention is a deferred cycle.
+    for attempt in range(3):
+        result = run(("git", *args), check=False)
+        detail = result.stderr or result.stdout
+        locked = result.returncode != 0 and (
+            "Another git process seems to be running" in detail
+            or (".lock" in detail and "File exists" in detail)
+        )
+        if locked:
+            if attempt < 2:
+                time.sleep(attempt + 1)
+                continue
+            raise SyncDeferred("Git занят другим процессом; повтор в следующем цикле")
+        if check and result.returncode != 0:
+            lines = detail.strip().splitlines()[-5:]
+            raise RuntimeError(
+                f"Команда завершилась с кодом {result.returncode}: "
+                f"git {' '.join(args[:2])}; {' | '.join(lines)}"
+            )
+        return result
 
 
 def git_status() -> str:
-    return git("status", "--porcelain=v1").stdout
+    # Nested app worktrees are maintained independently. Their dirty files are
+    # not root source edits; a changed gitlink commit is still reported.
+    return git("status", "--porcelain=v1", "--ignore-submodules=dirty").stdout
 
 
 def git_sha(ref: str = "HEAD") -> str:
@@ -199,13 +221,15 @@ def write_state(payload: dict) -> None:
 
 def status_paths() -> list[str]:
     paths: list[str] = []
-    for line in git_status().splitlines():
-        if not line:
+    entries = iter(git("status", "--porcelain=v1", "--ignore-submodules=dirty", "-z").stdout.split("\x00"))
+    for entry in entries:
+        if not entry:
             continue
-        value = line[3:] if len(line) > 3 else ""
-        if " -> " in value:
-            value = value.split(" -> ", 1)[1]
-        paths.append(value.strip('"'))
+        paths.append(entry[3:])
+        if "R" in entry[:2] or "C" in entry[:2]:
+            original = next(entries, "")
+            if original:
+                paths.append(original)
     return paths
 
 
@@ -270,25 +294,33 @@ def commit_stable_local_changes(dry_run: bool) -> str | None:
         log.info("dry-run: были бы добавлены все безопасные изменения локалки")
         return None
 
-    git("add", "-A")
-    staged = [line.strip() for line in git("diff", "--cached", "--name-only").stdout.splitlines() if line.strip()]
+    # Do not stage thousands of generated cache files and then reset each one.
+    # That used to acquire the index lock once per file, racing editor Git polls.
+    candidates = [path for path in status_paths() if not is_runtime_path(path)]
+    safe = [path for path in candidates if not is_sensitive_path(path) or not (PROJECT_ROOT / path).exists()]
+    if safe:
+        git("add", "-A", "--", *safe)
+    staged = [path for path in git("diff", "--cached", "--name-only", "-z").stdout.split("\x00") if path]
     deletions = {
-        line.strip()
-        for line in git("diff", "--cached", "--diff-filter=D", "--name-only").stdout.splitlines()
-        if line.strip()
+        path
+        for path in git("diff", "--cached", "--diff-filter=D", "--name-only", "-z").stdout.split("\x00")
+        if path
     }
     blocked: list[str] = []
+    excluded: list[str] = []
     for path in staged:
         if is_runtime_path(path):
-            git("reset", "--", path)
+            excluded.append(path)
             continue
-        if is_sensitive_path(path) and path not in deletions and Path(path).exists():
-            git("reset", "--", path)
+        if is_sensitive_path(path) and path not in deletions and (PROJECT_ROOT / path).exists():
+            excluded.append(path)
             blocked.append(path)
+    if excluded:
+        git("reset", "--", *excluded)
     if blocked:
         log.warning("Секретные локальные файлы не добавлены в Git: %s", ", ".join(blocked))
 
-    staged = [line.strip() for line in git("diff", "--cached", "--name-only").stdout.splitlines() if line.strip()]
+    staged = [path for path in git("diff", "--cached", "--name-only", "-z").stdout.split("\x00") if path]
     if not staged:
         return None
 
@@ -373,6 +405,14 @@ def apps_script_change(paths: Iterable[str] | None) -> bool:
 
 
 def clasp_command(*args: str) -> tuple[str, ...]:
+    # npm exec --offline still needs registry metadata, even when the package
+    # was once downloaded. Prefer the persistent deployment installation.
+    installed = Path(os.environ.get(
+        "CHECKSHEETS_SYNC_CLASP",
+        str(STATE_ROOT / "tools" / "node_modules" / ".bin" / "clasp"),
+    ))
+    if installed.is_file():
+        return (str(installed), *args)
     npm = NPM if Path(NPM).exists() else "npm"
     return (
         npm,
@@ -512,7 +552,7 @@ def exclusive_lock():
         try:
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
-            raise RuntimeError("Другой Checksheets sync уже выполняется")
+            raise SyncDeferred("Другой Checksheets sync или обслуживание уже выполняется")
         yield
 
 

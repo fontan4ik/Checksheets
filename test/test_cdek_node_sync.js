@@ -23,7 +23,7 @@ async function testCdekStockCalculation() {
   const stocks = await cdek.loadStocks(["100", "200"], { Accept: "application/json" }, httpClient);
   assert.deepStrictEqual(calls, ["100", "200"]);
   assert.strictEqual(stocks.get("100"), 5);
-  assert.strictEqual(stocks.get("200"), 0);
+  assert.strictEqual(stocks.has("200"), false, "missing exact-model matches must leave the source sheet stock untouched");
 }
 
 function testCdekBypassInterface() {
@@ -124,7 +124,27 @@ async function testYandexWarehouseAndUpload() {
     { sku: '022770-1', partnerWarehouseId: 2456454, count: 1 },
     { sku: '022771-1', partnerWarehouseId: 2456454, count: 0 },
   ] });
-  await assert.rejects(ozon.verifyYandexWarehouse({}, { post: async () => ({ data: { result: { warehouses: [] } } }) }), /недоступен/);
+  let unavailableChecks = 0;
+  const waits = [];
+  await assert.rejects(ozon.verifyYandexWarehouse({}, { post: async () => {
+    unavailableChecks += 1;
+    return { data: { result: { warehouses: [] } } };
+  } }, async (delay) => waits.push(delay)), /недоступен.*после 3 проверок/);
+  assert.strictEqual(unavailableChecks, 3);
+  assert.deepStrictEqual(waits, [5000, 10000]);
+  let recoveryChecks = 0;
+  await ozon.verifyYandexWarehouse({}, { post: async () => {
+    recoveryChecks += 1;
+    return { data: { result: { warehouses: [{
+      id: 2456454, name: 'СДЭК МО', models: [{
+        placementType: 'DBS', apiAvailability: recoveryChecks === 1 ? 'UNAVAILABLE' : 'AVAILABLE',
+      }],
+    }] } } };
+  } }, async () => {});
+  assert.strictEqual(recoveryChecks, 2);
+  await assert.rejects(ozon.verifyYandexWarehouse({}, {
+    post: async () => ({ data: { status: 'ERROR' } }),
+  }, async () => {}), /не содержит result.warehouses/);
   await assert.rejects(ozon.uploadYandexStocks([{ offer_id: 'a', stock: 1 }], {}, {
     post: async () => ({ data: { status: 'ERROR' } }),
   }), /не принят/);

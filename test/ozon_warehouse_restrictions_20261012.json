@@ -1,0 +1,4282 @@
+{
+  "readAt": "2026-10-12T02:35:01.301Z",
+  "offerIds": [
+    "033632-1",
+    "035800-1",
+    "036784-1",
+    "037309-1",
+    "037522-1",
+    "041292-1",
+    "041293-1",
+    "041438-1",
+    "046702-1",
+    "051865-1",
+    "051866-1",
+    "052301-1",
+    "052302-1",
+    "41115-1",
+    "EOR-BK-16-9-1",
+    "EOR-BK-20-9-1",
+    "EOT-0006KVA-1-016-1",
+    "TI5-10-N-100-060-030-66-1",
+    "TI5-10-N-100-060-040-66-1",
+    "TI5-10-N-100-080-030-66-1",
+    "TI5-10-N-120-060-040-66-1",
+    "TI5-10-N-120-080-030-66-1",
+    "TI5-10-N-120-080-040-66-1",
+    "TI5-10-N-140-060-030-66-1",
+    "YKM1-C3-1864-31-1",
+    "YKM1-C3-1884-54-1",
+    "YKM1-C3-2064-31-1",
+    "YKM1-C3-2084-54-1",
+    "YKM1-C3-2086-31-1",
+    "YKM1-C3-2086-54-1",
+    "YKM40-05-54-1",
+    "YKM40-05-54-G-1",
+    "YKM40-06-31-1",
+    "YKM40-06-54-1",
+    "YKM40-06-54-G-1",
+    "YKM40-07-31-1",
+    "YKM40-07-54-1",
+    "YKM40-1664-31-1",
+    "YKM40-1664-54-1",
+    "YKM40-1684-31-1",
+    "YKM40-1684-54-1",
+    "YKM40-1864-54-1",
+    "YKM40-1884-31-1",
+    "YKM40-1884-54-1",
+    "YKM50-1800-600-450-1",
+    "YKM50-1800-600-450-54-1",
+    "YKM50-1800-800-450-1",
+    "YKM50-2000-600-450-1",
+    "YKM50-2000-800-450-54-1",
+    "YKM50-2000-800-600-1",
+    "YKM50-2000-800-600-54-1"
+  ],
+  "evidence": [
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:01.744 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:18.717 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:18.717 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:18.717 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:18.718 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:26.720 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:26.721 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:26.721 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:26.721 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:26.721 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:26.721 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:41:26.722 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "14:45:10.915 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:40:54.497 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:41:11.517 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:41:11.517 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:41:11.517 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:41:11.517 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:41:19.528 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:41:19.528 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:41:19.528 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:41:19.529 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:41:19.529 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:41:19.529 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:41:19.529 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261005.log",
+      "line": "23:45:02.804 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:15.982 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:32.935 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:32.935 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:32.935 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:32.935 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:41.135 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:41.135 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:41.135 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:41.135 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:41.135 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:41.135 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:42:41.136 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "14:46:27.739 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:40:55.536 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:41:12.551 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:41:12.552 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:41:12.552 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:41:12.552 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:41:20.545 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:41:20.545 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:41:20.546 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:41:20.546 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:41:20.546 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:41:20.546 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:41:20.546 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261006.log",
+      "line": "23:45:06.173 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "14:41:08.478 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "14:41:26.171 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "14:41:26.171 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "14:41:26.171 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "14:41:26.171 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "14:45:23.505 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:40:58.882 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:41:15.867 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:41:15.868 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:41:15.868 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:41:15.868 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:41:23.892 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:41:23.892 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:41:23.892 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:41:23.893 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:41:23.893 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:41:23.893 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:41:23.893 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261007.log",
+      "line": "23:45:10.325 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:01.736 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:18.665 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:18.665 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:18.665 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:18.666 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:26.714 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:26.714 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:26.714 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:26.714 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:26.715 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:26.715 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:41:26.715 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "14:45:13.863 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:17.725 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:34.733 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:34.734 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:34.734 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:34.734 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:42.752 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:42.753 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:42.753 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:42.753 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:42.753 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:42.753 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:42.753 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 035800-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:42.753 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037309-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:42:42.753 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261008.log",
+      "line": "23:46:28.210 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:24.806 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:42.021 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:42.022 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:42.022 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:42.023 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:50.132 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:50.132 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:50.132 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:50.133 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:50.133 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:50.133 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:50.133 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 035800-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:50.133 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037309-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:47:50.134 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "14:52:01.262 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:35.107 ❌ Ozon не обновил YKM50-1800-600-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:35.108 ❌ Ozon не обновил YKM50-2000-800-600-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:35.108 ❌ Ozon не обновил YKM50-2000-800-600-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:35.108 ❌ Ozon не обновил YKM50-1800-800-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:35.108 ❌ Ozon не обновил YKM50-1800-600-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:35.108 ❌ Ozon не обновил YKM50-2000-800-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:35.108 ❌ Ozon не обновил YKM40-06-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:35.108 ❌ Ozon не обновил YKM40-1664-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:35.108 ❌ Ozon не обновил YKM40-07-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:35.109 ❌ Ozon не обновил YKM40-05-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:35.109 ❌ Ozon не обновил TI5-10-N-100-060-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:38.186 ❌ Ozon не обновил EOT-0006KVA-1-016-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:38.187 ❌ Ozon не обновил EOR-BK-20-9-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "15:03:38.187 ❌ Ozon не обновил EOR-BK-16-9-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.889 ❌ Ozon RS: YKM1-C3-2086-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.889 ❌ Ozon RS: YKM1-C3-2084-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.889 ❌ Ozon RS: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.889 ❌ Ozon RS: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.890 ❌ Ozon RS: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.890 ❌ Ozon RS: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.890 ❌ Ozon RS: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.890 ❌ Ozon RS: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.890 ❌ Ozon RS: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.890 ❌ Ozon RS: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.890 ❌ Ozon RS: TI5-10-N-100-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:21.890 ❌ Ozon RS: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:23.891 ❌ Ozon RS: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:42:23.892 ❌ Ozon RS: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.564 ❌ Ozon RS Москва: YKM50-2000-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.565 ❌ Ozon RS Москва: YKM50-1800-800-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.565 ❌ Ozon RS Москва: YKM50-1800-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.565 ❌ Ozon RS Москва: YKM1-C3-1864-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.565 ❌ Ozon RS Москва: YKM1-C3-2064-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.565 ❌ Ozon RS Москва: YKM1-C3-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.565 ❌ Ozon RS Москва: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.565 ❌ Ozon RS Москва: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.565 ❌ Ozon RS Москва: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.565 ❌ Ozon RS Москва: YKM40-1864-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.565 ❌ Ozon RS Москва: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.566 ❌ Ozon RS Москва: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.566 ❌ Ozon RS Москва: YKM40-1884-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.566 ❌ Ozon RS Москва: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.566 ❌ Ozon RS Москва: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.566 ❌ Ozon RS Москва: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.566 ❌ Ozon RS Москва: TI5-10-N-100-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.566 ❌ Ozon RS Москва: TI5-10-N-100-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.566 ❌ Ozon RS Москва: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.566 ❌ Ozon RS Москва: TI5-10-N-120-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:53.566 ❌ Ozon RS Москва: TI5-10-N-140-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:55.525 ❌ Ozon RS Москва: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:45:55.525 ❌ Ozon RS Москва: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:51:41.792 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:51:58.804 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:51:58.804 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:51:58.805 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:51:58.805 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:52:06.846 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:52:06.847 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:52:06.847 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:52:06.847 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:52:06.848 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:52:06.848 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:52:06.848 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 035800-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:52:06.848 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037309-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:52:06.848 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "16:56:04.254 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM50-1800-600-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM50-2000-800-600-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM50-2000-800-600-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM50-1800-800-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM50-1800-600-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM50-2000-800-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM1-C3-2086-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM40-06-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM40-1664-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM40-07-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM40-06-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM40-1684-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM40-1884-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM40-1884-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM40-1664-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.838 ❌ Ozon не обновил YKM40-1684-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.839 ❌ Ozon не обновил YKM40-05-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.839 ❌ Ozon не обновил TI5-10-N-100-080-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.839 ❌ Ozon не обновил TI5-10-N-100-060-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "17:06:18.839 ❌ Ozon не обновил TI5-10-N-120-080-040-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.204 ❌ Ozon RS: YKM1-C3-2086-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.210 ❌ Ozon RS: YKM1-C3-2084-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.211 ❌ Ozon RS: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.211 ❌ Ozon RS: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.211 ❌ Ozon RS: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.211 ❌ Ozon RS: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.212 ❌ Ozon RS: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.212 ❌ Ozon RS: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.212 ❌ Ozon RS: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.212 ❌ Ozon RS: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.212 ❌ Ozon RS: TI5-10-N-100-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:25.212 ❌ Ozon RS: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:27.385 ❌ Ozon RS: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:38:27.393 ❌ Ozon RS: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.019 ❌ Ozon RS Москва: YKM50-2000-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.019 ❌ Ozon RS Москва: YKM50-1800-800-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.019 ❌ Ozon RS Москва: YKM50-1800-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.019 ❌ Ozon RS Москва: YKM1-C3-1864-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.021 ❌ Ozon RS Москва: YKM1-C3-2064-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.021 ❌ Ozon RS Москва: YKM1-C3-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.021 ❌ Ozon RS Москва: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.027 ❌ Ozon RS Москва: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.030 ❌ Ozon RS Москва: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.030 ❌ Ozon RS Москва: YKM40-1864-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.030 ❌ Ozon RS Москва: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.030 ❌ Ozon RS Москва: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.030 ❌ Ozon RS Москва: YKM40-1884-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.030 ❌ Ozon RS Москва: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.030 ❌ Ozon RS Москва: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.034 ❌ Ozon RS Москва: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.034 ❌ Ozon RS Москва: TI5-10-N-100-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.035 ❌ Ozon RS Москва: TI5-10-N-100-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.035 ❌ Ozon RS Москва: TI5-10-N-100-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.035 ❌ Ozon RS Москва: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.035 ❌ Ozon RS Москва: TI5-10-N-120-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:19.035 ❌ Ozon RS Москва: TI5-10-N-140-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:21.459 ❌ Ozon RS Москва: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:42:21.459 ❌ Ozon RS Москва: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:21.048 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:37.812 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:37.812 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:37.812 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:37.812 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:46.325 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:46.325 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:46.328 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:46.328 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:46.329 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:46.329 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:46.329 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 035800-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:46.329 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037309-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:49:46.330 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "23:53:58.157 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:56.998 ❌ Ozon не обновил YKM50-1800-600-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:56.998 ❌ Ozon не обновил YKM50-2000-800-600-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:56.999 ❌ Ozon не обновил YKM50-2000-800-600-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:56.999 ❌ Ozon не обновил YKM50-1800-800-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:56.999 ❌ Ozon не обновил YKM50-1800-600-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:56.999 ❌ Ozon не обновил YKM50-2000-800-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:56.999 ❌ Ozon не обновил YKM1-C3-2086-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:56.999 ❌ Ozon не обновил YKM40-06-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:56.999 ❌ Ozon не обновил YKM40-1664-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:56.000 ❌ Ozon не обновил YKM40-07-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:57.000 ❌ Ozon не обновил YKM40-06-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:57.000 ❌ Ozon не обновил YKM40-1684-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:57.001 ❌ Ozon не обновил YKM40-1884-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:57.001 ❌ Ozon не обновил YKM40-1884-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:57.001 ❌ Ozon не обновил YKM40-1664-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:57.001 ❌ Ozon не обновил YKM40-1684-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:57.001 ❌ Ozon не обновил YKM40-05-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:57.001 ❌ Ozon не обновил TI5-10-N-100-080-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:57.002 ❌ Ozon не обновил TI5-10-N-100-060-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261009.log",
+      "line": "00:04:57.002 ❌ Ozon не обновил TI5-10-N-120-080-040-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.951 ❌ Ozon RS: YKM1-C3-2086-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.952 ❌ Ozon RS: YKM1-C3-2084-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.952 ❌ Ozon RS: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.952 ❌ Ozon RS: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.952 ❌ Ozon RS: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.953 ❌ Ozon RS: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.953 ❌ Ozon RS: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.953 ❌ Ozon RS: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.953 ❌ Ozon RS: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.953 ❌ Ozon RS: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.953 ❌ Ozon RS: TI5-10-N-100-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:00.953 ❌ Ozon RS: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:02.977 ❌ Ozon RS: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:34:02.977 ❌ Ozon RS: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.506 ❌ Ozon RS Москва: YKM50-2000-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.513 ❌ Ozon RS Москва: YKM50-1800-800-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.514 ❌ Ozon RS Москва: YKM50-1800-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.514 ❌ Ozon RS Москва: YKM1-C3-1864-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.514 ❌ Ozon RS Москва: YKM1-C3-2064-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.514 ❌ Ozon RS Москва: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.515 ❌ Ozon RS Москва: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.515 ❌ Ozon RS Москва: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.515 ❌ Ozon RS Москва: YKM40-1864-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.515 ❌ Ozon RS Москва: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.515 ❌ Ozon RS Москва: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.516 ❌ Ozon RS Москва: YKM40-1884-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.516 ❌ Ozon RS Москва: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.516 ❌ Ozon RS Москва: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.516 ❌ Ozon RS Москва: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.516 ❌ Ozon RS Москва: TI5-10-N-100-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.516 ❌ Ozon RS Москва: TI5-10-N-100-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.516 ❌ Ozon RS Москва: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.516 ❌ Ozon RS Москва: TI5-10-N-120-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:50.517 ❌ Ozon RS Москва: TI5-10-N-140-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:52.538 ❌ Ozon RS Москва: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:37:52.539 ❌ Ozon RS Москва: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:19.668 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:36.893 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:36.895 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:36.895 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:36.895 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:45.462 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:45.463 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:45.463 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:45.463 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:45.463 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:45.464 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:45.464 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 035800-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:45.464 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037309-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:44:45.464 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "14:48:50.361 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.787 ❌ Ozon не обновил YKM50-1800-600-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.791 ❌ Ozon не обновил YKM50-2000-800-600-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.791 ❌ Ozon не обновил YKM50-2000-800-600-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.791 ❌ Ozon не обновил YKM50-1800-800-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.792 ❌ Ozon не обновил YKM50-1800-600-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.792 ❌ Ozon не обновил YKM50-2000-800-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.794 ❌ Ozon не обновил YKM1-C3-2086-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.794 ❌ Ozon не обновил YKM40-06-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.794 ❌ Ozon не обновил YKM40-1664-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.795 ❌ Ozon не обновил YKM40-07-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.795 ❌ Ozon не обновил YKM40-06-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.806 ❌ Ozon не обновил YKM40-1684-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.808 ❌ Ozon не обновил YKM40-1884-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.808 ❌ Ozon не обновил YKM40-1884-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.808 ❌ Ozon не обновил YKM40-1664-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.809 ❌ Ozon не обновил YKM40-1684-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.809 ❌ Ozon не обновил YKM40-05-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.810 ❌ Ozon не обновил TI5-10-N-100-080-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.811 ❌ Ozon не обновил TI5-10-N-100-060-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "15:00:02.811 ❌ Ozon не обновил TI5-10-N-120-080-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.732 ❌ Ozon RS: YKM1-C3-2086-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.740 ❌ Ozon RS: YKM1-C3-2084-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.741 ❌ Ozon RS: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.741 ❌ Ozon RS: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.741 ❌ Ozon RS: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.741 ❌ Ozon RS: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.741 ❌ Ozon RS: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.741 ❌ Ozon RS: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.747 ❌ Ozon RS: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.747 ❌ Ozon RS: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.748 ❌ Ozon RS: TI5-10-N-100-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:31.748 ❌ Ozon RS: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:33.405 ❌ Ozon RS: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:34:33.405 ❌ Ozon RS: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.575 ❌ Ozon RS Москва: YKM50-2000-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.576 ❌ Ozon RS Москва: YKM50-1800-800-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.576 ❌ Ozon RS Москва: YKM50-1800-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.576 ❌ Ozon RS Москва: YKM1-C3-1864-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.576 ❌ Ozon RS Москва: YKM1-C3-2064-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.576 ❌ Ozon RS Москва: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.581 ❌ Ozon RS Москва: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.582 ❌ Ozon RS Москва: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.582 ❌ Ozon RS Москва: YKM40-1864-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.582 ❌ Ozon RS Москва: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.583 ❌ Ozon RS Москва: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.583 ❌ Ozon RS Москва: YKM40-1884-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.583 ❌ Ozon RS Москва: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.584 ❌ Ozon RS Москва: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.587 ❌ Ozon RS Москва: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.587 ❌ Ozon RS Москва: TI5-10-N-100-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.588 ❌ Ozon RS Москва: TI5-10-N-100-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.588 ❌ Ozon RS Москва: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.588 ❌ Ozon RS Москва: TI5-10-N-120-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:06.589 ❌ Ozon RS Москва: TI5-10-N-140-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:08.568 ❌ Ozon RS Москва: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:38:08.569 ❌ Ozon RS Москва: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:01.287 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:18.468 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:18.469 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:18.469 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:18.469 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:26.528 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:26.528 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:26.528 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:26.528 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:26.528 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:26.528 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:26.529 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 035800-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:26.529 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037309-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:45:26.529 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:49:26.798 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.454 ❌ Ozon не обновил YKM50-1800-600-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.454 ❌ Ozon не обновил YKM50-2000-800-600-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.455 ❌ Ozon не обновил YKM50-2000-800-600-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.455 ❌ Ozon не обновил YKM50-1800-800-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.467 ❌ Ozon не обновил YKM50-1800-600-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.468 ❌ Ozon не обновил YKM50-2000-800-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.468 ❌ Ozon не обновил YKM1-C3-2086-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.468 ❌ Ozon не обновил YKM40-06-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.468 ❌ Ozon не обновил YKM40-1664-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.468 ❌ Ozon не обновил YKM40-07-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.468 ❌ Ozon не обновил YKM40-06-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.468 ❌ Ozon не обновил YKM40-1684-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.468 ❌ Ozon не обновил YKM40-1884-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.468 ❌ Ozon не обновил YKM40-1884-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.469 ❌ Ozon не обновил YKM40-1664-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.469 ❌ Ozon не обновил YKM40-1684-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.469 ❌ Ozon не обновил YKM40-05-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.469 ❌ Ozon не обновил TI5-10-N-100-080-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.469 ❌ Ozon не обновил TI5-10-N-100-060-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261010.log",
+      "line": "23:59:58.469 ❌ Ozon не обновил TI5-10-N-120-080-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.029 ❌ Ozon RS: YKM1-C3-2086-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.032 ❌ Ozon RS: YKM1-C3-2084-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.033 ❌ Ozon RS: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.033 ❌ Ozon RS: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.033 ❌ Ozon RS: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.034 ❌ Ozon RS: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.034 ❌ Ozon RS: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.034 ❌ Ozon RS: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.036 ❌ Ozon RS: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.038 ❌ Ozon RS: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.039 ❌ Ozon RS: TI5-10-N-100-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:09.039 ❌ Ozon RS: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:11.263 ❌ Ozon RS: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:34:11.264 ❌ Ozon RS: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.007 ❌ Ozon RS Москва: YKM50-2000-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.008 ❌ Ozon RS Москва: YKM50-1800-800-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.009 ❌ Ozon RS Москва: YKM50-1800-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.009 ❌ Ozon RS Москва: YKM1-C3-1864-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.010 ❌ Ozon RS Москва: YKM1-C3-2064-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.010 ❌ Ozon RS Москва: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.011 ❌ Ozon RS Москва: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.011 ❌ Ozon RS Москва: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.011 ❌ Ozon RS Москва: YKM40-1864-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.011 ❌ Ozon RS Москва: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.012 ❌ Ozon RS Москва: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.012 ❌ Ozon RS Москва: YKM40-1884-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.013 ❌ Ozon RS Москва: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.013 ❌ Ozon RS Москва: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.014 ❌ Ozon RS Москва: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.014 ❌ Ozon RS Москва: TI5-10-N-100-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.015 ❌ Ozon RS Москва: TI5-10-N-100-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.015 ❌ Ozon RS Москва: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.016 ❌ Ozon RS Москва: TI5-10-N-120-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:46.016 ❌ Ozon RS Москва: TI5-10-N-140-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:48.124 ❌ Ozon RS Москва: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:37:48.126 ❌ Ozon RS Москва: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:44:45.833 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:03.261 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:03.262 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:03.262 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:03.262 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:11.123 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:11.123 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:11.123 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:11.124 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:11.125 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:11.129 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:11.129 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 035800-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:11.129 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037309-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:45:11.130 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "14:49:38.373 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.531 ❌ Ozon не обновил YKM50-1800-600-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.531 ❌ Ozon не обновил YKM50-2000-800-600-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.532 ❌ Ozon не обновил YKM50-2000-800-600-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.532 ❌ Ozon не обновил YKM50-1800-800-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.532 ❌ Ozon не обновил YKM50-1800-600-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.533 ❌ Ozon не обновил YKM50-2000-800-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.533 ❌ Ozon не обновил YKM1-C3-2086-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.533 ❌ Ozon не обновил YKM40-06-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.533 ❌ Ozon не обновил YKM40-1664-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.534 ❌ Ozon не обновил YKM40-07-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.534 ❌ Ozon не обновил YKM40-06-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.534 ❌ Ozon не обновил YKM40-1684-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.534 ❌ Ozon не обновил YKM40-1884-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.534 ❌ Ozon не обновил YKM40-1884-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.535 ❌ Ozon не обновил YKM40-1664-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.535 ❌ Ozon не обновил YKM40-1684-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.535 ❌ Ozon не обновил YKM40-05-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.536 ❌ Ozon не обновил TI5-10-N-100-080-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.536 ❌ Ozon не обновил TI5-10-N-100-060-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "15:00:22.536 ❌ Ozon не обновил TI5-10-N-120-080-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.399 ❌ Ozon RS: YKM1-C3-2086-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.399 ❌ Ozon RS: YKM1-C3-2084-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.399 ❌ Ozon RS: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.399 ❌ Ozon RS: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.399 ❌ Ozon RS: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.399 ❌ Ozon RS: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.400 ❌ Ozon RS: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.400 ❌ Ozon RS: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.400 ❌ Ozon RS: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.400 ❌ Ozon RS: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.400 ❌ Ozon RS: TI5-10-N-100-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:02.400 ❌ Ozon RS: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:04.399 ❌ Ozon RS: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:34:04.400 ❌ Ozon RS: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.220 ❌ Ozon RS Москва: YKM50-2000-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.221 ❌ Ozon RS Москва: YKM50-1800-800-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.221 ❌ Ozon RS Москва: YKM50-1800-600-450-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.235 ❌ Ozon RS Москва: YKM1-C3-1864-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.235 ❌ Ozon RS Москва: YKM1-C3-2064-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.238 ❌ Ozon RS Москва: YKM40-06-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.240 ❌ Ozon RS Москва: YKM40-1664-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.241 ❌ Ozon RS Москва: YKM40-07-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.245 ❌ Ozon RS Москва: YKM40-1864-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.246 ❌ Ozon RS Москва: YKM40-06-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.246 ❌ Ozon RS Москва: YKM40-1884-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.247 ❌ Ozon RS Москва: YKM40-1884-31-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.249 ❌ Ozon RS Москва: YKM40-1684-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.251 ❌ Ozon RS Москва: YKM40-07-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.251 ❌ Ozon RS Москва: YKM40-05-54-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.251 ❌ Ozon RS Москва: TI5-10-N-100-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.252 ❌ Ozon RS Москва: TI5-10-N-100-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.254 ❌ Ozon RS Москва: TI5-10-N-120-060-040-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.254 ❌ Ozon RS Москва: TI5-10-N-120-080-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:36.254 ❌ Ozon RS Москва: TI5-10-N-140-060-030-66-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:38.231 ❌ Ozon RS Москва: YKM40-05-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:37:38.232 ❌ Ozon RS Москва: YKM40-06-54-G-1 не обновлён — OVER_MAX_OVH_NON_KGT: tags validation failed"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:29.999 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:47.492 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051865-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:47.492 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052301-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:47.492 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 052302-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:47.492 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 051866-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:55.169 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037522-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:55.170 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 033632-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:55.171 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 036784-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:55.171 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041293-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:55.171 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 046702-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:55.172 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041292-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:55.173 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 035800-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:55.173 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 037309-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:44:55.173 ❌ Ozon ПОДОРОЖНИК ФБС (МСК): 041438-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "23:49:00.748 ❌ Ozon ФЕРОН ФБС (Самара): 41115-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.011 ❌ Ozon не обновил YKM50-1800-600-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.011 ❌ Ozon не обновил YKM50-2000-800-600-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.011 ❌ Ozon не обновил YKM50-2000-800-600-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.011 ❌ Ozon не обновил YKM50-1800-800-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.011 ❌ Ozon не обновил YKM50-1800-600-450-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.011 ❌ Ozon не обновил YKM50-2000-800-450-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.011 ❌ Ozon не обновил YKM1-C3-2086-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.012 ❌ Ozon не обновил YKM40-06-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.012 ❌ Ozon не обновил YKM40-1664-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.012 ❌ Ozon не обновил YKM40-07-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.013 ❌ Ozon не обновил YKM40-06-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.013 ❌ Ozon не обновил YKM40-1684-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.013 ❌ Ozon не обновил YKM40-1884-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.013 ❌ Ozon не обновил YKM40-1884-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.013 ❌ Ozon не обновил YKM40-1664-31-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.014 ❌ Ozon не обновил YKM40-1684-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.014 ❌ Ozon не обновил YKM40-05-54-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.014 ❌ Ozon не обновил TI5-10-N-100-080-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.014 ❌ Ozon не обновил TI5-10-N-100-060-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    },
+    {
+      "filename": "marketplace_ozon_20261011.log",
+      "line": "00:01:04.014 ❌ Ozon не обновил TI5-10-N-120-080-030-66-1: [{\"code\":\"OVER_MAX_OVH_NON_KGT\",\"message\":\"tags validation failed\"}]"
+    }
+  ],
+  "warehouses": {
+    "warehouses": [
+      {
+        "warehouse_id": 21206036569000,
+        "name": "Склад ВольтМир Самара",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "disabled",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020002321437000,
+        "name": "КГТ СДЭК",
+        "is_kgt": false,
+        "is_rfbs": true,
+        "status": "created",
+        "warehouse_type": "rfbs"
+      },
+      {
+        "warehouse_id": 1020005000217829,
+        "name": "МОСКВА",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "created",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005000234124,
+        "name": "ФЕРОН САМАРА",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "created",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005000253189,
+        "name": "КГТ СДЭК К",
+        "is_kgt": false,
+        "is_rfbs": true,
+        "status": "disabled",
+        "warehouse_type": "rfbs"
+      },
+      {
+        "warehouse_id": 1020005000304788,
+        "name": "Подорожник ЭТМ",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "disabled",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005000419822,
+        "name": "КГТ СДЭК САМАРА",
+        "is_kgt": false,
+        "is_rfbs": true,
+        "status": "disabled",
+        "warehouse_type": "rfbs"
+      },
+      {
+        "warehouse_id": 1020005000420914,
+        "name": "СДЭК ЕКБ",
+        "is_kgt": false,
+        "is_rfbs": true,
+        "status": "disabled",
+        "warehouse_type": "rfbs"
+      },
+      {
+        "warehouse_id": 1020005000454993,
+        "name": "НТЦ СКЛАД",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "created",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005000465168,
+        "name": "КГТ САМАРА СДЭК",
+        "is_kgt": false,
+        "is_rfbs": true,
+        "status": "disabled",
+        "warehouse_type": "rfbs"
+      },
+      {
+        "warehouse_id": 1020005000493053,
+        "name": "ЮГ СДЭК",
+        "is_kgt": false,
+        "is_rfbs": true,
+        "status": "disabled",
+        "warehouse_type": "rfbs"
+      },
+      {
+        "warehouse_id": 1020005000636923,
+        "name": "ТЕСТ АПИ ПЕРЕДАЧИ",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "disabled",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005000689690,
+        "name": "ЭТМ",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "created",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005004656250,
+        "name": "Арлайт Москва",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "disabled",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005005049870,
+        "name": "РУССКИЙ СВЕТ",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "created",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005005391400,
+        "name": "GAUSS MSK",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "disabled",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005008262970,
+        "name": "НОВОСИБИРСК",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "created",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005008495470,
+        "name": "1C трансляция",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "disabled",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005016400190,
+        "name": "НТЦ ЭКСПРЕСС",
+        "is_kgt": false,
+        "is_rfbs": true,
+        "status": "disabled",
+        "warehouse_type": "rfbs_express"
+      },
+      {
+        "warehouse_id": 1020005023877890,
+        "name": "ЕКАТЕРИНБУРГ",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "created",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005030719640,
+        "name": "РУССКИЙ СВЕТ МОСКВА",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "created",
+        "warehouse_type": "fbs"
+      },
+      {
+        "warehouse_id": 1020005031904860,
+        "name": "ТЕСТ",
+        "is_kgt": false,
+        "is_rfbs": false,
+        "status": "created",
+        "warehouse_type": "fbs"
+      }
+    ]
+  },
+  "products": {
+    "items": [
+      {
+        "id": 6551473046,
+        "offer_id": "YKM40-1684-31-1",
+        "name": "Корпус металлический ЩМП-16.8.4-0 УХЛ3 IP31 без монтажной панели IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:55:03.879265Z"
+        }
+      },
+      {
+        "id": 6343517249,
+        "offer_id": "051865-1",
+        "name": "Светильник SP-LINE-4970-L3000-105W Day4000 (RAL9005, 120 deg, 230V) IP33 (Arlight, Металл)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-15T09:26:08.941754Z"
+        }
+      },
+      {
+        "id": 6551453572,
+        "offer_id": "YKM1-C3-2084-54-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 20.80.45 IP54 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:51:27.700706Z"
+        }
+      },
+      {
+        "id": 6551473226,
+        "offer_id": "YKM40-1664-31-1",
+        "name": "Корпус металлический ЩМП-16.6.4-0 УХЛ3 IP31 без монтажной панели IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:55:01.722680Z"
+        }
+      },
+      {
+        "id": 6551453091,
+        "offer_id": "YKM50-2000-800-450-54-1",
+        "name": "SMART Корпус металлический сборный ВРУ 2000х800х450мм IP54 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:51:26.343400Z"
+        }
+      },
+      {
+        "id": 6551453068,
+        "offer_id": "YKM50-1800-800-450-1",
+        "name": "SMART Корпус металлический сборный ВРУ 1800х800х450мм IP31 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:51:39.594938Z"
+        }
+      },
+      {
+        "id": 6551453504,
+        "offer_id": "YKM1-C3-1884-54-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 18.80.45 IP54 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:51:28.734215Z"
+        }
+      },
+      {
+        "id": 6552665994,
+        "offer_id": "YKM40-06-54-G-1",
+        "name": "Корпус металлический ЩМП-6-0 (1200х750х300мм) У2 IP54 GENERICA",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T18:21:06.140382Z"
+        }
+      },
+      {
+        "id": 6551473584,
+        "offer_id": "YKM40-05-54-1",
+        "name": "Корпус металлический ЩМП-5-0 (1000х650х285мм) У2 IP54 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:55:16.195271Z"
+        }
+      },
+      {
+        "id": 6551472986,
+        "offer_id": "YKM40-07-31-1",
+        "name": "Корпус металлический ЩМП-140.75.30 УХЛ3 IP31 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T14:03:08.478186Z"
+        }
+      },
+      {
+        "id": 6551453043,
+        "offer_id": "YKM50-2000-800-600-1",
+        "name": "SMART Корпус металлический сборный ВРУ 2000х800х600мм IP31 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:51:34.888100Z"
+        }
+      },
+      {
+        "id": 6551453501,
+        "offer_id": "YKM1-C3-2064-31-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 20.60.45 IP31 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:51:35.770038Z"
+        }
+      },
+      {
+        "id": 6551480807,
+        "offer_id": "TI5-10-N-100-080-030-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-100.80.30 УХЛ1 IP66 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:56:05.757487Z"
+        }
+      },
+      {
+        "id": 6356512356,
+        "offer_id": "037522-1",
+        "name": "Светильник LGD-MUSE-BOLL-H2000-18W Warm3000 (DG, 328 deg, 230V) (Arlight, IP65 Металл, 3 года)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-16T10:24:26.119322Z"
+        }
+      },
+      {
+        "id": 6356604254,
+        "offer_id": "046702-1",
+        "name": "Трек встраиваемый MAG-ORIENT-TRACK-2653-STR-G-2000 (BK) (Arlight, IP20 Металл, 3 года)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [
+          {
+            "code": "pics_http_error",
+            "field": "pictures",
+            "attribute_id": 0,
+            "state": "pics_delivered",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "",
+              "description": "Мы не смогли скачать картинку — ваше хранилище изображений вернуло ошибку. Проблема может быть в ссылке. Пожалуйста, проверьте её и попробуйте добавить ещё раз. Подробнее о прямых ссылках на изображения в инструкции https://seller-edu.ozon.ru/docs/work-with-goods/prymaya-ssylka.html.",
+              "short_description": "",
+              "params": [],
+              "message": "request process failed: unknown error host unreachable"
+            }
+          },
+          {
+            "code": "some_image_failed",
+            "field": "pictures",
+            "attribute_id": 0,
+            "state": "pics_delivered",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "",
+              "description": "Не удалось скачать фото по ссылке. Укажите прямые ссылки на изображения и попробуйте загрузить ещё раз",
+              "short_description": "",
+              "params": [],
+              "message": "{2 2 0 1 1 0}"
+            }
+          }
+        ],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-16T10:29:29.572694Z"
+        }
+      },
+      {
+        "id": 6551473010,
+        "offer_id": "YKM40-06-54-1",
+        "name": "Корпус металлический ЩМП-6-0 (1200х750х300мм) У2 IP54 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:55:00.236626Z"
+        }
+      },
+      {
+        "id": 6551481408,
+        "offer_id": "TI5-10-N-120-080-030-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-120.80.30 УХЛ1 IP66 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:56:26.451226Z"
+        }
+      },
+      {
+        "id": 6551453458,
+        "offer_id": "YKM1-C3-2086-31-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 20.80.60 IP31 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:52:23.830453Z"
+        }
+      },
+      {
+        "id": 6356604190,
+        "offer_id": "036784-1",
+        "name": "Трек MAG-ORIENT-TRACK-2620-2000 (BK) (Arlight, IP20 Металл, 3 года)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-16T10:29:23.870498Z"
+        }
+      },
+      {
+        "id": 6551472969,
+        "offer_id": "YKM40-06-31-1",
+        "name": "Корпус металлический ЩМП-120.75.30 УХЛ3 IP31 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T14:03:08.628713Z"
+        }
+      },
+      {
+        "id": 6356604375,
+        "offer_id": "035800-1",
+        "name": "Трек MAG-ORIENT-TRACK-2652-2000 (WH) (Arlight, IP20 Металл, 3 года)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-16T10:29:29.521432Z"
+        }
+      },
+      {
+        "id": 6356604370,
+        "offer_id": "041292-1",
+        "name": "Трек встраиваемый MAG-ORIENT-TRACK-2653-STR-D-2000 (BK) (Arlight, IP20 Металл, 3 года)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [
+          {
+            "code": "double_without_merger_offer",
+            "field": "spu",
+            "attribute_id": 0,
+            "state": "moderated",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "",
+              "description": "Не удалось объединить с другими товарами. Есть товары, у которых вариативные характеристики заполнены также: 046702-1. Измените хотя бы одну вариативную характеристику.",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "Articles",
+                  "value": "046702-1"
+                }
+              ],
+              "message": "{\"OFFERID\":[\"046702-1\"]}"
+            }
+          }
+        ],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-16T10:29:32.879906Z"
+        }
+      },
+      {
+        "id": 6551453457,
+        "offer_id": "YKM1-C3-1864-31-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 18.60.45 IP31 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:51:40.392525Z"
+        }
+      },
+      {
+        "id": 6356604383,
+        "offer_id": "037309-1",
+        "name": "Трек MAG-ORIENT-TRACK-2620-2000 (WH) (Arlight, IP20 Металл, 3 года)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [
+          {
+            "code": "double_without_merger_offer",
+            "field": "spu",
+            "attribute_id": 0,
+            "state": "moderated",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "",
+              "description": "Не удалось объединить с другими товарами. Есть товары, у которых вариативные характеристики заполнены также: 035800-1. Измените хотя бы одну вариативную характеристику.",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "Articles",
+                  "value": "035800-1"
+                }
+              ],
+              "message": "{\"OFFERID\":[\"035800-1\"]}"
+            }
+          }
+        ],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-16T10:29:42.436051Z"
+        }
+      },
+      {
+        "id": 6551453072,
+        "offer_id": "YKM50-1800-600-450-1",
+        "name": "SMART Корпус металлический сборный ВРУ 1800х600х450мм IP31 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:51:34.335955Z"
+        }
+      },
+      {
+        "id": 6552871408,
+        "offer_id": "EOR-BK-16-9-1",
+        "name": "ITK ELECTRA OR Батарейный кабинет 16х9AH 2U",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [
+          {
+            "code": "VALUE_MIN_LIMIT",
+            "field": "",
+            "attribute_id": 20110,
+            "state": "new",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "Активная мощность, Вт",
+              "description": "Значение меньше допустимого. Проверьте единицу измерения и исправьте значение",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "attribute_id",
+                  "value": "20110"
+                },
+                {
+                  "name": "attribute_name",
+                  "value": "Активная мощность, Вт"
+                }
+              ],
+              "message": "Значение атрибута 20110 (Активная мощность, Вт) ошибка типа."
+            }
+          },
+          {
+            "code": "VALUE_MIN_LIMIT",
+            "field": "attribute",
+            "attribute_id": 20110,
+            "state": "offer_validated",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "Активная мощность, Вт",
+              "description": "Значение меньше допустимого. Проверьте единицу измерения и исправьте значение",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "attribute_id",
+                  "value": "20110"
+                },
+                {
+                  "name": "attribute_name",
+                  "value": "Активная мощность, Вт"
+                }
+              ],
+              "message": "Значение атрибута 20110 (Активная мощность, Вт) ошибка типа."
+            }
+          },
+          {
+            "code": "double_without_merger_offer",
+            "field": "spu",
+            "attribute_id": 0,
+            "state": "moderated",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "",
+              "description": "Не удалось объединить с другими товарами. Есть товары, у которых вариативные характеристики заполнены также: EOR-BK-8-7-1, EOR-BK-16-7-1. Измените хотя бы одну вариативную характеристику.",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "Articles",
+                  "value": "EOR-BK-8-7-1, EOR-BK-16-7-1"
+                }
+              ],
+              "message": "{\"OFFERID\":[\"EOR-BK-8-7-1\",\"EOR-BK-16-7-1\"]}"
+            }
+          }
+        ],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Не продается",
+          "status_description": "Убран из продажи",
+          "is_created": true,
+          "status_tooltip": "",
+          "status_updated_at": "2026-10-08T20:40:36.972981Z"
+        }
+      },
+      {
+        "id": 6551480874,
+        "offer_id": "TI5-10-N-100-060-030-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-100.60.30 УХЛ1 IP66 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [
+          {
+            "code": "double_without_merger_offer",
+            "field": "spu",
+            "attribute_id": 0,
+            "state": "moderated",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "",
+              "description": "Не удалось объединить с другими товарами. Есть товары, у которых вариативные характеристики заполнены также: TI5-10-N-100-080-030-66-1. Измените хотя бы одну вариативную характеристику.",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "Articles",
+                  "value": "TI5-10-N-100-080-030-66-1"
+                }
+              ],
+              "message": "{\"OFFERID\":[\"TI5-10-N-100-080-030-66-1\"]}"
+            }
+          }
+        ],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:56:18.262197Z"
+        }
+      },
+      {
+        "id": 6552665936,
+        "offer_id": "YKM40-05-54-G-1",
+        "name": "Корпус металлический ЩМП-5-0 (1000х650х285мм) У2 IP54 GENERICA",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T18:21:34.570944Z"
+        }
+      },
+      {
+        "id": 6551481962,
+        "offer_id": "TI5-10-N-140-060-030-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-140.60.30 УХЛ1 IP66 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:56:25.075140Z"
+        }
+      },
+      {
+        "id": 6124189171,
+        "offer_id": "41115-1",
+        "name": "Шинопровод для трековых трехфазных светильников , черный матовый , 2м , Ш2000-2М 1 шт",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-08-26T10:26:36.230761Z"
+        }
+      },
+      {
+        "id": 6356604154,
+        "offer_id": "033632-1",
+        "name": "Трек MAG-ORIENT-TRACK-2652-2000 (BK) (Arlight, IP20 Металл, 3 года)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [
+          {
+            "code": "double_without_merger_offer",
+            "field": "spu",
+            "attribute_id": 0,
+            "state": "moderated",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "",
+              "description": "Не удалось объединить с другими товарами. Есть товары, у которых вариативные характеристики заполнены также: 036784-1. Измените хотя бы одну вариативную характеристику.",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "Articles",
+                  "value": "036784-1"
+                }
+              ],
+              "message": "{\"OFFERID\":[\"036784-1\"]}"
+            }
+          }
+        ],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-16T10:29:34.099389Z"
+        }
+      },
+      {
+        "id": 6551481235,
+        "offer_id": "TI5-10-N-120-080-040-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-120.80.40 УХЛ1 IP66 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:56:17.483095Z"
+        }
+      },
+      {
+        "id": 6551473007,
+        "offer_id": "YKM40-1864-54-1",
+        "name": "Корпус металлический ЩМП-18.6.4-0 У2 IP54 без монтажной панели IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:55:04.976384Z"
+        }
+      },
+      {
+        "id": 6343519669,
+        "offer_id": "051866-1",
+        "name": "Светильник SP-LINE-HANG-4970-L3000-105W Day4000 (RAL9005, 120 deg, 230V) IP33 (Arlight, Металл)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-15T09:26:14.485263Z"
+        }
+      },
+      {
+        "id": 6551473228,
+        "offer_id": "YKM40-1684-54-1",
+        "name": "Корпус металлический ЩМП-16.8.4-0 У2 IP54 без монтажной панели IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:55:30.757612Z"
+        }
+      },
+      {
+        "id": 6551453051,
+        "offer_id": "YKM50-2000-600-450-1",
+        "name": "SMART Корпус металлический сборный ВРУ 2000х600х450мм IP31 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:51:40.309651Z"
+        }
+      },
+      {
+        "id": 6551481323,
+        "offer_id": "TI5-10-N-120-060-040-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-120.60.40 УХЛ1 IP66 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [
+          {
+            "code": "double_without_merger_offer",
+            "field": "spu",
+            "attribute_id": 0,
+            "state": "moderated",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "",
+              "description": "Не удалось объединить с другими товарами. Есть товары, у которых вариативные характеристики заполнены также: TI5-10-N-120-080-040-66-1. Измените хотя бы одну вариативную характеристику.",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "Articles",
+                  "value": "TI5-10-N-120-080-040-66-1"
+                }
+              ],
+              "message": "{\"OFFERID\":[\"TI5-10-N-120-080-040-66-1\"]}"
+            }
+          }
+        ],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:56:18.856946Z"
+        }
+      },
+      {
+        "id": 6343519288,
+        "offer_id": "052301-1",
+        "name": "Светильник SP-LINE-HANG-5050-L3000-110W Warm3000 (SL, 120 deg, 230V) IP33 (Arlight, Металл)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-15T09:26:08.698133Z"
+        }
+      },
+      {
+        "id": 6552871397,
+        "offer_id": "EOR-BK-20-9-1",
+        "name": "ITK ELECTRA OR Батарейный кабинет 20х9AH 3U",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [
+          {
+            "code": "VALUE_MIN_LIMIT",
+            "field": "",
+            "attribute_id": 20110,
+            "state": "new",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "Активная мощность, Вт",
+              "description": "Значение меньше допустимого. Проверьте единицу измерения и исправьте значение",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "attribute_name",
+                  "value": "Активная мощность, Вт"
+                },
+                {
+                  "name": "attribute_id",
+                  "value": "20110"
+                }
+              ],
+              "message": "Значение атрибута 20110 (Активная мощность, Вт) ошибка типа."
+            }
+          },
+          {
+            "code": "VALUE_MIN_LIMIT",
+            "field": "attribute",
+            "attribute_id": 20110,
+            "state": "offer_validated",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "Активная мощность, Вт",
+              "description": "Значение меньше допустимого. Проверьте единицу измерения и исправьте значение",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "attribute_id",
+                  "value": "20110"
+                },
+                {
+                  "name": "attribute_name",
+                  "value": "Активная мощность, Вт"
+                }
+              ],
+              "message": "Значение атрибута 20110 (Активная мощность, Вт) ошибка типа."
+            }
+          }
+        ],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Не продается",
+          "status_description": "Убран из продажи",
+          "is_created": true,
+          "status_tooltip": "",
+          "status_updated_at": "2026-10-08T20:40:54.526287Z"
+        }
+      },
+      {
+        "id": 6551472972,
+        "offer_id": "YKM40-1664-54-1",
+        "name": "Корпус металлический ЩМП-16.6.4-0 У2 IP54 без монтажной панели IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:55:11.351123Z"
+        }
+      },
+      {
+        "id": 6343519397,
+        "offer_id": "052302-1",
+        "name": "Светильник SP-LINE-HANG-5050-L3000-110W Day4000 (SL, 120 deg, 230V) IP33 (Arlight, Металл)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [
+          {
+            "code": "double_without_merger_offer",
+            "field": "spu",
+            "attribute_id": 0,
+            "state": "moderated",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "",
+              "description": "Не удалось объединить с другими товарами. Есть товары, у которых вариативные характеристики заполнены также: 052301-1. Измените хотя бы одну вариативную характеристику.",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "Articles",
+                  "value": "052301-1"
+                }
+              ],
+              "message": "{\"OFFERID\":[\"052301-1\"]}"
+            }
+          }
+        ],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-15T09:26:23.900444Z"
+        }
+      },
+      {
+        "id": 6551453037,
+        "offer_id": "YKM50-2000-800-600-54-1",
+        "name": "SMART Корпус металлический сборный ВРУ 2000х800х600мм IP54 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:51:41.104482Z"
+        }
+      },
+      {
+        "id": 6356604212,
+        "offer_id": "041293-1",
+        "name": "Трек встраиваемый MAG-ORIENT-TRACK-2653-STR-D-2000 (WH) (Arlight, IP20 Металл, 3 года)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-16T10:29:34.080301Z"
+        }
+      },
+      {
+        "id": 6356604446,
+        "offer_id": "041438-1",
+        "name": "Трек встраиваемый MAG-ORIENT-TRACK-2653-FDW-2000 (BK, FLAT) (Arlight, IP20 Металл, 3 года)",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-09-16T10:29:43.221713Z"
+        }
+      },
+      {
+        "id": 6551473257,
+        "offer_id": "YKM40-07-54-1",
+        "name": "Корпус металлический ЩМП-7-0 (1400х650х285мм) У2 IP54 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:55:03.385197Z"
+        }
+      },
+      {
+        "id": 6551473058,
+        "offer_id": "YKM40-1884-31-1",
+        "name": "Корпус металлический ЩМП-18.8.4-0 УХЛ3 IP31 без монтажной панели IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:55:00.639546Z"
+        }
+      },
+      {
+        "id": 6551453566,
+        "offer_id": "YKM1-C3-2086-54-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 20.80.60 IP54 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:52:56.119154Z"
+        }
+      },
+      {
+        "id": 6551453024,
+        "offer_id": "YKM50-1800-600-450-54-1",
+        "name": "SMART Корпус металлический сборный ВРУ 1800х600х450мм IP54 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:51:35.196955Z"
+        }
+      },
+      {
+        "id": 6551473052,
+        "offer_id": "YKM40-1884-54-1",
+        "name": "Корпус металлический ЩМП-18.8.4-0 У2 IP54 без монтажной панели IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:55:08.239641Z"
+        }
+      },
+      {
+        "id": 6552862988,
+        "offer_id": "EOT-0006KVA-1-016-1",
+        "name": "ITK ELECTRA OT ИБП однофазный онлайн 6кВА/6кВт LCD дисплей 192-240VDC клеммная колодка c АКБ 16х7AH USB EPO RS232 SNMP слот Tower",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [
+          {
+            "code": "VALUE_MIN_LIMIT",
+            "field": "",
+            "attribute_id": 20110,
+            "state": "new",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "Активная мощность, Вт",
+              "description": "Значение меньше допустимого. Проверьте единицу измерения и исправьте значение",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "attribute_id",
+                  "value": "20110"
+                },
+                {
+                  "name": "attribute_name",
+                  "value": "Активная мощность, Вт"
+                }
+              ],
+              "message": "Значение атрибута 20110 (Активная мощность, Вт) ошибка типа."
+            }
+          },
+          {
+            "code": "VALUE_MIN_LIMIT",
+            "field": "attribute",
+            "attribute_id": 20110,
+            "state": "offer_validated",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "Активная мощность, Вт",
+              "description": "Значение меньше допустимого. Проверьте единицу измерения и исправьте значение",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "attribute_id",
+                  "value": "20110"
+                },
+                {
+                  "name": "attribute_name",
+                  "value": "Активная мощность, Вт"
+                }
+              ],
+              "message": "Значение атрибута 20110 (Активная мощность, Вт) ошибка типа."
+            }
+          }
+        ],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Не продается",
+          "status_description": "Убран из продажи",
+          "is_created": true,
+          "status_tooltip": "",
+          "status_updated_at": "2026-10-08T20:31:52.252104Z"
+        }
+      },
+      {
+        "id": 6551480805,
+        "offer_id": "TI5-10-N-100-060-040-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-100.60.40 УХЛ1 IP66 IEK",
+        "is_archived": false,
+        "is_autoarchived": false,
+        "errors": [
+          {
+            "code": "double_without_merger_offer",
+            "field": "spu",
+            "attribute_id": 0,
+            "state": "moderated",
+            "level": "ERROR_LEVEL_WARNING",
+            "texts": {
+              "attribute_name": "",
+              "description": "Не удалось объединить с другими товарами. Есть товары, у которых вариативные характеристики заполнены также: TI5-10-N-100-080-040-66-1. Измените хотя бы одну вариативную характеристику.",
+              "short_description": "",
+              "params": [
+                {
+                  "name": "Articles",
+                  "value": "TI5-10-N-100-080-040-66-1"
+                }
+              ],
+              "message": "{\"OFFERID\":[\"TI5-10-N-100-080-040-66-1\"]}"
+            }
+          }
+        ],
+        "statuses": {
+          "status": "price_sent",
+          "status_failed": "",
+          "moderate_status": "approved",
+          "validation_status": "success",
+          "status_name": "Готов к продаже",
+          "status_description": "Нет на складе",
+          "is_created": true,
+          "status_tooltip": "Можно создать новую поставку или указать количество на своем складе",
+          "status_updated_at": "2026-10-08T13:56:26.045797Z"
+        }
+      }
+    ]
+  },
+  "attributes": {
+    "result": [
+      {
+        "offer_id": "41115-1",
+        "name": "Шинопровод для трековых трехфазных светильников , черный матовый , 2м , Ш2000-2М 1 шт",
+        "height": 35,
+        "width": 35,
+        "depth": 2005,
+        "dimension_unit": "mm",
+        "weight": 1800,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "051865-1",
+        "name": "Светильник SP-LINE-4970-L3000-105W Day4000 (RAL9005, 120 deg, 230V) IP33 (Arlight, Металл)",
+        "height": 70,
+        "width": 49,
+        "depth": 3000,
+        "dimension_unit": "mm",
+        "weight": 5660,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "052301-1",
+        "name": "Светильник SP-LINE-HANG-5050-L3000-110W Warm3000 (SL, 120 deg, 230V) IP33 (Arlight, Металл)",
+        "height": 50,
+        "width": 50,
+        "depth": 3000,
+        "dimension_unit": "mm",
+        "weight": 4900,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "052302-1",
+        "name": "Светильник SP-LINE-HANG-5050-L3000-110W Day4000 (SL, 120 deg, 230V) IP33 (Arlight, Металл)",
+        "height": 50,
+        "width": 50,
+        "depth": 3000,
+        "dimension_unit": "mm",
+        "weight": 4900,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "051866-1",
+        "name": "Светильник SP-LINE-HANG-4970-L3000-105W Day4000 (RAL9005, 120 deg, 230V) IP33 (Arlight, Металл)",
+        "height": 70,
+        "width": 49,
+        "depth": 3000,
+        "dimension_unit": "mm",
+        "weight": 5820,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "037522-1",
+        "name": "Светильник LGD-MUSE-BOLL-H2000-18W Warm3000 (DG, 328 deg, 230V) (Arlight, IP65 Металл, 3 года)",
+        "height": 130,
+        "width": 240,
+        "depth": 2015,
+        "dimension_unit": "mm",
+        "weight": 7600,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "033632-1",
+        "name": "Трек MAG-ORIENT-TRACK-2652-2000 (BK) (Arlight, IP20 Металл, 3 года)",
+        "height": 76,
+        "width": 76,
+        "depth": 2050,
+        "dimension_unit": "mm",
+        "weight": 2767,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "036784-1",
+        "name": "Трек MAG-ORIENT-TRACK-2620-2000 (BK) (Arlight, IP20 Металл, 3 года)",
+        "height": 76,
+        "width": 76,
+        "depth": 2040,
+        "dimension_unit": "mm",
+        "weight": 1775,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "041293-1",
+        "name": "Трек встраиваемый MAG-ORIENT-TRACK-2653-STR-D-2000 (WH) (Arlight, IP20 Металл, 3 года)",
+        "height": 70,
+        "width": 70,
+        "depth": 2050,
+        "dimension_unit": "mm",
+        "weight": 4720,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "046702-1",
+        "name": "Трек встраиваемый MAG-ORIENT-TRACK-2653-STR-G-2000 (BK) (Arlight, IP20 Металл, 3 года)",
+        "height": 70,
+        "width": 60,
+        "depth": 2010,
+        "dimension_unit": "mm",
+        "weight": 4792,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "041292-1",
+        "name": "Трек встраиваемый MAG-ORIENT-TRACK-2653-STR-D-2000 (BK) (Arlight, IP20 Металл, 3 года)",
+        "height": 70,
+        "width": 70,
+        "depth": 2050,
+        "dimension_unit": "mm",
+        "weight": 4660,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "035800-1",
+        "name": "Трек MAG-ORIENT-TRACK-2652-2000 (WH) (Arlight, IP20 Металл, 3 года)",
+        "height": 76,
+        "width": 76,
+        "depth": 2050,
+        "dimension_unit": "mm",
+        "weight": 2950,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "037309-1",
+        "name": "Трек MAG-ORIENT-TRACK-2620-2000 (WH) (Arlight, IP20 Металл, 3 года)",
+        "height": 76,
+        "width": 76,
+        "depth": 2040,
+        "dimension_unit": "mm",
+        "weight": 1756,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "041438-1",
+        "name": "Трек встраиваемый MAG-ORIENT-TRACK-2653-FDW-2000 (BK, FLAT) (Arlight, IP20 Металл, 3 года)",
+        "height": 76,
+        "width": 76,
+        "depth": 2035,
+        "dimension_unit": "mm",
+        "weight": 3567,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM50-1800-600-450-54-1",
+        "name": "SMART Корпус металлический сборный ВРУ 1800х600х450мм IP54 IEK",
+        "height": 140,
+        "width": 625,
+        "depth": 1870,
+        "dimension_unit": "mm",
+        "weight": 43300,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM50-2000-800-600-54-1",
+        "name": "SMART Корпус металлический сборный ВРУ 2000х800х600мм IP54 IEK",
+        "height": 140,
+        "width": 810,
+        "depth": 2065,
+        "dimension_unit": "mm",
+        "weight": 70000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM50-2000-800-600-1",
+        "name": "SMART Корпус металлический сборный ВРУ 2000х800х600мм IP31 IEK",
+        "height": 2060,
+        "width": 890,
+        "depth": 210,
+        "dimension_unit": "mm",
+        "weight": 59900,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM50-2000-600-450-1",
+        "name": "SMART Корпус металлический сборный ВРУ 2000х600х450мм IP31 IEK",
+        "height": 2065,
+        "width": 610,
+        "depth": 140,
+        "dimension_unit": "mm",
+        "weight": 47300,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM50-1800-800-450-1",
+        "name": "SMART Корпус металлический сборный ВРУ 1800х800х450мм IP31 IEK",
+        "height": 210,
+        "width": 880,
+        "depth": 1870,
+        "dimension_unit": "mm",
+        "weight": 53200,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM50-1800-600-450-1",
+        "name": "SMART Корпус металлический сборный ВРУ 1800х600х450мм IP31 IEK",
+        "height": 1865,
+        "width": 610,
+        "depth": 140,
+        "dimension_unit": "mm",
+        "weight": 43300,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM50-2000-800-450-54-1",
+        "name": "SMART Корпус металлический сборный ВРУ 2000х800х450мм IP54 IEK",
+        "height": 140,
+        "width": 810,
+        "depth": 2065,
+        "dimension_unit": "mm",
+        "weight": 58200,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM1-C3-1864-31-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 18.60.45 IP31 IEK",
+        "height": 1920,
+        "width": 610,
+        "depth": 485,
+        "dimension_unit": "mm",
+        "weight": 51300,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM1-C3-2086-31-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 20.80.60 IP31 IEK",
+        "height": 2120,
+        "width": 810,
+        "depth": 640,
+        "dimension_unit": "mm",
+        "weight": 72000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM1-C3-2064-31-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 20.60.45 IP31 IEK",
+        "height": 2120,
+        "width": 610,
+        "depth": 485,
+        "dimension_unit": "mm",
+        "weight": 54400,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM1-C3-1884-54-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 18.80.45 IP54 IEK",
+        "height": 490,
+        "width": 815,
+        "depth": 1920,
+        "dimension_unit": "mm",
+        "weight": 62400,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM1-C3-2086-54-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 20.80.60 IP54 IEK",
+        "height": 1850,
+        "width": 810,
+        "depth": 640,
+        "dimension_unit": "mm",
+        "weight": 64000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM1-C3-2084-54-1",
+        "name": "TITAN Шкаф напольный цельносварной ВРУ-1 20.80.45 IP54 IEK",
+        "height": 2120,
+        "width": 815,
+        "depth": 490,
+        "dimension_unit": "mm",
+        "weight": 61150,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-06-31-1",
+        "name": "Корпус металлический ЩМП-120.75.30 УХЛ3 IP31 IEK",
+        "height": 1215,
+        "width": 765,
+        "depth": 310,
+        "dimension_unit": "mm",
+        "weight": 43500,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-1664-54-1",
+        "name": "Корпус металлический ЩМП-16.6.4-0 У2 IP54 без монтажной панели IEK",
+        "height": 1770,
+        "width": 615,
+        "depth": 415,
+        "dimension_unit": "mm",
+        "weight": 58000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-07-31-1",
+        "name": "Корпус металлический ЩМП-140.75.30 УХЛ3 IP31 IEK",
+        "height": 1335,
+        "width": 765,
+        "depth": 310,
+        "dimension_unit": "mm",
+        "weight": 46600,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-1864-54-1",
+        "name": "Корпус металлический ЩМП-18.6.4-0 У2 IP54 без монтажной панели IEK",
+        "height": 1970,
+        "width": 615,
+        "depth": 415,
+        "dimension_unit": "mm",
+        "weight": 63000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-06-54-1",
+        "name": "Корпус металлический ЩМП-6-0 (1200х750х300мм) У2 IP54 IEK",
+        "height": 1215,
+        "width": 765,
+        "depth": 310,
+        "dimension_unit": "mm",
+        "weight": 47600,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-1684-31-1",
+        "name": "Корпус металлический ЩМП-16.8.4-0 УХЛ3 IP31 без монтажной панели IEK",
+        "height": 1770,
+        "width": 815,
+        "depth": 415,
+        "dimension_unit": "mm",
+        "weight": 68000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-1884-54-1",
+        "name": "Корпус металлический ЩМП-18.8.4-0 У2 IP54 без монтажной панели IEK",
+        "height": 1970,
+        "width": 815,
+        "depth": 415,
+        "dimension_unit": "mm",
+        "weight": 74600,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-1884-31-1",
+        "name": "Корпус металлический ЩМП-18.8.4-0 УХЛ3 IP31 без монтажной панели IEK",
+        "height": 1970,
+        "width": 815,
+        "depth": 415,
+        "dimension_unit": "mm",
+        "weight": 74000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-1664-31-1",
+        "name": "Корпус металлический ЩМП-16.6.4-0 УХЛ3 IP31 без монтажной панели IEK",
+        "height": 1770,
+        "width": 615,
+        "depth": 415,
+        "dimension_unit": "mm",
+        "weight": 57000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-1684-54-1",
+        "name": "Корпус металлический ЩМП-16.8.4-0 У2 IP54 без монтажной панели IEK",
+        "height": 1770,
+        "width": 815,
+        "depth": 415,
+        "dimension_unit": "mm",
+        "weight": 72500,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-07-54-1",
+        "name": "Корпус металлический ЩМП-7-0 (1400х650х285мм) У2 IP54 IEK",
+        "height": 300,
+        "width": 670,
+        "depth": 1420,
+        "dimension_unit": "mm",
+        "weight": 47700,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-05-54-1",
+        "name": "Корпус металлический ЩМП-5-0 (1000х650х285мм) У2 IP54 IEK",
+        "height": 1015,
+        "width": 665,
+        "depth": 295,
+        "dimension_unit": "mm",
+        "weight": 36000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "TI5-10-N-100-060-040-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-100.60.40 УХЛ1 IP66 IEK",
+        "height": 1020,
+        "width": 620,
+        "depth": 420,
+        "dimension_unit": "mm",
+        "weight": 38670,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "TI5-10-N-100-080-030-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-100.80.30 УХЛ1 IP66 IEK",
+        "height": 1020,
+        "width": 820,
+        "depth": 320,
+        "dimension_unit": "mm",
+        "weight": 53170,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "TI5-10-N-100-060-030-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-100.60.30 УХЛ1 IP66 IEK",
+        "height": 1020,
+        "width": 620,
+        "depth": 320,
+        "dimension_unit": "mm",
+        "weight": 44200,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "TI5-10-N-120-080-040-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-120.80.40 УХЛ1 IP66 IEK",
+        "height": 1215,
+        "width": 815,
+        "depth": 415,
+        "dimension_unit": "mm",
+        "weight": 62940,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "TI5-10-N-120-060-040-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-120.60.40 УХЛ1 IP66 IEK",
+        "height": 1220,
+        "width": 620,
+        "depth": 420,
+        "dimension_unit": "mm",
+        "weight": 51408,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "TI5-10-N-120-080-030-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-120.80.30 УХЛ1 IP66 IEK",
+        "height": 1220,
+        "width": 820,
+        "depth": 330,
+        "dimension_unit": "mm",
+        "weight": 58140,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "TI5-10-N-140-060-030-66-1",
+        "name": "TITAN 5 Корпус металлический ЩМП-140.60.30 УХЛ1 IP66 IEK",
+        "height": 1420,
+        "width": 620,
+        "depth": 320,
+        "dimension_unit": "mm",
+        "weight": 54000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-05-54-G-1",
+        "name": "Корпус металлический ЩМП-5-0 (1000х650х285мм) У2 IP54 GENERICA",
+        "height": 300,
+        "width": 670,
+        "depth": 1020,
+        "dimension_unit": "mm",
+        "weight": 35100,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "YKM40-06-54-G-1",
+        "name": "Корпус металлический ЩМП-6-0 (1200х750х300мм) У2 IP54 GENERICA",
+        "height": 320,
+        "width": 770,
+        "depth": 1220,
+        "dimension_unit": "mm",
+        "weight": 46600,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "EOT-0006KVA-1-016-1",
+        "name": "ITK ELECTRA OT ИБП однофазный онлайн 6кВА/6кВт LCD дисплей 192-240VDC клеммная колодка c АКБ 16х7AH USB EPO RS232 SNMP слот Tower",
+        "height": 820,
+        "width": 590,
+        "depth": 310,
+        "dimension_unit": "mm",
+        "weight": 55000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "EOR-BK-20-9-1",
+        "name": "ITK ELECTRA OR Батарейный кабинет 20х9AH 3U",
+        "height": 280,
+        "width": 750,
+        "depth": 580,
+        "dimension_unit": "mm",
+        "weight": 67000,
+        "weight_unit": "g"
+      },
+      {
+        "offer_id": "EOR-BK-16-9-1",
+        "name": "ITK ELECTRA OR Батарейный кабинет 16х9AH 2U",
+        "height": 230,
+        "width": 840,
+        "depth": 580,
+        "dimension_unit": "mm",
+        "weight": 54500,
+        "weight_unit": "g"
+      }
+    ]
+  }
+}
