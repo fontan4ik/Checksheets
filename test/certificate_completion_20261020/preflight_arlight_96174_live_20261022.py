@@ -14,7 +14,7 @@ ROOT = HERE.parents[1]
 PILOT = ROOT / "test/certificate_api_pilot_20261012"
 ASSIGNMENTS = ROOT / "output_to_user/certificates/document_assignments.csv"
 SOURCE_REL = "output_to_user/certificates/group_1/documents/arlight/45D89DF9A2BEE34EB17BF3A4CF0257A3.pdf"
-OUT = HERE / "arlight_96174_live_preflight_20261022.json"
+OUT = HERE / "arlight_96174_live_preflight_v2_20261022.json"
 NUMBER = "ЕАЭС N RU Д-CN.РА08.В.96174/25"
 ISSUE = "2025-10-06"
 EXPIRE = "2030-10-05"
@@ -133,12 +133,17 @@ def main() -> None:
             conflicts.append("ozon_product_archived_or_state_unknown")
         if brands != ["Arlight"]:
             conflicts.append("ozon_brand_not_exact")
-        if target["article"] not in str(product.get("name") or ""):
-            conflicts.append("ozon_exact_article_not_in_live_name")
+        live_name = str(product.get("name") or "").strip()
+        source_name = str(target.get("source_name") or "").strip()
+        if (target["article"] not in live_name
+                and live_name.casefold() != source_name.casefold()):
+            conflicts.append("ozon_live_name_not_equal_to_source_assignment")
         if not tnved or not set(tnved).issubset(ALLOWED_TNVED):
             conflicts.append("ozon_tnved_not_exactly_in_fsa_scope")
         ozon_targets.append({**target, "product_id": product_id, "sku": sku,
-                             "live_name": product.get("name"), "brand_values": brands,
+                             "live_name": product.get("name"),
+                             "live_name_exact_source_assignment": live_name.casefold() == source_name.casefold(),
+                             "brand_values": brands,
                              "tnved_codes": tnved, "eligible": not conflicts,
                              "conflicts": conflicts})
         ozon_conflicts.update(conflicts)
