@@ -275,7 +275,7 @@ def main() -> None:
             "declaration": {"status": "Действует", "issue_date": "2025-04-17", "expiry_date": "2030-04-15",
                             "product_scope": "Встраиваемые светильники со съёмной лампой Navigator серий NGX/NFS, продукция согласно приложению; ТН ВЭД 9405110039 и 9405190032; ТР ЕАЭС 037/2016.",
                             "url": DOCS["declaration"]["registry_url"]},
-            "certificate": {"status": "Действует", "issue_date": "2025-04-17", "expiry_date": "2030-04-15",
+            "certificate": {"status": "Действует", "issue_date": "2025-04-16", "expiry_date": "2030-04-15",
                             "product_scope": "Встраиваемые светильники Navigator со съёмной лампой серий NGX/NFS, продукция согласно приложению; ТН ВЭД 9405190032 и 9405110039; ТР ТС 004/2011.",
                             "url": DOCS["certificate"]["registry_url"]},
         },
