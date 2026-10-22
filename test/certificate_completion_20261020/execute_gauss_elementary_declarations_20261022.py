@@ -38,7 +38,7 @@ def find_record(client,number):
  return matches[0] if matches else None
 def exact_wb(items,doc):
  return [x for x in items if norm_number(x.get('number'))==norm_number(doc['number']) and int(x.get('type') or 0)==2 and str(x.get('startDate') or '')[:10]==doc['issue'] and str(x.get('endDate') or '')[:10]==doc['expiry'] and x.get('isEndless') is False]
-def wb_valid(verdict):
+def is_wb_valid(verdict):
  return isinstance(verdict,dict) and verdict.get('verified') is True and verdict.get('status')==1 and verdict.get('reason')=='valid'
 def get_card(client,offer):
  cards=client.wb_cards(offer)
@@ -170,7 +170,7 @@ def main():
   status_by_doc={}
   for d in DOCS:
    exact=exact_wb(items,d); verdict=exact[0].get('verdict') if len(exact)==1 else None
-   status_by_doc[d['number']]='valid' if wb_valid(verdict) else ('pending_review_or_no_verdict' if len(exact)==1 else 'missing_or_conflict')
+   status_by_doc[d['number']]='valid' if is_wb_valid(verdict) else ('pending_review_or_no_verdict' if len(exact)==1 else 'missing_or_conflict')
   preserved=same_prior_docs(old,card) and comparable_card(old)==comparable_card(card)
   wb_rows.append({'offer_id':t['offer_id'],'nmID':str(card.get('nmID') or ''),'exact_document_counts':exact_by_doc,'statuses':status_by_doc,'previous_documents_and_card_fields_preserved':preserved})
  state['wb_response']=wb_response;state['wb_error_type']=wb_error;state['wb_initial_readback']=wb_rows;state['phase']='marketplace_write_readback';save(STATE,state)
@@ -193,7 +193,7 @@ def main():
   doc_status={}
   for d in DOCS:
    found=exact_wb(items,d); verdict=found[0].get('verdict') if len(found)==1 else None
-   doc_status[d['number']]={'exact_count':len(found),'verdict':verdict,'state':'valid' if wb_valid(verdict) else ('pending_review_or_no_verdict' if len(found)==1 else 'missing_or_conflict')}
+   doc_status[d['number']]={'exact_count':len(found),'verdict':verdict,'state':'valid' if is_wb_valid(verdict) else ('pending_review_or_no_verdict' if len(found)==1 else 'missing_or_conflict')}
   delayed_wb.append({'offer_id':t['offer_id'],'nmID':str(card.get('nmID') or ''),'documents':doc_status,'previous_documents_and_card_fields_preserved':same_prior_docs(old,card) and comparable_card(old)==comparable_card(card)})
  write_ok=all(x['exact_bindings']==len(targets) for x in delayed_ozon) and all(all(d['exact_count']==1 for d in row['documents'].values()) and row['previous_documents_and_card_fields_preserved'] for row in delayed_wb)
  result={'checked_at_utc':now(),'brand':'Gauss','fsa_scope_basis':FSA_SCOPE,'declarations':[{'number':d['number'],'fsa_record_id':d['registry_id'],'fsa_status':'active','issue_date':d['issue'],'expiry_date':d['expiry'],'regulation':d['regulation'],'source_sha256':d['sha256'],'local_source_pdf_deleted':False} for d in DOCS],'ozon':delayed_ozon,'wb':delayed_wb,'wb_review_left_pending':True,'wb_review_state_changed_by_agent':False,'local_source_pdfs_deleted':False,'exact_crossplatform_metadata_verified':write_ok,'verification_artifacts':[PREFLIGHT.name,STATE.name,BEFORE.name,READBACK.name]}
