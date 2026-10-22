@@ -320,29 +320,42 @@ def main() -> None:
         state["phase"] = "wb_fresh_prewrite_has_exclusions"  # Problem cards remain untouched.
     save(STATE_PATH, state)
     if updates:
-        payload = [x["payload"] for x in updates]
-        request_bytes = len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode())
-        if request_bytes > 9_500_000:
-            raise RuntimeError("wb_update_payload_exceeds_safe_limit")
-        marker = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-        journal(WB_JOURNAL, {"phase": "update_prepared", "at": now(), "request_sha256": marker,
-            "request_bytes": request_bytes, "card_count": len(updates), "offers": [x["offer_id"] for x in updates]})
-        state.update({"phase": "wb_update_outcome_pending", "wb_mutation_attempted": True,
-                      "wb_updates_planned": len(updates), "wb_request_sha256": marker})
+        chunks = [updates[i:i + 100] for i in range(0, len(updates), 100)]
+        responses = []
+        for batch_index, batch in enumerate(chunks, 1):
+            payload = [x["payload"] for x in batch]
+            request_bytes = len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode())
+            if request_bytes > 9_500_000:
+                raise RuntimeError("wb_update_payload_exceeds_safe_limit")
+            marker = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+            journal(WB_JOURNAL, {"phase": "update_prepared", "at": now(), "request_sha256": marker,
+                "request_bytes": request_bytes, "card_count": len(batch), "batch_index": batch_index,
+                "batch_count": len(chunks), "offers": [x["offer_id"] for x in batch]})
+            state.update({"phase": "wb_update_outcome_pending", "wb_mutation_attempted": True,
+                "wb_updates_planned": len(updates), "wb_batch_index": batch_index,
+                "wb_batch_count": len(chunks), "wb_request_sha256": marker})
+            save(STATE_PATH, state)
+            try:
+                response = client.call("wb", "/content/v2/cards/update", payload, mutation=True)
+                responses.append(response)
+                state["wb_update_responses"] = responses
+                journal(WB_JOURNAL, {"phase": "update_response", "at": now(), "batch_index": batch_index,
+                                     "response": response})
+            except Exception as exc:
+                state.update({"phase": "wb_update_outcome_uncertain", "wb_update_error_type": type(exc).__name__,
+                              "wb_update_responses": responses})
+                journal(WB_JOURNAL, {"phase": "update_outcome_uncertain", "at": now(),
+                                     "batch_index": batch_index, "error_type": type(exc).__name__})
+                save(STATE_PATH, state)
+                raise
+            if response.get("error") is not False:
+                state.update({"phase": "wb_update_rejected_reconcile", "wb_update_response": response,
+                              "wb_update_responses": responses})
+                save(STATE_PATH, state)
+                raise RuntimeError("wb_update_rejected_do_not_retry")
+        state["wb_update_responses"] = responses
+        state["phase"] = "wb_update_batches_accepted"
         save(STATE_PATH, state)
-        try:
-            response = client.call("wb", "/content/v2/cards/update", payload, mutation=True)
-            state["wb_update_response"] = response
-            journal(WB_JOURNAL, {"phase": "update_response", "at": now(), "response": response})
-        except Exception as exc:
-            state.update({"phase": "wb_update_outcome_uncertain", "wb_update_error_type": type(exc).__name__})
-            journal(WB_JOURNAL, {"phase": "update_outcome_uncertain", "at": now(), "error_type": type(exc).__name__})
-            save(STATE_PATH, state)
-            raise
-        if response.get("error") is not False:
-            state.update({"phase": "wb_update_rejected_reconcile", "wb_update_response": response})
-            save(STATE_PATH, state)
-            raise RuntimeError("wb_update_rejected_do_not_retry")
 
     before_map = {offer: card for offer, card in before.items()}
     readback_rows = []
