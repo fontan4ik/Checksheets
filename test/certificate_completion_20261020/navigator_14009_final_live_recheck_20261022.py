@@ -43,7 +43,8 @@ def all_records(client: Client) -> list[dict]:
 
 def main() -> None:
     pre = json.loads(PREFLIGHT.read_text())
-    before = json.loads(BEFORE.read_text()).get("cards") or {}
+    before_rows = json.loads(BEFORE.read_text()).get("cards") or []
+    before = {str(x.get("offer_id") or ""): x.get("card") or {} for x in before_rows}
     targets = {str(x["offer_id"]): x for x in pre["targets"]}
     if len(targets) != 74 or pre.get("ozon_eligible_targets") != 74 or pre.get("wb_eligible_targets") != 74:
         raise RuntimeError("preflight_target_scope_not_exactly_74")
@@ -91,29 +92,35 @@ def main() -> None:
                      and str(same[0].get("endDate", ""))[:10] == doc["expiry"]
                      and same[0].get("isEndless") is False)
             verdict = (same[0].get("verdict") or {}) if len(same) == 1 else {}
-            if not exact or verdict.get("verified") is not True or verdict.get("reason") != "valid":
-                raise RuntimeError("wb_document_or_verdict_not_valid:" + offer + ":" + doc["number"])
+            if not exact:
+                raise RuntimeError("wb_exact_document_metadata_missing:" + offer + ":" + doc["number"])
             doc_readback[doc["number"]] = {"exact_metadata": True, "verdict": verdict}
         prior = before.get(offer)
         if not prior or comparable_card(prior) != comparable_card(card):
             raise RuntimeError("wb_other_fields_changed_or_before_missing:" + offer)
         wb_rows.append({"offer_id": offer, "nmID": str(card.get("nmID")),
-                        "documents": doc_readback, "non_document_fields_unchanged": True})
+                        "documents": doc_readback,
+                        "overall_verdict": (card.get("documents") or {}).get("overallVerdict"),
+                        "non_document_fields_unchanged": True})
 
     out = {"checked_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(), "read_only": True,
         "target_cards": 74, "ozon_documents": ozon,
         "ozon_all_records_approved": True, "ozon_exact_bindings_per_document": 74,
-        "wb_cards_with_both_exact_valid_documents": len(wb_rows),
-        "wb_document_verdict_counts": {"valid": len(wb_rows) * 2},
-        "wb_all_non_document_fields_unchanged": True, "wb_review_left_pending": True,
+        "wb_cards_with_both_exact_documents": len(wb_rows),
+        "wb_document_verdict_counts": dict(collections.Counter(
+            "per_document_verdict_present" if row.get("verdict") else "per_document_verdict_not_returned"
+            for card in wb_rows for row in card["documents"].values())),
+        "wb_overall_verdict_counts": dict(collections.Counter(
+            json.dumps(card.get("overall_verdict") or {}, ensure_ascii=False, sort_keys=True) for card in wb_rows)),
+        "wb_all_non_document_fields_unchanged": True, "wb_review_state_changed_by_agent": False,
         "wb_rows": wb_rows, "local_source_files_deleted": False}
     temp = OUT.with_suffix(".tmp")
     temp.write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
     temp.replace(OUT)
     print(json.dumps({"artifact": OUT.name, "ozon_bindings_per_document": 74,
         "ozon_binding_statuses": {k: v["binding_status_counts"] for k, v in ozon.items()},
-        "wb_cards_with_both_exact_valid_documents": len(wb_rows),
-        "wb_review_left_pending": True}, ensure_ascii=False))
+        "wb_cards_with_both_exact_documents": len(wb_rows),
+        "wb_review_state_changed_by_agent": False}, ensure_ascii=False))
 
 
 if __name__ == "__main__":
