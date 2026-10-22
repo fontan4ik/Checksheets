@@ -72,7 +72,6 @@ def get_api_key() -> str:
         )
     return result.stdout.strip()
 
-
 def get_active_interface() -> tuple[str, str]:
     """Choose the active LAN/Wi-Fi interface used by local supplier clients."""
     import socket

@@ -38,6 +38,7 @@ let run = setup([
   {body:{result:{items:[{offer_id:'LAST',product_id:4}],last_id:''}}}
 ]);
 assert.equal(run.context.syncOfferIdWithProductIdCore_().complete, false);
+assert.equal(run.requests[0].filter.visibility, 'ALL');
 assert.deepEqual(run.rows, [['OLD',2],['NEW',3]]);
 assert.equal(JSON.parse(run.props.get('OZON_PRODUCT_LIST_CURSOR')).cursor, 'next');
 run.resetClock();
@@ -58,6 +59,11 @@ assert.deepEqual(run.rows, [['OLD',1]]);
 run = setup([{code:429,body:{error:'limit'}}]);
 assert.equal(run.context.syncOfferIdWithProductIdCore_().complete, false);
 assert.deepEqual(run.rows, [['OLD',1]]);
+// Old filter={} cursors must not be reused for the new visibility=ALL scan.
+run = setup([{body:{result:{items:[]}}}]);
+run.props.set('OZON_PRODUCT_LIST_CURSOR', JSON.stringify({scope:'sheet:1',cursor:'old-filter-cursor'}));
+assert.equal(run.context.syncOfferIdWithProductIdCore_().complete, true);
+assert.equal(run.requests[0].last_id, '');
 let called = 0;
 const flow = {runWithTelegramAlertGAS_: (_, fn) => fn(), syncOfferIdWithProductIdAlertCore_: () => ++called};
 vm.createContext(flow); vm.runInContext(fs.readFileSync('Flow_Триггеры__Основные.js','utf8'), flow);

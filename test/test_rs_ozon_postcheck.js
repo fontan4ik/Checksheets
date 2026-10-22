@@ -6,9 +6,23 @@ const {
   verifyRsOzonStocks,
   updateRsStocksOzon,
   wbRetryDelayMs,
+  RS_OZON_MOSCOW_WAREHOUSE_ID,
 } = require("../sync-rs-stocks");
 
 async function run() {
+  for (const warehouseId of [RS_OZON_MOSCOW_WAREHOUSE_ID, 10]) {
+    let sent;
+    const result = await updateRsStocksOzon([{ offer_id: "PAUSE-TEST", stock_moscow: 17 }], {
+      warehouseId, stockField: "stock_moscow", label: "Moscow pause regression",
+      httpClient: { post: async (_url, body) => {
+        sent = body.stocks[0];
+        return { status: 200, data: { result: [{ offer_id: sent.offer_id, warehouse_id: warehouseId, updated: true, errors: [] }] } };
+      } },
+    });
+    assert.strictEqual(sent.stock, warehouseId === RS_OZON_MOSCOW_WAREHOUSE_ID ? 0 : 17,
+      "Moscow must stay zero even with an old positive snapshot; other warehouses retain their stocks");
+    assert.strictEqual(result.errorSku, 0);
+  }
   assert.strictEqual(wbRetryDelayMs({ "x-ratelimit-retry": "7" }, 3000), 7000,
     "WB 429 retry must respect the official retry header");
   assert.strictEqual(wbRetryDelayMs({}, 3000), 3000,

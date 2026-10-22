@@ -1,0 +1,167 @@
+{
+  "warehouse": 287,
+  "positions": {
+    "LC1-C5E04-311": {
+      "CODE": "292402",
+      "NAME": "Кабель витая пара F/UTP кат.5E 4х2х24AWG solid PVC сер. (м) ITK LC1-C5E04-311",
+      "BRAND": "ITK",
+      "CATEGORY": "ОСТ",
+      "VENDOR_CODE": "LC1-C5E04-311",
+      "UOM": "Метр",
+      "UOM_OKEI": "006",
+      "MULTIPLICITY": 1
+    },
+    "LC1-C5E04-111-T-R": {
+      "CODE": "1819922",
+      "NAME": "Кабель витая пара U/UTP 5E 4х2х24AWG PVC сер. (уп.305м) РФ/Т ITK LC1-C5E04-111-T-R",
+      "BRAND": "ITK",
+      "CATEGORY": "ЗКЗ",
+      "VENDOR_CODE": "LC1-C5E04-111-T-R",
+      "UOM": "Метр",
+      "UOM_OKEI": "006",
+      "MULTIPLICITY": 305
+    },
+    "LC1-C5E04-121-T-P-R": {
+      "CODE": "1819923",
+      "NAME": "Кабель витая пара U/UTP кат.5E 4х2х0.52 LSZH сер. (уп.305м) РФ/Т ITK LC1-C5E04-121-T-P-R",
+      "BRAND": "ITK",
+      "CATEGORY": "ЗКЗ",
+      "VENDOR_CODE": "LC1-C5E04-121-T-P-R",
+      "UOM": "Метр",
+      "UOM_OKEI": "006",
+      "MULTIPLICITY": 305
+    },
+    "LC1-C5E04-121-T-R": {
+      "CODE": "1819924",
+      "NAME": "Кабель витая пара U/UTP 5E 4х2х24AWG LSZH сер. (уп.305м) РФ/Т ITK LC1-C5E04-121-T-R",
+      "BRAND": "ITK",
+      "CATEGORY": "ЗКЗ",
+      "VENDOR_CODE": "LC1-C5E04-121-T-R",
+      "UOM": "Метр",
+      "UOM_OKEI": "006",
+      "MULTIPLICITY": 305
+    },
+    "LC1-C5E04-321-T-P-R": {
+      "CODE": "1854834",
+      "NAME": "Кабель витая пара F/UTP кат.5E 4х2х0.52 LSZH сер. (м) РФ/Т ITK LC1-C5E04-321-T-P-R",
+      "BRAND": "ITK",
+      "CATEGORY": "ЗКЗ",
+      "VENDOR_CODE": "LC1-C5E04-321-T-P-R",
+      "UOM": "Метр",
+      "UOM_OKEI": "006",
+      "MULTIPLICITY": 305
+    }
+  },
+  "residues": {
+    "LC1-C5E04-311": {
+      "Residue": 464,
+      "UOM": "Метр",
+      "UOM_OKEI": "006",
+      "category": "ОСТ",
+      "qtyLots": "19;25;33;33;37;51;133;133",
+      "partnerQuantityInfo": {
+        "partnerQuantity": 95,
+        "partnerUOM": "УП.305 м",
+        "partnerUOMOKEI": "778",
+        "estimatedArrivalDate": "27.10.2026",
+        "partnerQuantityDate": "20.10.2026 11:57:43"
+      }
+    },
+    "LC1-C5E04-111-T-R": {
+      "Residue": 2470,
+      "UOM": "Метр",
+      "UOM_OKEI": "006",
+      "category": "ЗКЗ",
+      "qtyLots": ".0015;29.9985;305;2135",
+      "partnerQuantityInfo": {
+        "partnerQuantity": 2155,
+        "partnerUOM": "УП.305 м",
+        "partnerUOMOKEI": "778",
+        "estimatedArrivalDate": "27.10.2026",
+        "partnerQuantityDate": "20.10.2026 11:57:33"
+      }
+    },
+    "LC1-C5E04-121-T-P-R": {
+      "Residue": 1084,
+      "UOM": "Метр",
+      "UOM_OKEI": "006",
+      "category": "ЗКЗ",
+      "qtyLots": "34;135;305;305;305",
+      "partnerQuantityInfo": {
+        "partnerQuantity": 0,
+        "partnerUOM": "УП.305 м",
+        "partnerUOMOKEI": "778",
+        "partnerQuantityDate": "20.10.2026 11:57:33"
+      }
+    },
+    "LC1-C5E04-121-T-R": {
+      "Residue": 205,
+      "UOM": "Метр",
+      "UOM_OKEI": "006",
+      "category": "ЗКЗ",
+      "qtyLots": "50;155",
+      "partnerQuantityInfo": {
+        "partnerQuantity": 668,
+        "partnerUOM": "УП.305 м",
+        "partnerUOMOKEI": "778",
+        "estimatedArrivalDate": "27.10.2026",
+        "partnerQuantityDate": "20.10.2026 11:57:31"
+      }
+    },
+    "LC1-C5E04-321-T-P-R": {
+      "Residue": 640,
+      "UOM": "Метр",
+      "UOM_OKEI": "006",
+      "category": "ЗКЗ",
+      "qtyLots": "40;95;95;105;305",
+      "partnerQuantityInfo": {
+        "partnerQuantity": 0,
+        "partnerUOM": "УП.305 м",
+        "partnerUOMOKEI": "778",
+        "partnerQuantityDate": "20.10.2026 11:57:35"
+      }
+    }
+  },
+  "lotAnalysis": {
+    "LC1-C5E04-311": {
+      "rawMetres": 464,
+      "sumQtyLots": 464.0,
+      "full305mSections": 0,
+      "afterBufferRound": 0,
+      "floorAggregate305": 1,
+      "partnerUnit": "УП.305 м"
+    },
+    "LC1-C5E04-111-T-R": {
+      "rawMetres": 2470,
+      "sumQtyLots": 2470.0,
+      "full305mSections": 8,
+      "afterBufferRound": 5,
+      "floorAggregate305": 8,
+      "partnerUnit": "УП.305 м"
+    },
+    "LC1-C5E04-121-T-P-R": {
+      "rawMetres": 1084,
+      "sumQtyLots": 1084.0,
+      "full305mSections": 3,
+      "afterBufferRound": 2,
+      "floorAggregate305": 3,
+      "partnerUnit": "УП.305 м"
+    },
+    "LC1-C5E04-121-T-R": {
+      "rawMetres": 205,
+      "sumQtyLots": 205.0,
+      "full305mSections": 0,
+      "afterBufferRound": 0,
+      "floorAggregate305": 0,
+      "partnerUnit": "УП.305 м"
+    },
+    "LC1-C5E04-321-T-P-R": {
+      "rawMetres": 640,
+      "sumQtyLots": 640.0,
+      "full305mSections": 1,
+      "afterBufferRound": 1,
+      "floorAggregate305": 2,
+      "partnerUnit": "УП.305 м"
+    }
+  }
+}

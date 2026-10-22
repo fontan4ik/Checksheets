@@ -3,7 +3,8 @@
  *
  * Колонка всегда определяется по видимому заголовку. Числовой индекс,
  * возвращаемый resolver-ом, является только техническим адресом уже найденной
- * колонки и никогда не используется как fallback.
+ * колонки. Единственное исключение чтения ключа: документированная пустая A1
+ * листа StreamSupps при отсутствии видимого заголовка «Артикул продавца».
  */
 const STREAM_SUPPS_HEADERS = Object.freeze({
   offerId: "Артикул продавца",
@@ -56,6 +57,15 @@ function resolveStreamSuppsColumns(headers, schema, sheetName = "StreamSupps") {
       .filter(Boolean);
 
     if (matches.length === 0) {
+      // Read-key-only exception for the established StreamSupps layout. Never
+      // apply it to another header, a named A1, another sheet, or duplicates.
+      const blankA1 = headers && headers.length > 0 &&
+        (headers[0] === "" || headers[0] === null || headers[0] === undefined);
+      if (sheetName === "StreamSupps" && !isOccurrenceDefinition && names.length === 1 &&
+          names[0] === STREAM_SUPPS_HEADERS.offerId && blankA1) {
+        columns[field] = 1;
+        return;
+      }
       throw new Error(
         `Лист "${sheetName}": для поля "${field}" не найден заголовок "${names.join(" / ")}"`,
       );

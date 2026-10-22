@@ -51,7 +51,6 @@ const requiredUsage = {
     'stock_msk: normalizeMarketplaceStock(originalStockMsk, brand)',
     'stock_wb_voltmir: normalizeMarketplaceStock(wbVoltmirStock, brand)',
     'stock_wb_feron_moscow: normalizeMarketplaceStock(wbFeronMoscowStock, brand)',
-    'stock: item[colName]',
   ],
   'sync-cdek-ozon-stocks.js': [
     'return Math.trunc(parsed);',
@@ -66,4 +65,27 @@ for (const [file, snippets] of Object.entries(requiredUsage)) {
   }
 }
 
-console.log('PASS marketplace stock rule: base 1 -> 0; Arlight/CDEK 1 -> 1; zero preserved');
+// Exercise the actual writer payload: forced-zero mode is intentional and must
+// not be mistaken for bypassing the already-normalized per-brand quantity.
+async function verifyFeronStockPayload() {
+  const source = fs.readFileSync(path.join(root, 'sync-feron-stocks.js'), 'utf8');
+  const start = source.indexOf('async function updateFeronStocksOzonWithRetry(');
+  const end = source.indexOf('async function updateFeronStocksOzon(', start);
+  assert(start >= 0 && end > start, 'production Ozon payload function found');
+  const payloads = [];
+  const writer = vm.createContext({
+    axios: {post: async (url, body) => { payloads.push(JSON.parse(JSON.stringify(body))); return {data: {}}; }},
+    ozonHeaders: () => ({}),
+  });
+  vm.runInContext(source.slice(start, end), writer);
+  const batch = [{offer_id:'BASE',stock_msk:0},{offer_id:'ARLIGHT',stock_msk:1},{offer_id:'NORMAL',stock_msk:2}];
+  await writer.updateFeronStocksOzonWithRetry(batch, 123, 'stock_msk');
+  assert.deepStrictEqual(payloads[0].stocks.map(item => item.stock), [0,1,2], 'writer preserves normalized zero/Arlight one/base two');
+  assert(payloads[0].stocks.every(item => item.warehouse_id === 123));
+  await writer.updateFeronStocksOzonWithRetry(batch, 123, 'stock_msk', 0, true);
+  assert.deepStrictEqual(payloads[1].stocks.map(item => item.stock), [0,0,0], 'explicit forced-zero mode overrides all quantities');
+  assert.deepStrictEqual(batch.map(item => item.stock_msk), [0,1,2], 'writer never mutates its source snapshot');
+}
+verifyFeronStockPayload().then(() => {
+  console.log('PASS marketplace stock rule: base 1 -> 0; Arlight/CDEK 1 -> 1; zero preserved');
+}).catch(error => { console.error(error); process.exitCode = 1; });

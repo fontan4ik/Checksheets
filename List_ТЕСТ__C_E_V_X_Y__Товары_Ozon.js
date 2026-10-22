@@ -43,14 +43,14 @@ function updateProductsV2AlertCore_() {
   return runWithOzonProductSyncLock_("updateProductsV2", function() {
     // A/U обновляет отдельный существующий триггер syncOfferIdWithProductId.
     // Повторная полная синхронизация здесь удваивала длительность запуска.
-    updateProductsV2Core_();
+    return updateProductsV2Core_();
   });
 }
 
 function updateProductsV2Core_() {
   const startedAt = Date.now();
   const sheet = mainSheet();
-  if (sheet.getLastRow() < 2) return;
+  if (sheet.getLastRow() < 2) return { complete: true, processed: 0, nextIndex: 0, total: 0, writeMode: "none" };
 
   const sourceColumnLetter = "A"; // Колонка A - Артикул (offer_id)
   const sourceColumnIndex = columnLetterToIndex(sourceColumnLetter);
@@ -81,9 +81,13 @@ function updateProductsV2Core_() {
   const validRows = rowData.filter(r => r.offerId);
   const batchSize = 1000;
   const props = PropertiesService.getScriptProperties();
+  const nativeWriteKey = 'OZON_PRODUCTS_V2_NATIVE_WRITE';
+  const maxRowsPerSlice = props.getProperty(nativeWriteKey) === '1' ? 4000 : 8000;
   const cursorKey = 'OZON_PRODUCTS_V2_NEXT_OFFER';
   const signatureKey = 'OZON_PRODUCTS_V2_SHEET_SIGNATURE';
-  const signature = `${validRows.length}:${validRows[0]?.offerId || ''}:${validRows[validRows.length - 1]?.offerId || ''}`;
+  // Appending new catalog rows must not restart an unfinished enrichment pass.
+  const scope = sheet.getParent().getId() + ':' + sheet.getSheetId();
+  const signature = `${scope}:${validRows[0]?.offerId || ''}`;
   const savedCursor = props.getProperty(signatureKey) === signature ? Number(props.getProperty(cursorKey)) || 0 : 0;
   const startIndex = savedCursor >= 0 && savedCursor < validRows.length ? savedCursor : 0;
   let nextIndex = startIndex;
@@ -97,7 +101,7 @@ function updateProductsV2Core_() {
   // Первый проход: получаем базовую информацию + атрибуты
   // Используем v4/product/info/attributes - возвращает атрибуты с брендом и моделью
   for (let i = startIndex; i < validRows.length; i += batchSize) {
-    if (i > startIndex && (i - startIndex >= 8000 || Date.now() - startedAt >= 2.5 * 60 * 1000)) break;
+    if (i > startIndex && (i - startIndex >= maxRowsPerSlice || Date.now() - startedAt >= 2.5 * 60 * 1000)) break;
     lastRequestTime = rateLimitRPS(lastRequestTime, RPS());
 
     const batch = validRows.slice(i, i + batchSize);
@@ -105,7 +109,8 @@ function updateProductsV2Core_() {
 
     const payload = {
       filter: {
-        offer_id: batchIds
+        offer_id: batchIds,
+        visibility: "ALL"
       },
       limit: batchIds.length
     };
@@ -132,7 +137,20 @@ function updateProductsV2Core_() {
 
     if (!Array.isArray(data.result)) throw new Error(`Ozon товары: нет result для batch ${i}`);
 
-    const items = data.result || [];  // v4 API возвращает result
+    const items = data.result;
+    // Attributes supplies brand/model; v3 supplies SKU and image URLs.
+    // v4 does not guarantee either field, so using it alone erased valid SKU/images.
+    lastRequestTime = rateLimitRPS(lastRequestTime, RPS());
+    const infoResponse = retryFetch('https://api-seller.ozon.ru/v3/product/info/list', {
+      method: "post",
+      contentType: "application/json",
+      headers: ozonHeaders(),
+      payload: JSON.stringify({ offer_id: batchIds })
+    });
+    if (!infoResponse) throw new Error(`Ozon товары: нет product/info/list для batch ${i}`);
+    const infoData = JSON.parse(infoResponse.getContentText());
+    if (!Array.isArray(infoData.items)) throw new Error(`Ozon товары: нет items product/info/list для batch ${i}`);
+    const infoMap = new Map(infoData.items.map(item => [String(item.offer_id).trim(), item]));
 
     items.forEach(item => {
       const offerId = item.offer_id === null || item.offer_id === undefined
@@ -140,7 +158,9 @@ function updateProductsV2Core_() {
         : String(item.offer_id).trim();
       if (!offerId) return;
 
-      const categoryId = item.description_category_id || "";
+      const info = infoMap.get(offerId);
+      if (!info) throw new Error(`Ozon товары: product/info/list не вернул ${offerId}; пакет будет повторён`);
+      const categoryId = item.description_category_id || info.description_category_id || "";
       if (categoryId) categoryIdSet.add(categoryId);
 
       // Логируем структуру первого товара для диагностики
@@ -166,13 +186,24 @@ function updateProductsV2Core_() {
 
       resultsMap.set(offerId, {
         product_id: item.product_id || "",
-        sku: item.sku || "",
-        name: item.name || "",
+        sku: info.sku || (info.sources || []).map(source => source.sku).find(Boolean) || "",
+        name: info.name || item.name || "",
         description_category_name: "",
         description_category_id: categoryId,
-        primary_image: item.primary_image || "",
+        primary_image: firstOzonImageUrl_(info.primary_image) || firstOzonImageUrl_(info.images) || firstOzonImageUrl_(item.primary_image),
         brand: brand,
         model_name: modelName
+      });
+    });
+
+    // A card can be available in info/list before attributes becomes available.
+    // Populate API metadata now and preserve fields owned by attributes.
+    infoMap.forEach((info, offerId) => {
+      if (resultsMap.has(offerId)) return;
+      resultsMap.set(offerId, {
+        sku: info.sku || (info.sources || []).map(source => source.sku).find(Boolean) || "",
+        primary_image: firstOzonImageUrl_(info.primary_image) || firstOzonImageUrl_(info.images),
+        preserveAttributeFields: true
       });
     });
 
@@ -180,7 +211,7 @@ function updateProductsV2Core_() {
     nextIndex = i + batch.length;
   }
 
-  if (nextIndex === startIndex) return;
+  if (nextIndex === startIndex) return { complete: validRows.length === 0, processed: 0, nextIndex: nextIndex, total: validRows.length, writeMode: "none" };
   const processedRows = validRows.slice(startIndex, nextIndex);
   const firstRow = processedRows[0].rowIndex;
   const lastRow = processedRows[processedRows.length - 1].rowIndex;
@@ -232,7 +263,7 @@ function updateProductsV2Core_() {
       const result = resultsMap.get(r.offerId);
       return result
         ? key === "primary_image"
-          ? result[key] ? `=IMAGE("${result[key]}")` : ""
+          ? result[key] ? `=IMAGE("${String(result[key]).replace(/"/g, '""')}")` : ""
           : result[key] || ""
         : "";
     });
@@ -250,22 +281,28 @@ function updateProductsV2Core_() {
     V: "SKU Ozon", X: "Название модели", Y: "Категория товара"
   };
 
+  const pendingWrites = [];
   for (const [colLetter, header] of Object.entries(writeColumns)) {
     const resolvedColumn = columnByHeader_(sheet, header);
     const range = sheet.getRange(firstRow, resolvedColumn, targetRows.length, 1);
     const existingValues = range.getValues();
     const existingFormulas = range.getFormulas();
+    const formulaFlags = [];
     const values = targetRows.map((row, rowIndex) => {
       if (!row.offerId) return [""];
-      if (!resultsMap.has(row.offerId)) {
+      const result = resultsMap.get(row.offerId);
+      if (!result || (result.preserveAttributeFields && !["V", "E"].includes(colLetter))) {
+        formulaFlags[rowIndex] = Boolean(existingFormulas[rowIndex][0]);
         return [existingFormulas[rowIndex][0] || existingValues[rowIndex][0]];
       }
+      formulaFlags[rowIndex] = colLetter === "E" && Boolean(result.primary_image);
       return [valuesByKey[columnKeyMap[colLetter]][rowIndex]];
     });
-    range.setValues(values);
+    pendingWrites.push({ range: range, column: resolvedColumn, values: values, formulaFlags: formulaFlags });
     const key = columnKeyMap[colLetter];
     Logger.log(`📝 Колонка ${header} (${resolvedColumn}): ${key} - обновлено ${valuesByKey[key].filter(Boolean).length} строк`);
   }
+  const writeMode = writeOzonProductColumns_(sheet, firstRow, pendingWrites);
   if (nextIndex < validRows.length) {
     props.setProperty(signatureKey, signature);
     props.setProperty(cursorKey, String(nextIndex));
@@ -289,6 +326,64 @@ function updateProductsV2Core_() {
   Logger.log(`✅ Обновление завершено!`);
   Logger.log(`🏷️ Уникальных брендов: ${Object.keys(brandStats).length}`);
   Logger.log(`📦 Товаров с моделью: ${modelCount}`);
+  return { complete: nextIndex >= validRows.length, processed: nextIndex - startIndex, nextIndex: nextIndex, total: validRows.length, writeMode: writeMode };
+}
+
+/** Prepare all ranges before writing, then submit one Sheets transaction. */
+function writeOzonProductColumns_(sheet, firstRow, pendingWrites) {
+  if (typeof ScriptApp !== "undefined" && typeof ScriptApp.getOAuthToken === "function" &&
+      typeof UrlFetchApp !== "undefined" && typeof UrlFetchApp.fetch === "function") {
+    const sheetName = "'" + sheet.getName().replace(/'/g, "''") + "'";
+    const data = pendingWrites.map(write => {
+      let column = write.column, letters = "";
+      while (column > 0) {
+        column--;
+        letters = String.fromCharCode(65 + column % 26) + letters;
+        column = Math.floor(column / 26);
+      }
+      return {
+        range: sheetName + "!" + letters + firstRow + ":" + letters + (firstRow + write.values.length - 1),
+        majorDimension: "ROWS",
+        // USER_ENTERED evaluates only known formulas. Every text literal gets
+        // an apostrophe so numeric strings, leading zeros and '=' stay text.
+        values: write.values.map((row, index) => row.map(value =>
+          typeof value === "string" && value !== "" && !write.formulaFlags[index] ? "'" + value : value))
+      };
+    });
+    const response = UrlFetchApp.fetch(
+      "https://sheets.googleapis.com/v4/spreadsheets/" + encodeURIComponent(sheet.getParent().getId()) + "/values:batchUpdate",
+      {
+        method: "post", contentType: "application/json",
+        headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
+        payload: JSON.stringify({ valueInputOption: "USER_ENTERED", data: data }),
+        muteHttpExceptions: true
+      }
+    );
+    const code = response.getResponseCode();
+    if (code >= 200 && code < 300) {
+      PropertiesService.getScriptProperties().deleteProperty('OZON_PRODUCTS_V2_NATIVE_WRITE');
+      Logger.log("Ozon товары: все колонки записаны одним Sheets values:batchUpdate.");
+      return "rest";
+    }
+    if (code !== 403 && code !== 404) {
+      // An uncertain or failed remote write must never cause native partial
+      // writes or checkpoint advancement; retry the same slice next time.
+      throw new Error("Ozon товары: Sheets values:batchUpdate HTTP " + code);
+    }
+    // Save before native writes: a hard timeout must leave the next slice
+    // with a smaller write budget, while still probing REST for recovery.
+    PropertiesService.getScriptProperties().setProperty('OZON_PRODUCTS_V2_NATIVE_WRITE', '1');
+    Logger.log("Ozon товары: Sheets API недоступен HTTP " + code + "; native fallback.");
+  } else {
+    Logger.log("Ozon товары: Sheets REST недоступен; native fallback.");
+  }
+  pendingWrites.forEach(write => write.range.setValues(write.values));
+  return "native";
+}
+
+function firstOzonImageUrl_(value) {
+  if (Array.isArray(value)) return value.find(url => typeof url === "string" && url.trim()) || "";
+  return typeof value === "string" ? value : "";
 }
 
 /**

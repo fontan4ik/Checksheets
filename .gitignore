@@ -33,3 +33,11 @@ test/etm_iek_stock_20260623_heartbeat.client_goods.json
 .claude/
 .zed/
 .antigravity/
+
+ntc-cloud/Shared_Credentials.js
+ntc-cloud/.clasp.json
+test/ntc_cloud_runtime/
+
+# Local storage migration and recovery diagnostics (includes private backups).
+test/migration_zhestkach_20261022/
+test/schedule_recovery_20261022/

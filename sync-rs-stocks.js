@@ -20,6 +20,7 @@ const {
   sendTelegramAlert,
   sendFbsMultiWarehouseReport,
 } = require("./telegram_notifier");
+const { refreshNtcCloudWbOwnership, filterLocalWbOwned } = require("./ntc_wb_ownership");
 const { createWbStockAudit } = require("./wb_stock_audit");
 const { createWbStockRateLimiter } = require("./wb_stock_rate_limiter");
 const { buildStockReport, throwOnStockSyncFailures } = require("./stock_sync_report");
@@ -36,6 +37,9 @@ const SHEET_NAME = "StreamSupps";
 
 const RS_OZON_WAREHOUSE_ID = 1020005005049870;
 const RS_OZON_MOSCOW_WAREHOUSE_ID = 1020005030719640;
+// Отключено пользователем 20.10.2026. Возобновлять только по явному запросу.
+// X в StreamSupps также обнулена, чтобы убрать вклад RS Москва из WB AC.
+const RS_MOSCOW_TRANSMISSION_ENABLED = false;
 const RS_WB_WAREHOUSE_ID = 798761;
 
 const RS_COLUMNS = {
@@ -114,8 +118,13 @@ function normalizeChrtId(value) {
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
-function resolveColumns(headers) {
-  const result = resolveStreamSuppsColumns(headers, RS_COLUMNS, SHEET_NAME);
+function resolveColumns(headers, marketplace) {
+  const schema = { ...RS_COLUMNS };
+  if (marketplace === "wb") {
+    delete schema.stock;
+    delete schema.stock_moscow;
+  }
+  const result = resolveStreamSuppsColumns(headers, schema, SHEET_NAME);
   Object.entries(result).forEach(([field, column]) => {
     log(`🔍 Схема RS: ${field} → ${columnLetter(column)}:${headers[column - 1]}`);
   });
@@ -136,7 +145,7 @@ async function createSheetsClient() {
   return google.sheets({ version: "v4", auth: client });
 }
 
-async function readRsStocksFromSheet(sheets) {
+async function readRsStocksFromSheet(sheets, marketplace) {
   const headerResponse = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: `${SHEET_NAME}!1:1`,
@@ -145,7 +154,7 @@ async function readRsStocksFromSheet(sheets) {
   const headers = headerResponse.data.values?.[0] || [];
   if (!headers.length) throw new Error(`Лист «${SHEET_NAME}» пуст или не найден`);
 
-  const columns = resolveColumns(headers);
+  const columns = resolveColumns(headers, marketplace);
   const maxColumn = Math.max(...Object.values(columns));
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
@@ -169,7 +178,7 @@ async function readRsStocksFromSheet(sheets) {
       brand,
       chrt_id: row[columns.chrt_id - 1],
       stock: normalizeMarketplaceStock(originalStock, brand),
-      stock_moscow: normalizeMarketplaceStock(originalMoscowStock, brand),
+      stock_moscow: RS_MOSCOW_TRANSMISSION_ENABLED ? normalizeMarketplaceStock(originalMoscowStock, brand) : 0,
       wb_stock: normalizeMarketplaceStock(originalWbStock, brand),
       original_stock: originalStock,
       original_moscow_stock: originalMoscowStock,
@@ -187,7 +196,7 @@ async function readRsStocksFromSheet(sheets) {
   log(`   Arlight с остатком 1 сохранён: ${stocks.filter((item) => item.original_stock === 1 && normalizeStreamSuppsHeader(item.brand) === "arlight").length}`);
   log(`   С chrtId: ${stocks.filter((item) => normalizeChrtId(item.chrt_id)).length}`);
   log(`🧾 WB snapshot: readAt=${stocks.snapshotReadAt}, sources=${JSON.stringify(stocks.wbSourceColumns)}`);
-  return stocks;
+  return require("./stream_onboarding_gate").gatePublication(stocks, marketplace, { logger: log });
 }
 
 function ozonHeaders() {
@@ -275,13 +284,15 @@ async function updateRsStocksOzon(
   let errorCount = 0;
   let skippedCount = 0;
   const skippedOfferIds = new Set();
+  const acceptedOfferIds = new Set();
   const restrictedOfferIds = new Set();
 
   log(`🟠 ${label}: ${valid.length} товаров, склад ${warehouseId}`);
   for (let index = 0; index < batches; index += 1) {
     lastRequestAt = await rateLimit(lastRequestAt, OZON_RPS);
     const batch = valid.slice(index * BATCH_SIZE_OZON, (index + 1) * BATCH_SIZE_OZON)
-      .map((item) => ({ ...item, stock: item[stockField] }));
+      .map((item) => ({ ...item, stock: !RS_MOSCOW_TRANSMISSION_ENABLED &&
+        Number(warehouseId) === RS_OZON_MOSCOW_WAREHOUSE_ID ? 0 : item[stockField] }));
     const result = await sendOzonStocksBatch(batch, warehouseId, 0, httpClient);
     if (!result.ok) {
       errorCount += batch.length;
@@ -302,6 +313,7 @@ async function updateRsStocksOzon(
       const errors = Array.isArray(item.errors) ? item.errors : [];
       if (item.updated) {
         successCount += 1;
+        acceptedOfferIds.add(String(item.offer_id));
         continue;
       }
       const terminal = errors.length > 0 && errors.every((error) => OZON_TERMINAL_PRODUCT_ERRORS.has(error.code));
@@ -330,6 +342,7 @@ async function updateRsStocksOzon(
     skippedCount,
     errorCount,
     skippedOfferIds,
+    acceptedOfferIds,
   };
 }
 
@@ -491,8 +504,9 @@ async function processRsWbConflictIndividually(batch, audit, batchIndex) {
   return { successCount, skippedCount, errorCount };
 }
 
-async function updateRsStocksWb(stocks) {
-  const valid = stocks.filter((item) => normalizeChrtId(item.chrt_id));
+async function updateRsStocksWb(stocks, sheets) {
+  await refreshNtcCloudWbOwnership(sheets);
+  const valid = filterLocalWbOwned(stocks, RS_WB_WAREHOUSE_ID).filter((item) => normalizeChrtId(item.chrt_id));
   if (!valid.length) {
     log("⚠️ WB RS: нет товаров с валидным chrtId");
     return { activeSku: 0, sourcePositiveSku: 0, attemptedSku: 0, acceptedSku: 0, skippedSku: 0, errorSku: 0, successCount: 0, skippedCount: 0, errorCount: 0, runId: null };
@@ -586,7 +600,7 @@ async function main({ dryRun = false, skipPostcheck = false, marketplace = "all"
   for (let attempt = 1; attempt <= 5; attempt += 1) {
     try {
       log(`📊 Чтение листа «${SHEET_NAME}» (попытка ${attempt}/5)...`);
-      stocks = await readRsStocksFromSheet(sheets);
+      stocks = await readRsStocksFromSheet(sheets, marketplace);
       break;
     } catch (error) {
       if (attempt === 5) throw error;
@@ -607,7 +621,7 @@ async function main({ dryRun = false, skipPostcheck = false, marketplace = "all"
     stockField: "stock_moscow",
     label: "Ozon RS Москва",
   }) : null;
-  const wbStats = marketplace !== "ozon" ? await updateRsStocksWb(stocks) : null;
+  const wbStats = marketplace !== "ozon" ? await updateRsStocksWb(stocks, sheets) : null;
   let postcheck = { mismatches: [], stats: { sheetPositiveCount: stocks.filter((item) => item.stock > 0).length, marketplacePositiveCount: null, marketplaceTotalPieces: null } };
   let moscowPostcheck = { mismatches: [], stats: { sheetPositiveCount: stocks.filter((item) => item.stock_moscow > 0).length, marketplacePositiveCount: null, marketplaceTotalPieces: null } };
   if (!skipPostcheck && marketplace !== "wb") {
@@ -694,6 +708,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  ozonHeaders,
   BATCH_SIZE_OZON,
   BATCH_SIZE_WB,
   RS_OZON_WAREHOUSE_ID,

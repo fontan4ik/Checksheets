@@ -57,6 +57,7 @@ import requests
 import config
 import gsheets_utils
 from network_bypass import SourceAddressAdapter
+from ozon_perf_quota import PerformanceQuotaError, claim_quota_alert, request_with_quota
 
 
 LOCK_FILE = Path(__file__).resolve().parent / "logs" / "cpc-hourly.lock"
@@ -485,9 +486,11 @@ def request_json(
             json=payload,
             timeout=timeout,
         )
-        response = (_request_read_with_retry(request_call)
+        # Authentication does not prove the account's data quota recovered.
+        guarded_call = request_call if path == "/api/client/token" else lambda: request_with_quota(request_call)
+        response = (_request_read_with_retry(guarded_call)
                     if method.upper() == "GET" or path == "/api/client/token"
-                    else request_call())
+                    else guarded_call())
         if response.status_code in (401, 403) and isinstance(token, TokenManager):
             if not auth_retry_attempted:
                 auth_retry_attempted = True
@@ -514,11 +517,11 @@ def request_bytes(
     auth_retry_attempted = False
     while True:
         token_value = _resolve_token(token, force_refresh=auth_retry_attempted)
-        response = _request_read_with_retry(lambda: session.get(
+        response = _request_read_with_retry(lambda: request_with_quota(lambda: session.get(
             path if path.startswith("http") else f"{BASE_URL}{path}",
             headers={"Authorization": f"Bearer {token_value}"},
             timeout=timeout,
-        ))
+        )))
         if response.status_code in (401, 403) and isinstance(token, TokenManager):
             if not auth_retry_attempted:
                 auth_retry_attempted = True
@@ -1126,6 +1129,8 @@ def fetch_report_bytes(
         except DailyReportLimitError:
             raise
         except Exception as exc:
+            if isinstance(exc, PerformanceQuotaError):
+                raise
             if is_auth_error(exc):
                 raise
             last_exc = exc
@@ -1136,6 +1141,8 @@ def fetch_report_bytes(
         try:
             return wait_for_report(session, token, report_uuid)
         except RuntimeError as exc:
+            if isinstance(exc, PerformanceQuotaError):
+                raise
             if is_auth_error(exc):
                 raise
             last_exc = exc
@@ -1177,6 +1184,8 @@ def fetch_daily_sku_metrics(
                 )
                 break
             except RuntimeError as exc:
+                if isinstance(exc, PerformanceQuotaError):
+                    raise
                 last_exc = exc
                 if is_auth_error(exc) or "HTTP 429" not in str(exc):
                     raise
@@ -1255,6 +1264,8 @@ def fetch_period_metrics(
             print("Ozon API ограничил текущий запуск по дневной квоте; следующий запуск будет по расписанию")
             raise
         except Exception as exc:
+            if isinstance(exc, PerformanceQuotaError):
+                raise
             if is_auth_error(exc):
                 raise
             print(f"Пропущен батч {start // batch_size + 1}: {exc}")
@@ -1307,6 +1318,8 @@ def apply_daily_filter_stops(
                 f"клики день={metric.clicks:g} >= фильтр={row.filter_clicks:g}"
             )
         except RuntimeError as exc:
+            if isinstance(exc, PerformanceQuotaError):
+                raise
             print(f"Не удалось немедленно остановить кампанию {row.campaign_id}: {exc}")
 
 
@@ -1455,6 +1468,8 @@ def run(args: argparse.Namespace) -> int:
                     status_updates,
                 )
         except Exception as exc:
+            if isinstance(exc, PerformanceQuotaError):
+                raise
             if is_auth_error(exc):
                 raise
             print(f"Ошибка дневной SKU-аналитики: {exc}; недельно-месячная ротация продолжается")
@@ -1514,6 +1529,8 @@ def run(args: argparse.Namespace) -> int:
                     for period in PERIODS:
                         write_buffer_metrics[period].clear()
                 except Exception as exc:
+                    if isinstance(exc, PerformanceQuotaError):
+                        raise
                     print(f"Ошибка записи порции {buffer_ids}: {exc}")
 
             flush_write_buffer = _flush_write_buffer
@@ -1551,6 +1568,8 @@ def run(args: argparse.Namespace) -> int:
                 flush_write_buffer()
             print(f"Сбор остановлен ответом Ozon API по квоте: {exc}; следующий запуск будет по расписанию")
         except Exception as exc:
+            if isinstance(exc, PerformanceQuotaError):
+                raise
             if is_auth_error(exc):
                 raise
             if args.write_sheet and flush_write_buffer is not None:
@@ -1567,6 +1586,8 @@ def run(args: argparse.Namespace) -> int:
             if candidate.campaign_id in running_cpc_ids
         ]
     except Exception as exc:
+        if isinstance(exc, PerformanceQuotaError):
+            raise
         print(f"Ошибка построения кандидатов: {exc}; фильтры пропущены")
     deletions = [candidate for candidate in candidates if candidate.action == "delete"]
     skipped = [candidate for candidate in candidates if candidate.action != "delete"]
@@ -1635,6 +1656,8 @@ def run(args: argparse.Namespace) -> int:
                 products.remove(candidate.sku)
                 print(f"Остановлен SKU {candidate.sku} из кампании {candidate.campaign_id}")
             except RuntimeError as exc:
+                if isinstance(exc, PerformanceQuotaError):
+                    raise
                 print(
                     f"Не удалось остановить SKU {candidate.sku} ({candidate.campaign_id}): {exc}. "
                     "Останавливаем кампанию целиком"
@@ -1646,6 +1669,8 @@ def run(args: argparse.Namespace) -> int:
                     queue_campaign_status(status_updates, sheet_rows, candidate.campaign_id, active=False)
                     print(f"Остановлена кампания {candidate.campaign_id}")
                 except RuntimeError as deactivate_exc:
+                    if isinstance(deactivate_exc, PerformanceQuotaError):
+                        raise
                     print(f"Не удалось остановить кампанию {candidate.campaign_id}: {deactivate_exc}")
 
     if args.apply_toggle:
@@ -1654,6 +1679,8 @@ def run(args: argparse.Namespace) -> int:
         try:
             flush_campaign_statuses(worksheet, headers, status_updates)
         except Exception as exc:
+            if isinstance(exc, PerformanceQuotaError):
+                raise
             print(f"Ошибка записи статусов кампаний: {exc}")
     return 0
 
@@ -1678,6 +1705,8 @@ def toggle_set_campaign(
             request_json(session, "POST", path, token=token, payload={}, timeout=60)
             return
         except RuntimeError as exc:
+            if isinstance(exc, PerformanceQuotaError):
+                raise
             last_exc = exc
             text = str(exc)
             if "429" not in text and "HTTP 5" not in text:
@@ -1726,6 +1755,8 @@ def _apply_toggle(
                 on_count += 1
                 print(f"row={row.row_number} campaign={cid}: активирована (toggle=1)")
             except RuntimeError as exc:
+                if isinstance(exc, PerformanceQuotaError):
+                    raise
                 print(f"row={row.row_number} campaign={cid}: ошибка activate: {exc}")
                 if is_auth_error(exc):
                     raise
@@ -1739,6 +1770,8 @@ def _apply_toggle(
                 off_count += 1
                 print(f"row={row.row_number} campaign={cid}: деактивирована (toggle=0)")
             except RuntimeError as exc:
+                if isinstance(exc, PerformanceQuotaError):
+                    raise
                 print(f"row={row.row_number} campaign={cid}: ошибка deactivate: {exc}")
                 if is_auth_error(exc):
                     raise
@@ -1789,6 +1822,12 @@ def main() -> int:
                 print(f"Другой процесс уже выполняет прогон; текущий запуск пропущен (lock: {LOCK_FILE})")
                 return 0
             return run(args)
+    except PerformanceQuotaError as exc:
+        print(f"Отложено по квоте: {exc}")
+        if claim_quota_alert():
+            from telegram_notifier import send_telegram_alert
+            send_telegram_alert("cpc-hourly (ozon_cpc_cleanup)", exc)
+        return 0
     except RuntimeError as exc:
         print(str(exc))
         try:

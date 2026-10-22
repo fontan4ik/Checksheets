@@ -20,8 +20,7 @@ function runWithOzonProductSyncLock_(sourceName, callback) {
   }
 
   try {
-    callback();
-    return true;
+    return callback();
   } finally {
     lock.releaseLock();
   }
@@ -29,6 +28,7 @@ function runWithOzonProductSyncLock_(sourceName, callback) {
 
 // Both legacy OzonMain and the dedicated trigger continue this same catalog scan.
 const OZON_PRODUCT_LIST_CURSOR_KEY = "OZON_PRODUCT_LIST_CURSOR";
+const OZON_PRODUCT_LIST_FILTER_VERSION = "ALL:v1";
 const OZON_PRODUCT_LIST_MAX_RUN_MS = 3 * 60 * 1000;
 
 function syncOfferIdWithProductIdCore_() {
@@ -52,7 +52,7 @@ function syncOfferIdWithProductIdCore_() {
   const scope = sheet.getParent().getId() + ":" + sheet.getSheetId();
   const savedRaw = props.getProperty(OZON_PRODUCT_LIST_CURSOR_KEY);
   const saved = savedRaw ? JSON.parse(savedRaw) : null;
-  let cursor = saved && saved.scope === scope ? String(saved.cursor || "") : "";
+  let cursor = saved && saved.scope === scope && saved.filterVersion === OZON_PRODUCT_LIST_FILTER_VERSION ? String(saved.cursor || "") : "";
   const seenCursors = new Set([cursor]);
   const limit = 1000;
   let pages = 0;
@@ -68,11 +68,11 @@ function syncOfferIdWithProductIdCore_() {
       method: "post",
       contentType: "application/json",
       headers: ozonHeaders(),
-      payload: JSON.stringify({ filter: {}, limit: limit, last_id: cursor }),
+      payload: JSON.stringify({ filter: { visibility: "ALL" }, limit: limit, last_id: cursor }),
       muteHttpExceptions: true
     }, 1);
     if (!response || response.getResponseCode() === 429 || response.getResponseCode() >= 500) {
-      props.setProperty(OZON_PRODUCT_LIST_CURSOR_KEY, JSON.stringify({ scope: scope, cursor: cursor }));
+      props.setProperty(OZON_PRODUCT_LIST_CURSOR_KEY, JSON.stringify({ scope: scope, filterVersion: OZON_PRODUCT_LIST_FILTER_VERSION, cursor: cursor }));
       Logger.log("Ozon A/U: временная ошибка API; следующий штатный запуск продолжит тот же пакет.");
       return { complete: false, added: added, updated: updated };
     }
@@ -145,7 +145,7 @@ function syncOfferIdWithProductIdCore_() {
     }
     cursor = nextCursor;
     seenCursors.add(cursor);
-    props.setProperty(OZON_PRODUCT_LIST_CURSOR_KEY, JSON.stringify({ scope: scope, cursor: cursor }));
+    props.setProperty(OZON_PRODUCT_LIST_CURSOR_KEY, JSON.stringify({ scope: scope, filterVersion: OZON_PRODUCT_LIST_FILTER_VERSION, cursor: cursor }));
   }
   Logger.log(`Ozon A/U: бюджет времени исчерпан; добавлено ${added}, обновлено ${updated}. Следующий штатный запуск продолжит проход.`);
   return { complete: false, added: added, updated: updated };

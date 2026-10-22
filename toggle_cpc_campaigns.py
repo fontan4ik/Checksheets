@@ -23,6 +23,7 @@ import socket
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
+from ozon_perf_quota import PerformanceQuotaError, claim_quota_alert
 
 import gsheets_utils
 from telegram_notifier import send_telegram_alert
@@ -300,6 +301,8 @@ def main() -> int:
             token,
             timeout=max(1, args.status_timeout),
         )
+    except PerformanceQuotaError:
+        raise
     except Exception as exc:
         elapsed = time.monotonic() - status_started
         raise RuntimeError(
@@ -356,12 +359,16 @@ def main() -> int:
             try:
                 activate_campaign(tok, sess, cid)
                 return row_number, cid, sku, "on", None
+            except PerformanceQuotaError:
+                raise
             except Exception as exc:
                 return row_number, cid, sku, "on", f"{type(exc).__name__}: {exc}"
         else:
             try:
                 deactivate_campaign(tok, sess, cid)
                 return row_number, cid, sku, "off", None
+            except PerformanceQuotaError:
+                raise
             except Exception as exc:
                 return row_number, cid, sku, "off", f"{type(exc).__name__}: {exc}"
 
@@ -403,6 +410,11 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
+    except PerformanceQuotaError as exc:
+        print(f"Отложено по квоте: {exc}")
+        if claim_quota_alert():
+            send_telegram_alert("toggle_cpc_campaigns (Реклама Ozon CPC)", exc)
+        raise SystemExit(0)
     except Exception as exc:
         print(f"CRITICAL ERROR: {exc}")
         try:

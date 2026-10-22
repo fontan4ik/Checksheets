@@ -1,12 +1,16 @@
 """Read-only full WB seller card/document snapshot for certificate cleanup."""
 from pathlib import Path
-import json, re, sys, time, subprocess
+import argparse, json, re, sys, time, subprocess
 from datetime import datetime, timezone
 import requests
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT))
 from network_bypass import SourceAddressAdapter
-OUT=Path(__file__).with_name('wb_live.json')
+parser=argparse.ArgumentParser()
+parser.add_argument('--out',default='wb_live.json',help='Output JSON filename, relative to this script directory')
+args=parser.parse_args()
+OUT=(Path(__file__).parent/args.out).resolve()
+if OUT.parent!=Path(__file__).parent.resolve(): raise RuntimeError('Output must stay in the certificate audit directory')
 config=(ROOT/'Shared_Настройки.js').read_text()
 block=config.split('const wbHeaders',1)[1].split('};',1)[0]
 m=re.search(r"Authorization\s*:\s*['\"]([^'\"]+)['\"]",block)

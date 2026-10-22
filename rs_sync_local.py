@@ -3,6 +3,11 @@ import base64
 import time
 import os
 import re
+import json
+from pathlib import Path
+from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
+from urllib.parse import quote
 import config
 import gsheets_utils
 from network_bypass import SourceAddressAdapter
@@ -13,6 +18,95 @@ RS_RETRYABLE_HTTP_STATUSES = {404, 408, 425, 429, 500, 502, 503, 504}
 RS_MAX_REQUEST_ATTEMPTS = 7
 RS_API_MIN_PAGE_DELAY_SECONDS = 0.2
 RS_CATALOG_SNAPSHOT_ATTEMPTS = 3
+
+# These Ozon offers sell complete 305 m coils; RS reports metres and cut lots.
+# Only RS SMR is converted. RS MSK retains its existing source units.
+RS_305M_COIL_MODELS = frozenset({
+    "LC1-C5E04-121-T-R",
+    "LC1-C5E04-121-T-P-R",
+    "LC1-C5E04-321-T-P-R",
+    "LC1-C5E04-311",
+    "LC1-C5E04-111-T-R",
+})
+
+
+def parse_rs_coil_quantity(residue):
+    """Count complete 305 m sections in each own-stock lot, excluding partners.
+
+    Invalid or incomplete supplier evidence raises before any sheet write.
+    Cut pieces must never be combined into an imaginary complete coil.
+    """
+    if not isinstance(residue, dict) or str(residue.get("UOM_OKEI", "")).strip() != "006":
+        raise ValueError("RS coil stock requires metre unit UOM_OKEI=006")
+
+    def quantity(value):
+        if isinstance(value, bool):
+            raise ValueError("Invalid RS coil quantity")
+        try:
+            parsed = Decimal(str(value).strip())
+        except (InvalidOperation, ValueError) as exc:
+            raise ValueError("Invalid RS coil quantity") from exc
+        if not parsed.is_finite() or parsed < 0:
+            raise ValueError("RS coil quantity must be finite and nonnegative")
+        return parsed
+
+    total = quantity(residue.get("Residue"))
+    raw_lots = residue.get("qtyLots")
+    # A validated zero own-stock balance cannot contain a sellable coil.
+    if total == 0 and (raw_lots is None or (isinstance(raw_lots, str) and not raw_lots.strip())):
+        return 0
+    if not isinstance(raw_lots, str) or not raw_lots.strip():
+        raise ValueError("RS coil stock requires explicit qtyLots")
+    lots = [quantity(piece) for piece in raw_lots.split(";")]
+    if abs(sum(lots, Decimal(0)) - total) > Decimal("0.000001"):
+        raise ValueError("RS coil qtyLots do not match Residue")
+    return sum(int(piece // Decimal(305)) for piece in lots)
+
+
+class RSCoilQuantities(dict):
+    """Validated coil counts plus models whose previous cells must be retained."""
+
+    def __init__(self):
+        super().__init__()
+        self.invalid_models = set()
+
+
+def fetch_rs_coil_quantities(models, code_map, warehouse_id, quarantine_invalid=False):
+    """Fetch coil counts, optionally quarantining invalid models independently."""
+    quantities = RSCoilQuantities()
+    selected = sorted({str(model).strip().upper() for model in models} & RS_305M_COIL_MODELS)
+    if not selected:
+        return quantities
+    http = create_rs_session()
+    headers = get_rs_headers()
+    try:
+        for model in selected:
+            try:
+                code = code_map.get(model)
+                if code in (None, ""):
+                    raise ValueError("no verified RS code")
+                url = f"{config.RS_BASE_URL}/residue/{warehouse_id}/{quote(str(code), safe='')}"
+                for detail_attempt in range(2):
+                    response = rs_get_with_retry(http, url, headers, label=f"RS coil residue {model}")
+                    if response.status_code != 200:
+                        raise ValueError(f"RS coil residue HTTP {response.status_code}")
+                    try:
+                        quantities[model] = parse_rs_coil_quantity(response.json())
+                        break
+                    except ValueError as exc:
+                        if detail_attempt == 0 and "qtyLots do not match Residue" in str(exc):
+                            time.sleep(2)
+                            continue
+                        raise
+            except (ValueError, RuntimeError, requests.exceptions.RequestException) as exc:
+                if not quarantine_invalid:
+                    raise RuntimeError(f"Invalid RS coil residue for {model}; sheet was not updated: {exc}") from exc
+                quantities.invalid_models.add(model)
+                print(f"   Quarantined RS SMR coil {model}; previous cell is not fresh: {exc}")
+            time.sleep(RS_API_MIN_PAGE_DELAY_SECONDS)
+    finally:
+        http.close()
+    return quantities
 
 
 class RSStockSnapshot(dict):
@@ -495,6 +589,11 @@ def sync_rs():
     if not code_map or not all_stocks or not msk_code_map or not msk_stocks:
         raise RuntimeError("RS API returned an empty catalog or stock response; sheet was not updated")
 
+    coil_quantities = fetch_rs_coil_quantities(
+        models, code_map, config.RS_WAREHOUSE_ID, quarantine_invalid=True
+    )
+    invalid_coil_models = getattr(coil_quantities, "invalid_models", set())
+
     # Подготовим результаты
     results_stock = []
     results_msk_stock = []
@@ -553,8 +652,9 @@ def sync_rs():
             if msk_code not in msk_stocks:
                 missing_stock_msk += 1
 
-        if rs_code is not None and str(rs_code) not in all_stocks.invalid_codes:
-            stock = all_stocks.get(rs_code, 0)
+        if (model.upper() not in invalid_coil_models
+                and rs_code is not None and str(rs_code) not in all_stocks.invalid_codes):
+            stock = coil_quantities.get(model.upper(), all_stocks.get(rs_code, 0))
 
             if model in ['61950', '71650']:
                 print(f"DEBUG: Model '{model}' found RS code '{rs_code}', stock: {stock}")
@@ -580,8 +680,9 @@ def sync_rs():
                         missing_stock_smr += 1
                     print(f"DEBUG: Using similar key '{first_similar}' -> RS code '{rs_code}', stock: {stock}")
 
-        rs_stock_valid = rs_code is None or str(rs_code) not in all_stocks.invalid_codes
-        if rs_code is not None and not rs_stock_valid:
+        rs_stock_valid = (model.upper() not in invalid_coil_models
+                          and (rs_code is None or str(rs_code) not in all_stocks.invalid_codes))
+        if not rs_stock_valid:
             skipped_invalid_smr += 1
 
         results_stock.append([stock if rs_stock_valid else ""])
@@ -606,7 +707,9 @@ def sync_rs():
 
     update_errors = []
 
-    # Обновляем сырой остаток RS. Производные колонки StreamSupps «РЕЗЕРВ» и
+    # RS SMR stores own stock, converted to complete 305 m coils only for the
+    # five explicit RS_305M_COIL_MODELS; RS MSK remains in source units.
+    # Производные колонки StreamSupps «РЕЗЕРВ» и
     # маркетплейсные трансляции заполняются отдельным контуром.
     try:
         written_smr = gsheets_utils.update_column_by_header_masked(
@@ -626,10 +729,31 @@ def sync_rs():
         raise RuntimeError(err_text)
 
     print("RS Sync completed successfully!")
+    # The CLI publishes this receipt only after both source columns succeeded.
+    # Masked invalid rows may retain an old numeric value and are not fresh.
+    return {
+        "finishedAt": datetime.now(timezone.utc).isoformat(),
+        "warehouse": config.RS_WAREHOUSE_ID,
+        "quarantinedModels": sorted({str(model).strip().upper()
+            for model, writable in zip(models, write_stock_mask)
+            if str(model).strip() and not writable}),
+        "writtenSamara": written_smr,
+        "writtenMoscow": written_msk,
+    }
+
+
+def write_rs_source_report(report):
+    if not isinstance(report, dict):
+        raise RuntimeError("RS source did not finish with a write receipt")
+    target = Path(__file__).resolve().parent / "logs" / "rs-source-last.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f"{target.name}.{os.getpid()}.tmp")
+    temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(target)
 
 if __name__ == "__main__":
     try:
-        sync_rs()
+        write_rs_source_report(sync_rs())
     except Exception as exc:
         print(f"CRITICAL ERROR: {exc}")
         try:

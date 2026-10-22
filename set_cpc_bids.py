@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -22,6 +23,8 @@ from typing import Any
 
 import gsheets_utils
 import requests
+import config
+from ozon_perf_quota import PerformanceQuotaError, claim_quota_alert, request_with_quota
 from ozon_cpc_cleanup import (
     BASE_URL,
     SHEET_NAME,
@@ -35,10 +38,33 @@ from ozon_cpc_cleanup import (
 MAX_ATTEMPTS = 5
 BID_STATE_FILE = Path(__file__).resolve().parent / "logs" / "cpc-bids-state.json"
 DEFAULT_AUDIT_BATCH_SIZE = 20
+DEFAULT_RETRY_BATCH_SIZE = 20
+DEFAULT_MAX_ROWS = 100
+REJECTED_BID_RETRY_SECONDS = 24 * 60 * 60
 
 
 class BidReadError(RuntimeError):
     """The current Ozon bid could not be read reliably."""
+
+
+class BidWriteError(RuntimeError):
+    """A bid write failed, with a safe HTTP/network diagnostic."""
+
+    def __init__(self, message: str, attempts: int, status_code: int | None = None):
+        super().__init__(message)
+        self.attempts = attempts
+        self.status_code = status_code
+
+    @property
+    def invalid_bid_range(self) -> bool:
+        message = str(self)
+        try:
+            message = json.dumps(json.loads(message.split(": ", 1)[1]), ensure_ascii=False)
+        except (IndexError, TypeError, ValueError):
+            pass
+        return self.status_code == 400 and (
+            "ставка не входит в диапазон допустимых значений" in message.casefold()
+        )
 
 
 @dataclass(frozen=True)
@@ -51,6 +77,29 @@ class BidRow:
 
 def bid_row_key(row: BidRow) -> str:
     return f"{row.campaign_id}:{row.sku}"
+
+
+def rejected_bid_records(state: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    rejected = state.get("rejected")
+    if not isinstance(rejected, dict):
+        return {}
+    return {key: dict(value) for key, value in rejected.items() if isinstance(value, dict)}
+
+
+def active_rejected_bid_keys(rows: list[BidRow], state: dict[str, Any]) -> set[str]:
+    rejected = rejected_bid_records(state)
+    now = time.time()
+    keys = set()
+    for row in rows:
+        key = bid_row_key(row)
+        record = rejected.get(key, {})
+        try:
+            retry_at = float(record.get("retry_at", 0))
+        except (TypeError, ValueError):
+            retry_at = 0
+        if record.get("desired_bid") == row.bid_microrubles and retry_at > now:
+            keys.add(key)
+    return keys
 
 
 def load_bid_state(path: Path = BID_STATE_FILE) -> dict[str, Any]:
@@ -76,49 +125,121 @@ def select_bid_rows(
     state: dict[str, Any],
     audit_batch_size: int = DEFAULT_AUDIT_BATCH_SIZE,
     full_audit: bool = False,
+    retry_batch_size: int = DEFAULT_RETRY_BATCH_SIZE,
+    max_rows: int = DEFAULT_MAX_ROWS,
 ) -> tuple[list[BidRow], dict[str, int], int]:
-    """Select changed/failed rows plus a rotating audit slice.
+    """Compatibility wrapper returning selected rows, desired bids and audit cursor."""
+    selected, desired, audit_cursor, _ = select_bid_plan(
+        rows, state, audit_batch_size, full_audit, retry_batch_size, max_rows
+    )
+    return selected, desired, audit_cursor
+
+
+def select_bid_plan(
+    rows: list[BidRow],
+    state: dict[str, Any],
+    audit_batch_size: int = DEFAULT_AUDIT_BATCH_SIZE,
+    full_audit: bool = False,
+    retry_batch_size: int = DEFAULT_RETRY_BATCH_SIZE,
+    max_rows: int = DEFAULT_MAX_ROWS,
+) -> tuple[list[BidRow], dict[str, int], int, int]:
+    """Select changed bids first, then bounded rotating failed and audit slices.
 
     On the first cache-backed run the current sheet is used as the baseline and
     only the audit slice is queried. Previous full logs establish that baseline;
     subsequent sheet changes are detected by comparing desired values.
     """
     if not rows:
-        return [], {}, 0
+        return [], {}, 0, 0
 
     desired = {bid_row_key(row): row.bid_microrubles for row in rows}
+    quarantined_keys = active_rejected_bid_keys(rows, state)
     if full_audit:
-        return list(rows), desired, 0
+        return [row for row in rows if bid_row_key(row) not in quarantined_keys], desired, 0, 0
 
     initialized = state.get("initialized") is True
     previous_desired = state.get("desired") if isinstance(state.get("desired"), dict) else {}
     failed_keys = set(state.get("failed", [])) if isinstance(state.get("failed"), list) else set()
+    # Rejected values become eligible for the bounded retry queue after a day.
+    rejected = rejected_bid_records(state)
+    failed_keys.update(
+        key for key, value in desired.items()
+        if key in rejected and rejected[key].get("desired_bid") == value
+        and key not in quarantined_keys
+    )
+    failed_keys -= quarantined_keys
     row_by_key = {bid_row_key(row): row for row in rows}
 
-    priority_keys: list[str] = []
+    changed_keys: list[str] = []
     if initialized:
-        priority_keys.extend(
-            key for key, value in desired.items() if previous_desired.get(key) != value
+        changed_keys.extend(
+            key for key, value in desired.items()
+            if previous_desired.get(key) != value and key not in quarantined_keys
         )
-    priority_keys.extend(key for key in failed_keys if key in row_by_key)
-
-    batch_size = min(len(rows), max(0, audit_batch_size))
-    cursor = max(0, int(state.get("audit_cursor", 0) or 0)) % len(rows)
-    audit_rows = [rows[(cursor + offset) % len(rows)] for offset in range(batch_size)]
-    next_cursor = (cursor + batch_size) % len(rows) if batch_size else cursor
 
     selected: list[BidRow] = []
     seen: set[str] = set()
-    for key in priority_keys:
-        if key not in seen:
-            selected.append(row_by_key[key])
-            seen.add(key)
-    for row in audit_rows:
+    limit = max(1, int(max_rows))
+
+    def add(row: BidRow) -> bool:
         key = bid_row_key(row)
-        if key not in seen:
-            selected.append(row)
-            seen.add(key)
-    return selected, desired, next_cursor
+        if key in seen:
+            return True
+        if len(selected) >= limit:
+            return False
+        selected.append(row)
+        seen.add(key)
+        return True
+
+    for key in changed_keys:
+        if not add(row_by_key[key]):
+            break
+
+    # Cursors index the full sheet order, so removing successful failed keys
+    # cannot repeatedly send the first failed rows and starve the queue tail.
+    retry_cursor = max(0, int(state.get("retry_cursor", 0) or 0)) % len(rows)
+    next_retry_cursor = retry_cursor
+    retries = 0
+    if retry_batch_size > 0 and failed_keys:
+        for offset in range(len(rows)):
+            index = (retry_cursor + offset) % len(rows)
+            row = rows[index]
+            if bid_row_key(row) in failed_keys:
+                if retries >= retry_batch_size or not add(row):
+                    break
+                retries += 1
+            next_retry_cursor = (index + 1) % len(rows)
+
+    cursor = max(0, int(state.get("audit_cursor", 0) or 0)) % len(rows)
+    next_cursor = cursor
+    for offset in range(min(len(rows), max(0, audit_batch_size))):
+        index = (cursor + offset) % len(rows)
+        if bid_row_key(rows[index]) not in quarantined_keys and not add(rows[index]):
+            break
+        next_cursor = (index + 1) % len(rows)
+    return selected, desired, next_cursor, next_retry_cursor
+
+
+def observed_desired_bids(
+    desired: dict[str, int], state: dict[str, Any], processed_keys: set[str]
+) -> dict[str, int]:
+    """Leave capped, unprocessed sheet changes pending for the next run."""
+    if state.get("initialized") is not True:
+        return dict(desired)
+    previous = state.get("desired") if isinstance(state.get("desired"), dict) else {}
+    observed = {key: value for key, value in previous.items() if key in desired}
+    observed.update({key: desired[key] for key in processed_keys if key in desired})
+    return observed
+
+
+def safe_response_error(response, token: str) -> str:
+    detail = str(response.text)[:1000]
+    for secret in (token, str(getattr(config, "OZON_PERF_CLIENT_SECRET", ""))):
+        if secret:
+            detail = detail.replace(secret, "[REDACTED]")
+    detail = re.sub(r"(?:bot)?\d{5,}:[A-Za-z0-9_-]+", "[REDACTED]", detail)
+    detail = re.sub(r'(?i)(bearer\s+)[A-Za-z0-9._-]+', r'\1[REDACTED]', detail)
+    return f"HTTP {response.status_code}: {detail}"
 
 
 def parse_bid_microrubles(value: object) -> int | None:
@@ -172,11 +293,11 @@ def get_bid(session, token: str, campaign_id: str, sku: str) -> str | None:
     last_error = "unknown error"
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
-            response = session.get(
+            response = request_with_quota(lambda: session.get(
                 f"{BASE_URL}/api/client/campaign/{campaign_id}/v2/products",
                 headers={"Authorization": f"Bearer {token}"},
                 timeout=30,
-            )
+            ))
         except requests.RequestException as exc:
             last_error = f"{type(exc).__name__}: {exc}"
         else:
@@ -191,7 +312,7 @@ def get_bid(session, token: str, campaign_id: str, sku: str) -> str | None:
                             return str(product.get("bid"))
                     return None
             else:
-                last_error = f"HTTP {response.status_code}: {response.text[:300]}"
+                last_error = safe_response_error(response, token)
                 if response.status_code not in (429, 500, 502, 503, 504):
                     raise BidReadError(last_error)
         if attempt < MAX_ATTEMPTS:
@@ -204,7 +325,7 @@ def put_bid(
 ) -> tuple[bool, int]:
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
-            r = session.put(
+            r = request_with_quota(lambda: session.put(
                 f"{BASE_URL}/api/client/campaign/{campaign_id}/products",
                 headers={
                     "Authorization": f"Bearer {token}",
@@ -212,24 +333,36 @@ def put_bid(
                 },
                 json={"bids": [{"sku": sku, "bid": str(bid_microrubles)}]},
                 timeout=60,
-            )
-        except requests.RequestException:
+            ))
+        except requests.RequestException as exc:
             if attempt < MAX_ATTEMPTS:
                 time.sleep(min(2 ** attempt, 15))
                 continue
-            return False, attempt
+            raise BidWriteError(f"{type(exc).__name__}: request failed", attempt) from exc
         if r.status_code == 200:
             return True, attempt
         if r.status_code in (429, 500, 502, 503, 504) and attempt < MAX_ATTEMPTS:
             time.sleep(min(2 ** attempt, 15))
             continue
-        return False, attempt
+        raise BidWriteError(safe_response_error(r, token), attempt, status_code=r.status_code)
     return False, MAX_ATTEMPTS
 
 
-def main() -> int:
+def run() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument(
+        "--retry-batch-size",
+        type=int,
+        default=DEFAULT_RETRY_BATCH_SIZE,
+        help="Сколько ранее неудачных ставок повторять за один запуск.",
+    )
+    parser.add_argument(
+        "--max-rows",
+        type=int,
+        default=DEFAULT_MAX_ROWS,
+        help="Максимум ставок за плановый запуск (кроме --full-audit).",
+    )
     parser.add_argument(
         "--apply",
         action="store_true",
@@ -267,11 +400,19 @@ def main() -> int:
         return 0
 
     state = load_bid_state(args.state_file)
-    selected_rows, desired, next_cursor = select_bid_rows(
+    quarantined_keys = active_rejected_bid_keys(rows, state)
+    current_keys = {bid_row_key(row) for row in rows}
+    rejected = {
+        key: value for key, value in rejected_bid_records(state).items()
+        if key in current_keys
+    }
+    selected_rows, desired, next_cursor, next_retry_cursor = select_bid_plan(
         rows,
         state,
         audit_batch_size=max(0, args.audit_batch_size),
         full_audit=args.full_audit,
+        retry_batch_size=max(0, args.retry_batch_size),
+        max_rows=max(1, args.max_rows),
     )
     changed_count = 0
     if state.get("initialized") is True and isinstance(state.get("desired"), dict):
@@ -280,16 +421,19 @@ def main() -> int:
         )
     print(
         f"К проверке Ozon: {len(selected_rows)} из {len(rows)}; "
-        f"изменено в таблице={changed_count}; следующий audit cursor={next_cursor}"
+        f"изменено в таблице={changed_count}; skipped_invalid={len(quarantined_keys)}; "
+        f"следующий audit cursor={next_cursor}"
     )
     if not selected_rows:
         if args.apply:
             save_bid_state(
                 {
                     "initialized": True,
-                    "desired": desired,
-                    "failed": [],
+                    "desired": observed_desired_bids(desired, state, set()),
+                    "failed": [key for key in state.get("failed", []) if key in desired and key not in quarantined_keys],
+                    "rejected": rejected,
                     "audit_cursor": next_cursor,
+                    "retry_cursor": next_retry_cursor,
                     "updated_at": int(time.time()),
                 },
                 args.state_file,
@@ -314,7 +458,12 @@ def main() -> int:
             return row, "ok", 0, bid
         if not args.apply:
             return row, "planned", 0, bid
-        ok, attempts = put_bid(sess, tok, row.campaign_id, row.sku, row.bid_microrubles)
+        try:
+            ok, attempts = put_bid(sess, tok, row.campaign_id, row.sku, row.bid_microrubles)
+        except BidWriteError as exc:
+            if exc.invalid_bid_range:
+                return row, "rejected_invalid_bid", exc.attempts, str(exc)
+            return row, f"put_failed({exc})", exc.attempts, bid
         if not ok:
             return row, "put_failed", attempts, bid
         # верифицируем
@@ -328,18 +477,33 @@ def main() -> int:
     already = 0
     planned = 0
     failed: list[tuple[BidRow, str, int]] = []
+    rejected_rows: list[tuple[BidRow, str]] = []
+    newly_rejected = 0
     with ThreadPoolExecutor(max_workers=workers) as ex:
         futs = [ex.submit(process, (i, row)) for i, row in enumerate(selected_rows)]
         done = 0
         for f in as_completed(futs):
-            row, status, attempts, _ = f.result()
+            row, status, attempts, detail = f.result()
             if status == "ok":
+                rejected.pop(bid_row_key(row), None)
                 if attempts == 0:
                     already += 1
                 else:
                     ok += 1
             elif status == "planned":
                 planned += 1
+            elif status == "rejected_invalid_bid":
+                key = bid_row_key(row)
+                reason = str(detail)
+                old_rejection = rejected.get(key, {})
+                if old_rejection.get("desired_bid") != row.bid_microrubles or old_rejection.get("reason") != reason:
+                    newly_rejected += 1
+                rejected[key] = {
+                    "desired_bid": row.bid_microrubles,
+                    "reason": reason,
+                    "retry_at": time.time() + REJECTED_BID_RETRY_SECONDS,
+                }
+                rejected_rows.append((row, reason))
             else:
                 failed.append((row, status, attempts))
             done += 1
@@ -353,12 +517,18 @@ def main() -> int:
     mode = "применено" if args.apply else "dry-run"
     print(
         f"\n{mode}: updated={ok}, already_correct={already}, "
-        f"planned={planned}, failed={len(failed)}"
+        f"planned={planned}, failed={len(failed)}, rejected_invalid={len(rejected_rows)}, "
+        f"new_rejected={newly_rejected}, skipped_invalid={len(quarantined_keys)}"
     )
     for row, status, attempts in failed[:20]:
         print(
             f"  row={row.row_number} campaign={row.campaign_id} sku={row.sku}: "
             f"{status} (attempts={attempts})"
+        )
+    for row, reason in rejected_rows[:20]:
+        print(
+            f"  row={row.row_number} campaign={row.campaign_id} sku={row.sku}: "
+            f"rejected_invalid_bid({reason}); значение в таблице сохранено, повтор через 24 часа"
         )
     if args.apply:
         previous_failed = (
@@ -366,18 +536,30 @@ def main() -> int:
         )
         processed_keys = {bid_row_key(row) for row in selected_rows}
         failed_keys = {bid_row_key(row) for row, _, _ in failed}
-        remaining_failed = (previous_failed - processed_keys) | failed_keys
+        remaining_failed = ((previous_failed - processed_keys) | failed_keys) - quarantined_keys
         save_bid_state(
             {
                 "initialized": True,
-                "desired": desired,
+                "desired": observed_desired_bids(desired, state, processed_keys),
                 "failed": sorted(key for key in remaining_failed if key in desired),
+                "rejected": rejected,
                 "audit_cursor": next_cursor,
+                "retry_cursor": next_retry_cursor,
                 "updated_at": int(time.time()),
             },
             args.state_file,
         )
-    return 0 if not failed else 1
+    return 0 if not failed and not newly_rejected else 1
+
+
+def main() -> int:
+    try:
+        return run()
+    except PerformanceQuotaError as exc:
+        # The shared guard stops remaining reads/writes; do not replace cached
+        # desired/failure state with a partially observed sheet baseline.
+        print(f"Ozon Performance: ставки отложены из-за квоты: {exc}", flush=True)
+        return 1 if claim_quota_alert() else 0
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@
 !appsscript.json
 
 # Local Node helpers; do not upload to Apps Script on clasp push.
+catalog_articles_local.js
 ozon_fbs_warehouse_api.js
 ozon_stock_results.js
 sync-etm-stocks.js
@@ -23,3 +24,18 @@ send-fbs-broadcast-summary.js
 wb_stock_audit.js
 wb_stock_rate_limiter.js
 stream_supps_schema.js
+stream_onboarding_local.js
+stream_onboarding_formulas.js
+stream_onboarding_catalog.js
+stream_onboarding_publish.js
+stream_onboarding_gate.js
+catalog_formulas_local.js
+catalog_test_enrichment_local.js
+obor_formulas_local.js
+wb_article_ids_local.js
+
+# Independent bound Apps Script project for the new NTC workbook.
+ntc-cloud/**
+ntc_wb_ownership.js
+
+append_initialization_ledger.js

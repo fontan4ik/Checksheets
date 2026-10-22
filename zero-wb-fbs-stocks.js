@@ -1,7 +1,8 @@
 const { google } = require("googleapis");
 const axios = require("axios");
 const path = require("path");
-const { resolveStreamSuppsColumns } = require("./stream_supps_schema");
+const { refreshNtcCloudWbOwnership, isNtcCloudWbOwned } = require("./ntc_wb_ownership");
+const { STREAM_SUPPS_HEADERS, resolveStreamSuppsColumns } = require("./stream_supps_schema");
 
 const SPREADSHEET_ID = "15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI";
 const BATCH_SIZE = 1000;
@@ -47,10 +48,15 @@ async function readChrtIds(sheets, source) {
     { chrtId: source.chrtHeader },
     source.sheet,
   ).chrtId - 1;
-  const ids = new Set();
+  const offerColumn = source.warehouses.includes(798761) ? resolveStreamSuppsColumns(headers, {offerId: STREAM_SUPPS_HEADERS.offerId}, source.sheet).offerId - 1 : null;
+  const ids = new Map();
   for (const row of rows.slice(1)) {
     const id = Number(row[column]);
-    if (Number.isSafeInteger(id) && id > 0) ids.add(id);
+    if (Number.isSafeInteger(id) && id > 0) {
+      const offers = ids.get(id) || new Set();
+      offers.add(offerColumn === null ? "" : String(row[offerColumn] || "").trim());
+      ids.set(id, offers);
+    }
   }
   log(`${source.sheet}: найдено ${ids.size} уникальных chrtId.`);
   return ids;
@@ -93,8 +99,9 @@ async function sendBatch(warehouseId, stocks, attempt = 0) {
   }
 }
 
-async function zeroWarehouse(warehouseId, ids) {
-  const stocks = [...ids].map((chrtId) => ({ chrtId, amount: 0 }));
+async function zeroWarehouse(warehouseId, ids, sheets) {
+  if (Number(warehouseId) === 798761) await refreshNtcCloudWbOwnership(sheets);
+  const stocks = [...ids.entries()].filter(([chrtId,offers]) => ![...offers].some(offer => isNtcCloudWbOwned(warehouseId, offer, chrtId))).map(([chrtId]) => ({ chrtId, amount: 0 }));
   let zeroed = 0;
   let skipped = 0;
   let failed = 0;
@@ -141,15 +148,19 @@ async function main() {
   for (const source of SOURCES) {
     const ids = await readChrtIds(sheets, source);
     for (const warehouseId of source.warehouses) {
-      const current = warehouseIds.get(warehouseId) || new Set();
-      ids.forEach((id) => current.add(id));
+      const current = warehouseIds.get(warehouseId) || new Map();
+      ids.forEach((offers, id) => {
+        const combined = current.get(id) || new Set();
+        offers.forEach(offer => combined.add(offer));
+        current.set(id, combined);
+      });
       warehouseIds.set(warehouseId, current);
     }
   }
 
   for (const [warehouseId, ids] of warehouseIds) {
     log(`Начато обнуление FBS склада ${warehouseId}: ${ids.size} товаров.`);
-    const result = await zeroWarehouse(warehouseId, ids);
+    const result = await zeroWarehouse(warehouseId, ids, sheets);
     log(`Склад ${warehouseId}: ✅ ${result.zeroed}, ⏸️ ${result.skipped}, ❌ ${result.failed} из ${result.total}.`);
     if (result.failed > 0) process.exitCode = 1;
   }

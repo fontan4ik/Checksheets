@@ -83,9 +83,23 @@ class Client:
             body = response.json()
         except ValueError:
             body = {'non_json_response': True}
+        response_record = {'http_status': response.status_code}
+        if len(response.content) <= 262_144:
+            response_record['body'] = body
+        else:
+            response_record['body_summary'] = {
+                'truncated_for_log_size': True,
+                'response_bytes': len(response.content),
+                'response_sha256': hashlib.sha256(response.content).hexdigest(),
+                'top_level_keys': sorted(body) if isinstance(body, dict) else [],
+                'collection_sizes': {
+                    key: len(value) for key, value in (body.items() if isinstance(body, dict) else [])
+                    if isinstance(value, (list, dict))
+                },
+            }
         with log.open('a') as stream:
-            stream.write(json.dumps({**entry, 'phase': 'response', 'http_status': response.status_code,
-                                     'body': body, 'finished_at': now()}, ensure_ascii=False) + '\n')
+            stream.write(json.dumps({**entry, 'phase': 'response', **response_record,
+                                     'finished_at': now()}, ensure_ascii=False) + '\n')
             stream.flush()
         if response.status_code != 200:
             raise RuntimeError(f'{platform} {path}: HTTP {response.status_code}; see api_calls.jsonl')
@@ -117,12 +131,28 @@ class Client:
 
     def ozon_bindings(self, certificate_id):
         items = []
+        last_id = 0
+        expected_count = None
+        seen_product_ids = set()
         while True:
             data = self.call('ozon', '/v1/product/certificate/products/list', {
-                'certificate_id': int(certificate_id), 'offset': len(items), 'limit': 1000})['result']
-            batch = data['items']
+                'certificate_id': int(certificate_id), 'last_id': last_id, 'limit': 1000})['result']
+            batch = data.get('items')
+            count = data.get('count')
+            if not isinstance(batch, list) or not isinstance(count, int):
+                raise RuntimeError('Ozon binding response omitted items or count')
+            if expected_count is None:
+                expected_count = count
+            elif count != expected_count:
+                raise RuntimeError('Ozon binding count changed during pagination')
+            for binding in batch:
+                product_id = str(binding.get('product_id') or '')
+                if not product_id or product_id in seen_product_ids:
+                    raise RuntimeError('Ozon binding pagination returned a missing or repeated product_id')
+                seen_product_ids.add(product_id)
             items.extend(batch)
-            if len(items) == data['count']:
+            if len(items) == expected_count:
                 return items
-            if not batch or len(items) > data['count']:
+            if not batch or len(items) > expected_count:
                 raise RuntimeError('Ozon binding pagination incomplete')
+            last_id = batch[-1]['product_id']

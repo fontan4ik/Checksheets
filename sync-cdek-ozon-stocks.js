@@ -312,10 +312,15 @@ async function fetchOzonStocks(stocks, headers, httpClient = axios) {
 async function main() {
   const marketplace = process.argv.find((arg) => arg.startsWith("--marketplace="))?.split("=")[1] || "all";
   if (!["all", "ozon", "yandex"].includes(marketplace)) throw new Error(`Unknown marketplace: ${marketplace}`);
+  const zeroMode = process.argv.includes("--zero");
+  // Local pause survives scheduled worker runs; explicit zeroing remains available.
+  if (process.env.CDEK_MARKETPLACE_SYNC_PAUSED === "true" && !zeroMode) {
+    console.log(JSON.stringify({ status: "paused", marketplace, reason: "CDEK_MARKETPLACE_SYNC_PAUSED" }));
+    return;
+  }
   const startedAt = Date.now();
   const sheets = await createSheetsClient();
   const sourceStocks = await readCdekStocks(sheets);
-  const zeroMode = process.argv.includes("--zero");
   const stocks = zeroMode
     ? sourceStocks.map((item) => ({ ...item, stock: 0 }))
     : sourceStocks;

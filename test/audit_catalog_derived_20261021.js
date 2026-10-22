@@ -1,0 +1,32 @@
+const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const {google}=require('googleapis');
+const {fetchCatalog}=require('../catalog_articles_local');
+const root=path.resolve(__dirname,'..'),book='15d_fAFFFAoBE_ClIhzDxwjRW2IeDFCKpbcqyQapyKhI';
+const key=x=>String(x??'').trim(),present=x=>key(x)!==''&&!key(x).startsWith('#');
+(async()=>{
+const auth=new google.auth.GoogleAuth({keyFile:path.join(root,'nomadic-bedrock-485314-b0-d7624dedd83c.json'),scopes:['https://www.googleapis.com/auth/spreadsheets.readonly']});
+const api=google.sheets({version:'v4',auth});
+const ctx=vm.createContext({});vm.runInContext(fs.readFileSync(path.join(root,'Shared_Настройки.js'),'utf8')+';this.h=ozonHeaders();',ctx);
+const ozon=await fetchCatalog('ozon',ctx.h);
+const ranges=["'ТЕСТ'!A:Y","'ОБОР'!A:C","'Дизайн контент'!A:V","'Дизайн контент'!AC:AE","'UNIT WB'!A:G","'UNIT WB'!R:S","'ТЕХ данные wb'!A:C"];
+const {data}=await api.spreadsheets.values.batchGet({spreadsheetId:book,ranges,valueRenderOption:'FORMATTED_VALUE'});
+const {data:formula}=await api.spreadsheets.values.batchGet({spreadsheetId:book,ranges:["'ТЕСТ'!E:E","'ТЕСТ'!1:1","'ОБОР'!1:1","'Дизайн контент'!1:1","'UNIT WB'!1:1"],valueRenderOption:'FORMULA'});
+const managed=process.env.CATALOG_AUDIT_MANAGED==='1';
+const focusOffers=managed?Object.entries(JSON.parse(fs.readFileSync(path.join(root,'logs/stream-onboarding-state.json'))).offers).filter(([,v])=>!v.baseline).map(([offer])=>offer):JSON.parse(fs.readFileSync(path.join(__dirname,'catalog-unit-appended-20261021.json'))).values.map(r=>key(r[0]));
+const rows=data.valueRanges.map(r=>r.values||[]),focus=new Set(focusOffers);
+rows[2].forEach((r,i)=>{const values=rows[3][i]||[];r[28]=values[0];r[29]=values[1];r[30]=values[2];});
+const source=new Map(rows[0].slice(1).map((r,i)=>[key(r[0]),{row:i+2,model:r[1],brand:r[2],link:r[3],image:formula.valueRanges[0].values?.[i+1]?.[0],price:r[10],wb:r[19],product:r[20],sku:r[21],name:r[23],category:r[24]}]));
+const wbSource=new Set(rows[6].slice(1).filter(r=>present(r[1])&&present(r[2])).map(r=>key(r[0])));
+const ozonSet=new Set(ozon),wbOld=new Set(JSON.parse(fs.readFileSync(path.join(__dirname,'catalog_wb_articles_20261015.json'))));
+const sheets={};
+function audit(name,rr,fields,expected){const keys=new Set(rr.slice(1).map(r=>key(r[0])).filter(Boolean)), f=rr.slice(1).filter(r=>focus.has(key(r[0])));const result={uniqueKeys:keys.size,missingCatalog:[...expected].filter(k=>!keys.has(k)),focusPresent:f.length,focusMissing:[...focus].filter(k=>!keys.has(k)),fields:{}};for(const [field,c]of Object.entries(fields)){const stats={allPresent:0,allErrors:0,focusPresent:0,focusSourceAvailable:0,focusMissingWithSource:[],focusSourceUnavailable:[]};for(const r of rr.slice(1)){if(present(r[c]))stats.allPresent++;if(key(r[c]).startsWith('#'))stats.allErrors++;if(focus.has(key(r[0]))){const src=source.get(key(r[0]));const available=present(src?.[field]);if(present(r[c]))stats.focusPresent++;if(available)stats.focusSourceAvailable++;if(!present(r[c]))(available?stats.focusMissingWithSource:stats.focusSourceUnavailable).push(key(r[0]));}}result.fields[field]=stats;}sheets[name]=result;return result;}
+audit('ТЕСТ',rows[0],{model:1,brand:2,link:3,price:10,product:20,sku:21,name:23,category:24},ozonSet);
+audit('ОБОР',rows[1],{brand:2},ozonSet);
+audit('Дизайн контент',rows[2],{link:6,name:7,model:8,brand:13,category:14,sku:20,wb:21,price:28},ozonSet);
+audit('UNIT WB',rows[4],{name:2,model:3,brand:5},wbSource);
+sheets['UNIT WB'].focusActuallyInWB=[...focus].filter(k=>wbSource.has(k));
+const formulas={};['ТЕСТ','ОБОР','Дизайн контент','UNIT WB'].forEach((n,i)=>{formulas[n]=(formula.valueRanges[i+1].values?.[0]||[]).flatMap((f,c)=>typeof f==='string'&&f.startsWith('=')?[{column:c+1,formula:f,bounded:[...f.matchAll(/\b[A-Z]+\d+:[A-Z]+(\d+)/g)].map(m=>Number(m[1])),brokenRef:f.includes('#REF!')}]:[]);});
+const output={at:new Date().toISOString(),ozonCount:ozonSet.size,wbTechCount:wbSource.size,wbOldCount:wbOld.size,wbOldMissingFromTech:[...wbOld].filter(k=>!wbSource.has(k)),wbTechNewSinceOld:[...wbSource].filter(k=>!wbOld.has(k)),focusCount:focus.size,sheets,formulas,sourceFocus:[...focus].map(k=>({offer:k,...source.get(k)})),sourceCatalog:{ozon,wb:[...wbSource]},snapshot:data};
+fs.writeFileSync(path.join(__dirname,`runtime/catalog-derived-${managed?'managed-731':'readonly'}-20261021.json`),JSON.stringify(output,null,2));
+const summary=JSON.parse(JSON.stringify(output));delete summary.snapshot;delete summary.sourceFocus;delete summary.sourceCatalog;for(const sheet of Object.values(summary.sheets)){for(const st of Object.values(sheet.fields)){for(const k of ['focusMissingWithSource','focusSourceUnavailable'])st[k]={count:st[k].length,sample:st[k].slice(0,10)};}for(const k of ['missingCatalog','focusMissing','focusActuallyInWB'])if(sheet[k])sheet[k]={count:sheet[k].length,sample:sheet[k].slice(0,10)};}console.log(JSON.stringify(summary,null,2));
+})().catch(e=>{console.error(e.stack);process.exitCode=1});

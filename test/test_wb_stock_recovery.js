@@ -13,6 +13,9 @@ function loadFunction(filename, name, nextName, overrides = {}) {
   const end = source.indexOf(`async function ${nextName}(`, start);
   const context = vm.createContext({
     log() {}, wbHeaders: () => ({}), WB_BASE_DELAY: 1, WB_MAX_RETRIES: 3,
+    // Ownership behavior is covered by test_ntc_wb_ownership; isolate HTTP recovery here.
+    isNtcCloudWbOwned: () => false, refreshNtcCloudWbOwnership: async () => {},
+    google: { sheets: () => ({}) }, ETM_TR_WB_WAREHOUSE: 798761,
     setTimeout: (callback) => callback(),
     wbRequestLimiter: { waitTurn: async () => {}, chargeResponse: async () => {} },
     isTransportError: (code) => code === 0, isWBCargoRestrictionError: () => true,

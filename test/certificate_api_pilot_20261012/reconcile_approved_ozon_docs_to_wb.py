@@ -18,7 +18,7 @@ from api_client import Client, now, save
 
 BASE_DIR = Path(__file__).resolve().parent
 ROOT = BASE_DIR.parents[1]
-ALLOWED_DOC_CHARACTERISTIC_IDS = {15001136, 15001137, 15001138}
+ALLOWED_DOC_CHARACTERISTIC_IDS = {15001135, 15001136, 15001137, 15001138}
 UPDATE_CARD_FIELDS = (
     "nmID", "vendorCode", "brand", "title", "description", "dimensions",
     "characteristics", "sizes", "kizMarked",
@@ -51,6 +51,14 @@ def norm_number(value: str) -> str:
                            "У": "Y", "Х": "X", "Ё": "E", "Э": "E", "Д": "D",
                            "П": "P"})
     return "".join(ch for ch in text.translate(table) if ch.isalnum())
+
+
+def wb_datetime(value: str) -> str:
+    """Serialize Ozon date-only fields in WB's documented RFC3339 form."""
+    text = str(value or "").strip()
+    if len(text) == 10 and text[4] == "-" and text[7] == "-":
+        return f"{text}T00:00:00Z"
+    return text
 
 
 def doc_key(doc: dict) -> tuple[int, str]:
@@ -106,8 +114,9 @@ def exact_approved_ozon_docs(products_doc: dict, ozon_doc: dict) -> tuple[dict, 
                 excluded["stale_sku_or_product_id"] += 1
                 continue
             entry = {
-                "type": wb_type, "number": number, "startDate": issue,
-                "endDate": expiry, "isEndless": False,
+                "type": wb_type, "number": number,
+                "startDate": wb_datetime(issue), "endDate": wb_datetime(expiry),
+                "isEndless": False,
             }
             key = doc_key(entry)
             docs_by_offer.setdefault(offer, {})
@@ -135,10 +144,10 @@ def copy_documents(card: dict) -> list[dict]:
             for item in ((card.get("documents") or {}).get("items") or [])]
 
 
-def plan_updates() -> dict:
+def plan_updates(wb_snapshot: str = "wb_live.json") -> dict:
     products_doc = read_json("ozon_products_live.json")
     ozon_doc = read_json("ozon_live.json")
-    wb_doc = read_json("wb_live.json")
+    wb_doc = read_json(wb_snapshot)
     if not (products_doc.get("complete") and ozon_doc.get("complete") and wb_doc.get("complete")):
         raise RuntimeError("Complete live Ozon products, Ozon certificate/bindings, and WB cards snapshots required")
 
@@ -386,8 +395,9 @@ def full_readback(plan: dict, run: dict) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--execute", action="store_true", help="Submit the planned WB card updates")
+    parser.add_argument("--wb-snapshot", default="wb_live.json", help="Complete WB catalog snapshot filename")
     args = parser.parse_args()
-    plan = plan_updates()
+    plan = plan_updates(args.wb_snapshot)
     save_json("wb_ozon_reconciliation_plan.json", plan)
     print(json.dumps({"counts": plan["counts"], "excluded": plan["excluded_ozon_record_or_binding_counts"],
                       "missing_wb_cards": len(plan["missing_exact_wb_cards"]),

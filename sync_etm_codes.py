@@ -7,8 +7,8 @@ Production-путь читает актуальные ``price.csv`` сначал
 Строки сопоставляются по ``бренд + модель`` и, если модель не нашлась, по
 ``бренд + артикул``.
 
-Скрипт оставлен только как read-only диагностический анализ FTP-выгрузок.
-Запись кодов в Google Sheets отключена.
+По умолчанию записывает только найденные коды в пустые ячейки.
+Для диагностики без записи используйте --dry-run.
 """
 
 from __future__ import annotations
@@ -79,6 +79,8 @@ FTP_REQUIRE_TODAY = os.getenv("ETM_CODES_FTP_REQUIRE_TODAY", "1").strip().lower(
     "no",
 }
 
+VERIFIED_MATCHES_PATH = Path(__file__).resolve().parent / "etm_code_verified_matches.json"
+
 LOG_PATH = Path(__file__).resolve().parent / "logs" / "sync_etm_codes.log"
 LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
@@ -122,6 +124,15 @@ def normalize_code(value: object) -> str:
     raw = re.sub(r"\.0+$", "", raw)
     raw = re.sub(r"^ETM", "", raw, flags=re.IGNORECASE).strip()
     return re.sub(r"\D", "", raw)
+
+
+def normalize_brand(value: object) -> str:
+    """Exact manufacturer labels confirmed by goods API IDs 925 and 164.
+
+    Keep distinct IEK/ONI/Generica names distinct; this is not fuzzy matching.
+    """
+    key = normalize(value)
+    return {"se dekraft": "dekraft", "se systeme": "systeme electric"}.get(key, key)
 
 
 def resolve_csv_path(value: str | Path) -> Path:
@@ -179,7 +190,7 @@ def load_mapping_from_bytes(content: bytes, source_name: str = "FTP") -> tuple[d
         source_rows += 1
         values = list(row)
         article = normalize(values[columns["article"]] if len(values) > columns["article"] else "")
-        brand = normalize(values[columns["brand"]] if len(values) > columns["brand"] else "")
+        brand = normalize_brand(values[columns["brand"]] if len(values) > columns["brand"] else "")
         code = normalize_code(values[columns["code"]] if len(values) > columns["code"] else "")
         if not article or not brand or not code:
             empty_rows += 1
@@ -252,7 +263,7 @@ def plan_updates(
         article = value("article")
         model = value("model")
         brand = value("brand")
-        brand_key = normalize(brand)
+        brand_key = normalize_brand(brand)
         if not brand_key or (not normalize(model) and not normalize(article)):
             stats["missing_keys"] += 1
             continue
@@ -287,6 +298,82 @@ def plan_updates(
         updates.append(Update(row_number, code, model, article, brand, matched_by))
 
     return updates, stats
+
+
+def load_verified_matches(path: str | Path | None = None) -> dict[str, dict]:
+    """Load reviewed per-offer identities; reject the entire registry before writes."""
+    registry_path = Path(path) if path is not None else VERIFIED_MATCHES_PATH
+    if not registry_path.exists():
+        return {}
+    data = json.loads(registry_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or type(data.get("version")) is not int or data["version"] != 1:
+        raise ValueError("Verified ETM registry requires version 1")
+    if not isinstance(data.get("entries"), list):
+        raise ValueError("Verified ETM registry requires entries list")
+    records = {}
+    for entry in data["entries"]:
+        if not isinstance(entry, dict):
+            raise ValueError("Verified ETM entry must be an object")
+        for key in ("offer_id", "model", "etm_article", "etm_manufacturer"):
+            if not isinstance(entry.get(key), str) or not entry[key].strip():
+                raise ValueError(f"Verified ETM entry requires {key}")
+        if not isinstance(entry.get("brand"), str):
+            raise ValueError("Verified ETM entry requires explicit brand (blank permitted)")
+        if (not isinstance(entry.get("etm_code"), str)
+                or not re.fullmatch(r"[0-9]+", entry["etm_code"])
+                or int(entry["etm_code"]) <= 0):
+            raise ValueError("Verified ETM entry requires a digit-only string etm_code")
+        evidence = entry.get("evidence")
+        if not isinstance(evidence, list) or not evidence:
+            raise ValueError("Verified ETM entry requires evidence")
+        for proof in evidence:
+            if not isinstance(proof, dict) or any(
+                not isinstance(proof.get(key), str) or not proof[key].strip()
+                for key in ("source", "url", "note")
+            ):
+                raise ValueError("Verified ETM evidence requires source, url and note")
+        offer = entry["offer_id"].strip()
+        record = dict(entry, offer_id=offer)
+        previous = records.get(offer)
+        if previous is not None and previous != record:
+            raise ValueError(f"Conflicting verified ETM entries for offer {offer!r}")
+        records[offer] = record
+    return records
+
+
+def plan_verified_updates(sheet_rows, columns, records) -> tuple[list[Update], dict[str, int]]:
+    """Only exact offer plus unchanged normalized model/brand may use a review."""
+    updates = []
+    stats = {"matched": 0, "existing": 0, "stale": 0, "unmatched": 0}
+    for number, row in enumerate(sheet_rows[1:], start=2):
+        def value(key):
+            index = columns[key] - 1
+            return str(row[index]).strip() if index < len(row) else ""
+        if value("etm_code"):
+            stats["existing"] += 1
+            continue
+        offer, model, brand = value("article"), value("model"), value("brand")
+        record = records.get(offer)
+        if record is None:
+            stats["unmatched"] += 1
+            continue
+        if normalize(model) != normalize(record["model"]) or normalize(brand) != normalize(record["brand"]):
+            stats["stale"] += 1
+            continue
+        updates.append(Update(number, record["etm_code"], model, offer, brand, "verified"))
+        stats["matched"] += 1
+    return updates, stats
+
+
+def _write_code_updates(ws, sheet_rows, updates):
+    if not updates:
+        return
+    values = [[""] for _ in sheet_rows[1:]]
+    mask = [False for _ in sheet_rows[1:]]
+    for item in updates:
+        values[item.row - 2] = [item.code]
+        mask[item.row - 2] = True
+    gsheets_utils.update_column_by_header_masked(ws, SHEET_SCHEMA["etm_code"], values, mask)
 
 
 def _ftp_password() -> str:
@@ -541,17 +628,50 @@ def _apply_updates_to_memory(sheet_rows: list[list[str]], updates: Iterable[Upda
         row[code_column - 1] = item.code
 
 
+def resolve_sheet_columns(headers):
+    # Документированное исключение StreamSupps: A — ключевой артикул,
+    # но его видимый заголовок пуст. Исключение только для чтения ключа;
+    # целевая колонка CODES всегда определяется строго по заголовку.
+    resolved_headers = list(headers)
+    if resolved_headers and not str(resolved_headers[0]).strip():
+        if not any(normalize(h) == normalize(SHEET_SCHEMA["article"]) for h in headers):
+            resolved_headers[0] = SHEET_SCHEMA["article"]
+    return gsheets_utils.resolve_header_columns(resolved_headers, SHEET_SCHEMA, SHEET_NAME)
+
+
+def read_sheet_rows(ws):
+    """Читать только ключи и коды, без тяжёлых расчётных колонок листа."""
+    headers = gsheets_utils._row_values(ws, 1)
+    columns = resolve_sheet_columns(headers)
+    selected = list(columns.values())
+    letters = [gsheets_utils.gspread.utils.rowcol_to_a1(1, c).rstrip("1") for c in selected]
+    blocks = gsheets_utils._retry_gsheet_call(
+        f"read {SHEET_NAME} code keys",
+        lambda: ws.batch_get([f"{letter}2:{letter}{ws.row_count}" for letter in letters]),
+    )
+    rows = [[""] * len(headers) for _ in range(max((len(b) for b in blocks), default=0))]
+    for column, block in zip(selected, blocks):
+        for index, cell in enumerate(block):
+            rows[index][column - 1] = cell[0] if cell else ""
+    return [headers] + rows
+
+
 def run(
     csv_path: str | Path | None = None,
     *,
     force: bool = False,
     sample_size: int = 10,
+    dry_run: bool = False,
+    verified_only: bool = False,
 ) -> int:
+    verified_matches = load_verified_matches()
     # Для ручного --csv оставляем один источник. Production-путь всегда
     # проходит источники в порядке 13 -> 14.
     sources: list[tuple[str, bytes, FtpFile | None]] = []
     failures: list[str] = []
-    if csv_path is not None:
+    if verified_only:
+        csv_source = None
+    elif csv_path is not None:
         mapping, source_stats = load_csv_mapping(csv_path)
         sources.append((f"CSV {resolve_csv_path(csv_path).name}", b"", None))
         csv_source = (mapping, source_stats)
@@ -571,17 +691,14 @@ def run(
             content, ftp_file = source
             sources.append((f"склад {warehouse}", content, ftp_file))
 
-    if not sources:
+    if not sources and not verified_only and not verified_matches:
         raise RuntimeError("Не удалось получить ни одного источника ETM: " + "; ".join(failures))
 
     ws = gsheets_utils.get_worksheet(SHEET_NAME)
-    sheet_rows = gsheets_utils._retry_gsheet_call(
-        f"read all values from {SHEET_NAME}",
-        ws.get_all_values,
-    )
+    sheet_rows = read_sheet_rows(ws)
     if not sheet_rows:
         raise RuntimeError(f"Лист {SHEET_NAME!r} пустой")
-    columns = gsheets_utils.resolve_header_columns(sheet_rows[0], SHEET_SCHEMA, SHEET_NAME)
+    columns = resolve_sheet_columns(sheet_rows[0])
 
     all_updates: list[Update] = []
     for source_label, content, ftp_file in sources:
@@ -590,6 +707,11 @@ def run(
         else:
             assert ftp_file is not None
             mapping, source_stats = load_mapping_from_bytes(content, ftp_file.remote_path)
+        # Повторно читаем ключи и CODES перед записью: за время скачивания
+        # источника пользователь мог заполнить код или добавить строки.
+        if not dry_run:
+            sheet_rows = read_sheet_rows(ws)
+            columns = resolve_sheet_columns(sheet_rows[0])
         updates, source_sheet_stats = plan_updates(sheet_rows, columns, mapping)
         logging.info(
             "%s: источник строк=%s, уникальных пар=%s, дубликатов=%s, пустых строк=%s, конфликтных пар=%s",
@@ -623,13 +745,33 @@ def run(
                 item.brand,
                 item.code,
             )
+        if not dry_run and updates:
+            _write_code_updates(ws, sheet_rows, updates)
+            logging.info("%s: записано кодов=%s", source_label, len(updates))
         all_updates.extend(updates)
         # После склада 13 эти ячейки становятся непустыми в памяти и не могут
         # быть повторно выбраны складом 14 в диагностическом плане.
         _apply_updates_to_memory(sheet_rows, updates, columns["etm_code"])
 
+    if verified_matches:
+        # Re-read current keys and CODES immediately before the reviewed fallback.
+        # Dry runs retain FTP's in-memory fills so no row is counted twice.
+        if not dry_run:
+            sheet_rows = read_sheet_rows(ws)
+            columns = resolve_sheet_columns(sheet_rows[0])
+        updates, verified_stats = plan_verified_updates(sheet_rows, columns, verified_matches)
+        logging.info("Verified ETM: %s", verified_stats)
+        for item in updates[:max(sample_size, 0)]:
+            logging.info("Verified ETM: offer=%r row=%s model=%r brand=%r -> code=%s",
+                         item.article, item.row, item.model, item.brand, item.code)
+        if not dry_run:
+            _write_code_updates(ws, sheet_rows, updates)
+        all_updates.extend(updates)
+        _apply_updates_to_memory(sheet_rows, updates, columns["etm_code"])
+
     logging.info(
-        "Read-only режим: найдено кандидатов кодов=%s, ошибок источников=%s; Google Sheets не изменялись",
+        "%s: найдено кодов=%s, ошибок источников=%s",
+        "Read-only режим, Google Sheets не изменялись" if dry_run else "Запись завершена",
         len(all_updates),
         len(failures),
     )
@@ -641,13 +783,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--csv", help="Локальный CSV вместо FTP; для тестов и ручной проверки")
     parser.add_argument("--force", action="store_true", help="Обработать FTP-файл повторно, даже если он уже отмечен в state")
     parser.add_argument("--sample-size", type=int, default=10, help="Количество примеров изменений в логе")
+    parser.add_argument("--dry-run", action="store_true", help="Рассчитать коды без записи в Google Sheets")
+    parser.add_argument("--verified-only", action="store_true", help="Только проверенный реестр соответствий, без FTP")
+    parser.add_argument("--onboarding-input", help="Exact new-offer manifest for cached catalog and API identity resolution")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
     try:
-        raise SystemExit(run(args.csv, force=args.force, sample_size=args.sample_size))
+        if args.onboarding_input:
+            from etm_onboarding_codes_local import run_onboarding
+            raise SystemExit(run_onboarding(args.onboarding_input, dry_run=args.dry_run))
+        raise SystemExit(run(args.csv, force=args.force, sample_size=args.sample_size, dry_run=args.dry_run, verified_only=args.verified_only))
     except Exception as exc:
         logging.exception("CRITICAL ERROR: %s", exc)
         raise SystemExit(1)

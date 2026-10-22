@@ -15,6 +15,55 @@ spec.loader.exec_module(module)
 
 
 class SyncEtmCodesTests(unittest.TestCase):
+    def test_reader_requests_only_resolved_key_columns_and_aligns_sparse_rows(self):
+        from unittest.mock import Mock
+        ws = Mock()
+        ws.row_count = 100
+        ws.row_values.return_value = ["", "Артикул производителя", "ignored", "brand", "CODES"]
+        ws.batch_get.return_value = [
+            [["a"], ["b"]], [["m"]], [["Brand"], ["Other"]], [["code"]],
+        ]
+        rows = module.read_sheet_rows(ws)
+        ws.batch_get.assert_called_once_with(["A2:A100", "B2:B100", "D2:D100", "E2:E100"])
+        self.assertEqual(rows[1:], [["a", "m", "", "Brand", "code"], ["b", "", "", "Other", ""]])
+
+    def test_blank_article_header_is_explicit_read_only_key_exception(self):
+        self.assertEqual(module.resolve_sheet_columns(
+            ["", "Артикул производителя", "brand", "CODES"]
+        )["article"], 1)
+        with self.assertRaises(ValueError):
+            module.resolve_sheet_columns(["Other", "Артикул производителя", "brand", "CODES"])
+
+    def test_run_writes_only_matched_empty_codes_and_preserves_existing(self):
+        self._check_run_write_mode(False)
+
+    def test_dry_run_never_writes(self):
+        self._check_run_write_mode(True)
+
+    def _check_run_write_mode(self, dry_run):
+        from unittest.mock import Mock
+        rows = [
+            ["Артикул продавца", "Артикул производителя", "brand", "CODES"],
+            ["a", "00123", "Arlight", ""],
+            ["b", "00123", "Arlight", "keep"],
+            ["c", "missing", "Arlight", ""],
+        ]
+        ws = Mock()
+        ws.get_all_values.return_value = rows
+        with patch.object(module, "load_csv_mapping", return_value=(
+            {("00123", "arlight"): "0007"},
+            dict(source_rows=1, mapping_keys=1, duplicate_rows=0, empty_rows=0, conflict_keys=0),
+        )), patch.object(module.gsheets_utils, "get_worksheet", return_value=ws), patch.object(
+            module, "read_sheet_rows", return_value=rows
+        ), patch.object(
+            module.gsheets_utils, "update_column_by_header_masked"
+        ) as write:
+            self.assertEqual(module.run("test.csv", dry_run=dry_run), 0)
+        if dry_run:
+            write.assert_not_called()
+        else:
+            write.assert_called_once_with(ws, "CODES", [["0007"], [""], [""]], [True, False, False])
+
     def test_load_mapping_from_ftp_cp1251_columns(self):
         content = (
             "Код ЭТМ;Полное наименование;Цена;Количество;Артикул;Производитель\n"
@@ -160,7 +209,7 @@ class SyncEtmCodesTests(unittest.TestCase):
             def quit(self):
                 pass
 
-        ftp_file = module.FtpFile("/from_etm/13/price.csv", modified="20260831031122")
+        ftp_file = module.FtpFile("/from_etm/13/price.csv", modified=module.datetime.now(module.timezone.utc).strftime("%Y%m%d%H%M%S"))
         first = FakeFTP()
         second = FakeFTP()
         with patch.object(module, "FTP_DOWNLOAD_ATTEMPTS", 3), patch.object(
@@ -187,7 +236,7 @@ class SyncEtmCodesTests(unittest.TestCase):
             def quit(self):
                 pass
 
-        ftp_file = module.FtpFile("/from_etm/13/price.csv", modified="20260831031122")
+        ftp_file = module.FtpFile("/from_etm/13/price.csv", modified=module.datetime.now(module.timezone.utc).strftime("%Y%m%d%H%M%S"))
         with patch.object(module, "FTP_DOWNLOAD_ATTEMPTS", 3), patch.object(
             module, "FTP_DOWNLOAD_BASE_DELAY", 0
         ), patch.object(module, "connect_ftp", side_effect=[FakeFTP(), FakeFTP(), FakeFTP()]), patch.object(

@@ -26,6 +26,7 @@ from typing import Any
 import config
 import gsheets_utils
 import ozon_cpc_cleanup
+from ozon_perf_quota import PerformanceQuotaError, claim_quota_alert
 from ozon_cpc_cleanup import (
     SHEET_NAME,
     TokenManager,
@@ -328,6 +329,8 @@ def run(args: argparse.Namespace) -> int:
                     state.pop(key, None)
                     save_creation_state(state)
                 used_ids.add(new_id)
+            except PerformanceQuotaError:
+                raise
             except Exception as exc:
                 failed.append((row, f"{type(exc).__name__}: {exc}"))
                 print(f"[{index}/{len(rows)}] row={row.row_number} art={row.article} FAILED: {type(exc).__name__}: {exc}")
@@ -373,7 +376,11 @@ def main() -> int:
         if not acquired:
             print("Другой CPC-процесс уже выполняется; запуск создания пропущен")
             return 0
-        return run(args)
+        try:
+            return run(args)
+        except PerformanceQuotaError as exc:
+            print(f"Отложено по квоте: {exc}")
+            return 1 if claim_quota_alert() else 0
 
 
 if __name__ == "__main__":

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.checksheets.stream-onboarding</string>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/vladimirgrebennikov/.local/bin/node</string>
+		<string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/stream_onboarding_local.js</string>
+	</array>
+	<key>WorkingDirectory</key>
+	<string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/Users/vladimirgrebennikov/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+	</dict>
+	<key>RunAtLoad</key>
+	<false/>
+	<key>StartInterval</key>
+	<integer>7200</integer>
+	<key>StandardOutPath</key>
+	<string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/stream-onboarding-launchd.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/vladimirgrebennikov/Code/Checksheets_Project/Checksheets/logs/stream-onboarding-launchd.err</string>
+</dict>
+</plist>

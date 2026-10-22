@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{color-scheme:light;--ink:#182c33;--muted:#65787e;--border:#dce5e7;--green:#176b50;--red:#a53c40}
+    *{box-sizing:border-box}body{margin:0;background:#f5f8f8;color:var(--ink);font:14px/1.45 system-ui,-apple-system,sans-serif}main{padding:18px;max-width:700px;margin:auto}h1{font-size:22px;letter-spacing:-.5px;margin:0 0 4px}h2{font-size:15px;margin:0}p{margin:4px 0 12px}.muted{color:var(--muted);font-size:12px}.card{background:white;border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:14px}.label{display:block;font-size:12px;font-weight:650;margin:12px 0 5px}input,textarea,button{font:inherit}input,textarea{width:100%;border:1px solid #b7c8cc;border-radius:7px;padding:10px;color:var(--ink);background:white}input:focus,textarea:focus{outline:2px solid #8ec9b6;outline-offset:1px}textarea{resize:vertical;min-height:65px}button{border:1px solid var(--border);border-radius:7px;background:#fff;padding:9px 12px;cursor:pointer;color:var(--ink);font-weight:600}button:disabled{opacity:.5;cursor:default}button:focus-visible{outline:3px solid #8ec9b6;outline-offset:2px}.primary{background:var(--green);border-color:var(--green);color:white}.danger{background:var(--red);border-color:var(--red);color:white}.row{display:flex;align-items:center;gap:8px}.row>*{min-width:0}.spread{justify-content:space-between}.grow{flex:1}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.actions button{flex:1}.badge{font-size:12px;color:var(--green);background:#e5f2ec;border-radius:5px;padding:3px 7px}.suggestions{max-height:240px;overflow:auto}.suggestion{display:block;text-align:left;width:100%;border-radius:0;border:0;border-bottom:1px solid var(--border);padding:10px 3px;font-weight:400}.suggestion strong,.suggestion span{display:block}.item{padding:12px 0;border-bottom:1px solid var(--border)}.item:last-child{border-bottom:0}.item img{width:38px;height:38px;object-fit:contain;border-radius:5px}.item .qty{width:78px;padding:6px}.item .remove{padding:6px 9px}.item strong{overflow-wrap:anywhere}.item .name{font-size:12px;color:var(--muted);overflow-wrap:anywhere}.status{margin-top:12px;border-radius:8px;background:#eaf1f3;padding:11px;white-space:pre-wrap;overflow-wrap:anywhere}.status.error{background:#fff0ef;color:#863738}.status.success{background:#e7f3ec;color:#225a43}[hidden]{display:none!important}video{width:100%;max-height:220px;background:#182c33;border-radius:8px;margin-top:10px}.manual{display:grid;grid-template-columns:1fr 85px;gap:8px}.helper{font-size:12px;color:var(--muted);margin:8px 0 0}.empty{padding:16px 0;color:var(--muted);font-size:13px}.sectionhead{display:flex;justify-content:space-between;gap:8px;align-items:center}.small{font-size:12px;padding:5px 8px}@media(max-width:340px){main{padding:12px}.card{padding:12px}.actions{flex-direction:column}}
+  </style>
+</head>
+<body>
+<main>
+  <h1>Склад НТЦ</h1>
+  <p class="muted">Приёмка и списание · физические целые штуки</p>
+  <div class="card">
+    <div class="sectionhead"><h2>Сканирование</h2><span id="factor" class="badge">× 1</span></div>
+    <label class="label" for="scan">Штрихкод или модель</label>
+    <input id="scan" autocomplete="off" placeholder="Сканируйте и нажмите Enter" disabled>
+    <p class="helper">Сканер с клавиатурным вводом работает здесь. QTY-3, QTY:3, X3 или КОЛ-3 умножает последнюю добавленную порцию на 3 и задаёт множитель следующих сканирований.</p>
+    <div class="row" style="margin-top:10px"><button id="camera" class="grow" disabled>Включить камеру</button><button id="resetFactor" class="small">Сбросить × 1</button></div>
+    <video id="video" autoplay playsinline muted hidden></video>
+    <p id="cameraHelp" class="helper" hidden></p>
+  </div>
+  <div class="card">
+    <h2>Добавить вручную</h2>
+    <label class="label" for="search">Найти модель или товар</label>
+    <input id="search" type="search" autocomplete="off" placeholder="Модель, название, штрихкод" disabled>
+    <div id="suggestions" class="suggestions" aria-label="Найденные товары"></div>
+    <div class="manual">
+      <div><label class="label" for="model">Модель</label><input id="model" placeholder="Выберите или введите" disabled></div>
+      <div><label class="label" for="manualQty">Штук</label><input id="manualQty" type="number" min="1" step="1" value="1" disabled></div>
+    </div>
+    <button id="add" style="width:100%;margin-top:10px" disabled>Добавить в очередь</button>
+    <p class="helper">Ручное количество — точное число штук, без множителя сканирования.</p>
+  </div>
+  <div class="card">
+    <div class="sectionhead"><h2>Очередь</h2><button id="clear" class="small" disabled>Очистить</button></div>
+    <div id="queue"></div>
+    <p id="total" class="helper"></p>
+    <label class="label" for="comment">Комментарий к операции</label>
+    <textarea id="comment" placeholder="Например: поставка или причина списания"></textarea>
+    <div class="actions"><button id="supply" class="primary" disabled>Поставить на остаток</button><button id="writeoff" class="danger" disabled>Списать</button></div>
+    <p class="helper">Кнопки применяют всю очередь. Кнопки меняют только складской учёт. Передача остатков выполняется отдельной облачной трансляцией.</p>
+  </div>
+  <div id="status" class="status" role="status" aria-live="polite">Загрузка каталога…</div>
+  <button id="reload" class="small" style="margin-top:10px" hidden>Повторить загрузку каталога</button>
+</main>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  let products = [], aliases = new Map(), lines = new Map(), factor = 1, lastPortion = null;
+  let ready = false, busy = false, pending = null, cameraStream = null, cameraTimer = null, cameraEpoch = 0;
+  let lastCameraCode = '', lastCameraAt = 0;
+  const normalize = value => String(value == null ? '' : value).trim().toLocaleUpperCase('ru');
+  const integer = value => /^\d+$/.test(String(value).trim()) && Number.isSafeInteger(Number(value)) && Number(value) > 0;
+  const amount = line => line.portions.reduce((sum, p) => sum + p.base * p.factor, 0);
+  function message(text, kind) { $('status').textContent = text; $('status').className = 'status' + (kind ? ' ' + kind : ''); }
+  function invalidate() { pending = null; }
+  function controls() {
+    const locked = busy || Boolean(pending);
+    for (const id of ['scan','search','model','manualQty','add','camera']) $(id).disabled = !ready || locked;
+    $('clear').disabled = locked || lines.size === 0;
+    for (const id of ['supply','writeoff']) $(id).disabled = busy || lines.size === 0 || Boolean(pending && pending.type !== id);
+    $('comment').disabled = locked; $('resetFactor').disabled = locked;
+    $('factor').textContent = '× ' + factor;
+  }
+  function render() {
+    const root = $('queue'); root.replaceChildren(); let total = 0;
+    if (!lines.size) { const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = 'Добавьте товары сканером или вручную.'; root.append(empty); }
+    for (const [key, line] of lines) {
+      const qty = amount(line); total += qty;
+      const item = document.createElement('div'); item.className = 'item';
+      const row = document.createElement('div'); row.className = 'row';
+      if (/^https?:\/\//i.test(String(line.product.photo || ''))) { const img = document.createElement('img'); img.src = line.product.photo; img.alt = ''; img.referrerPolicy = 'no-referrer'; img.addEventListener('error', () => img.remove()); row.append(img); }
+      const info = document.createElement('div'); info.className = 'grow';
+      const title = document.createElement('strong'); title.textContent = line.product.model;
+      const name = document.createElement('div'); name.className = 'name'; name.textContent = line.product.name || '';
+      const stock = document.createElement('div'); stock.className = 'name'; stock.textContent = 'В учёте: ' + (line.product.stock == null ? '—' : String(line.product.stock)) + ' шт.';
+      info.append(title, name, stock); row.append(info);
+      const input = document.createElement('input'); input.className = 'qty'; input.type = 'number'; input.min = '1'; input.step = '1'; input.value = String(qty); input.disabled = busy || Boolean(pending); input.setAttribute('aria-label', 'Количество, штук: ' + line.product.model);
+      input.addEventListener('change', () => { if (!integer(input.value)) { input.value = String(amount(line)); message('Количество должно быть положительным целым числом штук.', 'error'); return; } line.portions = [{base:Number(input.value),factor:1}]; lastPortion = null; invalidate(); render(); });
+      const remove = document.createElement('button'); remove.className = 'remove'; remove.textContent = '×'; remove.disabled = busy || Boolean(pending); remove.setAttribute('aria-label','Удалить ' + line.product.model); remove.addEventListener('click', () => { if (lastPortion && lastPortion.key === key) lastPortion = null; lines.delete(key); invalidate(); render(); });
+      row.append(input, remove); item.append(row); root.append(item);
+    }
+    $('total').textContent = lines.size ? lines.size + ' моделей · ' + total + ' шт.' : ''; controls();
+  }
+  function resolve(code) {
+    const matches = aliases.get(normalize(code));
+    if (!matches || !matches.length) throw new Error('Товар не найден: ' + code + '. Проверьте модель или штрихкод.');
+    if (matches.length > 1) throw new Error('Штрихкод связан с несколькими моделями. Выберите модель вручную.');
+    return matches[0];
+  }
+  function add(product, base, multiplier) {
+    const key = normalize(product.model); const line = lines.get(key) || {product, portions:[]};
+    const portion = {base, factor:multiplier};
+    if (!Number.isSafeInteger(base * multiplier) || !Number.isSafeInteger(amount(line) + base * multiplier)) throw new Error('Количество слишком велико.');
+    line.portions.push(portion); lines.set(key,line); lastPortion = {key,portion}; invalidate(); render();
+    message('Добавлено: ' + product.model + ' · ' + base * multiplier + ' шт.');
+  }
+  function scan(code) {
+    if (busy || pending || !ready) return;
+    code = String(code).trim(); if (!code) return;
+    try {
+      const marker = /^(?:QTY[-:]|X|КОЛ[-:])(\d+)$/i.exec(code);
+      if (marker) {
+        if (!integer(marker[1])) throw new Error('Множитель должен быть положительным целым числом.');
+        const next = Number(marker[1]);
+        if (lastPortion) {
+          const line = lines.get(lastPortion.key), portion = lastPortion.portion;
+          const revised = amount(line) - portion.base * portion.factor + portion.base * next;
+          if (!Number.isSafeInteger(revised) || revised <= 0) throw new Error('Количество слишком велико.');
+          portion.factor = next; invalidate();
+        }
+        factor = next; render(); message('Множитель × ' + factor + (lastPortion ? ': последняя порция пересчитана. Следующие сканирования используют этот множитель.' : ' для следующих сканирований.')); return;
+      }
+      add(resolve(code),1,factor);
+    } catch (error) { message(error.message,'error'); }
+  }
+  function search() {
+    const query = normalize($('search').value), root = $('suggestions'); root.replaceChildren(); if (!query) return;
+    const found = products.filter(p => normalize(p.model).includes(query) || normalize(p.name).includes(query) || p.barcodes.some(b => normalize(b).includes(query))).slice(0,20);
+    if (!found.length) { const hint = document.createElement('p'); hint.className = 'helper'; hint.textContent = 'Совпадений нет.'; root.append(hint); }
+    for (const product of found) {
+      const button = document.createElement('button'); button.className = 'suggestion'; button.disabled = busy || Boolean(pending);
+      const model = document.createElement('strong'); model.textContent = product.model;
+      const name = document.createElement('span'); name.textContent = product.name || ''; button.append(model,name);
+      button.addEventListener('click', () => { $('model').value = product.model; $('search').value = ''; root.replaceChildren(); $('manualQty').focus(); }); root.append(button);
+    }
+  }
+  function load() {
+    if (busy) return; ready = false; controls(); $('reload').hidden = true; message('Загрузка каталога…');
+    google.script.run.withSuccessHandler(result => {
+      try {
+        if (!result || !Array.isArray(result.products)) throw new Error('Сервер вернул неверный каталог.');
+        products = result.products.filter(p => p && String(p.model || '').trim()).map(p => ({...p, model:String(p.model).trim(),barcodes:Array.isArray(p.barcodes) ? p.barcodes : []}));
+        aliases = new Map();
+        for (const p of products) for (const alias of [p.model,...p.barcodes]) { const key = normalize(alias); if (!key) continue; const matches = aliases.get(key) || []; if (!matches.some(m => normalize(m.model) === normalize(p.model))) matches.push(p); aliases.set(key,matches); }
+        ready = true; render(); message('Каталог готов: ' + products.length + ' моделей. Все количества — физические штуки.');
+      } catch (error) { message(error.message,'error'); $('reload').hidden = false; }
+    }).withFailureHandler(error => { message('Не удалось загрузить каталог: ' + (error.message || String(error)),'error'); $('reload').hidden = false; }).ntcScannerCatalog();
+  }
+  function uuid() { return typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c => { const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15; return (c === 'x' ? r : (r & 3) | 8).toString(16); }); }
+  function submit(type) {
+    if (busy || !ready || !lines.size) return;
+    if (pending && pending.type !== type) { message('Предыдущая операция имеет неопределённый результат. Повторите ту же кнопку, чтобы проверить её без двойного учёта.','error'); return; }
+    if (!pending) pending = {id:uuid(),type,items:Array.from(lines.values(),line => ({model:line.product.model,quantity:amount(line)})),comment:$('comment').value.trim()};
+    busy = true; stopCamera(); render(); search(); message('Записываем операцию и передаём остатки… Не закрывайте панель.');
+    google.script.run.withSuccessHandler(result => {
+      busy = false;
+      if (result && result.ok) {
+        lines.clear(); lastPortion = null; pending = null; $('comment').value = ''; factor = 1; render();
+        message(result.message || 'Операция записана. Проверьте статус передачи остатков на маркетплейсы в журнале операций.','success');
+        // Stock figures are a catalog snapshot; avoid presenting old values after an operation.
+        products.forEach(p => {p.stock = null;});
+      } else { render(); message((result && result.message) || 'Операция не подтверждена. Повторите ту же кнопку: идентификатор операции сохранён.','error'); }
+    }).withFailureHandler(error => { busy = false; render(); message('Ответ сервера не получен: ' + (error.message || String(error)) + '\nРезультат может быть уже записан. Повторите ту же кнопку — используем тот же идентификатор операции.','error'); }).ntcScannerSubmit(pending);
+  }
+  function stopCamera() {
+    cameraEpoch++; if (cameraTimer) clearTimeout(cameraTimer); cameraTimer = null;
+    if (cameraStream) cameraStream.getTracks().forEach(track => track.stop()); cameraStream = null;
+    $('video').srcObject = null; $('video').hidden = true; $('camera').textContent = 'Включить камеру';
+  }
+  async function camera() {
+    if (cameraStream) { stopCamera(); return; }
+    $('cameraHelp').hidden = false;
+    if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('cameraHelp').textContent = 'Этот браузер не поддерживает сканирование камерой. Используйте обычный сканер или ручной ввод.'; return; }
+    const epoch = ++cameraEpoch;
+    try {
+      const detector = new BarcodeDetector();
+      const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+      if (epoch !== cameraEpoch || busy || document.hidden) { stream.getTracks().forEach(t => t.stop()); return; }
+      cameraStream = stream; $('video').srcObject = stream; $('video').hidden = false; await $('video').play();
+      $('camera').textContent = 'Остановить камеру'; $('cameraHelp').textContent = 'Покажите код камере. Для повторного добавления того же кода уберите его из кадра и покажите снова.';
+      async function frame() {
+        if (!cameraStream || epoch !== cameraEpoch) return;
+        try {
+          const codes = await detector.detect($('video'));
+          if (!cameraStream || epoch !== cameraEpoch) return;
+          const code = codes[0] && codes[0].rawValue;
+          if (!code) lastCameraCode = '';
+          else if (code !== lastCameraCode && Date.now() - lastCameraAt > 800) { lastCameraCode = code; lastCameraAt = Date.now(); scan(code); }
+        } catch (error) { $('cameraHelp').textContent = 'Камера не распознала код. Используйте сканер или ручной ввод.'; stopCamera(); return; }
+        cameraTimer = setTimeout(frame,250);
+      }
+      lastCameraCode = ''; lastCameraAt = 0; frame();
+    } catch (error) { if (epoch !== cameraEpoch) return; stopCamera(); $('cameraHelp').textContent = 'Камера недоступна: ' + (error.message || String(error)) + '. Сканер и ручной ввод доступны.'; }
+  }
+  $('scan').addEventListener('keydown',event => { if (event.key === 'Enter') { event.preventDefault(); scan($('scan').value); $('scan').value = ''; } });
+  $('search').addEventListener('input',search);
+  $('add').addEventListener('click', () => { try { if (!integer($('manualQty').value)) throw new Error('Введите положительное целое число штук.'); add(resolve($('model').value),Number($('manualQty').value),1); $('model').value = ''; $('manualQty').value = '1'; $('scan').focus(); } catch(error) {message(error.message,'error');} });
+  $('clear').addEventListener('click', () => { lines.clear(); lastPortion = null; invalidate(); render(); message('Очередь очищена.'); });
+  $('comment').addEventListener('input',invalidate);
+  $('resetFactor').addEventListener('click', () => { factor = 1; controls(); message('Следующие сканирования добавляют по 1 шт. Количество в очереди сохранено.'); });
+  $('supply').addEventListener('click', () => submit('supply')); $('writeoff').addEventListener('click', () => submit('writeoff'));
+  $('camera').addEventListener('click',camera); $('reload').addEventListener('click',load);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopCamera(); }); window.addEventListener('pagehide',stopCamera); window.addEventListener('beforeunload',stopCamera);
+  render(); load();
+})();
+</script>
+</body>
+</html>

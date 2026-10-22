@@ -1,6 +1,7 @@
 const { google } = require("googleapis");
 const axios = require("axios");
 const path = require("path");
+const { refreshNtcCloudWbOwnership, filterLocalWbOwned } = require("./ntc_wb_ownership");
 const {
   STREAM_SUPPS_HEADERS,
   resolveStreamSuppsColumns,
@@ -377,11 +378,12 @@ async function processETMConflictIndividually(
 }
 
 async function updateETMStocksWB(items) {
+  await refreshNtcCloudWbOwnership(google.sheets({ version: "v4" }));
   log(
     `🟣 Зануление остатков WB FBS (склад: Новосемейкино, ID: ${ETM_TR_WB_WAREHOUSE})...`,
   );
 
-  const validItems = items.filter((item) => item.chrlid);
+  const validItems = filterLocalWbOwned(items, ETM_TR_WB_WAREHOUSE).filter((item) => item.chrlid);
   if (validItems.length === 0) {
     log("⚠️ Нет товаров с chrlid");
     return;

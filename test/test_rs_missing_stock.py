@@ -28,9 +28,12 @@ class MissingStockTests(unittest.TestCase):
             patch.object(rs, "fetch_all_rs_stocks", side_effect=[samara, moscow]),
             patch.object(rs.gsheets_utils, "update_column_by_header_masked", return_value=4) as write,
         ):
-            rs.sync_rs()
+            receipt = rs.sync_rs()
 
         self.assertEqual(write.call_count, 2)
+        self.assertEqual(receipt["quarantinedModels"], ["INVALID"])
+        self.assertEqual(receipt["writtenSamara"], 4)
+        self.assertIn("finishedAt", receipt)
         for call, positive in zip(write.call_args_list, (12, 7)):
             self.assertEqual(call.args[2], [[positive], [0], [0], [""], [0], [""]])
             # Missing products and missing residues actively write zero. Invalid

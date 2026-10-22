@@ -3,6 +3,7 @@ const axios = require("axios");
 const path = require("path");
 const crypto = require("crypto");
 const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsBroadcastReport } = require("./telegram_notifier");
+const { refreshNtcCloudWbOwnership, filterLocalWbOwned, isNtcCloudWbOwned } = require("./ntc_wb_ownership");
 const { createWbStockAudit } = require("./wb_stock_audit");
 const { createWbStockRateLimiter } = require("./wb_stock_rate_limiter");
 const { buildStockReport, throwOnStockSyncFailures } = require("./stock_sync_report");
@@ -322,7 +323,7 @@ async function waitForETMTRPUStability(auth) {
   );
 }
 
-async function readETMStocksFromSheet(auth) {
+async function readETMStocksFromSheet(auth, marketplace) {
   const sheets = google.sheets({ version: "v4", auth });
 
   const headersResp = await withGoogleSheetsRetry("чтение заголовков", () => sheets.spreadsheets.values.get({
@@ -399,7 +400,7 @@ async function readETMStocksFromSheet(auth) {
   stocks.wbSourceColumn = `${columnLetter(colWbStock)}:${headers[colWbStock - 1] || ETM_TR_SCHEMA.wbStock}`;
   log(`🧾 WB snapshot: readAt=${stocks.snapshotReadAt}, source=${stocks.wbSourceColumn}`);
 
-  return stocks;
+  return require("./stream_onboarding_gate").gatePublication(stocks, marketplace, { logger: log });
 }
 
 const wbToken =
@@ -1014,11 +1015,12 @@ async function processETMConflictIndividually(
 }
 
 async function updateETMStocksWB(stocks) {
+  await refreshNtcCloudWbOwnership(google.sheets({ version: "v4" }));
   log(
     `🟣 Обновление остатков WB FBS (склад: ВольтМир, ID: ${ETM_TR_WB_WAREHOUSE})...`,
   );
 
-  const validStocks = stocks.filter((s) => s.chrlid);
+  const validStocks = filterLocalWbOwned(stocks, ETM_TR_WB_WAREHOUSE).filter((s) => s.chrlid);
   if (validStocks.length === 0) {
     log(`⚠️ Нет товаров с chrlid`);
     return;
@@ -1225,7 +1227,8 @@ async function fetchETMWBStocks(warehouseId, chrtIds) {
 }
 
 async function verifyETMWBStocks(stocks) {
-  const expected = stocks.filter((s) => s.chrlid);
+  await refreshNtcCloudWbOwnership(google.sheets({ version: "v4" }));
+  const expected = filterLocalWbOwned(stocks, ETM_TR_WB_WAREHOUSE).filter((s) => s.chrlid);
   if (expected.length === 0) return [];
 
   const uniqueChrtIds = [...new Set(expected.map(item => Number(item.chrlid)))];
@@ -1313,6 +1316,7 @@ async function verifyETMWBStocks(stocks) {
 }
 
 async function repairETMWBMismatches(stocks, initialMismatches, cargoRestrictedChrtIds = new Set()) {
+  await refreshNtcCloudWbOwnership(google.sheets({ version: "v4" }));
   let mismatches = initialMismatches || [];
   const attempts = Math.max(0, STOCK_REPAIR_ATTEMPTS);
   let audit;
@@ -1321,7 +1325,7 @@ async function repairETMWBMismatches(stocks, initialMismatches, cargoRestrictedC
   const offersByChrtId = new Map(stocks.map((item) => [Number(item.chrlid), item.offer_id]));
 
   for (let attempt = 1; attempt <= attempts && mismatches.length > 0; attempt++) {
-    const repairable = mismatches.filter((item) => !cargoRestrictedChrtIds.has(Number(item.chrtId)));
+    const repairable = mismatches.filter((item) => !cargoRestrictedChrtIds.has(Number(item.chrtId)) && !isNtcCloudWbOwned(ETM_TR_WB_WAREHOUSE, offersByChrtId.get(Number(item.chrtId)), item.chrtId));
     const blockedCount = mismatches.length - repairable.length;
     if (blockedCount) {
       log(`⏸️ WB repair: ${blockedCount} расхождений заблокированы ODC/CD+; WB уже подтвердил ограничение склада, повтор не поможет`);
@@ -1407,7 +1411,7 @@ async function main() {
   for (let attempt = 1; attempt <= maxReadRetries; attempt++) {
     try {
       log(`📊 Шаг 1: Чтение данных из листа "${SHEET_NAME}" (попытка ${attempt}/${maxReadRetries})...`);
-      stocks = await readETMStocksFromSheet(client);
+      stocks = await readETMStocksFromSheet(client, marketplace);
       break;
     } catch (err) {
       log(`⚠️ Ошибка чтения листа (попытка ${attempt}/${maxReadRetries}): ${err.message || err}`);
@@ -1452,7 +1456,7 @@ async function main() {
   let wbStocks = [];
   if (marketplace !== "ozon") {
     log("📊 Перечитываем StreamSupps непосредственно перед WB записью, чтобы не отправлять снимок до долгой Ozon синхронизации...");
-    wbStocks = await readETMStocksFromSheet(client);
+    wbStocks = await readETMStocksFromSheet(client, "wb");
     if (wbStocks.length === 0) {
       throw new Error("Перед WB записью лист StreamSupps прочитан пустым; старый снимок не отправляю");
     }

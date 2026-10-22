@@ -29,13 +29,21 @@ while True:
  if page>=data['page_count']:break
  page+=1
 for i,c in enumerate(out['certificates']):
- items=[];page=1
+ items=[];last_id=0;count_expected=None;seen_product_ids=set()
  while True:
-  result=call('/v1/product/certificate/products/list',{'certificate_id':c['certificate_id'],'offset':len(items),'limit':1000})['result']
-  items.extend(result['items'])
-  if len(items)>=result['count']:break
-  if not result['items']:raise RuntimeError('Incomplete binding pagination')
-  page+=1
+  result=call('/v1/product/certificate/products/list',{'certificate_id':c['certificate_id'],'last_id':last_id,'limit':1000})['result']
+  batch=result.get('items');count=result.get('count')
+  if not isinstance(batch,list) or not isinstance(count,int):raise RuntimeError('Incomplete binding response')
+  if count_expected is None:count_expected=count
+  elif count!=count_expected:raise RuntimeError('Binding count changed during pagination')
+  for binding in batch:
+   product_id=str(binding.get('product_id') or '')
+   if not product_id or product_id in seen_product_ids:raise RuntimeError('Repeated or missing product_id in binding pages')
+   seen_product_ids.add(product_id)
+  items.extend(batch)
+  if len(items)==count_expected:break
+  if not batch or len(items)>count_expected:raise RuntimeError('Incomplete binding pagination')
+  last_id=batch[-1]['product_id']
  c['live_bindings']=items;c['live_binding_count']=len(items)
  print(json.dumps({'index':i+1,'id':c['certificate_id'],'status':c['status_code'],'bindings':len(items)},ensure_ascii=False),flush=True)
  outpath=Path(__file__).with_name('ozon_live.json');outpath.write_text(json.dumps(out,ensure_ascii=False,indent=2))

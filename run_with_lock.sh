@@ -17,7 +17,10 @@ MARKETPLACE_LOCK_HELD=0
 
 # shellcheck disable=SC2329 # invoked by the EXIT/INT/TERM trap below
 cleanup_locks() {
-    rm -f "$LOCK_FILE"
+    # A skipped invocation must never remove the running job's lock.
+    if [ "$(cat "$LOCK_FILE" 2>/dev/null)" = "$$" ]; then
+        rm -f "$LOCK_FILE"
+    fi
     if [ "$MARKETPLACE_LOCK_HELD" -eq 1 ]; then
         rm -f "$MARKETPLACE_LOCK_DIR/pid"
         rmdir "$MARKETPLACE_LOCK_DIR" 2>/dev/null || true
@@ -31,6 +34,9 @@ if [ -f "$LOCK_FILE" ]; then
     PID=$(cat "$LOCK_FILE")
     if ps -p "$PID" > /dev/null 2>&1; then
         echo "[$(date)] $SCRIPT_NAME already running (PID $PID), skipping" >> "$LOG_FILE"
+        if [ "${CHECKSHEETS_REQUIRE_JOB_RUN:-0}" = "1" ]; then
+            exit 75
+        fi
         exit 0
     else
         echo "[$(date)] Stale lock file found, removing" >> "$LOG_FILE"
@@ -38,8 +44,13 @@ if [ -f "$LOCK_FILE" ]; then
     fi
 fi
 
-# Create lock file
-echo $$ > "$LOCK_FILE"
+# Atomically create the lock after probing. A scheduled run may have arrived
+# between the initial probe and this point.
+if ! (set -o noclobber; echo $$ > "$LOCK_FILE") 2>/dev/null; then
+    echo "[$(date)] $SCRIPT_NAME lock acquired by another process, skipping" >> "$LOG_FILE"
+    if [ "${CHECKSHEETS_REQUIRE_JOB_RUN:-0}" = "1" ]; then exit 75; fi
+    exit 0
+fi
 
 # Legacy supplier upload entrypoints share a lock. The scheduled marketplace
 # workers use their own per-marketplace locks and do not enter this queue.
@@ -97,13 +108,13 @@ case "$SCRIPT_NAME" in
         EXIT_CODE=$?
         ;;
     etm_sync)
-        /opt/homebrew/bin/python3 etm_sync_multi_store.py >> "$LOG_FILE" 2>&1
+        /opt/homebrew/bin/python3 etm_sync_multi_store.py "${@:2}" >> "$LOG_FILE" 2>&1
         EXIT_CODE=$?
         echo "[$(date)] etm_sync finished with exit code $EXIT_CODE. Marketplace uploads run on their twice-daily schedules." >> "$LOG_FILE"
         ;;
     sync_etm_codes)
-        echo "[$(date)] sync_etm_codes disabled: CODES are no longer written" >> "$LOG_FILE"
-        EXIT_CODE=0
+        .venv-etm-export/bin/python -u sync_etm_codes.py "${@:2}" >> "$LOG_FILE" 2>&1
+        EXIT_CODE=$?
         ;;
     sync_feron_stocks)
         /opt/homebrew/bin/node sync-feron-stocks.js >> "$LOG_FILE" 2>&1

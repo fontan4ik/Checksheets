@@ -3,6 +3,7 @@ const axios = require("axios");
 const fs = require("fs");
 const path = require("path");
 const { sendTelegramAlert, sendFbsWarehouseReport, sendFbsMultiWarehouseReport, sendFbsBroadcastReport } = require("./telegram_notifier");
+const { refreshNtcCloudWbOwnership, filterLocalWbOwned } = require("./ntc_wb_ownership");
 const { createWbStockAudit } = require("./wb_stock_audit");
 const { createWbStockRateLimiter } = require("./wb_stock_rate_limiter");
 const { buildStockReport, throwOnStockSyncFailures } = require("./stock_sync_report");
@@ -144,7 +145,7 @@ function columnLetter(col) {
   return letter;
 }
 
-async function readFeronStocksFromSheet(auth) {
+async function readFeronStocksFromSheet(auth, marketplace) {
   const sheets = google.sheets({ version: "v4", auth });
 
   const headersResp = await sheets.spreadsheets.values.get({
@@ -257,15 +258,15 @@ async function readFeronStocksFromSheet(auth) {
   };
   log(`🧾 WB snapshot: readAt=${stocks.snapshotReadAt}, sources=${JSON.stringify(stocks.wbSourceColumns)}`);
 
-  return stocks;
+  return require("./stream_onboarding_gate").gatePublication(stocks, marketplace, { logger: log });
 }
 
-async function readFeronStocksWithRetries(auth, context) {
+async function readFeronStocksWithRetries(auth, context, marketplace) {
   const maxReadRetries = 5;
   for (let attempt = 1; attempt <= maxReadRetries; attempt++) {
     try {
       log(`📊 Чтение данных из листа "${SHEET_NAME}" (${context}, попытка ${attempt}/${maxReadRetries})...`);
-      return await readFeronStocksFromSheet(auth);
+      return await readFeronStocksFromSheet(auth, marketplace);
     } catch (err) {
       log(`⚠️ Ошибка чтения листа (${context}, попытка ${attempt}/${maxReadRetries}): ${err.message || err}`);
       if (attempt === maxReadRetries) throw err;
@@ -930,6 +931,8 @@ async function updateFeronStocksWB(stocks, pausedWarehouseKeys, zeroPausedWareho
   const wbWarehouseStats = [];
 
   for (const wh of warehouses) {
+    if (Number(wh.id) === 798761) await refreshNtcCloudWbOwnership(google.sheets({ version: "v4" }));
+    const warehouseStocks = filterLocalWbOwned(validStocks, wh.id);
     log(`\n📦 Обработка склада: ${wh.name} (ID: ${wh.id})...`);
 
     if (zeroPausedWarehouses && !pausedWarehouseKeys.has(wh.key)) {
@@ -938,7 +941,7 @@ async function updateFeronStocksWB(stocks, pausedWarehouseKeys, zeroPausedWareho
     }
 
     if (pausedWarehouseKeys.has(wh.key) && !zeroPausedWarehouses) {
-      const sourcePositiveSku = validStocks.filter((item) => Number(item[wh.col]) > 0).length;
+      const sourcePositiveSku = warehouseStocks.filter((item) => Number(item[wh.col]) > 0).length;
       log(`⏸️ Выгрузка Feron на WB для склада ${wh.name} приостановлена; запросы не отправляются`);
       wbWarehouseStats.push({
         warehouseName: wh.name,
@@ -963,7 +966,7 @@ async function updateFeronStocksWB(stocks, pausedWarehouseKeys, zeroPausedWareho
       log(`⏸️ FORCE_ZERO_WB_EKB: склад EKB будет записан нулями`);
     }
 
-    const activeCount = validStocks.filter((s) => {
+    const activeCount = warehouseStocks.filter((s) => {
       const amt = zeroPausedWarehouses || (FORCE_ZERO_WB_EKB && wh.key === "EKB") ? 0 : s[wh.col];
       return amt > 0;
     }).length;
@@ -974,7 +977,7 @@ async function updateFeronStocksWB(stocks, pausedWarehouseKeys, zeroPausedWareho
       marketplaceStockSku: null,
       marketplaceTotalPieces: null,
       sourcePositiveSku: activeCount,
-      attemptedSku: validStocks.length,
+      attemptedSku: warehouseStocks.length,
       acceptedSku: 0,
       skippedSku: 0,
       errorSku: 0,
@@ -985,14 +988,14 @@ async function updateFeronStocksWB(stocks, pausedWarehouseKeys, zeroPausedWareho
     });
 
     const batchSize = 200;
-    const batches = Math.ceil(validStocks.length / batchSize);
+    const batches = Math.ceil(warehouseStocks.length / batchSize);
 
     let warehouseSuccess = 0;
     let warehouseSkipped = 0;
     let warehouseError = 0;
 
     for (let i = 0; i < batches; i++) {
-      const batch = validStocks.slice(i * batchSize, (i + 1) * batchSize);
+      const batch = warehouseStocks.slice(i * batchSize, (i + 1) * batchSize);
 
       const validBatch = [];
       const auditItems = [];
@@ -1153,7 +1156,7 @@ async function main() {
   const client = await auth.getClient();
   google.options({ auth: client });
 
-  let stocks = await readFeronStocksWithRetries(client, "исходный снимок");
+  let stocks = await readFeronStocksWithRetries(client, "исходный снимок", marketplace);
 
   if (stocks.length === 0) {
     log("❌ Нет данных для синхронизации");
@@ -1179,7 +1182,7 @@ async function main() {
   let wbWarehouseStats = [];
   if (marketplace !== "ozon") {
     log(`📊 Перечитываем StreamSupps непосредственно перед WB записью, чтобы снимок не устарел за время Ozon этапа...`);
-    const wbStocks = await readFeronStocksWithRetries(client, "снимок перед WB");
+    const wbStocks = await readFeronStocksWithRetries(client, "снимок перед WB", "wb");
     if (wbStocks.length === 0) {
       throw new Error("Перед WB записью лист StreamSupps прочитан пустым; старый снимок не отправляю");
     }
@@ -1325,6 +1328,14 @@ if (require.main === module) {
 }
 
 module.exports = {
+  updateFeronStocksOzon,
+  updateFeronStocksWB,
+  readPausedFeronWarehouseKeys,
+  wbHeaders,
+  FERON_TR_OZON_WAREHOUSES,
+  FERON_TR_WB_WAREHOUSE,
+  FORCE_ZERO_WB_EKB,
+  sendFeronWBStocksBatch,
   fetchOzonWarehouseStocksByOfferId,
   verifyFeronOzonWarehouse,
 };

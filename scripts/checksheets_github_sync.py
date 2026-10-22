@@ -22,7 +22,9 @@ import json
 import logging
 import os
 from pathlib import Path
+import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -54,6 +56,9 @@ COMMAND_TIMEOUT = int(os.environ.get("CHECKSHEETS_SYNC_COMMAND_TIMEOUT", "300"))
 NPM = os.environ.get("CHECKSHEETS_SYNC_NPM", str(HOME / ".local" / "bin" / "npm"))
 BACKUP_KEEP_ALL_DAYS = 30
 BACKUP_KEEP_DAILY_DAYS = 90
+STALE_INDEX_LOCK_SECONDS = max(3600, int(os.environ.get("CHECKSHEETS_SYNC_STALE_INDEX_LOCK_SECONDS", "3600")))
+MAX_SOURCE_FILE_BYTES = 50 * 1024 * 1024
+_exclusive_lock_held = False
 
 SENSITIVE_NAMES = (
     ".env",
@@ -73,10 +78,27 @@ RUNTIME_PARTS = (
     "logs/",
     "test/tmp/",
     "tests/tmp/",
+    "test/runtime/",
+    "tests/runtime/",
     "scratch/",
+    "tmp/",
+    ".runtime/",
+    "outputs/",
     "output_to_user/",
     "graphify-out/cache/",
 )
+GENERATED_TEST_SUFFIXES = {
+    ".json", ".jsonl", ".ndjson", ".gz", ".zip", ".pdf", ".png", ".jpg",
+    ".jpeg", ".webp", ".gif", ".xlsx", ".xls", ".csv", ".tsv", ".log",
+    ".err", ".out", ".txt", ".sqlite", ".db", ".bin", ".pkl", ".pickle",
+    ".parquet", ".xml",
+}
+# Existing regression fixtures live beside their tests rather than in fixtures/.
+TEST_SOURCE_DATA_FILES = {
+    "test/package.json", "test/package-lock.json",
+    "test/obor_canonical_formulas_fixture.json",
+    "test/new_rs_cable_units_20261020.json",
+}
 
 
 class SyncDeferred(Exception):
@@ -98,6 +120,130 @@ def configure_logging() -> None:
 
 
 log = logging.getLogger("checksheets-sync")
+
+
+def _git_process_can_write(command: str) -> bool:
+    """Unknown Git subcommands/aliases are writers; ordinary reads are not."""
+    try:
+        args = shlex.split(command)[1:]
+    except ValueError:
+        return True
+    options_with_value = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"}
+    while args:
+        value = args.pop(0)
+        if value in options_with_value:
+            if not args:
+                return True
+            args.pop(0)
+        elif value.startswith("-"):
+            continue
+        else:
+            return value not in {
+                "status", "diff", "show", "log", "rev-parse", "ls-files", "ls-tree",
+                "cat-file", "for-each-ref", "check-ignore", "check-attr", "merge-base",
+                "name-rev", "describe", "grep", "version", "help",
+            }
+    return False
+
+
+def git_writer_active() -> bool:
+    """Fail closed if process inspection is unavailable or a Git writer exists.
+
+    Checking all Git writers is deliberately conservative: a client may specify
+    another cwd via -C or GIT_DIR, and ps cannot reliably expose its environment.
+    """
+    try:
+        result = subprocess.run(
+            ["ps", "-axo", "pid=,comm=,args="], text=True, errors="replace", capture_output=True,
+            timeout=10, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return True
+    if result.returncode:
+        return True
+    for line in result.stdout.splitlines():
+        parts = line.strip().split(None, 2)
+        if len(parts) == 3 and Path(parts[1]).name == "git" and _git_process_can_write(parts[2]):
+            return True
+    return False
+
+
+def index_lock_has_holder(path: Path, *, ignore_pid: int | None = None) -> bool:
+    """No lsof permission/tool must never be interpreted as an unused lock."""
+    binary = shutil.which("lsof")
+    if not binary:
+        return True
+    try:
+        result = subprocess.run(
+            [binary, "-t", str(path)], text=True, errors="replace", capture_output=True,
+            timeout=10, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return True
+    if result.stderr.strip():
+        return True
+    if result.returncode == 1 and not result.stdout.strip():
+        return False
+    if result.returncode == 0:
+        holders = result.stdout.split()
+        return not holders or any(not pid.isdigit() or int(pid) != ignore_pid for pid in holders)
+    return True
+
+
+def _lock_identity(value: os.stat_result) -> tuple:
+    return (value.st_dev, value.st_ino, value.st_mode, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+
+
+def recover_stale_git_index_lock() -> bool:
+    """Back up and remove only an old, empty, unowned, unchanged index.lock.
+
+    Called under the deployment flock before a normal cycle. Nonempty locks may
+    contain a recoverable index, so they always require manual investigation.
+    The descriptor and repeated identity checks reject lock replacement/updates
+    observed during recovery; no Git ref or working-tree data is changed.
+    """
+    if not _exclusive_lock_held:
+        raise RuntimeError("Stale index lock recovery requires the Checksheets sync lock")
+    result = run(("git", "rev-parse", "--git-path", "index.lock"), cwd=PROJECT_ROOT, check=False)
+    if result.returncode:
+        return False
+    path = Path(result.stdout.strip())
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    try:
+        before = path.lstat()
+    except FileNotFoundError:
+        return False
+    if (not stat.S_ISREG(before.st_mode) or before.st_size
+            or time.time() - max(before.st_mtime, before.st_ctime) < STALE_INDEX_LOCK_SECONDS):
+        return False
+    if index_lock_has_holder(path) or git_writer_active():
+        return False
+    try:
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    except OSError:
+        return False
+    with os.fdopen(descriptor, "rb") as source:
+        if _lock_identity(os.fstat(source.fileno())) != _lock_identity(before):
+            return False
+        backup_dir = BACKUP_ROOT / "git-index-locks"
+        backup_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        backup_fd, backup_name = tempfile.mkstemp(prefix="index-", suffix=".lock", dir=backup_dir)
+        with os.fdopen(backup_fd, "wb") as destination:
+            shutil.copyfileobj(source, destination)
+            destination.flush()
+            os.fsync(destination.fileno())
+        if index_lock_has_holder(path, ignore_pid=os.getpid()) or git_writer_active():
+            return False
+        try:
+            unchanged = _lock_identity(path.lstat()) == _lock_identity(before)
+        except FileNotFoundError:
+            return False
+        if not unchanged or _lock_identity(os.fstat(source.fileno())) != _lock_identity(before):
+            return False
+        path.unlink()
+    log.warning("Убрана устаревшая пустая Git index.lock; резервная копия: %s", backup_name)
+    return True
 
 
 def run(
@@ -199,10 +345,58 @@ def is_sensitive_path(path: str) -> bool:
 
 def is_runtime_path(path: str) -> bool:
     normalized = path.replace("\\", "/")
-    return any(
+    parts = Path(normalized).parts
+    if any(part in {"node_modules", "__pycache__", ".cache", ".brvcache", ".wrangler",
+                    ".pytest_cache", ".mypy_cache", ".ruff_cache"} for part in parts):
+        return True
+    if any(
         normalized == part.rstrip("/") or normalized.startswith(part)
         for part in RUNTIME_PARTS
-    ) or normalized.endswith(".pyc")
+    ) or normalized.endswith(".pyc"):
+        return True
+    if parts and parts[0] in {"test", "tests"}:
+        name = Path(normalized).name.lower()
+        fixture = (normalized in TEST_SOURCE_DATA_FILES
+                   or any(part.lower() in {"fixtures", "mocks"} for part in parts[1:-1])
+                   or "fixture" in name or name.startswith("mock_") or "_mock." in name)
+        copied_directory = any(part.lower() in {"remote_main", "backups", "backup"}
+                               for part in parts[1:-1])
+        copied_name = not name.startswith("test_") and any(
+            fnmatch.fnmatch(name, pattern) for pattern in (
+                "*.before.*", "*.after.*", "*.before", "*.after", "*.backup", "*.bak",
+                "*.before-*", "*.after-*",
+            )
+        )
+        if not fixture and (copied_directory or copied_name):
+            return True
+        if Path(normalized).suffix.lower() in GENERATED_TEST_SUFFIXES:
+            return not (fixture or name in {"package.json", "package-lock.json", "tsconfig.json"})
+    return False
+
+
+def oversized_source_file(path: str) -> bool:
+    try:
+        metadata = (PROJECT_ROOT / path).lstat()
+    except FileNotFoundError:
+        return False
+    return stat.S_ISREG(metadata.st_mode) and metadata.st_size > MAX_SOURCE_FILE_BYTES
+
+
+def gitlink_head_is_published(target: Path) -> bool:
+    """Only publish child HEADs already known to be reachable on child origin.
+
+    No network request is made by this check. A child without an origin or a
+    locally known origin ref containing HEAD must be synchronized independently
+    before the root repository can safely advertise its new commit reference.
+    """
+    remote = git("-C", str(target), "remote", "get-url", "origin", check=False)
+    if remote.returncode:
+        return False
+    refs = git(
+        "-C", str(target), "for-each-ref", "--contains=HEAD", "--format=%(refname)",
+        "refs/remotes/origin/", check=False,
+    )
+    return refs.returncode == 0 and bool(refs.stdout.strip())
 
 
 def read_state() -> dict:
@@ -235,10 +429,10 @@ def status_paths() -> list[str]:
 
 def stash_runtime_changes() -> str | None:
     changed = status_paths()
-    non_runtime = [path for path in changed if not is_runtime_path(path)]
+    non_runtime = [path for path in changed if not is_runtime_path(path) and not oversized_source_file(path)]
     if non_runtime:
         raise SyncDeferred("source-файлы ещё меняются: " + ", ".join(non_runtime[:10]))
-    candidates = [path for path in changed if is_runtime_path(path)]
+    candidates = [path for path in changed if is_runtime_path(path) or oversized_source_file(path)]
     if not candidates:
         return None
     # Untracked runtime files stay in place: stash without --include-untracked
@@ -293,6 +487,8 @@ def fetch_origin() -> None:
 
 def source_snapshot() -> dict[str, tuple]:
     snapshot = {}
+    oversized_sizes = []
+    unpublished_gitlinks = 0
     for path in status_paths():
         target = PROJECT_ROOT / path
         if is_runtime_path(path) or (is_sensitive_path(path) and target.exists()):
@@ -301,9 +497,16 @@ def source_snapshot() -> dict[str, tuple]:
             if target.is_symlink():
                 signature = ("symlink", os.readlink(target))
             elif target.is_file():
+                size = target.stat().st_size
+                if size > MAX_SOURCE_FILE_BYTES:
+                    oversized_sizes.append(size)
+                    continue
                 signature = ("file", sha256(target))
             elif target.is_dir():
                 # With --untracked-files=all, directories here are gitlinks.
+                if not gitlink_head_is_published(target):
+                    unpublished_gitlinks += 1
+                    continue
                 signature = ("gitlink", git("-C", str(target), "rev-parse", "HEAD").stdout.strip())
             else:
                 signature = ("deleted",)
@@ -311,6 +514,19 @@ def source_snapshot() -> dict[str, tuple]:
             # A writer changed the file while it was being observed.
             continue
         snapshot[path] = signature
+    if oversized_sizes:
+        log.warning(
+            "Не включаю в GitHub sync source-файлы крупнее %.0f MiB: %s файлов, %.1f MiB; "
+            "локальные данные сохранены",
+            MAX_SOURCE_FILE_BYTES / (1024 * 1024), len(oversized_sizes),
+            sum(oversized_sizes) / (1024 * 1024),
+        )
+    if unpublished_gitlinks:
+        log.warning(
+            "Не публикую gitlink без подтверждённого child origin HEAD: %s; "
+            "вложенные проекты нужно синхронизировать отдельно",
+            unpublished_gitlinks,
+        )
     return snapshot
 
 
@@ -563,13 +779,18 @@ def push_apps_script(dry_run: bool) -> dict:
 
 @contextlib.contextmanager
 def exclusive_lock():
+    global _exclusive_lock_held
     STATE_ROOT.mkdir(parents=True, exist_ok=True)
     with LOCK_PATH.open("w", encoding="utf-8") as handle:
         try:
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise SyncDeferred("Другой Checksheets sync или обслуживание уже выполняется")
-        yield
+        _exclusive_lock_held = True
+        try:
+            yield
+        finally:
+            _exclusive_lock_held = False
 
 
 def main() -> int:
@@ -581,6 +802,8 @@ def main() -> int:
 
     try:
         with exclusive_lock():
+            if not args.dry_run:
+                recover_stale_git_index_lock()
             state = read_state()
             local, remote = reconcile_git(args.dry_run)
             if args.dry_run:

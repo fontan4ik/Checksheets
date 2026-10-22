@@ -41,7 +41,7 @@ DOC_FIELDS = ("id", "type", "number", "productNumber", "tradeName", "applicant",
 # Wildberries fills these document characteristics from documents.items when a
 # document is attached. They are part of the intended update, even though the
 # original card did not contain them.
-ALLOWED_ADDED_CHARACTERISTIC_IDS = {15001136, 15001137, 15001138}
+ALLOWED_ADDED_CHARACTERISTIC_IDS = {15001135, 15001136, 15001137, 15001138}
 BASE_DIR = Path(__file__).resolve().parent
 
 
