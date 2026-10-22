@@ -151,6 +151,8 @@ def create_ozon_record(client: Client, document: dict, targets: dict[str, dict],
     first = targets[sorted(targets)[0]]
     expiry = dt.date.fromisoformat(EXPIRY)
     source = ROOT / document["source_file"]
+    if not source.is_file() or hashlib.sha256(source.read_bytes()).hexdigest() != document["sha256"]:
+        raise RuntimeError("source_file_missing_or_hash_changed:" + number)
     payload = {"params": {
         "name": f"{('Сертификат соответствия' if document['type_code'] == 'certificate_of_conformity' else 'Декларация о соответствии')} № {number}",
         "certificate_type": document["ozon_create_type"], "certificate_country": "RU",
@@ -181,6 +183,14 @@ def create_ozon_record(client: Client, document: dict, targets: dict[str, dict],
         state["error_type"] = type(exc).__name__
         save(STATE, state)
         raise
+
+    certificate_id = response.get("certificate_id") if isinstance(response, dict) else None
+    status = str(response.get("status") or "") if isinstance(response, dict) else ""
+    if certificate_id is None or status != "COMPLETED":
+        state["phase"] = "ozon_create_response_not_completed_reconcile_required"
+        state["current_document"] = document["key"]
+        save(STATE, state)
+        raise RuntimeError("ozon_create_not_completed_reconcile_before_any_binding:" + number)
 
     record = None
     for attempt in range(8):
@@ -256,15 +266,32 @@ def bind_ozon_targets(client: Client, document: dict, record: dict,
 
 
 def main() -> None:
-    required = [STATE, OZON_JOURNAL, WB_JOURNAL, WB_BEFORE, WB_READBACK]
-    if any(x.exists() for x in required):
-        raise RuntimeError("execution_artifact_exists_reconcile_before_any_retry")
+    resume = None
+    if STATE.exists():
+        prior = json.loads(STATE.read_text())
+        reconciliation_path = HERE / "jazzway_power_connectors_ozon_create_reconciliation_20261022.json"
+        reconciliation = json.loads(reconciliation_path.read_text()) if reconciliation_path.exists() else {}
+        failed_create = (prior.get("phase") == "ozon_created_record_not_visible_do_not_retry"
+            and prior.get("create_responses", {}).get("certificate_04539", {}).get("certificate_id") is None
+            and prior.get("create_responses", {}).get("certificate_04539", {}).get("status") == "INCOMPLETE"
+            and any(x.get("name") == "CERTIFICATE_TYPE" and x.get("state") == "INVALID"
+                    for x in prior.get("create_responses", {}).get("certificate_04539", {}).get("params", [])))
+        exact_absence = (reconciliation.get("read_only") is True
+            and reconciliation.get("create_response_confirmed_incomplete_no_id") is True
+            and {x.get("number") for x in reconciliation.get("exact_number_lookups", [])
+                 if x.get("http_status") == 404 and x.get("record_found") is False}
+                == {x["number"] for x in DOCS})
+        if (not failed_create or not exact_absence or not OZON_JOURNAL.exists()
+                or any(x.exists() for x in (WB_JOURNAL, WB_BEFORE, WB_READBACK))):
+            raise RuntimeError("existing_execution_requires_manual_reconciliation_before_retry")
+        resume = prior
+    elif any(x.exists() for x in (OZON_JOURNAL, WB_JOURNAL, WB_BEFORE, WB_READBACK)):
+        raise RuntimeError("execution_journal_exists_without_state_reconcile_before_retry")
     pre = json.loads(PREFLIGHT.read_text())
     if (pre.get("read_only") is not True or pre.get("ozon_identity_scope_safe_count") != 36
             or pre.get("wb_identity_scope_safe_count") != 36 or pre.get("products_per_document") != 36
             or pre.get("tnved") != TNVED or pre.get("issue_date") != ISSUE or pre.get("expiry_date") != EXPIRY):
         raise RuntimeError("preflight_not_fully_safe_or_identity_changed")
-    expected_numbers = {x["number"] for x in DOCS}
     if any(pre.get("documents", [])[i].get("number") != doc["number"] for i, doc in enumerate(DOCS)):
         raise RuntimeError("preflight_document_order_or_identity_changed")
     ozon_targets = {}
@@ -289,6 +316,16 @@ def main() -> None:
         "phase": "fresh_prewrite_scope_passed", "ozon_final_readbacks": {},
         "fresh_wb_identity_count_before_first_write": len(fresh_wb_ids),
     }
+    if resume:
+        state["prior_failed_attempt"] = {
+            "phase": resume.get("phase"),
+            "create_response": resume.get("create_responses", {}).get("certificate_04539"),
+            "confirmed_no_record_at": json.loads((HERE / "jazzway_power_connectors_ozon_create_reconciliation_20261022.json").read_text()).get("checked_at_utc"),
+        }
+        state["attempt_number"] = 2
+        state["resume_basis"] = "invalid_certificate_type_rejected_without_id_and_exact_read_only_lookups_404"
+    else:
+        state["attempt_number"] = 1
     save(STATE, state)
 
     for document in DOCS:

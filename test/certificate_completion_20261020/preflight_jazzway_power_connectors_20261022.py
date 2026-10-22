@@ -26,7 +26,7 @@ EXPIRY = "2031-04-12"
 DOCS = [
     {
         "key": "certificate_04539", "number": "ЕАЭС RU С-HK.СП28.В.04539/26",
-        "type_code": "certificate_of_conformity", "ozon_create_type": "CERTIFICATE", "wb_type": 1,
+        "type_code": "certificate_of_conformity", "ozon_create_type": "CERTIFICATE_OF_CONFORMITY", "wb_type": 1,
         "source_file": "output_to_user/certificates/group_2/JAZZWAY/documents/certificate_ac8cb1fa1d.pdf",
         "sha256": "2b727485f9e87b0a78492d4afec02b80d5e2741f98740b8c81f810dfb4d602c9",
         "source_url": "https://jazz-way.com/docs/sertifikaty/razemy-silovye-vilki-rozetki-ss-tr-ts-004-12.04.2031.pdf",
