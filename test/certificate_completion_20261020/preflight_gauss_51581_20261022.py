@@ -132,8 +132,10 @@ def main() -> None:
         if bound and (str(bound.get("product_id") or "") != product_id or str(bound.get("sku") or "") != sku):
             reasons.append("existing_binding_identity_conflict")
         ozon_targets.append({**t, "live_product_id": product_id, "live_sku": sku,
+            "product_id": product_id, "sku": sku,
             "live_brand": brands, "live_tnved": tnved, "is_archived": p.get("is_archived"),
             "existing_binding": bound, "safe_for_new_bind": not reasons and not bound,
+            "safe_for_ozon": not reasons and not bound,
             "already_exact_binding": bool(bound and not reasons), "problems": reasons})
 
     wb_targets = []
@@ -172,6 +174,7 @@ def main() -> None:
     safe_wb = [x for x in wb_targets if x["safe_for_update"]]
     already_wb = [x for x in wb_targets if x["already_exact"]]
     out = {"checked_at_utc": now(), "read_only": True, "number": NUMBER,
+        "issue_date": ISSUE, "expire_date": EXPIRY,
         "source_pdf": str(SOURCE), "source_sha256": SOURCE_SHA256,
         "source_date_scope": {"issue_date": ISSUE, "expire_date": EXPIRY, "tnved": sorted(TNVED), "regulation": "ТР ЕАЭС 037/2016"},
         "ozon_record": ({k: record.get(k) for k in ("certificate_id", "certificate_number", "type_code", "status_code", "issue_date", "expire_date", "products_count")} if record else None),
@@ -179,6 +182,7 @@ def main() -> None:
         "ozon_safe_targets": len(safe_ozon), "ozon_already_exact_targets": len(existing_ozon),
         "ozon_problem_counts": dict(Counter(p for x in ozon_targets for p in x["problems"])),
         "wb_targets": wb_targets, "wb_safe_targets": len(safe_wb), "wb_already_exact_targets": len(already_wb),
+        "wb_update_targets": len(safe_wb),
         "wb_problem_counts": dict(Counter(p for x in wb_targets for p in x["problems"])),
         "wb_review_left_pending": True, "local_source_deleted": False}
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
