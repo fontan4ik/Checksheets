@@ -148,31 +148,24 @@ def main() -> None:
             break
     else:
         raise RuntimeError("ozon_certificate_page_limit")
-    live_target_by_id = {str(p.get("product_id") or p.get("id")): (str(p.get("offer_id")), str(p.get("sku")))
-                         for p in fresh_products}
-    covered_product_ids = set()
-    live_expanded = 0
-    today = now()[:10]
-    for record in certificates:
-        if (record.get("status_code") != "approved"
-                or not str(record.get("expire_date") or "")[:10]
-                or str(record.get("expire_date") or "")[:10] < today):
-            continue
-        cid = record.get("certificate_id")
-        if not cid:
-            continue
-        bindings = c.ozon_bindings(cid)
-        live_expanded += 1
-        for binding in bindings:
-            product_id = str(binding.get("product_id") or "")
-            current = live_target_by_id.get(product_id)
-            if (current and current == (current[0], str(binding.get("sku") or ""))
-                    and binding.get("product_status_code") == "approved"):
-                covered_product_ids.add(product_id)
     records = {}
     for key, info in DOCS.items():
         matches = [r for r in certificates if norm_number(r.get("certificate_number")) == norm_number(info["number"])]
         records[key] = [{k: r.get(k) for k in ("certificate_id", "certificate_number", "type_code", "status_code", "issue_date", "expire_date", "products_count")} for r in matches]
+    exact_declaration_records = [r for r in certificates if norm_number(r.get("certificate_number")) == norm_number(DOCS["declaration"]["number"])]
+    exact_declaration_bindings = []
+    if len(exact_declaration_records) == 1 and exact_declaration_records[0].get("status_code") == "approved":
+        exact_declaration_bindings = c.ozon_bindings(exact_declaration_records[0]["certificate_id"])
+    live_target_by_id = {str(p.get("product_id") or p.get("id")): (str(p.get("offer_id")), str(p.get("sku")))
+                         for p in fresh_products}
+    exact_approved_pairs = set()
+    for binding in exact_declaration_bindings:
+        product_id = str(binding.get("product_id") or "")
+        current = live_target_by_id.get(product_id)
+        pair = (product_id, str(binding.get("sku") or ""))
+        if (current and current == (current[0], pair[1])
+                and binding.get("product_status_code") == "approved"):
+            exact_approved_pairs.add((current[0], product_id, pair[1]))
 
     rows = []
     for offer in targets:
@@ -203,7 +196,7 @@ def main() -> None:
             pass  # Explicit exact-model scope is verified in the source declaration PDF.
         elif not tnved or not set(tnved) <= DOCS["declaration"]["allowed_tnved"]:
             ozon_conflicts.append("ozon_tnved_unconfirmed_or_out_of_scope")
-        covered_now = str(p.get("product_id") or p.get("id")) in covered_product_ids
+        exact_binding_now = (offer, str(p.get("product_id") or p.get("id")), str(p.get("sku"))) in exact_approved_pairs
         card_rows = wb_by_offer[offer]
         wb_conflicts = []
         card = card_rows[0] if len(card_rows) == 1 else {}
@@ -236,7 +229,7 @@ def main() -> None:
         rows.append({
             "offer_id": offer, "product_id": str(p.get("product_id") or p.get("id")), "sku": str(p.get("sku")),
             "product_name": p.get("name"), "brand_attribute_values": attrvals["85"],
-            "ozon_tnved": tnved, "current_approved_document_before_new_writes": covered_now,
+            "ozon_tnved": tnved, "current_exact_declaration_approved_binding_before_new_writes": exact_binding_now,
             "declaration_model_scope_verified": bool(scope_row and scope_row.get("declaration_model_present_in_pdf")),
             "marketplace_tnved_differs_from_declaration": bool(scope_row and scope_row.get("marketplace_tnved_differs_from_declaration")),
             "ozon_eligible": not ozon_conflicts, "ozon_conflicts": ozon_conflicts,
@@ -259,10 +252,10 @@ def main() -> None:
         "certificate_dates": ([DOCS["certificate"]["issue_date"], DOCS["certificate"]["expire_date"]]
                              if "certificate" in DOCS else None),
         "ozon_record_matches": records,
-        "live_approved_ozon_documents_expanded_for_target_coverage": live_expanded,
+        "current_exact_ozon_declaration_binding_rows_read": len(exact_declaration_bindings),
         "target_count": len(rows),
-        "target_products_already_covered_by_any_current_approved_document": sum(x["current_approved_document_before_new_writes"] for x in rows),
-        "target_products_without_any_current_approved_document": sum(not x["current_approved_document_before_new_writes"] for x in rows),
+        "target_products_with_exact_declaration_already_approved": sum(x["current_exact_declaration_approved_binding_before_new_writes"] for x in rows),
+        "target_products_needing_exact_declaration_attachment": sum(not x["current_exact_declaration_approved_binding_before_new_writes"] for x in rows),
         "ozon_eligible_targets": sum(x.get("ozon_eligible") is True for x in rows),
         "ozon_skipped_targets": [x["offer_id"] for x in rows if x.get("ozon_eligible") is not True],
         "wb_eligible_targets": sum(x.get("wb_eligible") is True for x in rows),
@@ -279,8 +272,8 @@ def main() -> None:
     }
     OUT.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps({k: summary[k] for k in (
-        "checked_at_utc", "target_count", "target_products_already_covered_by_any_current_approved_document",
-        "target_products_without_any_current_approved_document", "wb_declaration_valid", "wb_certificate_valid",
+        "checked_at_utc", "target_count", "target_products_with_exact_declaration_already_approved",
+        "target_products_needing_exact_declaration_attachment", "wb_declaration_valid", "wb_certificate_valid",
         "ozon_record_matches", "ozon_tnved_distribution", "wb_tnved_distribution")}, ensure_ascii=False, indent=2))
 
 
