@@ -427,12 +427,27 @@ def status_paths() -> list[str]:
     return paths
 
 
-def stash_runtime_changes() -> str | None:
+def stash_runtime_changes(*, incoming_refs: tuple[str, str] | None = None) -> str | None:
     changed = status_paths()
-    non_runtime = [path for path in changed if not is_runtime_path(path) and not oversized_source_file(path)]
+    unpublished_gitlinks = {
+        path for path in changed
+        if (PROJECT_ROOT / path).is_dir() and not (PROJECT_ROOT / path).is_symlink()
+        and not gitlink_head_is_published(PROJECT_ROOT / path)
+    }
+    if incoming_refs and unpublished_gitlinks:
+        incoming_gitlinks = git(
+            "diff", "--name-only", "-z", *incoming_refs, "--", *sorted(unpublished_gitlinks),
+        ).stdout
+        if incoming_gitlinks:
+            raise SyncDeferred("Удалённая ветка меняет ссылку на локальный неопубликованный вложенный проект")
+    # These children are maintained independently. Neither stash them nor let a
+    # dirty child HEAD prevent an unrelated update to the root repository.
+    non_runtime = [path for path in changed if path not in unpublished_gitlinks
+                   and not is_runtime_path(path) and not oversized_source_file(path)]
     if non_runtime:
         raise SyncDeferred("source-файлы ещё меняются: " + ", ".join(non_runtime[:10]))
-    candidates = [path for path in changed if is_runtime_path(path) or oversized_source_file(path)]
+    candidates = [path for path in changed if path not in unpublished_gitlinks
+                  and (is_runtime_path(path) or oversized_source_file(path))]
     if not candidates:
         return None
     # Untracked runtime files stay in place: stash without --include-untracked
@@ -475,7 +490,7 @@ def fetch_origin() -> None:
     last_error: Exception | None = None
     for attempt in range(1, 4):
         try:
-            git("fetch", "origin", BRANCH, "--quiet")
+            git("fetch", "--recurse-submodules=no", "origin", BRANCH, "--quiet")
             return
         except Exception as exc:  # pragma: no cover - network-dependent branch
             last_error = exc
@@ -580,18 +595,18 @@ def reconcile_git(dry_run: bool) -> tuple[str, str]:
         git("push", "origin", f"HEAD:{BRANCH}")
     else:
         # Only operations changing the checkout require a clean source tree.
-        runtime_stash = stash_runtime_changes()
+        runtime_stash = stash_runtime_changes(incoming_refs=(local, remote))
         try:
             if git_is_ancestor(local, remote):
                 log.info("GitHub впереди; fast-forward до %s", remote[:12])
-                git("merge", "--ff-only", f"origin/{BRANCH}")
+                git("-c", "submodule.recurse=false", "merge", "--ff-only", f"origin/{BRANCH}")
             else:
                 log.warning("Ветки разошлись; выполняю rebase на origin/%s", BRANCH)
                 try:
-                    git("rebase", f"origin/{BRANCH}")
+                    git("-c", "submodule.recurse=false", "rebase", f"origin/{BRANCH}")
                     git("push", "origin", f"HEAD:{BRANCH}")
                 except Exception:
-                    git("rebase", "--abort", check=False)
+                    git("-c", "submodule.recurse=false", "rebase", "--abort", check=False)
                     raise RuntimeError("Автоматический rebase остановлен; нужна проверка конфликта.")
         finally:
             restore_runtime_changes(runtime_stash)

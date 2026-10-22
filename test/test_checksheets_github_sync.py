@@ -417,6 +417,25 @@ class GithubSyncRepositoryTests(unittest.TestCase):
                                'refs/heads/main'], text=True, capture_output=True,
                               check=True).stdout.strip()
 
+    def independent_child(self):
+        child = self.root / 'sites/app'
+        child.mkdir(parents=True)
+
+        def child_git(*args):
+            return subprocess.run(['git', *args], cwd=child, text=True,
+                                  capture_output=True, check=True).stdout.strip()
+
+        child_git('init', '-q', '-b', 'main')
+        child_git('config', 'user.email', 'test@example.invalid')
+        child_git('config', 'user.name', 'Sync Test')
+        (child / 'child.py').write_text('base child\n')
+        child_git('add', '.')
+        child_git('commit', '-qm', 'base child')
+        self.git('add', 'sites/app')
+        self.git('commit', '-qm', 'track independent child')
+        self.git('push', '-q', 'origin', 'main')
+        return child, child_git
+
     def test_untracked_runtime_does_not_reuse_or_remove_existing_stash(self):
         self.write('source.js', 'previous stash\n')
         self.git('stash', 'push', '-qm', 'existing unrelated work')
@@ -449,6 +468,61 @@ class GithubSyncRepositoryTests(unittest.TestCase):
         self.assertEqual((self.root / 'test/api_calls.jsonl').read_text(), 'new local payload\n')
         self.assertTrue((self.root / 'test/snapshot.json').exists())
         self.assertEqual(self.git('diff', '--cached', '--name-only'), 'test/snapshot.json')
+
+    def test_remote_unrelated_advance_preserves_unpublished_child(self):
+        child, child_git = self.independent_child()
+        base = self.git('rev-parse', 'HEAD')
+        (child / 'child.py').write_text('unpublished child\n')
+        child_git('add', '.')
+        child_git('commit', '-qm', 'unpublished child')
+        child_head = child_git('rev-parse', 'HEAD')
+        (child / 'local-note').write_text('uncommitted child data\n')
+        self.write('remote.js', 'remote source\n')
+        self.git('add', 'remote.js')
+        self.git('commit', '-qm', 'remote source')
+        remote = self.git('rev-parse', 'HEAD')
+        self.git('push', '-q', 'origin', 'main')
+        self.git('reset', '--hard', base)
+        self.git('config', 'submodule.recurse', 'true')
+        self.write('logs/runtime.txt', 'pending root runtime\n')
+
+        with patch.object(sync, 'SETTLE_SECONDS', 0):
+            self.assertEqual(sync.reconcile_git(False), (remote, remote))
+
+        self.assertEqual(child_git('rev-parse', 'HEAD'), child_head)
+        self.assertEqual((child / 'child.py').read_text(), 'unpublished child\n')
+        self.assertEqual((child / 'local-note').read_text(), 'uncommitted child data\n')
+        self.assertEqual((self.root / 'logs/runtime.txt').read_text(), 'pending root runtime\n')
+        self.assertEqual(self.git('stash', 'list'), '')
+        self.assertTrue((self.root / 'remote.js').is_file())
+
+    def test_remote_child_pointer_change_defers_without_stash_or_checkout(self):
+        child, child_git = self.independent_child()
+        base = self.git('rev-parse', 'HEAD')
+        (child / 'child.py').write_text('remote pointer child\n')
+        child_git('add', '.')
+        child_git('commit', '-qm', 'child referenced remotely')
+        self.git('add', 'sites/app')
+        self.git('commit', '-qm', 'remote child pointer')
+        remote = self.git('rev-parse', 'HEAD')
+        self.git('push', '-q', 'origin', 'main')
+        self.git('reset', '--hard', base)
+        (child / 'child.py').write_text('new unpublished child\n')
+        child_git('add', '.')
+        child_git('commit', '-qm', 'new unpublished child')
+        child_head = child_git('rev-parse', 'HEAD')
+        (child / 'local-note').write_text('uncommitted child data\n')
+        self.git('config', 'submodule.recurse', 'true')
+
+        with patch.object(sync, 'SETTLE_SECONDS', 0):
+            with self.assertRaises(sync.SyncDeferred):
+                sync.reconcile_git(False)
+
+        self.assertEqual(self.git('rev-parse', 'HEAD'), base)
+        self.assertEqual(self.remote_head(), remote)
+        self.assertEqual(child_git('rev-parse', 'HEAD'), child_head)
+        self.assertEqual((child / 'local-note').read_text(), 'uncommitted child data\n')
+        self.assertEqual(self.git('stash', 'list'), '')
 
     def test_tracked_runtime_stash_restores_exact_entry_if_new_stash_appears(self):
         self.write('logs/runtime.txt', 'pending runtime\n')
