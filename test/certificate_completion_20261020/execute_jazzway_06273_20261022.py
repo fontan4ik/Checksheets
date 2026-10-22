@@ -24,8 +24,8 @@ SOURCE = ROOT / "output_to_user/certificates/group_2/JAZZWAY/documents/certifica
 SOURCE_SHA = "9007863e6987077a3770cdbf657813b39b0b6bb65d051bf8201a87c7aa6002ec"
 ISSUE = "2022-11-29"
 EXPIRY = "2027-11-28"
-ALLOWED_TNVED = {"9405420012"}
-PREFLIGHT = HERE / "jazzway_06273_live_preflight_20261022.json"
+ALLOWED_TNVED = {"8539520001", "8539520002", "8539520003", "8539520009"}
+PREFLIGHT = HERE / "jazzway_06273_preflight_v2_20261022.json"
 STATE_PATH = HERE / "jazzway_06273_execution_20261022.json"
 OZON_JOURNAL = HERE / "jazzway_06273_ozon_mutations_20261022.jsonl"
 WB_JOURNAL = HERE / "jazzway_06273_wb_mutations_20261022.jsonl"
@@ -81,14 +81,21 @@ def main() -> None:
         raise RuntimeError("execution_artifact_exists_reconcile_before_any_retry")
     pre = json.loads(PREFLIGHT.read_text())
     if (pre.get("read_only") is not True or pre.get("number") != NUMBER
-            or pre.get("ozon_safe_targets") != pre.get("ozon_safe_targets") or pre.get("wb_update_targets") != pre.get("wb_safe_targets")
-            or pre.get("expire_date") != EXPIRY):
+            or pre.get("uncovered_source_assignments") != 280
+            or pre.get("source_sha256") != SOURCE_SHA
+            or pre.get("wb_review_left_pending") is not True):
         raise RuntimeError("preflight_identity_or_target_counts_changed")
     if hashlib.sha256(SOURCE.read_bytes()).hexdigest() != SOURCE_SHA:
         raise RuntimeError("source_pdf_hash_changed")
-    ozon_targets = {x["offer_id"]: x for x in pre["ozon_targets"] if x.get("safe_for_ozon") is True}
-    wb_targets = {x["offer_id"]: x for x in pre["wb_targets"]}
-    if len(ozon_targets) != pre.get("ozon_safe_targets") or len(wb_targets) != pre.get("wb_safe_targets"):
+    ozon_targets = {x["offer_id"]: x for x in pre["ozon_targets"] if x.get("safe_for_new_bind") is True}
+    wb_all = {x["offer_id"]: x for x in pre["wb_targets"]}
+    wb_targets = {offer: row for offer, row in wb_all.items() if row.get("safe_for_update") is True}
+    wb_preexisting = {offer: row for offer, row in wb_all.items() if row.get("already_exact") is True}
+    wb_preflight_excluded = [row for row in pre["wb_targets"]
+                             if not row.get("safe_for_update") and not row.get("already_exact")]
+    if (len(ozon_targets) != pre.get("ozon_safe_targets")
+            or len(wb_targets) != pre.get("wb_safe_targets")
+            or len(wb_all) != 280):
         raise RuntimeError("preflight_target_set_not_unique")
     if len({x["sku"] for x in ozon_targets.values()}) != len(ozon_targets):
         raise RuntimeError("ozon_skus_not_unique")
@@ -96,7 +103,10 @@ def main() -> None:
     client = Client()
     state = {"started_at_utc": now(), "number": NUMBER, "source_sha256": SOURCE_SHA,
         "issue_date": ISSUE, "expire_date": EXPIRY, "ozon_preflight_targets": pre.get("ozon_safe_targets"),
-        "wb_preflight_targets": pre.get("wb_safe_targets"), "ozon_mutation_attempted": False,
+        "wb_preflight_targets": pre.get("wb_safe_targets"),
+        "wb_preflight_excluded": [{"offer_id": x.get("offer_id"), "problems": x.get("problems")}
+                                   for x in wb_preflight_excluded],
+        "ozon_mutation_attempted": False,
         "wb_mutation_attempted": False, "local_source_deleted": False,
         "wb_review_left_pending": True, "phase": "fresh_prewrite_check"}
     save(STATE_PATH, state)
@@ -127,7 +137,8 @@ def main() -> None:
         if (p.get("is_archived") is not False
                 or str(p.get("product_id") or p.get("id") or "") != expected["product_id"]
                 or str(p.get("sku") or "") != expected["sku"]
-                or brands != ["Gauss"] or tnved != sorted(ALLOWED_TNVED)):
+                or len(brands) != 1 or brands[0].strip().casefold() != "jazzway"
+                or len(tnved) != 1 or tnved[0] not in ALLOWED_TNVED):
             raise RuntimeError("fresh_ozon_identity_or_scope_changed:" + offer)
 
     matches = find_record(client)
@@ -199,7 +210,7 @@ def main() -> None:
         "type_code", "status_code", "issue_date", "expire_date", "products_count")}
     state["ozon_record_visible"] = True
     if str(record.get("status_code") or "").casefold() in {"declined", "rejected", "invalid", "cancelled"}:
-        state.update({"phase": "ozon_record_declined_no_binding", "ozon_bindings_expected": 127})
+        state.update({"phase": "ozon_record_declined_no_binding", "ozon_bindings_expected": len(ozon_targets)})
         save(STATE_PATH, state)
     else:
         cid = int(record["certificate_id"])
@@ -264,7 +275,9 @@ def main() -> None:
     # Prepare one WB update batch, preserving all existing card fields and documents.
     desired = {"type": 1, "number": NUMBER, "startDate": wb_datetime(ISSUE),
                "endDate": wb_datetime(EXPIRY), "isEndless": False}
-    updates, already, exclusions, before = [], [], [], {}
+    updates, already, exclusions, before = [], [
+        {"offer_id": offer, "document": (row.get("existing_exact_documents") or [None])[0]}
+        for offer, row in wb_preexisting.items()], [], {}
     for index, (offer, expected) in enumerate(sorted(wb_targets.items()), 1):
         cards = [x for x in client.wb_cards(offer) if str(x.get("vendorCode") or "") == offer]
         if len(cards) != 1:
@@ -273,14 +286,14 @@ def main() -> None:
         card = cards[0]
         tnved = code_values(card)
         if (str(card.get("nmID") or "") != expected["nmID"]
-                or str(card.get("brand") or "").strip().casefold() != "gauss"
-                or tnved != sorted(ALLOWED_TNVED)):
+                or str(card.get("brand") or "").strip().casefold() not in {"jazzway", "jazz way"}
+                or len(tnved) != 1 or tnved[0] not in ALLOWED_TNVED):
             exclusions.append({"offer_id": offer, "reason": "fresh_wb_identity_or_scope_changed",
                                 "nmID": str(card.get("nmID") or ""), "brand": card.get("brand"), "tnved": tnved})
             continue
         same = exact_wb_docs(card)
         if same:
-            exact = [d for d in same if str(d.get("type")) == "2"
+            exact = [d for d in same if str(d.get("type")) == "1"
                      and str(d.get("startDate") or "")[:10] == ISSUE
                      and str(d.get("endDate") or "")[:10] == EXPIRY
                      and d.get("isEndless") is False]
@@ -333,7 +346,7 @@ def main() -> None:
 
     before_map = {offer: card for offer, card in before.items()}
     readback_rows = []
-    readback_offers = sorted(set(wb_targets) - {x["offer_id"] for x in exclusions})
+    readback_offers = sorted((set(wb_targets) | set(wb_preexisting)) - {x["offer_id"] for x in exclusions})
     for index, offer in enumerate(readback_offers, 1):
         cards = [x for x in client.wb_cards(offer) if str(x.get("vendorCode") or "") == offer]
         if len(cards) != 1:

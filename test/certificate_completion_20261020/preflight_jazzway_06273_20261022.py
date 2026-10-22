@@ -25,7 +25,7 @@ EXPIRY = "2027-11-28"
 ALLOWED = {"8539520001", "8539520002", "8539520003", "8539520009"}
 ASSIGNMENTS = ROOT / "output_to_user/certificates/document_assignments.csv"
 SNAPSHOT = HERE / "live_marketplaces_snapshot_resume_20261022.json"
-OUT = HERE / "jazzway_06273_preflight_20261022.json"
+OUT = HERE / "jazzway_06273_preflight_v2_20261022.json"
 
 
 def values(row: dict, aid: int) -> list[str]:
@@ -74,7 +74,7 @@ def load_targets() -> dict[str, dict]:
     with ASSIGNMENTS.open(encoding="utf-8-sig", newline="") as stream:
         for row in csv.DictReader(stream):
             if (norm_number(row.get("Номер/название документа")) != norm_number(NUMBER)
-                    or row.get("Локальный файл") != SOURCE_REL
+                    or str(row.get("SHA256 фактический") or row.get("SHA256 заявленный") or "").strip() != SOURCE_SHA256
                     or row.get("Бренд подтвержденный") != "Jazzway"
                     or row.get("Применимость") not in ("Подтверждено статусом покрытия", "Подтверждено источником")):
                 continue
@@ -82,10 +82,12 @@ def load_targets() -> dict[str, dict]:
             if not offer or offer in targets:
                 raise RuntimeError("missing_or_duplicate_uncovered_assignment:" + offer)
             targets[offer] = {"offer_id": offer,
+                "assignment_source_file": row.get("Локальный файл"),
+                "assignment_source_sha256": row.get("SHA256 фактический") or row.get("SHA256 заявленный"),
                 "assignment_product_name": row.get("Название товара Ozon"),
                 "scope_evidence": row.get("Основание сопоставления"),
                 "source_url": row.get("URL документа")}
-    if len(targets) != 276:
+    if len(targets) != 280:
         raise RuntimeError(f"unexpected_assignment_count:{len(targets)}")
     return targets
 
