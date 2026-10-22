@@ -16,7 +16,7 @@ API = ROOT / "test/certificate_api_pilot_20261012"
 ASSIGNMENTS = ROOT / "output_to_user/certificates/document_assignments.csv"
 SNAPSHOT = HERE / "live_marketplaces_snapshot_resume_20261022.json"
 ADDENDUM = HERE / "postwrite_coverage_addendum_20261022.json"
-OUT = HERE / "navigator_41671_36566_live_preflight_20261022_v5.json"
+OUT = HERE / "navigator_41671_36566_live_preflight_20261022_v6.json"
 
 DOCS = {
     "declaration": {
@@ -272,7 +272,9 @@ def main() -> None:
             doc_status[key] = {"exact_count": len(exact), "verdict": (exact[0].get("verdict") if exact else None)}
         wb_targets.append({"offer_id": offer, "nmID": str(card.get("nmID")) if card else None,
                            "brand": brand, "title": card.get("title") if card else None,
-                           "tnved": tnved, "tnved_in_fsa_scope": tnved_in_fsa_scope,
+                           "tnved": tnved,
+                           "identity_override_evidence": ("official model/article plus live specification match" if offer == "94833-1" else None),
+                           "tnved_in_fsa_scope": tnved_in_fsa_scope,
                            "documents": doc_status, "eligible": not conflicts,
                            "conflicts": conflicts})
 
