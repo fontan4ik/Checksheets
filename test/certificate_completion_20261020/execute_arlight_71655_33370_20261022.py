@@ -531,7 +531,14 @@ def main() -> None:
                  "fsa_record_id": row["fsa_record_id"], "fsa_status": row["fsa_status"],
                  "verification_artifacts": [PREFLIGHT.name, STATE.name, READBACK.name]}
         addendum.setdefault("post_snapshot_writes", []).append(entry)
-        addendum.setdefault("verification_artifacts", []).append(str(READBACK))
+        verification_artifacts = addendum.setdefault("verification_artifacts", {})
+        if isinstance(verification_artifacts, dict):
+            key = "arlight_" + norm_number(row["document_number"]).replace(" ", "_") + "_readback"
+            verification_artifacts[key] = str(READBACK)
+        elif isinstance(verification_artifacts, list):
+            verification_artifacts.append(str(READBACK))
+        else:
+            raise RuntimeError("unsupported_addendum_verification_artifacts_format")
     addendum["checked_at_utc"] = now()
     addendum["complete"] = False
     addendum["local_source_pdfs_deleted"] = False
