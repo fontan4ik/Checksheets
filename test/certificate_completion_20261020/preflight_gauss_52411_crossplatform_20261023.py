@@ -20,7 +20,11 @@ from apply_arlight_52132_wb_20261020 import code_values  # noqa: E402
 NUMBER = "ЕАЭС N RU Д-CN.РА04.В.52411/23"
 SOURCE_REL = "output_to_user/certificates/group_1/documents/gauss/25aeb2f93ed587f14b19dc21.pdf"
 SOURCE = ROOT / SOURCE_REL
-SOURCE_SHA = ""  # filled from immutable local source after this script is reviewed
+SOURCE_SHA = "b9503157b344ec2ed68fe168f8b7c9f7046d28a1e7734b8a9949589c5b12ad3d"
+SOURCE_RELS = {
+    SOURCE_REL,
+    "output_to_user/certificates/additional_search/brand_research/gauss/docs/gfl_rechargeable_037.pdf",
+}
 ISSUE = "2023-06-08"
 EXPIRY = "2028-06-07"
 ALLOWED_TNVED = {"8513100000"}
@@ -67,28 +71,46 @@ def main() -> None:
     if not SOURCE.is_file() or not OCR.is_file():
         raise RuntimeError("source_or_ocr_missing")
     sha = hashlib.sha256(SOURCE.read_bytes()).hexdigest()
+    if sha != SOURCE_SHA:
+        raise RuntimeError("source_sha256_mismatch")
     pdf_text = OCR.read_text(encoding="utf-8")
     if "8513100000" not in norm_article(pdf_text) or "52411/23" not in pdf_text:
         raise RuntimeError("local_pdf_scope_or_number_not_proven")
 
     by_offer: dict[str, dict] = {}
+    assignment_type_labels: Counter = Counter()
     with ASSIGNMENTS.open(encoding="utf-8-sig", newline="") as stream:
         for row in csv.DictReader(stream):
             if norm_number(row.get("Номер/название документа")) != norm_number(NUMBER):
                 continue
-            if row.get("Локальный файл") != SOURCE_REL:
+            source_rel = str(row.get("Локальный файл") or "")
+            if source_rel not in SOURCE_RELS:
                 continue
             if row.get("Применимость") not in ("Подтверждено статусом покрытия", "Подтверждено источником"):
                 continue
-            if row.get("Тип документа") != "Сертификат соответствия":
-                raise RuntimeError("assignment_type_conflict")
+            if row.get("Тип документа") not in {"Сертификат соответствия", "Декларация ЕАЭС"}:
+                raise RuntimeError("assignment_type_label_unrecognized")
+            assignment_type_labels[row.get("Тип документа")] += 1
             if str(row.get("Бренд подтвержденный") or "").strip().casefold() != "gauss":
                 raise RuntimeError("assignment_brand_conflict")
             offer = str(row.get("Артикул продавца") or "").strip()
             model = offer.split("-", 1)[0]
-            if not offer or not (norm_article(model) in norm_article(pdf_text) or "Точный артикул" in str(row.get("Основание сопоставления") or "")):
+            evidence = str(row.get("Основание сопоставления") or "")
+            official_page = str(row.get("URL карточки/основания") or "")
+            digits = re.search(r"\d+", model)
+            listed_model = "GFL" + digits.group(0) if digits else ""
+            exact_article_evidence = "Точный артикул" in evidence and model in evidence
+            official_gfl_evidence = (listed_model and listed_model in evidence
+                and "оба PDF прямо охватывают аккумуляторные фонари модели GFL" in evidence
+                and official_page.startswith("https://gauss.ru/"))
+            if not offer or not (norm_article(model) in norm_article(pdf_text)
+                    or exact_article_evidence or official_gfl_evidence):
                 raise RuntimeError("assignment_model_not_listed:" + offer)
-            if row.get("SHA256 фактический") != sha or row.get("Аудит файла") != "SHA-256 совпадает":
+            assigned_path = ROOT / source_rel
+            if (not assigned_path.is_file()
+                    or hashlib.sha256(assigned_path.read_bytes()).hexdigest() != sha
+                    or row.get("SHA256 фактический") != sha
+                    or row.get("Аудит файла") != "SHA-256 совпадает"):
                 raise RuntimeError("assignment_source_hash_conflict:" + offer)
             if offer in by_offer:
                 raise RuntimeError("duplicate_assignment_offer:" + offer)
@@ -126,7 +148,7 @@ def main() -> None:
     if len(records) > 1:
         raise RuntimeError("duplicate_ozon_certificate_record")
     record = records[0] if records else None
-    if record and (record.get("type_code") != "certificate_of_conformity"
+    if record and (record.get("type_code") != "declaration"
                    or str(record.get("issue_date") or "")[:10] != ISSUE
                    or str(record.get("expire_date") or "")[:10] != EXPIRY):
         raise RuntimeError("ozon_existing_record_metadata_conflict")
@@ -180,7 +202,7 @@ def main() -> None:
                 wb_reason.append("wb_tnved_mismatch_or_ambiguous")
         same = [d for d in ((card.get("documents") or {}).get("items") or [])
                 if norm_number(d.get("number")) == norm_number(NUMBER)]
-        exact = [d for d in same if int(d.get("type") or 0) == 1
+        exact = [d for d in same if int(d.get("type") or 0) == 2
                  and str(d.get("startDate") or "")[:10] == ISSUE
                  and str(d.get("endDate") or "")[:10] == EXPIRY
                  and d.get("isEndless") is False]
@@ -201,7 +223,9 @@ def main() -> None:
             "wb_safe": not wb_reason, "wb_blockers": wb_reason})
 
     result = {"checked_at_utc": now(), "read_only": True, "number": NUMBER,
-        "type_code": "declaration", "issue_date": ISSUE, "expire_date": EXPIRY,
+        "type_code": "declaration", "marketplace_type": {"ozon": "DECLARATION", "wb": 2},
+        "assignment_type_label_counts": dict(assignment_type_labels),
+        "issue_date": ISSUE, "expire_date": EXPIRY,
         "source_file": SOURCE_REL, "source_sha256": sha, "source_bytes": SOURCE.stat().st_size,
         "fsa": {"record_id": FSA_ID, "status": "Действует", "url": FSA_URL,
                 "issue_date": ISSUE, "expiry_date": EXPIRY,
