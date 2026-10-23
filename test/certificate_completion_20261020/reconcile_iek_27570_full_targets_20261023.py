@@ -15,7 +15,7 @@ from reconcile_approved_ozon_docs_to_wb import copy_documents, norm_number  # no
 
 MANIFEST = HERE / "ready_found_documents_manifest_20261023.json"
 ASSIGNMENTS = ROOT / "output_to_user/certificates/document_assignments.csv"
-OUT = HERE / "iek_27570_59_targets_live_reconciliation_20261023.json"
+OUT = HERE / "iek_27570_81_targets_live_reconciliation_20261023.json"
 NUMBER = "ЕАЭС N RU Д-RU.РА04.В.27570/26"
 ISSUE = "2026-05-18"
 EXPIRY = "2027-08-30"
@@ -204,7 +204,7 @@ def main() -> None:
         "checked_at_utc": now(), "read_only": True, "number": NUMBER,
         "official_fsa": {"record_id": FSA_ID, "status": "Действует", "issue_date": ISSUE,
                          "expiry_date": EXPIRY, "applicant": "ПАО ИЭК ХОЛДИНГ",
-                         "product_scope": "IEK/GENERiCA plastic cabinets and enclosures; serial production; TR TS 025/2012",
+                         "product_scope": "IEK/Generica plastic cabinets and enclosures; serial production; TR TS 025/2012",
                          "tnved": sorted(ALLOWED_TNVED),
                          "url": f"https://pub.fsa.gov.ru/rds/declaration/view/{FSA_ID}/product"},
         "source_file": str(source), "source_file_sha256": SOURCE_SHA256,
