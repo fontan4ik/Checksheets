@@ -55,7 +55,7 @@ def main():
     if offers != EXPECTED_OFFERS or len(assignments) != 3:
         raise RuntimeError(f"assignment_scope_mismatch:{sorted(str(x) for x in offers)}")
     for row in assignments:
-        if row.get("Тип документа") != "Декларация соответствия" or row.get("Применимость") != "Подтверждено источником":
+        if row.get("Тип документа") != "ТР ТС 017/2011" or row.get("Применимость") != "Подтверждено источником":
             raise RuntimeError("assignment_applicability_mismatch:" + str(row.get("Артикул продавца")))
 
     client = Client()
