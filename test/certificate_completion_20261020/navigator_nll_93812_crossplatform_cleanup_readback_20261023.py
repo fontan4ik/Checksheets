@@ -11,7 +11,7 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / "test/certificate_api_pilot_20261012"))
 from api_client import Client, now  # noqa: E402
-from reconcile_approved_ozon_docs_to_wb import copy_documents, norm_number  # noqa: E402
+from reconcile_approved_ozon_docs_to_wb import norm_number  # noqa: E402
 
 MAIN_PREFLIGHT = HERE / "navigator_nll_08110_06643_fresh_preflight_20261022.json"
 ADDENDUM_PREFLIGHT = HERE / "navigator_93812_two_docs_live_preflight_20261023.json"
@@ -107,7 +107,12 @@ def main() -> None:
             continue
         card = cards[0]
         want_docs = wb_main_docs if offer in main_targets else wb_addendum_docs
-        live_docs = copy_documents(card)
+        # copy_documents() intentionally strips verdicts for upload payloads;
+        # this readback must inspect the raw marketplace response instead.
+        live_docs = (card.get("documents") or {}).get("items") or []
+        if not isinstance(live_docs, list):
+            wb_failures.append({"offer_id": offer, "reason": "documents_items_missing"})
+            continue
         doc_results = []
         for doc in want_docs:
             same = [x for x in live_docs if norm_number(x.get("number")) == norm_number(doc["number"])]
