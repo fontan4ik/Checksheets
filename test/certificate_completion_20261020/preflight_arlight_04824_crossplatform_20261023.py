@@ -147,76 +147,81 @@ def main() -> None:
     blockers = []
     wb_states: Counter[str] = Counter()
     for offer, assignment in sorted(by_offer.items()):
+        target = {"offer_id": offer}
         product = products.get(offer)
         if (not product or product.get("is_archived") is not False or not product.get("product_id")
                 or not product.get("sku")):
             blockers.append({"offer_id": offer, "reason": "ozon_product_missing_or_inactive"})
-            continue
-        if product.get("brand_values") != ["Arlight"]:
+        elif product.get("brand_values") != ["Arlight"]:
             blockers.append({"offer_id": offer, "reason": "ozon_brand_conflict",
                              "brand_values": product.get("brand_values")})
-            continue
-        live_codes = codes(product.get("tnved_values") or [])
-        if live_codes != ALLOWED_TNVED:
-            blockers.append({"offer_id": offer, "reason": "ozon_tnved_conflict",
-                             "tnved": sorted(live_codes)})
-            continue
-        basis = str(assignment.get("Основание сопоставления") or "")
-        article_match = re.search(r"Точный артикул[^:]*:\s*([^;]+)", basis, re.IGNORECASE)
-        offer_article = offer.split("-", 1)[0].split("(", 1)[0]
-        product_name = str(product.get("name") or "").casefold()
-        if (not article_match or article_match.group(1).strip() != offer_article
-                or not ("ard" in product_name or "ardecoled" in product_name)):
-            blockers.append({"offer_id": offer, "reason": "manufacturer_article_or_series_not_confirmed",
-                             "title": product.get("name"),
-                             "offer_article": offer_article,
-                             "manufacturer_article": article_match.group(1).strip() if article_match else None})
-            continue
+        else:
+            live_codes = codes(product.get("tnved_values") or [])
+            if live_codes != ALLOWED_TNVED:
+                blockers.append({"offer_id": offer, "reason": "ozon_tnved_conflict",
+                                 "tnved": sorted(live_codes)})
+            else:
+                basis = str(assignment.get("Основание сопоставления") or "")
+                article_match = re.search(r"Точный артикул[^:]*:\s*([^;]+)", basis, re.IGNORECASE)
+                offer_article = offer.split("-", 1)[0].split("(", 1)[0]
+                product_name = str(product.get("name") or "").casefold()
+                if (not article_match or article_match.group(1).strip() != offer_article
+                        or not ("ard" in product_name or "ardecoled" in product_name)):
+                    blockers.append({"offer_id": offer, "reason": "manufacturer_article_or_series_not_confirmed",
+                                     "title": product.get("name"),
+                                     "offer_article": offer_article,
+                                     "manufacturer_article": article_match.group(1).strip() if article_match else None})
+                else:
+                    target.update({
+                        "ozon_eligible": True,
+                        "product_id": str(product["product_id"]),
+                        "sku": str(product["sku"]),
+                        "ozon_title": product.get("name"),
+                        "ozon_brand": product.get("brand_values"),
+                        "ozon_tnved": sorted(live_codes),
+                    })
+
         matching_cards = wb_cards.get(offer, [])
         if len(matching_cards) != 1:
             blockers.append({"offer_id": offer, "reason": "wb_card_missing_or_ambiguous",
                              "card_count": len(matching_cards)})
-            continue
-        card = matching_cards[0]
-        if not card.get("nmID") or str(card.get("vendorCode") or "") != offer:
-            blockers.append({"offer_id": offer, "reason": "wb_card_identity_conflict"})
-            continue
-        if str(card.get("brand") or "").strip().casefold() != "arlight":
-            blockers.append({"offer_id": offer, "reason": "wb_brand_conflict",
-                             "brand": card.get("brand")})
-            continue
-        card_codes = wb_codes(card)
-        if card_codes != ALLOWED_TNVED:
-            blockers.append({"offer_id": offer, "reason": "wb_tnved_conflict",
-                             "tnved": sorted(card_codes)})
-            continue
-        state, matching_docs = wb_document_state(card)
-        wb_states[state] += 1
-        targets.append({
-            "offer_id": offer,
-            "product_id": str(product["product_id"]),
-            "sku": str(product["sku"]),
-            "ozon_title": product.get("name"),
-            "ozon_brand": product.get("brand_values"),
-            "ozon_tnved": sorted(live_codes),
-            "wb_nmID": str(card["nmID"]),
-            "wb_title": card.get("title"),
-            "wb_brand": card.get("brand"),
-            "wb_tnved": sorted(card_codes),
-            "wb_document_state": state,
-            "wb_existing_documents": matching_docs,
-            "manufacturer_assignment_basis": assignment.get("Основание сопоставления"),
-            "manufacturer_source_url": assignment.get("URL карточки/основания"),
-        })
-    if blockers:
-        raise RuntimeError("target_scope_or_identity_blockers:" + json.dumps(blockers[:12], ensure_ascii=False))
-    if len(targets) != EXPECTED_TARGETS:
-        raise RuntimeError(f"target_count_changed:{len(targets)}")
+        else:
+            card = matching_cards[0]
+            if not card.get("nmID") or str(card.get("vendorCode") or "") != offer:
+                blockers.append({"offer_id": offer, "reason": "wb_card_identity_conflict"})
+            elif str(card.get("brand") or "").strip().casefold() != "arlight":
+                blockers.append({"offer_id": offer, "reason": "wb_brand_conflict",
+                                 "brand": card.get("brand")})
+            else:
+                card_codes = wb_codes(card)
+                if card_codes != ALLOWED_TNVED:
+                    blockers.append({"offer_id": offer, "reason": "wb_tnved_conflict",
+                                     "tnved": sorted(card_codes)})
+                else:
+                    state, matching_docs = wb_document_state(card)
+                    wb_states[state] += 1
+                    target.update({
+                        "wb_eligible": True,
+                        "wb_nmID": str(card["nmID"]),
+                        "wb_title": card.get("title"),
+                        "wb_brand": card.get("brand"),
+                        "wb_tnved": sorted(card_codes),
+                        "wb_document_state": state,
+                        "wb_existing_documents": matching_docs,
+                    })
+        target["manufacturer_assignment_basis"] = assignment.get("Основание сопоставления")
+        target["manufacturer_source_url"] = assignment.get("URL карточки/основания")
+        if target.get("ozon_eligible") or target.get("wb_eligible"):
+            targets.append(target)
+    ozon_targets = [row for row in targets if row.get("ozon_eligible")]
+    wb_targets = [row for row in targets if row.get("wb_eligible")]
+    if not ozon_targets and not wb_targets:
+        raise RuntimeError("no_safe_targets_on_either_platform")
     for key in ("product_id", "sku"):
-        values = [row[key] for row in targets]
+        values = [row[key] for row in ozon_targets]
         if len(values) != len(set(values)):
             raise RuntimeError(f"duplicate_ozon_{key}")
-    nmids = [row["wb_nmID"] for row in targets]
+    nmids = [row["wb_nmID"] for row in wb_targets]
     if len(nmids) != len(set(nmids)):
         raise RuntimeError("duplicate_wb_nmID")
 
@@ -233,12 +238,14 @@ def main() -> None:
         "source_file": str(SOURCE),
         "source_sha256": source_sha,
         "ozon_exact_record_count_before_write": len(exact_records),
-        "target_count": len(targets),
-        "ozon_target_count": len(targets),
-        "wb_target_count": len(targets),
+        "source_assignment_target_count": len(by_offer),
+        "ozon_target_count": len(ozon_targets),
+        "wb_target_count": len(wb_targets),
+        "blocked_edges": blockers,
         "wb_existing_document_states": dict(wb_states),
         "local_file_deletion_allowed": False,
-        "targets": targets,
+        "ozon_targets": ozon_targets,
+        "wb_targets": wb_targets,
     }
     OUT.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({
