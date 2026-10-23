@@ -21,7 +21,7 @@ SOURCE = "output_to_user/certificates/additional_search/brand_research/faza/foll
 SOURCE_SHA256 = "2d8f4e6125dc8a1a4fc96787d5c4a9fc3842c5b13b41ca780543415d0259fc5e"
 ISSUE, EXPIRY = "2023-03-01", "2028-02-29"
 TNVED = {"8513100000"}
-OUT = HERE / "faza_12063_crossplatform_preflight_20261023.json"
+OUT = HERE / "faza_12063_crossplatform_preflight_v2_20261023.json"
 
 
 def values(attrs, ident):
@@ -126,7 +126,8 @@ def main():
         if len(cards) != 1: conflicts.append("wb_card_missing_or_ambiguous")
         wb_brand = str(card.get("brand") or "")
         wb_tnved = wb_codes(card)
-        if brand_key(wb_brand) != "фаза": conflicts.append("wb_brand_mismatch")
+        if str(wb_brand).casefold() not in {"jazzway", "faza", "фаза", "фаzа"}:
+            conflicts.append("wb_brand_not_covered_by_document")
         if not card.get("nmID"): conflicts.append("wb_nm_id_missing")
         if not wb_tnved or not set(wb_tnved).issubset(TNVED): conflicts.append("wb_tnved_out_of_scope")
         items = ((card.get("documents") or {}).get("items") or [])
@@ -142,7 +143,8 @@ def main():
                      "existing_exact_bindings": sum(1 for b in prior if str(b.get("sku") or "") == sku)},
             "wb": {"nmID": str(card.get("nmID") or ""), "vendorCode": str(card.get("vendorCode") or ""),
                    "brand": wb_brand, "title": card.get("title"), "tnved": wb_tnved,
-                   "existing_same_number": len(same), "existing_exact": len(exact)},
+                   "existing_same_number": len(same), "existing_exact": len(exact),
+                   "brand_covered_by_fsa_declaration": str(wb_brand).casefold() in {"jazzway", "faza", "фаза", "фаzа"}},
             "official_assignment_evidence": assignment.get("Основание сопоставления"),
             "eligible_both_platforms": not conflicts,
             "conflicts": conflicts,
