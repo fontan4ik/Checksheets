@@ -14,7 +14,7 @@ API = ROOT / "test/certificate_api_pilot_20261012"
 sys.path.insert(0, str(API))
 from api_client import Client, now  # noqa: E402
 from execute_navigator_nll_08110_06643_20261022 import list_certificates  # noqa: E402
-from reconcile_approved_ozon_docs_to_wb import copy_documents, doc_key, norm_number  # noqa: E402
+from reconcile_approved_ozon_docs_to_wb import doc_key, norm_number  # noqa: E402
 
 PREFLIGHT = HERE / "navigator_nll_08110_06643_fresh_preflight_20261022.json"
 EXTRA_PREFLIGHT = HERE / "navigator_93812_two_docs_live_preflight_20261023.json"
@@ -118,7 +118,8 @@ def wb_check(client: Client, key: str, expected: dict[str, dict[str, str]]) -> d
         if (str(card.get("vendorCode")) != offer or str(card.get("nmID")) != identity["nmID"]
                 or str(card.get("brand") or "").strip().casefold() != "navigator"):
             failures.append({"offer_id": offer, "problem": "identity_mismatch", "nmID": str(card.get("nmID"))})
-        docs = copy_documents(card)
+        # Keep raw API items here: copy_documents intentionally strips read-only verdict metadata.
+        docs = (card.get("documents") or {}).get("items") or []
         same = [x for x in docs if norm_number(x.get("number")) == norm_number(doc["number"])]
         exact = [x for x in same if doc_key(x) == doc_key(wanted)
                  and str(x.get("startDate", ""))[:10] == doc["startDate"][:10]
