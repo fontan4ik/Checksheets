@@ -201,8 +201,24 @@ def main() -> None:
                     ozon_state = "product_identity_or_brand_changed"
                 elif not tnved_ok:
                     ozon_state = "tnved_unconfirmed_or_out_of_scope"
-                elif len(exact) != 1:
+                elif not exact:
                     ozon_state = "missing_or_duplicate_exact_ozon_record"
+                elif len(exact) > 1:
+                    target_bindings = [(c, b) for c in exact for b in (c.get("live_bindings") or [])
+                                       if str(b.get("product_id")) == str(target["product_id"])]
+                    if any(str(b.get("sku")) != str(target["sku"]) for _, b in target_bindings):
+                        ozon_state = "binding_identity_conflict"
+                    elif any(c.get("status_code") == "approved" and b.get("product_status_code") == "approved"
+                             for c, b in target_bindings):
+                        ozon_state = "approved_link"
+                    elif any(b.get("product_status_code") == "declined" for _, b in target_bindings):
+                        ozon_state = "declined_link"
+                    elif target_bindings:
+                        ozon_state = "pending_link_or_document"
+                    elif any(c.get("status_code") != "approved" for c in exact):
+                        ozon_state = "document_not_approved"
+                    else:
+                        ozon_state = "missing_binding"
                 else:
                     cert = exact[0]
                     binding = next((b for b in (cert.get("live_bindings") or [])

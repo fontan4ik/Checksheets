@@ -85,6 +85,26 @@ def main() -> None:
     source = source.replace('live_marketplaces_snapshot_postwrite_ozon_20261023.json', MERGED.name)
     source = source.replace('current_coverage_report_postwrite_20261023.json', 'current_coverage_report_latest_20261023.json')
     source = source.replace('verified_group_edges_current_postwrite_20261023.csv', 'verified_group_edges_current_latest_20261023.csv')
+    source = source.replace(
+        'elif len(exact) != 1:\n                    ozon_state = "missing_or_duplicate_exact_ozon_record"\n                else:\n                    cert = exact[0]',
+        'elif not exact:\n                    ozon_state = "missing_or_duplicate_exact_ozon_record"\n'
+        '                elif len(exact) > 1:\n'
+        '                    target_bindings = [(c, b) for c in exact for b in (c.get("live_bindings") or [])\n'
+        '                                       if str(b.get("product_id")) == str(target["product_id"])]\n'
+        '                    if any(str(b.get("sku")) != str(target["sku"]) for _, b in target_bindings):\n'
+        '                        ozon_state = "binding_identity_conflict"\n'
+        '                    elif any(c.get("status_code") == "approved" and b.get("product_status_code") == "approved"\n'
+        '                             for c, b in target_bindings):\n'
+        '                        ozon_state = "approved_link"\n'
+        '                    elif any(b.get("product_status_code") == "declined" for _, b in target_bindings):\n'
+        '                        ozon_state = "declined_link"\n'
+        '                    elif target_bindings:\n'
+        '                        ozon_state = "pending_link_or_document"\n'
+        '                    elif any(c.get("status_code") != "approved" for c in exact):\n'
+        '                        ozon_state = "document_not_approved"\n'
+        '                    else:\n'
+        '                        ozon_state = "missing_binding"\n'
+        '                else:\n                    cert = exact[0]')
     target_script = HERE / "_build_current_coverage_report_latest_worker_20261023.py"
     target_script.write_text(source, encoding="utf-8")
     print(json.dumps({"merged_snapshot": str(MERGED), "wb_target_docs_merged": merged_docs,
