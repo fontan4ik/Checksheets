@@ -19,6 +19,7 @@ from reconcile_approved_ozon_docs_to_wb import doc_key, norm_number  # noqa: E40
 PREFLIGHT = HERE / "navigator_nll_08110_06643_fresh_preflight_20261022.json"
 EXTRA_PREFLIGHT = HERE / "navigator_93812_two_docs_live_preflight_20261023.json"
 OUT = HERE / "navigator_nll_08110_06643_live_crossplatform_recheck_20261023.json"
+CLEANUP_RECEIPT = HERE / "navigator_nll_08110_06643_local_pdf_cleanup_20261023.json"
 
 DOCS = {
     "declaration": {
@@ -142,18 +143,20 @@ def wb_check(client: Client, key: str, expected: dict[str, dict[str, str]]) -> d
 def main() -> None:
     pre = json.loads(PREFLIGHT.read_text())
     extra = json.loads(EXTRA_PREFLIGHT.read_text())
-    base_targets = [x for x in pre["targets"] if x.get("wb_eligible") and x.get("ozon_eligible")]
-    if len(base_targets) != 56:
+    ozon_targets = [x for x in pre["targets"] if x.get("ozon_eligible")]
+    wb_targets = [x for x in pre["targets"] if x.get("wb_eligible")]
+    if len(ozon_targets) != 56 or len(wb_targets) != 153:
         raise RuntimeError("unexpected_eligible_base_target_count")
-    base = expected_map(base_targets)
+    ozon_base = expected_map(ozon_targets)
+    wb_base = expected_map(wb_targets)
     extra_targets = expected_map(extra["targets"], extra["wb"])
     if set(extra_targets) != {"93812-10", "93812-5"}:
         raise RuntimeError("unexpected_navigator_93812_targets")
-    ozon_expected = dict(base)
+    ozon_expected = dict(ozon_base)
     ozon_expected.update(extra_targets)
-    wb_decl_expected = dict(base)
+    wb_decl_expected = dict(wb_base)
     wb_decl_expected.update(extra_targets)
-    wb_cert_expected = dict(base)
+    wb_cert_expected = dict(wb_base)
 
     client = Client()
     records = list_certificates(client)
@@ -165,26 +168,34 @@ def main() -> None:
         matches = record_by_number.get(doc["number"], [])
         if len(matches) != 1:
             raise RuntimeError("ozon_record_count_conflict:" + key + ":" + str(len(matches)))
-        expected = ozon_expected if key == "declaration" else base
+        expected = ozon_expected if key == "declaration" else ozon_base
         ozon[key] = ozon_check(client, key, matches[0], expected)
 
     wb = {
         "declaration": wb_check(client, "declaration", wb_decl_expected),
         "certificate": wb_check(client, "certificate", wb_cert_expected),
     }
+    trash_entries = {}
+    if CLEANUP_RECEIPT.exists():
+        cleanup = json.loads(CLEANUP_RECEIPT.read_text())
+        trash_entries = {row["original_path"]: row for row in cleanup.get("files", [])}
     local = []
     for key, doc in DOCS.items():
         path = doc["path"]
-        actual = sha256(path) if path.is_file() else None
-        local.append({"document_key": key, "path": str(path), "exists": path.is_file(),
+        exists = path.is_file()
+        source_path = path if exists else pathlib.Path(trash_entries.get(str(path), {}).get("recovery_path") or "/__missing__")
+        actual = sha256(source_path) if source_path.is_file() else None
+        local.append({"document_key": key, "path": str(path), "exists": exists,
+                      "recovery_path": str(source_path) if not exists and source_path.is_file() else None,
+                      "available_in_trash": not exists and source_path.is_file(),
                       "expected_sha256": doc["sha256"], "actual_sha256": actual,
                       "sha256_matches": actual == doc["sha256"],
-                      "size_bytes": path.stat().st_size if path.is_file() else None})
+                      "size_bytes": source_path.stat().st_size if source_path.is_file() else None})
     complete = all(x["complete"] for x in ozon.values()) and all(x["complete"] for x in wb.values()) and all(x["sha256_matches"] for x in local)
     report = {"checked_at_utc": now(), "read_only": True,
-              "scope": {"base_targets": 56, "extra_declaration_targets": 2,
+              "scope": {"ozon_base_targets": 56, "wb_base_targets": 153, "extra_declaration_targets": 2,
                         "ozon_declaration_expected": 58, "ozon_certificate_expected": 56,
-                        "wb_declaration_expected": 58, "wb_certificate_expected": 56,
+                        "wb_declaration_expected": 155, "wb_certificate_expected": 153,
                         "ozon_mismatched_tnved_targets_skipped": 97},
               "ozon": ozon, "wb": wb, "local_sources": local,
               "complete_for_verified_in_scope_targets": complete,

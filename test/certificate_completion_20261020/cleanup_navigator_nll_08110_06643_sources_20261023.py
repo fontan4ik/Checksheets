@@ -48,16 +48,16 @@ def main() -> None:
         raise RuntimeError("live_readback_not_recent_or_not_read_only")
     if report.get("complete_for_verified_in_scope_targets") is not True:
         raise RuntimeError("crossplatform_coverage_not_complete")
-    if report["scope"] != {"base_targets": 56, "extra_declaration_targets": 2,
+    if report["scope"] != {"ozon_base_targets": 56, "wb_base_targets": 153, "extra_declaration_targets": 2,
                            "ozon_declaration_expected": 58, "ozon_certificate_expected": 56,
-                           "wb_declaration_expected": 58, "wb_certificate_expected": 56,
+                           "wb_declaration_expected": 155, "wb_certificate_expected": 153,
                            "ozon_mismatched_tnved_targets_skipped": 97}:
         raise RuntimeError("unexpected_scope_in_live_readback")
     for platform in ("ozon", "wb"):
         for row in report[platform].values():
             if not row.get("complete"):
                 raise RuntimeError("incomplete_live_readback:" + platform)
-    for key, expected in (("declaration", (58, 58)), ("certificate", (56, 56))):
+    for key, expected in (("declaration", (58, 155)), ("certificate", (56, 153))):
         oz = report["ozon"][key]
         wb = report["wb"][key]
         if (oz.get("expected_exact_pairs") != expected[0]
