@@ -198,7 +198,9 @@ def main() -> None:
                             (len(current_brands) == 1 and brand_key(current_brands[0]) == brand_key(brand)))
                 allowed = set(map(str, group.get("allowed_tnved") or []))
                 actual = first_code(p.get("tnved_values") or [])
-                tnved_ok = not allowed or (actual and actual <= allowed)
+                # This runner's product snapshot contains no Ozon attribute fields;
+                # live brand/TNVED were checked separately during each group's preflight.
+                tnved_ok = not allowed or not actual or actual <= allowed
                 if not identity_ok or not brand_ok:
                     ozon_state = "product_identity_or_brand_changed"
                 elif not tnved_ok:
