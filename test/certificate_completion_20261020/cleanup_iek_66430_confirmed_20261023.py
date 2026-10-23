@@ -29,12 +29,16 @@ def main() -> None:
     audit = json.loads(READBACK.read_text(encoding="utf-8"))
     checks = audit["conditions"]
     required = ["assignment_and_expanded_target_count",
+                "all_targets_exist_and_in_scope_on_ozon",
                 "all_targets_exact_approved_ozon_binding",
                 "all_targets_one_exact_wb_card",
                 "all_wb_target_cards_have_exact_doc_metadata",
                 "all_wb_targets_brand_and_tnved_safe"]
     if not all(checks.get(key) is True for key in required):
         raise RuntimeError("crossplatform_linkage_gate_failed")
+    if any(not x.get("tnved_codes") or set(x["tnved_codes"]) != {"8536201007"}
+           for x in audit["target_readbacks"]):
+        raise RuntimeError("ozon_tnved_scope_gate_failed")
     if audit.get("unique_reconciled_target_count") != 24:
         raise RuntimeError("target_count_gate_failed")
     source = pathlib.Path(audit["source_file"])
