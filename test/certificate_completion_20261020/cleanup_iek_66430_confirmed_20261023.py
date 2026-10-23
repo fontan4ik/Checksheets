@@ -1,4 +1,4 @@
-"""Move the fully linked IEK 66430/26 source PDF to recoverable macOS Trash."""
+"""Move the IEK 66430/26 PDF only if fresh scope and cross-platform gates pass."""
 from __future__ import annotations
 
 import datetime as dt
