@@ -12,7 +12,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-SNAPSHOT = HERE / "live_marketplaces_snapshot_latest_20261023.json"
+SNAPSHOT = HERE / "live_marketplaces_snapshot_latest_reconciled_20261023.json"
 OUT = HERE / "arlight_04824_crossplatform_preflight_20261023.json"
 ASSIGNMENTS = ROOT / "output_to_user/certificates/document_assignments.csv"
 SOURCE = ROOT / "output_to_user/certificates/group_1/documents/arlight/B5C5BB7F9BA5554A937519F74325C68F.pdf"
@@ -125,7 +125,10 @@ def main() -> None:
         if str(row.get("Бренд подтвержденный") or "").strip().casefold() != "arlight":
             raise RuntimeError("source_assignment_brand_conflict:" + offer)
         basis = str(row.get("Основание сопоставления") or "")
-        if "Точный артикул" not in basis or "официальной" not in basis:
+        exact_article_basis = "Точный артикул" in basis and "официальн" in basis
+        linked_article_basis = ("официальной карточке артикула" in basis
+                                and "связан с артикулом" in basis)
+        if not (exact_article_basis or linked_article_basis):
             raise RuntimeError("source_assignment_scope_proof_missing:" + offer)
         if offer in by_offer and by_offer[offer] != row:
             raise RuntimeError("duplicate_conflicting_source_assignment:" + offer)
@@ -163,14 +166,18 @@ def main() -> None:
             else:
                 basis = str(assignment.get("Основание сопоставления") or "")
                 article_match = re.search(r"Точный артикул[^:]*:\s*([^;]+)", basis, re.IGNORECASE)
+                if not article_match:
+                    article_match = re.search(r"связан с артикулом\s+([A-Za-zА-Яа-я0-9()_-]+)",
+                                              basis, re.IGNORECASE)
                 offer_article = offer.split("-", 1)[0].split("(", 1)[0]
+                source_article = article_match.group(1).strip() if article_match else None
                 product_name = str(product.get("name") or "").casefold()
-                if (not article_match or article_match.group(1).strip() != offer_article
+                if (not source_article or source_article not in {offer, offer_article}
                         or not ("ard" in product_name or "ardecoled" in product_name)):
                     blockers.append({"offer_id": offer, "reason": "manufacturer_article_or_series_not_confirmed",
                                      "title": product.get("name"),
                                      "offer_article": offer_article,
-                                     "manufacturer_article": article_match.group(1).strip() if article_match else None})
+                                     "manufacturer_article": source_article})
                 else:
                     target.update({
                         "ozon_eligible": True,
