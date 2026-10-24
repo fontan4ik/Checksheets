@@ -10,7 +10,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-SNAPSHOT = HERE / "live_marketplaces_snapshot_postwrite_20261024.json"
+SNAPSHOT = HERE / "live_marketplaces_snapshot_postwrite_dedup_20261024.json"
 MANIFEST = ROOT / "test/certificate_completion_20261020/all_source_certificates_verified_manifest_20261024.json"
 ASSIGNMENTS = ROOT / "output_to_user/certificates/document_assignments.csv"
 OUT_JSON = HERE / "current_coverage_report_postwrite_20261024.json"
