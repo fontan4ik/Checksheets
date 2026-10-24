@@ -1,0 +1,438 @@
+<!doctype html>
+<html class="no-js">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="x-ua-compatible" content="ie=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="yandex-verification" content="da36f3f36cb2007b" />
+
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+
+		<link href="/content/sertreestrnet/libs/viewerjs/1.5.0/viewer.min.css" rel="stylesheet">
+		<link href="/content/sertreestrnet/libs/twitter-bootstrap/4.4.1/css/bootstrap.min.css?24052024" rel="stylesheet">
+		<link rel="stylesheet" href="/assets/css/style.css?v07092023">
+		<link rel="stylesheet" href="/assets/css/slick.css">
+		<link rel="stylesheet" href="/assets/css/slicknav.css">
+
+		<title>Общество с ограниченной ответственностью «Транзистор.ру» - Сертификат Продукция</title>
+
+	<style>
+		body {
+			background: linear-gradient(135deg, #f5f7fa, #e4e9f2) fixed;
+			font-family: 'Inter', sans-serif;
+		}
+		.container{color: #333;}
+		.container a{color: #302b63;}
+
+		.registry_info {
+			padding: 30px 0;
+		}
+
+		.cert-card {
+			max-width: 860px;
+			margin: 0 auto;
+			background: linear-gradient(145deg, #faf8f5, #f0ece4);
+			border-radius: 28px !important;
+			padding: 0;
+			box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+			position: relative;
+			overflow: hidden;
+			border: none !important;
+		}
+
+		.cert-card::before {
+			content: '';
+			position: absolute;
+			top: -60%;
+			right: -30%;
+			width: 500px;
+			height: 500px;
+			background: radial-gradient(circle, rgba(212,175,55,0.10) 0%, transparent 70%);
+			border-radius: 50%;
+			pointer-events: none;
+			z-index: 0;
+		}
+
+		.cert-card::after {
+			content: '';
+			position: absolute;
+			bottom: -40%;
+			left: -20%;
+			width: 400px;
+			height: 400px;
+			background: radial-gradient(circle, rgba(48,43,99,0.06) 0%, transparent 70%);
+			border-radius: 50%;
+			pointer-events: none;
+			z-index: 0;
+		}
+
+		.cert-inner {
+			position: relative;
+			z-index: 1;
+			padding: 56px 48px 44px;
+		}
+
+		.seal-decoration {
+			position: absolute;
+			top: 40px;
+			right: 48px;
+			width: 100px;
+			height: 100px;
+			border: 3px solid rgba(212,175,55,0.5);
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-family: 'Playfair Display', serif;
+			font-size: 13px;
+			font-weight: 700;
+			color: rgba(212,175,55,0.7);
+			text-transform: uppercase;
+			letter-spacing: 2px;
+			text-align: center;
+			line-height: 1.3;
+			transform: rotate(-8deg);
+			background: rgba(212,175,55,0.04);
+			pointer-events: none;
+		}
+
+		.seal-decoration-inner {
+			width: 78px;
+			height: 78px;
+			border: 2px solid rgba(212,175,55,0.3);
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 6px;
+		}
+
+		.badge-status {
+			display: inline-block;
+			padding: 6px 18px;
+			border-radius: 50px;
+			font-size: 12px;
+			font-weight: 600;
+			letter-spacing: 0.5px;
+			text-transform: uppercase;
+			background: linear-gradient(135deg, #2e7d32, #1b5e20);
+			color: #fff;
+			margin-bottom: 20px;
+		}
+
+		.badge-status.text-success {
+			background: linear-gradient(135deg, #2e7d32, #1b5e20);
+			color: #fff !important;
+		}
+
+		.cert-title {
+			font-family: 'Playfair Display', serif;
+			font-size: 28px;
+			font-weight: 700;
+			color: #1a1a2e;
+			margin-bottom: 6px;
+		}
+
+		.cert-subtitle {
+			font-size: 14px;
+			color: #6b6b80;
+			font-weight: 400;
+			margin-bottom: 32px;
+			letter-spacing: 0.3px;
+		}
+
+		.cert-divider {
+			height: 2px;
+			background: linear-gradient(90deg, #d4af37, transparent);
+			margin-bottom: 32px;
+			border: 0;
+		}
+
+		.info-grid {
+			display: grid;
+			grid-template-columns: 180px 1fr;
+			gap: 14px 24px;
+			margin-bottom: 28px;
+		}
+
+		.info-grid dl {
+			display: contents;
+		}
+
+		.info-grid dt {
+			font-size: 13px;
+			font-weight: 500;
+			color: #88889a;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			padding: 0;
+			margin: 0;
+			text-align: left;
+			border: none;
+		}
+
+		.info-grid dd {
+			font-size: 16px;
+			font-weight: 500;
+			color: #1a1a2e;
+			padding: 0 0 14px 0;
+			margin: 0;
+			border-bottom: 1px solid rgba(0,0,0,0.06);
+			text-align: left;
+		}
+
+		.info-grid dd.ml-4 {
+			margin-left: 0 !important;
+		}
+
+		.info-grid dd pre {
+			margin: 0;
+			font-family: 'Inter', sans-serif;
+			font-size: 16px;
+			color: #1a1a2e;
+			white-space: pre-wrap;
+		}
+
+		.images-section {
+			margin-bottom: 0;
+		}
+
+		ul#images {
+			list-style: none;
+			padding: 0;
+			margin: 0;
+		}
+
+		ul#images li {
+			margin-bottom: 16px;
+			border-radius: 12px;
+			overflow: hidden;
+			box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+			cursor: zoom-in;
+			transition: transform 0.3s;
+		}
+
+		ul#images li:hover {
+			transform: scale(1.01);
+			background-color: transparent;
+		}
+
+		ul#images li img {
+			width: 100%;
+			display: block;
+		}
+
+		ul#images li img:hover {
+			opacity: 1;
+		}
+
+		.ulLang {
+			margin-bottom: 24px;
+			border-bottom: none;
+			justify-content: flex-end;
+		}
+
+		.ulLang .nav-item {
+			margin-left: 4px;
+		}
+
+		.ulLang .nav-link {
+			padding: 4px 16px;
+			border-radius: 50px;
+			font-size: 12px;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.5px;
+			color: #666;
+			background: rgba(255,255,255,0.7);
+			border: 2px solid rgba(0,0,0,0.08);
+			transition: all 0.2s;
+		}
+
+		.ulLang .nav-link:hover {
+			background: #fff;
+			border-color: #d4af37;
+			color: #302b63;
+		}
+
+		.ulLang .nav-link.active {
+			background: #d4af37;
+			border-color: #d4af37;
+			color: #fff;
+		}
+
+		.footer-link {
+			margin-top: 24px;
+			padding-top: 20px;
+			border-top: 1px solid rgba(0,0,0,0.06);
+			font-size: 12px;
+			color: #999;
+			text-align: center;
+		}
+
+		.footer-link a {
+			color: #302b63;
+			text-decoration: none;
+			font-weight: 500;
+		}
+
+		.footer-link a:hover {
+			color: #d4af37;
+		}
+
+		@media (max-width: 768px) {
+			.cert-inner { padding: 36px 24px 32px; }
+			.seal-decoration { width: 80px; height: 80px; top: 24px; right: 24px; }
+			.seal-decoration-inner { width: 62px; height: 62px; font-size: 10px; }
+			.cert-title { font-size: 22px; }
+			.info-grid { grid-template-columns: 1fr; gap: 4px; }
+			.info-grid dt { margin-top: 8px; }
+			.info-grid dd { border-bottom: none; padding-bottom: 0; }
+		}
+	</style>
+	</head>
+	<body>
+		<div class="registry_info">
+			<div class="container">
+				<ul class="nav nav-tabs ulLang" role="tablist">
+											<li class="nav-item">
+							<a class="nav-link active" id="ru-tab" data-toggle="tab" href="#add-ru" role="tab" aria-controls="ru" data-lang="ru" data-pane="edit-ru" aria-selected="true">ru</a>
+						</li>
+											<li class="nav-item">
+							<a class="nav-link " id="en-tab" data-toggle="tab" href="#add-en" role="tab" aria-controls="en" data-lang="en" data-pane="edit-en" aria-selected="false">en</a>
+						</li>
+									</ul>
+				<div class="tab-content">
+																	
+						<div class="tab-pane fade show active" id="add-ru" role="tabpanel" aria-labelledby="add-ru-tab" data-lang="ru">
+							<div class="cert-card">
+								<div class="seal-decoration">
+									<div class="seal-decoration-inner">ГОСТ<br>РФ</div>
+								</div>
+
+								<div class="cert-inner">
+									<div class="badge-status {:lang-ru}Действующий{:}{:lang-en}Active{:}">Статус документа: Действующий</div>
+
+									<div class="cert-title">Продукция</div>
+
+									<div class="cert-subtitle">Общество с ограниченной ответственностью «Транзистор.ру»</div>
+
+									<div class="cert-divider"></div>
+
+									<div class="info-grid">
+										<dl>
+											<dt>Номер документа</dt>
+											<dd>РОСС RU.З2001.04ИБФ1.ОСП32.90090</dd>
+
+											<dt>Дата принятия</dt>
+											<dd>01.12.2025</dd>
+
+																							<dt>Дата окончания</dt>
+												<dd>30.11.2028</dd>
+											
+																					</dl>
+									</div>
+
+																		<div class="images-section">
+										<ul id="images">
+																							<li><img data-original="/content/usr/cert/97372/page-0.jpg?1792821629" src="/content/usr/cert/97372/page-0.jpg?1792821629" alt="Скан" loading="lazy"></li>
+																					</ul>
+									</div>
+									
+									<div class="footer-link">
+										Реестр сертификатов
+									</div>
+								</div>
+							</div>
+						</div>
+																	
+						<div class="tab-pane fade " id="add-en" role="tabpanel" aria-labelledby="add-en-tab" data-lang="en">
+							<div class="cert-card">
+								<div class="seal-decoration">
+									<div class="seal-decoration-inner">GOST<br>RF</div>
+								</div>
+
+								<div class="cert-inner">
+									<div class="badge-status {:lang-ru}Действующий{:}{:lang-en}Active{:}">Document status: Active</div>
+
+									<div class="cert-title">Продукция</div>
+
+									<div class="cert-subtitle"></div>
+
+									<div class="cert-divider"></div>
+
+									<div class="info-grid">
+										<dl>
+											<dt>Document Number</dt>
+											<dd>РОСС RU.З2001.04ИБФ1.ОСП32.90090</dd>
+
+											<dt>Acceptance date</dt>
+											<dd>01.12.2025</dd>
+
+																							<dt>Expiration date</dt>
+												<dd>30.11.2028</dd>
+											
+																					</dl>
+									</div>
+
+																		<div class="images-section">
+										<ul id="images">
+																							<li><img data-original="/content/usr/cert/97372/page-0.jpg?1792821629" src="/content/usr/cert/97372/page-0.jpg?1792821629" alt="Скан" loading="lazy"></li>
+																					</ul>
+									</div>
+									
+									<div class="footer-link">
+										Register of Certificates
+									</div>
+								</div>
+							</div>
+						</div>
+									</div>
+			</div>
+		</div>
+
+		<script src="/content/sertreestrnet/libs/modernizr/2.8.3/modernizr.min.js" defer></script>
+		<script src="/content/sertreestrnet/libs/jquery/1.12.4/jquery.min.js" defer></script>
+		<script src="/assets/js/popper.min.js" defer></script>
+		<script src="/content/sertreestrnet/libs/bootstrap/4.4.1/js/bootstrap.min.js" defer></script>
+		<script src="/content/sertreestrnet/libs/SlickNav/1.0.10/jquery.slicknav.min.js" defer></script>
+		<script src="/assets/js/main.js" defer></script>
+
+		<script src="/content/sertreestrnet/libs/viewerjs/1.5.0/viewer.min.js" defer></script>
+		<script src="/content/sertreestrnet/libs/jquery-viewer/1.0.1/jquery-viewer.min.js" defer></script>
+
+		<script src="/content/sertreestrnet/libs/sourcebuster-js/1.1.0/sourcebuster.min.js" id="sbjs" defer></script>
+
+		<script type="text/javascript" defer>
+		document.addEventListener('DOMContentLoaded', function() {
+			var options = {navbar:false, title: false, toolbar:true, url: 'data-original'};
+			document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+			$('div.tab-pane #images').viewer(options);
+			$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+				var lang = $(e.target).data('lang');
+				$('div.tab-pane[data-lang=' + lang + '] #images').viewer(options);
+			});
+			sbjs.init({callback: function(sbData) {
+				console.log('Cookies are set! Your source is: ' + sbData.current.src);
+			}});
+		});
+		</script>
+
+		<script type="text/javascript" async>
+		(function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+		m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+		(window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+		var yaParams = {ip: "109.237.98.54"};
+		ym(88930594, "init", {
+			params:window.yaParams,
+			clickmap:true,
+			trackLinks:true,
+			accurateTrackBounce:true,
+			webvisor:true
+		});
+		</script>
+		<noscript><div><img src="https://mc.yandex.ru/watch/88930594" style="position:absolute; left:-9999px;" alt=""></div></noscript>
+	</body>
+</html>
