@@ -4080,9 +4080,9 @@
     "semantic_hash": ""
   },
   "Docs/\u0418\u043d\u0441\u0442\u0440\u0443\u043a\u0446\u0438\u044f_\u0430\u0433\u0435\u043d\u0442\u0443_\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043a\u0430\u0442\u044b_Ozon_WB_2026-10-12.txt": {
-    "mtime": 1792820570.1726868,
-    "seen": 1792822012.691183,
-    "ast_hash": "9e1e797ca3e1516e2e4d3f151cf738f1",
+    "mtime": 1792823623.7687118,
+    "seen": 1792823737.3549042,
+    "ast_hash": "e6f15d349153178459ed5878f3b73334",
     "semantic_hash": ""
   },
   "sites/iek-operator/Docs/VOLA-77-status-20261012.md": {
@@ -24873,6 +24873,36 @@
     "mtime": 1792774372.8848312,
     "seen": 1792822012.712703,
     "ast_hash": "fda1f91b9ed626ec802599dc5e8ed85b",
+    "semantic_hash": ""
+  },
+  "test/certificate_completion_20261020/arlight_0123651_exact_two_execution_20261024.json": {
+    "mtime": 1792822094.4957972,
+    "seen": 1792823737.3235781,
+    "ast_hash": "e9d7122ff3be856497f07c1f431c0472",
+    "semantic_hash": ""
+  },
+  "test/certificate_completion_20261020/execute_arlight_0123651_exact_two_20261024.py": {
+    "mtime": 1792822076.6672964,
+    "seen": 1792823737.32878,
+    "ast_hash": "3ee7d23e85ee8321619fd17074af36bb",
+    "semantic_hash": ""
+  },
+  "test/certificate_completion_20261020/gauss_02901_crossplatform_preflight_20261024.json": {
+    "mtime": 1792823519.7622254,
+    "seen": 1792823737.3327029,
+    "ast_hash": "c181b3b0d0ce65ace5eaf120117df74a",
+    "semantic_hash": ""
+  },
+  "test/certificate_completion_20261020/gauss_02901_registry_scope_reconciliation_20261024.json": {
+    "mtime": 1792823623.7674804,
+    "seen": 1792823737.332704,
+    "ast_hash": "176fd8884b59f922ed6086356a6af2c1",
+    "semantic_hash": ""
+  },
+  "test/certificate_completion_20261020/saffit_02041_exact_preflight_20261024.json": {
+    "mtime": 1792823044.549899,
+    "seen": 1792823737.3413801,
+    "ast_hash": "1718b069df6bf7871745c064329147a5",
     "semantic_hash": ""
   }
 }
