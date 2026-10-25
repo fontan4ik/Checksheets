@@ -154,8 +154,10 @@ async function updateTarget(sheets, definition, articles, dryRun) {
     effective.data.valueRanges[1].values || [], entered.data.valueRanges[0].values || [], articles);
   const result = { added: plan.missing.length, startRow: plan.last + 1, endRow: plan.last + plan.missing.length };
   if (!plan.missing.length || dryRun) { log(`${name}: ${dryRun ? 'добавить' : 'добавлено'} ${plan.missing.length}`); return result; }
-  const metadata = await retry(() => sheets.spreadsheets.get({ spreadsheetId: BOOK, fields: 'sheets(properties(sheetId,title,gridProperties))' }), 'Google metadata');
-  const properties = metadata.data.sheets.find(sheet => sheet.properties.title === name)?.properties;
+  const metadata = await retry(() => sheets.spreadsheets.get({ spreadsheetId: BOOK,
+    fields: name === 'ТЗ' ? 'sheets(properties(sheetId,title,gridProperties),basicFilter,filterViews)' : 'sheets(properties(sheetId,title,gridProperties))' }), 'Google metadata');
+  const targetSheet = metadata.data.sheets.find(sheet => sheet.properties.title === name);
+  const properties = targetSheet?.properties;
   if (!properties) throw new Error(`Нет листа ${name}`);
   const requests = [];
   if (result.endRow > properties.gridProperties.rowCount) requests.push({ appendDimension: {
@@ -165,6 +167,19 @@ async function updateTarget(sheets, definition, articles, dryRun) {
     range: { sheetId: properties.sheetId, startRowIndex: plan.last, endRowIndex: result.endRow, startColumnIndex: 0, endColumnIndex: 1 },
     rows: plan.missing.map(article => ({ values: [{ userEnteredValue: { stringValue: article } }] })), fields: 'userEnteredValue',
   } });
+  // Sheets resolves open-ended filter ranges to the current grid size. Extend
+  // them in the same atomic batch as new articles, preserving every criterion.
+  if (name === 'ТЗ') {
+    const expandedRange = range => ({ ...range,
+      endRowIndex: Math.max(range.endRowIndex ?? properties.gridProperties.rowCount, result.endRow),
+    });
+    if (targetSheet.basicFilter) requests.push({ setBasicFilter: {
+      filter: { ...targetSheet.basicFilter, range: expandedRange(targetSheet.basicFilter.range) },
+    } });
+    for (const view of targetSheet.filterViews || []) requests.push({ updateFilterView: {
+      filter: { filterViewId: view.filterViewId, range: expandedRange(view.range) }, fields: 'range',
+    } });
+  }
   // A timeout can be an acknowledged write with a lost response. Do not resend this
   // mutation: fail this run; the next run re-reads A and repairs without duplicates.
   atomicJson(path.join(LOGS, 'catalog-articles-pending.json'), { at: new Date().toISOString(), sheet: name, ...result, articles: plan.missing });

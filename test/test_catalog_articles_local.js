@@ -46,12 +46,19 @@ assert.throws(()=>parsePage('ozon',{result:{items:[{offer_id:123}]}},1000),/пу
 
 (async()=>{
   const rows=[['Артикул'],['OLD']], writes=[];
+  const basicFilter={range:{sheetId:1,startRowIndex:0,endRowIndex:2,startColumnIndex:0,endColumnIndex:89},
+    criteria:{12:{hiddenValues:['hidden']}},sortSpecs:[{dimensionIndex:60,sortOrder:'DESCENDING'}]};
+  const filterViews=[{filterViewId:42,title:'Personal',range:{...basicFilter.range,endRowIndex:1},
+    criteria:{7:{condition:{type:'NOT_BLANK'}}}},
+    {filterViewId:43,title:'Larger range',range:{...basicFilter.range,endRowIndex:10}},
+    {filterViewId:44,title:'Open range',range:{sheetId:1,startRowIndex:0,startColumnIndex:0,endColumnIndex:89}}];
+  const originalFilters=JSON.stringify({basicFilter,filterViews});
   let capacity=2, failAfterCommit=true;
   const api={spreadsheets:{
     values:{batchGet:async({ranges})=>({data:{valueRanges:ranges.map(range=>({values:
       range.endsWith('!1:1')?[['Артикул']]:range.includes('!A3:A4')?rows.slice(2,4):rows.map(r=>[...r])
     }))}})},
-    get:async()=>({data:{sheets:[{properties:{title:'ТЗ',sheetId:1,gridProperties:{rowCount:capacity}}}]}}),
+    get:async()=>({data:{sheets:[{properties:{title:'ТЗ',sheetId:1,gridProperties:{rowCount:capacity}},basicFilter,filterViews}]}}),
     batchUpdate:async({requestBody})=>{
       writes.push(requestBody);
       for(const r of requestBody.requests){
@@ -70,6 +77,13 @@ assert.throws(()=>parsePage('ozon',{result:{items:[{offer_id:123}]}},1000),/пу
   // The write committed but its response was lost. Mutation must not be resent.
   await assert.rejects(updateTarget(api,['ТЗ','Артикул'],['OLD','0001-1','=LITERAL'],false),/lost write response/);
   assert.equal(writes.length,1);
+  const basicWrite=writes[0].requests.find(r=>r.setBasicFilter).setBasicFilter.filter;
+  assert.deepEqual(basicWrite,{...basicFilter,range:{...basicFilter.range,endRowIndex:4}});
+  const viewWrites=writes[0].requests.filter(r=>r.updateFilterView).map(r=>r.updateFilterView);
+  assert.deepEqual(viewWrites.map(v=>v.filter.range.endRowIndex),[4,10,4]);
+  assert.ok(viewWrites.every(v=>v.fields==='range'));
+  assert.deepEqual(viewWrites.map(v=>v.filter.filterViewId),[42,43,44]);
+  assert.equal(JSON.stringify({basicFilter,filterViews}),originalFilters);
   assert.deepEqual(rows,[['Артикул'],['OLD'],['0001-1'],['=LITERAL']]);
   assert.equal((await updateTarget(api,['ТЗ','Артикул'],['OLD','0001-1','=LITERAL'],false)).added,0);
   assert.equal(writes.length,1);
