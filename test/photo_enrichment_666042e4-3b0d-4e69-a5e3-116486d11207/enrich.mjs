@@ -360,11 +360,13 @@ const context = vm.createContext({});
 vm.runInContext(sharedSettings + "\nthis.photoHeaders={ozon:ozonHeaders(),wb:wbHeaders()};", context);
 const sourcePromises = [
   fetchOzon(context.photoHeaders.ozon).then(result => {
-    console.log("Ozon catalog finished: " + result.products + " products, " + result.photosByEan.size + " barcode matches with photos");
+    const matches = eans.filter(ean => result.photosByEan.has(ean)).length;
+    console.log("Ozon catalog finished: " + result.products + " products, " + matches + " workbook EANs with photos");
     return result;
   }),
   fetchWildberries(context.photoHeaders.wb).then(result => {
-    console.log("WB catalog finished: " + result.cards + " cards, " + result.photosByEan.size + " barcode matches with photos");
+    const matches = eans.filter(ean => result.photosByEan.has(ean)).length;
+    console.log("WB catalog finished: " + result.cards + " cards, " + matches + " workbook EANs with photos");
     return result;
   }),
   runEtmLookup(eans).then(async () => {
@@ -386,10 +388,13 @@ for (const [name, result] of [["ozon", ozonSettled], ["wb", wbSettled], ["etm", 
 }
 
 const photosByEan = new Map();
+const targetEans = new Set(eans);
 for (const sourceName of ["etm", "ozon", "wb"]) {
   const source = apiResults[sourceName];
   if (!source) continue;
-  for (const [ean, urls] of source.photosByEan) addPhotos(photosByEan, ean, urls);
+  for (const [ean, urls] of source.photosByEan) {
+    if (targetEans.has(ean)) addPhotos(photosByEan, ean, urls);
+  }
 }
 
 let maxPhotoCount = 0;
@@ -536,9 +541,9 @@ const finalStats = {
   maxPhotoColumns: photoColumnCount,
   uniquePhotoLinks,
   sources: {
-    etm: apiResults.etm ? apiResults.etm.photosByEan.size : 0,
-    ozon: apiResults.ozon ? apiResults.ozon.photosByEan.size : 0,
-    wb: apiResults.wb ? apiResults.wb.photosByEan.size : 0,
+    etm: apiResults.etm ? eans.filter(ean => apiResults.etm.photosByEan.has(ean)).length : 0,
+    ozon: apiResults.ozon ? eans.filter(ean => apiResults.ozon.photosByEan.has(ean)).length : 0,
+    wb: apiResults.wb ? eans.filter(ean => apiResults.wb.photosByEan.has(ean)).length : 0,
   },
   savedMasterHeaders: savedHeaders,
   savedSampleLinks: savedLinkCount,
