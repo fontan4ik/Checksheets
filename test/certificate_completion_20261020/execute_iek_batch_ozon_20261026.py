@@ -168,7 +168,8 @@ def preflight(client: Client) -> dict:
         "ozon_number_attempted": "RU Д-RU.РА04.В.27570/26",
         "response": "INCOMPLETE", "invalid_parameter": "NUMBER",
         "certificate_id": None, "binding_attempted": False,
-        "reconciled_absent_from_live_ozon": True,
+        "record_not_created_by_attempt": True,
+        "canonical_record_preexisted_with_ids": [5530976, 5447907],
     }
     for manifest_number, group in groups.items():
         number = REGISTRY_NUMBERS[manifest_number]
