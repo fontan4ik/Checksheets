@@ -36,6 +36,9 @@ wb_article_ids_local.js
 
 # Independent bound Apps Script project for the new NTC workbook.
 ntc-cloud/**
+
+# Independent bound Apps Script project for the Ozon dashboard workbook.
+ozon-dashboard/**
 ntc_wb_ownership.js
 
 append_initialization_ledger.js
