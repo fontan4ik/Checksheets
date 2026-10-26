@@ -434,18 +434,16 @@ for (const info of sheetData) {
         formulas[rowIndex][colIndex] = '=HYPERLINK("' + escaped + '","' + escaped + '")';
       }
     }
-    for (let colIndex = 0; colIndex < photoColumnCount; colIndex++) {
-      const bodyRange = sheet.getRangeByIndexes(1, startColIndex + colIndex, rowCount, 1);
-      bodyRange.copyFrom(nameSource, "all");
-      bodyRange.clear({ applyTo: "contents" });
-      bodyRange.formulas = formulas.map(row => [row[colIndex]]);
-      bodyRange.format.columnWidth = 36;
-      bodyRange.format.numberFormat = "@";
-      bodyRange.format.font.color = "#0563C1";
-      bodyRange.format.horizontalAlignment = "left";
-      bodyRange.format.verticalAlignment = "center";
-      bodyRange.format.wrapText = false;
-    }
+    const bodyRange = sheet.getRangeByIndexes(1, startColIndex, rowCount, photoColumnCount);
+    bodyRange.copyFrom(nameSource.getCell(0, 0), "all");
+    bodyRange.clear({ applyTo: "contents" });
+    bodyRange.formulas = formulas;
+    bodyRange.format.columnWidth = 36;
+    bodyRange.format.numberFormat = "@";
+    bodyRange.format.font.color = "#0563C1";
+    bodyRange.format.horizontalAlignment = "left";
+    bodyRange.format.verticalAlignment = "center";
+    bodyRange.format.wrapText = false;
     placement.push({
       sheet: info.name,
       firstColumn: columnLetters(startColIndex + 1),
