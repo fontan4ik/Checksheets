@@ -89,6 +89,7 @@ function ozonDashboardSyncStockSlice_(sheet, state) {
   const fboBySku = Object.create(null);
   const fbsBySku = Object.create(null);
   const seenFbsSkuWarehouses = Object.create(null);
+  const unmappedClusters = Object.create(null);
 
   for (let offset = 0; offset < uniqueFboSkus.length; offset += 100) {
     const requested = uniqueFboSkus.slice(offset, offset + 100);
@@ -110,18 +111,25 @@ function ozonDashboardSyncStockSlice_(sheet, state) {
       if (!sku || !requestedSet[sku]) {
         throw new Error('Ozon analytics stocks: получена неожиданная SKU');
       }
-      const header = OZON_DASHBOARD_REGION_HEADERS_[cluster];
-      if (!header) {
-        throw new Error('Ozon analytics stocks: кластер «' + String(item.cluster_name || '') +
-          '» не сопоставлен с колонками листа «' + sheet.getName() + '»');
-      }
       const count = Number(item.available_stock_count);
       if (!Number.isSafeInteger(count) || count < 0) {
         throw new Error('Ozon analytics stocks: некорректный остаток для SKU ' + sku);
       }
+      const header = OZON_DASHBOARD_REGION_HEADERS_[cluster];
+      if (!header) {
+        unmappedClusters[cluster] = String(item.cluster_name || 'пустое название');
+        return;
+      }
       if (!fboBySku[sku]) fboBySku[sku] = Object.create(null);
       fboBySku[sku][header] = (fboBySku[sku][header] || 0) + count;
     });
+  }
+  const unmappedNames = Object.keys(unmappedClusters).map(function(key) {
+    return unmappedClusters[key];
+  });
+  if (unmappedNames.length) {
+    throw new Error('Ozon analytics stocks: кластеры «' + unmappedNames.sort().join('», «') +
+      '» не сопоставлены с колонками листа «' + sheet.getName() + '»');
   }
 
   for (let offset = 0; offset < uniqueFbsSkus.length; offset += 200) {
