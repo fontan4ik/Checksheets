@@ -218,37 +218,5 @@ function ozonDashboardDeleteContinuationTriggers_() {
   });
 }
 
-function testOzonDashboardOutflowsOnly20261026() {
-  return runWithTelegramAlertGAS_('testOzonDashboardOutflowsOnly20261026', function() {
-    const lock = LockService.getScriptLock();
-    if (!lock.tryLock(30000)) throw new Error('Не удалось заблокировать тест уходов Ozon');
-    try {
-      const properties = PropertiesService.getScriptProperties();
-      if (properties.getProperty(OZON_DASHBOARD_STATE_KEY_)) {
-        throw new Error('Нельзя запускать тест уходов: уже выполняется синхронизация Ozon');
-      }
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(OZON_DASHBOARD_SHEET_);
-      if (!sheet) throw new Error('Не найден лист «' + OZON_DASHBOARD_SHEET_ + '»');
-      const lastRow = sheet.getLastRow();
-      const state = {
-        runId: Utilities.getUuid(),
-        mode: 'stocks',
-        phase: 'stocks',
-        rowOffset: lastRow + 1,
-        lastRow: lastRow,
-        lastOzonRequestAt: 0,
-        startedAt: new Date().toISOString()
-      };
-      properties.setProperty(OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state));
-      ozonDashboardContinueCore_();
-      Logger.log('Изолированный тест уходов запущен. runId=' + state.runId);
-    } catch (error) {
-      ozonDashboardClearSync_();
-      throw error;
-    } finally {
-      lock.releaseLock();
-    }
-  });
-}
 
 
