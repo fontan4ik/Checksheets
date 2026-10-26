@@ -13,6 +13,7 @@ TRANS = str.maketrans(dict(zip('АВЕКМНОРСТУХД', 'ABEKMHOPCTYXD')))
 
 def norm(value):
     value = re.sub(r'^(?:ЕАЭС|EAEU|EAEC|EAC)\s*', '', str(value or '').upper())
+    value = re.sub(r'^(?:N|№)\s*', '', value)
     return ''.join(c for c in value.translate(TRANS) if c.isalnum())
 
 def unique(values):
@@ -46,6 +47,15 @@ BLOCK_TEXT = {
  'verified_original_pdf_missing_changed_or_not_pdf': 'Нет проверенного исходного PDF с ожидаемым содержимым',
  'no_explicit_confirmed_upload_scope_plan': 'Не подтверждён список точных моделей для загрузки',
  'no_confirmed_exact_active_targets': 'Нет подтверждённых точных товаров в области документа',
+ 'authoritative_date_range_missing_or_conflicting': 'Не подтверждены однозначные даты действия найденного документа',
+ 'authoritative_dates_not_confirmed_in_pdf_text': 'Даты найденного документа не подтверждены текстом оригинала',
+ 'expired_or_future_document': 'Найденный документ истёк или ещё не вступил в силу',
+ 'no_exact_current_source_confirmed_target': 'Не подтверждено точное совпадение текущей модели с документом',
+ 'local_hash_has_no_exact_official_article_assignment': 'Для локального файла нет подтверждённого официальным источником назначения на точный артикул',
+ 'not_full_legal_number_or_supporting_document': 'В найденных материалах нет подтверждённого полного регистрационного номера применимого документа',
+ 'no_verified_dated_exact_scope_upload_plan': 'Не завершена проверка реквизитов и точного перечня моделей для загрузки',
+ 'unconfirmed_partial_historical_or_supporting_source': 'Найдены материалы с неподтверждённой, частичной или исторической применимостью',
+ 'local_hash_map_is_not_verified_upload_plan': 'Связь локального документа с точной моделью ещё не прошла проверку',
 }
 
 def translate_block(reason):
@@ -114,6 +124,10 @@ def candidate_info(offer, actual_codes):
             if g not in gs:
                 gs.append(g)
         for block in blocks_hash.get(sha, []) + blocks_number.get(norm(number), []):
+            if block in ('verified_local_original_pdf_missing', 'verified_original_pdf_missing_changed_or_not_pdf'):
+                local = str(r.get('Локальный файл') or '')
+                if local and (ROOT / local).is_file():
+                    continue
             details.append(translate_block(block))
     for g in gs:
         nums.append(g.get('number'))
@@ -164,11 +178,11 @@ for p in snap['ozon_products']['products']:
         reason, status = 'Ozon отклонил привязку документа к товару', 'Привязка отклонена'
         action = 'Открыть причину отказа в Ozon Seller, исправить её и повторно проверить привязку'
         detail.append('API не раскрывает причину отказа по отдельному товару')
-    elif any(not active(c) for c, b in exact):
-        reason, status = 'У привязанных документов нет подтверждённого действующего срока', 'Истёкший срок / даты не подтверждены'
-    elif exact:
+    elif any(active(c) for c, b in exact):
         reason, status = 'Документ или привязка ещё не одобрены Ozon', 'На проверке / не одобрено'
         action = 'Проверить статус документа и привязки в Ozon Seller'
+    elif exact:
+        reason, status = 'У привязанных документов нет подтверждённого действующего срока', 'Истёкший срок / даты не подтверждены'
     elif ci['matching']:
         reason = 'Документ-кандидат уже загружен в Ozon; подтверждённой привязки к товару нет'
         action = 'Проверить применимость загруженного документа и привязать точный товар'
