@@ -34,23 +34,16 @@ for (const [platform, rawRows] of Object.entries(data.sheets)) {
   const checked = platform === 'Ozon' ? data.checked.ozon_certificates : data.checked.wb_catalog;
   sheet.getRange('A3').values = [[`Проверка API: ${checked.slice(0,19).replace('T',' ')} UTC. Список: ${rows.length} карточек, ${data.counts[platform].unique_articles} уникальных артикулов.`]];
   sheet.getRange('A4').values = [[platform === 'Ozon'
-    ? `Включён архив (${data.counts.Ozon.archived} карточек): отфильтруйте столбец O. Карточки с действующим одобренным документом исключены.`
-    : 'Включены документы на проверке, отказы и карточки с признаком «Документы не требуются». Последний признак сам по себе не проверен на правомерность.']];
+    ? `Архивных карточек в списке: ${data.counts.Ozon.archived}. Товары с одобренным действующим документом исключены; полнота комплекта по всем регламентам не оценивалась.`
+    : 'Текущий каталог без корзины. Включены проверка, отказы и признак «Документы не требуются»; обоснованность освобождения не подтверждена.']];
   sheet.getRange('A5').values = [['Статусы площадок обновлены 26.10.2026. Причины поиска и проверки применимости взяты из накопленных материалов по 24.10.2026.']];
   sheet.getRange('A6').values = [[platform === 'WB'
     ? 'WB: отказное письмо не загружают. При подтверждённом освобождении используют признак «Документы не требуются».'
     : 'Отказное письмо: необходимость проверяется по точной модели и обязательным требованиям. Оно не заменяет обязательный сертификат или декларацию.']];
   sheet.getRange('A3:P6').format.font = {name:'Arial', size:10, color:'#526477'};
   sheet.getRange('A3:P6').format.wrapText = false;
-  sheet.getRange('R3').values = [['Правила площадки']];
-  sheet.getRange('S3').values = [[data.platform_docs[platform]]];
-  sheet.getRange('R3:S3').format.font = {name:'Arial', size:10, color:'#526477'};
-  sheet.getRange('R4:S4').values = [['Границы проверки', 'Наличие одного одобренного документа не подтверждает полноту комплекта по всем применимым регламентам. Найденные кандидаты требуют проверки.']];
-  sheet.getRange('R4:S4').format.font = {name:'Arial',size:10,color:'#526477'};
-  sheet.getRange('S4').format.wrapText = true;
-  sheet.getRange('R4:S4').format.rowHeight = 42;
-  sheet.getRange('R3').format.columnWidth = 23;
-  sheet.getRange('S3').format.columnWidth = 100;
+  sheet.getRange('A7').values = [[`Правила площадки: ${data.platform_docs[platform]}`]];
+  sheet.getRange('A7:P7').format.font = {name:'Arial', size:10, color:'#526477'};
   sheet.getRange('A8:P8').values = [data.headers];
   sheet.getRange(`A9:P${end}`).values = rows.map(row => row.map(v => typeof v === 'string' && v.startsWith('=') ? `'${v}` : v));
   sheet.getRange(`A9:P${end}`).format.wrapText = true;
