@@ -16,7 +16,9 @@ const OZON_DASHBOARD_API_ = {
   prices: 'https://api-seller.ozon.ru/v5/product/info/prices',
   analyticsStocks: 'https://api-seller.ozon.ru/v1/analytics/stocks',
   warehouses: 'https://api-seller.ozon.ru/v2/warehouse/list',
-  fbsStocks: 'https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs'
+  fbsStocks: 'https://api-seller.ozon.ru/v2/product/info/stocks-by-warehouse/fbs',
+  fboClusters: 'https://api-seller.ozon.ru/v2/cluster/list',
+  fboPostings: 'https://api-seller.ozon.ru/v3/posting/fbo/list'
 };
 
 const OZON_DASHBOARD_TARGET_HEADERS_ = {
@@ -34,6 +36,26 @@ const OZON_DASHBOARD_TARGET_HEADERS_ = {
     'КАВ ОСТ', 'САР ОСТ', 'КАЗ ост', 'СМ ОСТ', 'УФА ОСТ', 'ЕКБ ОСТ',
     'НСБ ОСТ', 'ДВ ОСТ', 'Бел ост', 'Казах Ост'
   ]
+};
+
+/** Monthly FBO order targets paired with the stock-region headers above. */
+const OZON_DASHBOARD_OUTFLOW_HEADERS_ = {
+  'МО ОСТ': 'МО УХ',
+  'СПБ ОСТ': 'СПБ УХ',
+  'ЯР ОСТ': 'ЯР УХ',
+  'ВОР ОСТ': 'ВОР УХ',
+  'ЮГ ОСТ': 'ЮГ УХ',
+  'Рост ост': 'Рост ух',
+  'КАВ ОСТ': 'КАВ УХ',
+  'САР ОСТ': 'САР УХ',
+  'КАЗ ост': 'КАЗ ух',
+  'СМ ОСТ': 'СМ УХ',
+  'УФА ОСТ': 'УФА УХ',
+  'ЕКБ ОСТ': 'ЕКБ УХ',
+  'НСБ ОСТ': 'НСБ УХ',
+  'ДВ ОСТ': 'ДВ УХ',
+  'Бел ост': 'Бел ух',
+  'Казах Ост': 'Казах Ух'
 };
 
 /** Region-to-cluster aliases based on the provided warehouse workbook. */

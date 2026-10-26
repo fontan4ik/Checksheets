@@ -144,18 +144,36 @@ function ozonDashboardContinueCore_() {
     Logger.log('Синхронизация цен Ozon завершена; остатки продолжатся отдельным запуском. runId=' + state.runId);
     return;
   }
+  if (state.phase === 'outflows') {
+    ozonDashboardSyncOutflowPages_(sheet, state);
+    properties.setProperty(OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state));
+    ozonDashboardScheduleContinuation_();
+    Logger.log('Синхронизация уходов Ozon продолжится. runId=' + state.runId +
+      ', pages=' + state.outflowPages + ', период=' + state.outflowDateFrom + ' — ' + state.outflowDateTo);
+    return;
+  }
+  if (state.phase === 'outflowCommit') {
+    const result = ozonDashboardCommitOutflows_(sheet, state);
+    ozonDashboardClearSync_();
+    Logger.log('Синхронизация уходов Ozon завершена. runId=' + state.runId +
+      ', период=' + state.outflowDateFrom + ' — ' + state.outflowDateTo +
+      ', отправлений=' + state.outflowPostings + ', ячеек=' + result.cellsWritten);
+    return;
+  }
   if (state.phase !== 'stocks') throw new Error('Неизвестная фаза синхронизации Ozon: ' + state.phase);
 
   if (state.rowOffset > state.lastRow) {
-    ozonDashboardClearSync_();
-    Logger.log('Синхронизация остатков Ozon завершена. runId=' + state.runId);
+    ozonDashboardBeginOutflows_(sheet, state);
+    ozonDashboardScheduleContinuation_();
+    Logger.log('Синхронизация остатков Ozon завершена; началась загрузка уходов. runId=' + state.runId);
     return;
   }
 
   ozonDashboardSyncStockSlice_(sheet, state);
   if (state.rowOffset > state.lastRow) {
-    ozonDashboardClearSync_();
-    Logger.log('Синхронизация остатков Ozon завершена. runId=' + state.runId);
+    ozonDashboardBeginOutflows_(sheet, state);
+    ozonDashboardScheduleContinuation_();
+    Logger.log('Синхронизация остатков Ozon завершена; началась загрузка уходов. runId=' + state.runId);
   } else {
     properties.setProperty(OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state));
     ozonDashboardScheduleContinuation_();
@@ -174,7 +192,21 @@ function ozonDashboardScheduleWatchdog_() {
 }
 
 function ozonDashboardClearSync_() {
-  PropertiesService.getScriptProperties().deleteProperty(OZON_DASHBOARD_STATE_KEY_);
+  const properties = PropertiesService.getScriptProperties();
+  const saved = properties.getProperty(OZON_DASHBOARD_STATE_KEY_);
+  if (saved) {
+    try {
+      const state = JSON.parse(saved);
+      if (state.outflowTempSheetName) {
+        const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+        const tempSheet = spreadsheet.getSheetByName(state.outflowTempSheetName);
+        if (tempSheet) spreadsheet.deleteSheet(tempSheet);
+      }
+    } catch (error) {
+      Logger.log('Не удалось удалить временный лист уходов Ozon: ' + error.message);
+    }
+  }
+  properties.deleteProperty(OZON_DASHBOARD_STATE_KEY_);
   ozonDashboardDeleteContinuationTriggers_();
 }
 
