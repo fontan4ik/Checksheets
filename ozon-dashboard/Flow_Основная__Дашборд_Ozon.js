@@ -19,8 +19,8 @@ function setupOzonDashboardButtons() {
 
     const positions = [
       {key: 'prices', title: 'Загрузить цены', handler: 'ozonDashboardLoadPrices', column: 2},
-      {key: 'stocks', title: 'Загрузить остатки', handler: 'ozonDashboardLoadStocks', column: 10},
-      {key: 'both', title: 'Цены и остатки', handler: 'ozonDashboardLoadPricesAndStocks', column: 18}
+      {key: 'stocks', title: 'Загрузить остатки', handler: 'ozonDashboardLoadStocks', column: 6},
+      {key: 'both', title: 'Цены и остатки', handler: 'ozonDashboardLoadPricesAndStocks', column: 10}
     ];
     const ownedPrefix = 'Ozon dashboard button:';
     sheet.getImages().forEach(function(image) {
