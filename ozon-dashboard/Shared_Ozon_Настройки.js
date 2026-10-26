@@ -98,6 +98,11 @@ const OZON_DASHBOARD_REGION_HEADERS_ = {
   'узбекистан': 'МО ОСТ'
 };
 
+/** Explicit warehouse-name aliases for legacy FBO warehouses absent from /v2/cluster/list. */
+const OZON_DASHBOARD_FBO_WAREHOUSE_HEADERS_ = {
+  'нальчик_95': 'КАВ ОСТ'
+};
+
 function ozonDashboardNormalize_(value) {
   return String(value === null || value === undefined ? '' : value)
     .replace(/\s+/g, ' ').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е');

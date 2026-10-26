@@ -21,28 +21,32 @@ assert.equal(context.ozonDashboardOutflowPeriod_().from, '2026-02-27T20:00:00.00
 const aggregated = context.ozonDashboardAggregateOutflowPostings_([
   {
     status: 'delivered',
-    analytics_data: {warehouse_id: 101},
+    analytics_data: {warehouse_name: 'МОСКВА_РФЦ'},
     products: [{sku: 3001, quantity: 2}, {sku: 3001, quantity: 1}, {sku: 3002, quantity: 4}]
   },
   {
     status: 'awaiting_deliver',
-    analytics_data: {warehouse_id: 202},
+    analytics_data: {warehouse_name: 'САНКТ-ПЕТЕРБУРГ_РФЦ'},
     products: [{sku: 3001, quantity: 5}]
   },
   {
     status: 'cancelled',
-    analytics_data: {warehouse_id: 101},
+    analytics_data: {warehouse_name: 'МОСКВА_РФЦ'},
     products: [{sku: 3001, quantity: 99}]
   }
-], {101: 'МО УХ', 202: 'СПБ УХ'});
+], {'москва_рфц': 'МО УХ', 'санкт-петербург_рфц': 'СПБ УХ'});
 assert.deepEqual(JSON.parse(JSON.stringify(aggregated)), {
   '3001': {'МО УХ': 3, 'СПБ УХ': 5},
   '3002': {'МО УХ': 4}
 });
 
 assert.throws(() => context.ozonDashboardAggregateOutflowPostings_([
-  {status: 'delivered', analytics_data: {warehouse_id: 303}, products: [{sku: 3001, quantity: 1}]}
-], {101: 'МО УХ'}), /склады не сопоставлены/);
+  {status: 'delivered', analytics_data: {warehouse_id: 101}, products: [{sku: 3001, quantity: 1}]}
+], {'москва_рфц': 'МО УХ'}), /склады не сопоставлены/);
+
+assert.deepEqual(JSON.parse(JSON.stringify(context.ozonDashboardAggregateOutflowPostings_([
+  {status: 'delivered', analytics_data: {warehouse_name: 'НАЛЬЧИК_95'}, products: [{sku: 3001, quantity: 2}]}
+], {}))), {'3001': {'КАВ УХ': 2}});
 
 const outflowHeaders = vm.runInContext('Object.values(OZON_DASHBOARD_OUTFLOW_HEADERS_)', context);
 assert.equal(outflowHeaders.length, 16);
@@ -58,7 +62,7 @@ const clusterResponse = {
   result: clusterNames.map((name, index) => ({
     data: {
       macrolocal_cluster: {name},
-      fulfillments: [{warehouse_id: 10000 + index, name: 'ТЕСТОВЫЙ СКЛАД'}]
+      fulfillments: [{warehouse_id: 10000 + index, name: 'СКЛАД-' + index}]
     }
   }))
 };
@@ -66,6 +70,7 @@ context.ozonDashboardPostJson_ = () => clusterResponse;
 const warehouseHeaders = context.ozonDashboardFetchFboWarehouseHeaders_({});
 assert.equal(Object.keys(warehouseHeaders).length, clusterNames.length);
 assert.ok(Object.values(warehouseHeaders).every(header => outflowHeaders.includes(header)));
+assert.equal(warehouseHeaders['склад-7'], 'МО УХ');
 
 function makeButtonHarness() {
   const properties = new Map();

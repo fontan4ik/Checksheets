@@ -73,16 +73,17 @@ function ozonDashboardFetchFboWarehouseHeaders_(state) {
     const outflowHeader = stockHeader && OZON_DASHBOARD_OUTFLOW_HEADERS_[stockHeader];
     const warehouses = Array.isArray(data.fulfillments) ? data.fulfillments : [];
     warehouses.forEach(function(warehouse) {
-      const warehouseId = String(warehouse && warehouse.warehouse_id || '').trim();
-      if (!warehouseId) throw new Error('Ozon cluster list: у склада «' + (warehouse && warehouse.name || '') + '» отсутствует ID');
+      const warehouseName = String(warehouse && warehouse.name || '').trim();
+      const warehouseKey = ozonDashboardNormalize_(warehouseName);
+      if (!warehouseKey) throw new Error('Ozon cluster list: у склада отсутствует название');
       if (!outflowHeader) {
         unmappedRegions[regionName || '(без названия)'] = true;
         return;
       }
-      if (warehouseHeaders[warehouseId] && warehouseHeaders[warehouseId] !== outflowHeader) {
-        throw new Error('Ozon cluster list: склад ' + warehouseId + ' связан с несколькими регионами');
+      if (warehouseHeaders[warehouseKey] && warehouseHeaders[warehouseKey] !== outflowHeader) {
+        throw new Error('Ozon cluster list: склад «' + warehouseName + '» связан с несколькими регионами');
       }
-      warehouseHeaders[warehouseId] = outflowHeader;
+      warehouseHeaders[warehouseKey] = outflowHeader;
     });
   });
   const unmapped = Object.keys(unmappedRegions);
@@ -173,11 +174,14 @@ function ozonDashboardAggregateOutflowPostings_(postings, warehouseHeaders) {
     const status = String(posting && posting.status || '').toLocaleLowerCase('en-US');
     if (status.indexOf('cancel') >= 0) return;
     const analytics = posting && posting.analytics_data || {};
-    const warehouseId = String(analytics.warehouse_id || posting && posting.warehouse_id || '').trim();
-    const header = warehouseHeaders[warehouseId];
+    const warehouseName = String(analytics.warehouse_name || analytics.warehouse ||
+      posting && posting.warehouse_name || '').trim();
+    const warehouseKey = ozonDashboardNormalize_(warehouseName);
+    const aliasStockHeader = OZON_DASHBOARD_FBO_WAREHOUSE_HEADERS_[warehouseKey];
+    const header = warehouseHeaders[warehouseKey] ||
+      (aliasStockHeader && OZON_DASHBOARD_OUTFLOW_HEADERS_[aliasStockHeader]);
     if (!header) {
-      const name = String(analytics.warehouse_name || analytics.warehouse || posting && posting.warehouse_name || warehouseId || '(без склада)');
-      unmappedWarehouses[name] = true;
+      unmappedWarehouses[warehouseName || '(без названия склада)'] = true;
       return;
     }
     (Array.isArray(posting.products) ? posting.products : []).forEach(function(product) {
