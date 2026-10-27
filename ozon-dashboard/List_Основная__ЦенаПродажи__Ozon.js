@@ -43,8 +43,8 @@ function ozonDashboardSyncPrices_(sheet, state) {
 
       items.forEach(function(item) {
         const offerId = ozonDashboardValidOfferId_(item && item.offer_id);
-        const amount = Number(item && item.price && item.price.price);
-        if (!offerId || !isFinite(amount) || amount < 0) return;
+        const amount = ozonDashboardSelectSalePrice_(item);
+        if (!offerId || amount === null) return;
         priceByOffer[offerId] = amount;
       });
 
@@ -83,13 +83,28 @@ function ozonDashboardSyncPrices_(sheet, state) {
   }));
 }
 
+/** Mirrors the established Ozon price writer's marketplace-price priority. */
+function ozonDashboardSelectSalePrice_(item) {
+  const price = item && item.price || {};
+  const candidates = [price.marketing_seller_price, price.price_before, price.price];
+  for (let index = 0; index < candidates.length; index++) {
+    const value = candidates[index];
+    if (value === null || value === undefined || String(value).trim() === '') continue;
+    const amount = Number(value);
+    if (isFinite(amount) && amount >= 0) return amount;
+  }
+  return null;
+}
+
 function ozonDashboardPostJson_(url, payload, state, minimumIntervalMs) {
-  const maxAttempts = 3;
+  const maxAttempts = 5;
+  const rateLimitWaitBudgetMs = 90 * 1000;
+  let rateLimitWaitedMs = 0;
   let lastError = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const previousAt = Number(state.lastOzonRequestAt || 0);
-    const waitMs = minimumIntervalMs - (Date.now() - previousAt);
-    if (waitMs > 0) Utilities.sleep(waitMs);
+    const intervalWaitMs = minimumIntervalMs - (Date.now() - previousAt);
+    if (intervalWaitMs > 0) Utilities.sleep(intervalWaitMs);
 
     let response = null;
     try {
@@ -108,7 +123,7 @@ function ozonDashboardPostJson_(url, payload, state, minimumIntervalMs) {
       lastError = error;
       lastError.ozonTransient = true;
       if (attempt + 1 >= maxAttempts) break;
-      Utilities.sleep(Math.max(2000 * Math.pow(2, attempt), minimumIntervalMs));
+      Utilities.sleep(Math.max(1500 * Math.pow(2, attempt + 1), minimumIntervalMs));
       continue;
     }
 
@@ -132,7 +147,13 @@ function ozonDashboardPostJson_(url, payload, state, minimumIntervalMs) {
       lastError.retryAfterMs = ozonDashboardRetryAfterMs_(response);
     }
     if (!(status === 408 || status === 429 || status >= 500) || attempt + 1 >= maxAttempts) break;
-    Utilities.sleep(Math.max(5000 * Math.pow(2, attempt), minimumIntervalMs, lastError.retryAfterMs || 0));
+    let retryWaitMs = Math.max(1500 * Math.pow(2, attempt + 1), minimumIntervalMs);
+    if (status === 429 && lastError.retryAfterMs) {
+      retryWaitMs = Math.max(retryWaitMs, lastError.retryAfterMs);
+      if (rateLimitWaitedMs + retryWaitMs > rateLimitWaitBudgetMs) break;
+      rateLimitWaitedMs += retryWaitMs;
+    }
+    Utilities.sleep(retryWaitMs);
   }
   throw lastError || new Error('Не удалось выполнить запрос Ozon API');
 }
