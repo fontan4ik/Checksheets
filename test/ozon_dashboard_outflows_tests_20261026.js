@@ -51,6 +51,18 @@ assert.deepEqual(JSON.parse(JSON.stringify(context.ozonDashboardAggregateOutflow
 const outflowHeaders = vm.runInContext('Object.values(OZON_DASHBOARD_OUTFLOW_HEADERS_)', context);
 assert.equal(outflowHeaders.length, 16);
 assert.equal(new Set(outflowHeaders).size, 16);
+const headerSheet = {
+  getName: () => 'Основная',
+  getLastColumn: () => 3,
+  getRange: () => ({getDisplayValues: () => [['Артикул', 'Цена продажи', 'МО УХ']]})
+};
+assert.equal(context.ozonDashboardColumnByHeader_(headerSheet, 'Цена продажи'), 2);
+assert.throws(() => context.ozonDashboardColumnByHeader_({
+  getName: () => 'Основная',
+  getLastColumn: () => 3,
+  getRange: () => ({getDisplayValues: () => [['Цена продажи', 'Цена продажи', 'МО УХ']]})
+}, 'Цена продажи'), /найден 2 раз/);
+assert.throws(() => context.ozonDashboardColumnByHeader_(headerSheet, 'Неизвестный заголовок'), /найден 0 раз/);
 
 const clusterNames = [
   'Беларусь', 'Дальний Восток', 'Калининград', 'Санкт-Петербург и СЗО', 'Армения',
@@ -76,8 +88,13 @@ function makeButtonHarness() {
   const properties = new Map();
   const triggers = [];
   const events = [];
+  const notices = [];
+  let lockAvailable = true;
   const sheet = {getLastRow: () => 3, getName: () => 'Основная'};
-  const spreadsheet = {getSheetByName: name => name === 'Основная' ? sheet : null};
+  const spreadsheet = {
+    getSheetByName: name => name === 'Основная' ? sheet : null,
+    toast: message => notices.push(message)
+  };
   const context = vm.createContext({
     Utilities: {getUuid: () => 'test-run-id'},
     Logger: {log: () => {}},
@@ -87,7 +104,7 @@ function makeButtonHarness() {
       setProperty: (key, value) => properties.set(key, value),
       deleteProperty: key => properties.delete(key)
     })},
-    LockService: {getScriptLock: () => ({tryLock: () => true, releaseLock: () => {}})},
+    LockService: {getScriptLock: () => ({tryLock: () => lockAvailable, releaseLock: () => {}})},
     ScriptApp: {
       getProjectTriggers: () => triggers.slice(),
       deleteTrigger: trigger => { const index = triggers.indexOf(trigger); if (index >= 0) triggers.splice(index, 1); },
@@ -125,28 +142,99 @@ function makeButtonHarness() {
     properties.delete('ozonDashboardSyncState');
     triggers.splice(0, triggers.length);
   };
-  return {context, events, properties, triggers};
+  return {context, events, properties, triggers, notices, setLockAvailable: value => { lockAvailable = value; }};
 }
 
 const stocksRun = makeButtonHarness();
 stocksRun.context.ozonDashboardLoadStocks();
+assert.deepEqual(stocksRun.events, []);
+assert.equal(JSON.parse(stocksRun.properties.get('ozonDashboardSyncState')).phase, 'stocks');
+assert.deepEqual(stocksRun.triggers.map(trigger => trigger.handler), ['continueOzonDashboardSync']);
+assert.equal(stocksRun.triggers[0].milliseconds, 60000);
+assert.doesNotThrow(() => stocksRun.context.ozonDashboardLoadStocks());
+assert.match(stocksRun.notices[1], /уже выполняется/);
+assert.equal(stocksRun.triggers.length, 1);
+stocksRun.context.continueOzonDashboardSync();
 assert.deepEqual(stocksRun.events, ['stocks', 'begin-outflows']);
 assert.equal(JSON.parse(stocksRun.properties.get('ozonDashboardSyncState')).phase, 'outflows');
-assert.deepEqual(stocksRun.triggers.map(trigger => trigger.handler), ['continueOzonDashboardSync']);
 stocksRun.context.continueOzonDashboardSync();
+assert.deepEqual(stocksRun.events, ['stocks', 'begin-outflows', 'outflows']);
 assert.equal(JSON.parse(stocksRun.properties.get('ozonDashboardSyncState')).phase, 'outflowCommit');
 stocksRun.context.continueOzonDashboardSync();
 assert.deepEqual(stocksRun.events, ['stocks', 'begin-outflows', 'outflows', 'commit-outflows', 'clear']);
 
+const busyStartRun = makeButtonHarness();
+busyStartRun.setLockAvailable(false);
+assert.doesNotThrow(() => busyStartRun.context.ozonDashboardLoadPrices());
+assert.equal(busyStartRun.properties.has('ozonDashboardSyncState'), false);
+assert.match(busyStartRun.notices[0], /уже запускается/);
+
+const busyContinuationRun = makeButtonHarness();
+busyContinuationRun.context.ozonDashboardLoadStocks();
+busyContinuationRun.setLockAvailable(false);
+assert.doesNotThrow(() => busyContinuationRun.context.continueOzonDashboardSync());
+assert.equal(JSON.parse(busyContinuationRun.properties.get('ozonDashboardSyncState')).phase, 'stocks');
+assert.equal(busyContinuationRun.triggers.length, 1);
+
 const combinedRun = makeButtonHarness();
 combinedRun.context.ozonDashboardLoadPricesAndStocks();
+assert.deepEqual(combinedRun.events, []);
+assert.equal(JSON.parse(combinedRun.properties.get('ozonDashboardSyncState')).phase, 'prices');
+combinedRun.context.continueOzonDashboardSync();
 assert.deepEqual(combinedRun.events, ['prices']);
 assert.equal(JSON.parse(combinedRun.properties.get('ozonDashboardSyncState')).phase, 'stocks');
 combinedRun.context.continueOzonDashboardSync();
 assert.deepEqual(combinedRun.events, ['prices', 'stocks', 'begin-outflows']);
+assert.equal(JSON.parse(combinedRun.properties.get('ozonDashboardSyncState')).phase, 'outflows');
 
 const pricesRun = makeButtonHarness();
 pricesRun.context.ozonDashboardLoadPrices();
+assert.deepEqual(pricesRun.events, []);
+pricesRun.context.continueOzonDashboardSync();
 assert.deepEqual(pricesRun.events, ['prices', 'clear']);
+
+const retryRun = makeButtonHarness();
+retryRun.context.ozonDashboardLoadStocks();
+retryRun.context.ozonDashboardContinueCore_ = () => {
+  const error = new Error('Ozon API HTTP 429');
+  error.ozonRetryable = true;
+  error.retryAfterMs = 120000;
+  throw error;
+};
+assert.doesNotThrow(() => retryRun.context.continueOzonDashboardSync());
+const retryState = JSON.parse(retryRun.properties.get('ozonDashboardSyncState'));
+assert.equal(retryState.transientRetryCount, 1);
+assert.match(retryState.lastTransientError, /HTTP 429/);
+assert.equal(retryRun.events.includes('clear'), false);
+assert.equal(retryRun.triggers.length, 1);
+assert.equal(retryRun.triggers[0].milliseconds, 120000);
+
+let apiAttempts = 0;
+const apiSleeps = [];
+const apiContext = vm.createContext({
+  Utilities: {sleep: milliseconds => apiSleeps.push(milliseconds)},
+  UrlFetchApp: {fetch: () => {
+    apiAttempts++;
+    return {
+      getResponseCode: () => 429,
+      getContentText: () => '{"code":8}',
+      getAllHeaders: () => ({'Retry-After': '3'})
+    };
+  }},
+  PropertiesService: {getScriptProperties: () => ({setProperty: () => {}})}
+});
+vm.runInContext(fs.readFileSync('ozon-dashboard/Shared_Ozon_Настройки.js', 'utf8'), apiContext);
+vm.runInContext(fs.readFileSync('ozon-dashboard/Flow_Основная__Дашборд_Ozon.js', 'utf8'), apiContext);
+vm.runInContext(fs.readFileSync('ozon-dashboard/List_Основная__ЦенаПродажи__Ozon.js', 'utf8'), apiContext);
+let apiError;
+try {
+  apiContext.ozonDashboardPostJson_('https://example.test', {}, {}, 0);
+} catch (error) {
+  apiError = error;
+}
+assert.equal(apiAttempts, 3);
+assert.equal(apiError.ozonRetryable, true);
+assert.equal(apiError.retryAfterMs, 3000);
+assert.deepEqual(apiSleeps, [5000, 10000]);
 
 console.log('Ozon dashboard outflow unit checks passed.');

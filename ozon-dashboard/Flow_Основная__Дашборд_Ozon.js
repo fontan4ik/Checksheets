@@ -2,6 +2,10 @@ const OZON_DASHBOARD_SHEET_ = 'Основная';
 const OZON_DASHBOARD_TAB_ = 'Дашборд управления';
 const OZON_DASHBOARD_STATE_KEY_ = 'ozonDashboardSyncState';
 const OZON_DASHBOARD_CONTINUATION_HANDLER_ = 'continueOzonDashboardSync';
+const OZON_DASHBOARD_LOCK_WAIT_MS_ = 5000;
+const OZON_DASHBOARD_MAX_TRANSIENT_RETRIES_ = 8;
+const OZON_DASHBOARD_RETRY_BASE_MS_ = 60000;
+const OZON_DASHBOARD_RETRY_MAX_MS_ = 10 * 60 * 1000;
 
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -66,12 +70,18 @@ function ozonDashboardLoadPricesAndStocks() {
 function continueOzonDashboardSync() {
   return runWithTelegramAlertGAS_('continueOzonDashboardSync', function() {
     const lock = LockService.getScriptLock();
-    if (!lock.tryLock(30000)) throw new Error('Другая синхронизация Ozon уже выполняется');
+    if (!lock.tryLock(OZON_DASHBOARD_LOCK_WAIT_MS_)) {
+      Logger.log('Продолжение синхронизации Ozon пропущено: другой запуск ещё выполняется.');
+      return false;
+    }
     try {
-      ozonDashboardContinueCore_();
-    } catch (error) {
-      ozonDashboardClearSync_();
-      throw error;
+      try {
+        ozonDashboardContinueCore_();
+      } catch (error) {
+        if (ozonDashboardScheduleTransientRetry_(error)) return false;
+        ozonDashboardClearSync_();
+        throw error;
+      }
     } finally {
       lock.releaseLock();
     }
@@ -80,14 +90,27 @@ function continueOzonDashboardSync() {
 
 function ozonDashboardStartSync_(mode) {
   const lock = LockService.getScriptLock();
-  if (!lock.tryLock(30000)) throw new Error('Другая синхронизация Ozon уже выполняется');
+  if (!lock.tryLock(OZON_DASHBOARD_LOCK_WAIT_MS_)) {
+    ozonDashboardNotifyUser_('Синхронизация Ozon уже запускается или продолжает работу.');
+    Logger.log('Повторное нажатие кнопки Ozon пропущено: занят скриптовый замок.');
+    return false;
+  }
   try {
     const properties = PropertiesService.getScriptProperties();
     const existing = properties.getProperty(OZON_DASHBOARD_STATE_KEY_);
     if (existing) {
       const previous = JSON.parse(existing);
-      throw new Error('Уже выполняется синхронизация Ozon (' + previous.mode + ', строка ' +
-        previous.rowOffset + ' из ' + previous.lastRow + ')');
+      const progress = previous.phase === 'prices' ? 'обновляются цены' :
+        (previous.phase === 'stocks' ? 'обновляются остатки, строка ' + previous.rowOffset +
+          ' из ' + previous.lastRow : 'обновляются уходы');
+      const hasContinuation = ScriptApp.getProjectTriggers().some(function(trigger) {
+        return trigger.getHandlerFunction() === OZON_DASHBOARD_CONTINUATION_HANDLER_;
+      });
+      if (!hasContinuation) ozonDashboardScheduleContinuation_();
+      ozonDashboardNotifyUser_('Синхронизация Ozon уже выполняется: ' + progress + '.');
+      Logger.log('Повторное нажатие кнопки Ozon пропущено. runId=' + previous.runId +
+        ', режим=' + previous.mode + ', фаза=' + previous.phase);
+      return false;
     }
 
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -101,16 +124,18 @@ function ozonDashboardStartSync_(mode) {
       rowOffset: 2,
       lastRow: sheet.getLastRow(),
       lastOzonRequestAt: 0,
+      transientRetryCount: 0,
       startedAt: new Date().toISOString()
     };
     properties.setProperty(OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state));
 
     try {
-      if (mode === 'stocks' || mode === 'both') {
-        state.warehouseIds = ozonDashboardFetchTargetWarehouseIds_(state);
-      }
-      properties.setProperty(OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state));
-      ozonDashboardContinueCore_();
+      ozonDashboardScheduleContinuation_();
+      ozonDashboardNotifyUser_(mode === 'prices' ? 'Загрузка цен Ozon запущена.' :
+        (mode === 'stocks' ? 'Загрузка остатков и уходов Ozon запущена.' :
+          'Загрузка цен, остатков и уходов Ozon запущена.'));
+      Logger.log('Синхронизация Ozon запущена. runId=' + state.runId + ', режим=' + mode);
+      return true;
     } catch (error) {
       ozonDashboardClearSync_();
       throw error;
@@ -125,11 +150,11 @@ function ozonDashboardContinueCore_() {
   const saved = properties.getProperty(OZON_DASHBOARD_STATE_KEY_);
   if (!saved) return;
   const state = JSON.parse(saved);
+  ozonDashboardScheduleWatchdog_();
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = spreadsheet.getSheetByName(OZON_DASHBOARD_SHEET_);
   if (!sheet) throw new Error('Не найден лист «' + OZON_DASHBOARD_SHEET_ + '»');
 
-  ozonDashboardScheduleWatchdog_();
   if (state.phase === 'prices') {
     ozonDashboardSyncPrices_(sheet, state);
     if (state.mode === 'prices') {
@@ -139,6 +164,7 @@ function ozonDashboardContinueCore_() {
     }
     state.phase = 'stocks';
     state.rowOffset = 2;
+    state.transientRetryCount = 0;
     properties.setProperty(OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state));
     ozonDashboardScheduleContinuation_();
     Logger.log('Синхронизация цен Ozon завершена; остатки продолжатся отдельным запуском. runId=' + state.runId);
@@ -146,6 +172,7 @@ function ozonDashboardContinueCore_() {
   }
   if (state.phase === 'outflows') {
     ozonDashboardSyncOutflowPages_(sheet, state);
+    state.transientRetryCount = 0;
     properties.setProperty(OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state));
     ozonDashboardScheduleContinuation_();
     Logger.log('Синхронизация уходов Ozon продолжится. runId=' + state.runId +
@@ -169,7 +196,13 @@ function ozonDashboardContinueCore_() {
     return;
   }
 
+  if (!state.warehouseIds) {
+    state.warehouseIds = ozonDashboardFetchTargetWarehouseIds_(state);
+    properties.setProperty(OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state));
+  }
   ozonDashboardSyncStockSlice_(sheet, state);
+  state.transientRetryCount = 0;
+  properties.setProperty(OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state));
   if (state.rowOffset > state.lastRow) {
     ozonDashboardBeginOutflows_(sheet, state);
     ozonDashboardScheduleContinuation_();
@@ -181,9 +214,10 @@ function ozonDashboardContinueCore_() {
   }
 }
 
-function ozonDashboardScheduleContinuation_() {
+function ozonDashboardScheduleContinuation_(delayMs) {
   ozonDashboardDeleteContinuationTriggers_();
-  ScriptApp.newTrigger(OZON_DASHBOARD_CONTINUATION_HANDLER_).timeBased().after(60000).create();
+  ScriptApp.newTrigger(OZON_DASHBOARD_CONTINUATION_HANDLER_).timeBased()
+    .after(Math.max(60000, Number(delayMs) || 60000)).create();
 }
 
 function ozonDashboardScheduleWatchdog_() {
@@ -216,6 +250,40 @@ function ozonDashboardDeleteContinuationTriggers_() {
       ScriptApp.deleteTrigger(trigger);
     }
   });
+}
+
+function ozonDashboardNotifyUser_(message) {
+  try {
+    SpreadsheetApp.getActiveSpreadsheet().toast(message, 'Ozon', 8);
+  } catch (error) {
+    Logger.log('Не удалось показать уведомление Ozon в таблице: ' + error.message);
+  }
+}
+
+function ozonDashboardScheduleTransientRetry_(error) {
+  if (!error || (!error.ozonTransient && !error.ozonRetryable)) return false;
+  const properties = PropertiesService.getScriptProperties();
+  const saved = properties.getProperty(OZON_DASHBOARD_STATE_KEY_);
+  if (!saved) return false;
+
+  const state = JSON.parse(saved);
+  state.transientRetryCount = Number(state.transientRetryCount || 0) + 1;
+  if (state.transientRetryCount > OZON_DASHBOARD_MAX_TRANSIENT_RETRIES_) return false;
+  const backoff = Math.min(
+    OZON_DASHBOARD_RETRY_BASE_MS_ * Math.pow(2, state.transientRetryCount - 1),
+    OZON_DASHBOARD_RETRY_MAX_MS_
+  );
+  const delayMs = Math.max(backoff, Number(error.retryAfterMs) || 0);
+  state.lastTransientError = String(error.message || error).slice(0, 500);
+  state.nextRetryAt = new Date(Date.now() + delayMs).toISOString();
+  properties.setProperty(OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state));
+  ozonDashboardScheduleContinuation_(delayMs);
+  Logger.log('Временный сбой Ozon API; состояние сохранено, повтор через ' +
+    Math.ceil(delayMs / 1000) + ' сек. runId=' + state.runId + ', попытка=' +
+    state.transientRetryCount + '/' + OZON_DASHBOARD_MAX_TRANSIENT_RETRIES_ +
+    ', ошибка=' + state.lastTransientError);
+  ozonDashboardNotifyUser_('Ozon временно ограничил запросы. Прогресс сохранён, выгрузка продолжится автоматически.');
+  return true;
 }
 
 
