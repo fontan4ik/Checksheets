@@ -151,8 +151,9 @@ function ozonDashboardSyncOutflowPages_(sheet, state) {
     if (state.outflowPages > 10000) throw new Error('Ozon FBO postings: превышено число страниц');
     if (!response.has_next) {
       state.phase = 'outflowCommit';
-      break;
     }
+    PropertiesService.getScriptProperties().setProperty(OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state));
+    if (!response.has_next) break;
   }
   Logger.log(JSON.stringify({
     service: 'Ozon monthly FBO outflows',

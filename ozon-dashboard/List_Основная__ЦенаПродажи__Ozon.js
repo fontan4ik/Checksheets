@@ -106,8 +106,9 @@ function ozonDashboardPostJson_(url, payload, state, minimumIntervalMs) {
         OZON_DASHBOARD_STATE_KEY_, JSON.stringify(state)
       );
       lastError = error;
+      lastError.ozonTransient = true;
       if (attempt + 1 >= maxAttempts) break;
-      Utilities.sleep(2000 * (attempt + 1));
+      Utilities.sleep(Math.max(2000 * Math.pow(2, attempt), minimumIntervalMs));
       continue;
     }
 
@@ -126,8 +127,30 @@ function ozonDashboardPostJson_(url, payload, state, minimumIntervalMs) {
     }
 
     lastError = new Error('Ozon API HTTP ' + status + ': ' + body.substring(0, 400));
-    if ((status !== 429 && status < 500) || attempt + 1 >= maxAttempts) break;
-    Utilities.sleep(Math.max(5000 * (attempt + 1), minimumIntervalMs));
+    if (status === 408 || status === 429 || status >= 500) {
+      lastError.ozonRetryable = true;
+      lastError.retryAfterMs = ozonDashboardRetryAfterMs_(response);
+    }
+    if (!(status === 408 || status === 429 || status >= 500) || attempt + 1 >= maxAttempts) break;
+    Utilities.sleep(Math.max(5000 * Math.pow(2, attempt), minimumIntervalMs, lastError.retryAfterMs || 0));
   }
   throw lastError || new Error('Не удалось выполнить запрос Ozon API');
+}
+
+function ozonDashboardRetryAfterMs_(response) {
+  let headers = {};
+  try {
+    headers = response.getAllHeaders ? response.getAllHeaders() :
+      (response.getHeaders ? response.getHeaders() : {});
+  } catch (error) {
+    return 0;
+  }
+  const retryAfter = Object.keys(headers || {}).reduce(function(value, key) {
+    return String(key).toLowerCase() === 'retry-after' ? headers[key] : value;
+  }, null);
+  if (retryAfter === null || retryAfter === undefined) return 0;
+  const seconds = Number(retryAfter);
+  if (isFinite(seconds) && seconds >= 0) return seconds * 1000;
+  const dateMs = Date.parse(String(retryAfter));
+  return isFinite(dateMs) ? Math.max(0, dateMs - Date.now()) : 0;
 }
